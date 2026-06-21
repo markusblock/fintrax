@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Separator?>
+<?import javafx.geometry.Insets?>
+
+<BorderPane fx:id="rootPane" xmlns:fx="http://javafx.com/fxml" fx:controller="org.fintrax.ui.controller.MainController">
+    <left>
+        <VBox fx:id="sidebar" prefWidth="200" style="-fx-background-color: #f5f5f5;">
+            <padding>
+                <Insets top="10" right="10" bottom="10" left="10"/>
+            </padding>
+            <Button fx:id="toggleSidebarButton" text="☰" onAction="#onToggleSidebar" maxWidth="Infinity" style="-fx-font-size: 18px;"/>
+            <Separator/>
+            <Button text="🏦 Bank Accounts" onAction="#onBankAccounts" maxWidth="Infinity" style="-fx-alignment: CENTER_LEFT;"/>
+            <Button text="💰 Transactions" onAction="#onTransactions" maxWidth="Infinity" style="-fx-alignment: CENTER_LEFT;"/>
+            <Button text="📁 Categories" onAction="#onCategories" maxWidth="Infinity" style="-fx-alignment: CENTER_LEFT;"/>
+            <Button text="⚙️ Rules" onAction="#onRules" maxWidth="Infinity" style="-fx-alignment: CENTER_LEFT;"/>
+            <Button text="🏷️ Labels" onAction="#onLabels" maxWidth="Infinity" style="-fx-alignment: CENTER_LEFT;"/>
+            <Button text="📋 Activity Log" onAction="#onActivityLog" maxWidth="Infinity" style="-fx-alignment: CENTER_LEFT;"/>
+            <Button text="⚙️ Settings" onAction="#onSettings" maxWidth="Infinity" style="-fx-alignment: CENTER_LEFT;"/>
+        </VBox>
+    </left>
+    <center>
+        <StackPane fx:id="contentArea" style="-fx-background-color: white;"/>
+    </center>
+</BorderPane>

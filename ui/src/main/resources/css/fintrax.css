@@ -1,0 +1,93 @@
+.root {
+    -fx-font-family: "System";
+}
+
+.button {
+    -fx-cursor: hand;
+}
+
+.sidebar-button {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-padding: 10 15;
+}
+
+.sidebar-button:hover {
+    -fx-background-color: #e0e0e0;
+}
+
+.sidebar-button:pressed {
+    -fx-background-color: #d0d0d0;
+}
+
+.account-card {
+    -fx-background-color: white;
+    -fx-border-color: #e0e0e0;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 8, 0, 0, 2);
+}
+
+.account-card:hover {
+    -fx-border-color: #1976d2;
+    -fx-effect: dropshadow(gaussian, rgba(25,118,210,0.15), 12, 0, 0, 3);
+}
+
+.sync-button {
+    -fx-background-color: #1976d2;
+    -fx-text-fill: white;
+    -fx-font-size: 12px;
+    -fx-padding: 5 12;
+    -fx-background-radius: 4;
+}
+
+.sync-button:hover {
+    -fx-background-color: #1565c0;
+}
+
+.delete-button {
+    -fx-background-color: transparent;
+    -fx-text-fill: #d32f2f;
+    -fx-border-color: #d32f2f;
+    -fx-border-radius: 4;
+    -fx-font-size: 12px;
+    -fx-padding: 5 12;
+}
+
+.delete-button:hover {
+    -fx-background-color: #ffebee;
+}
+
+.accent-button {
+    -fx-background-color: #1976d2;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-padding: 8 16;
+    -fx-background-radius: 4;
+}
+
+.accent-button:hover {
+    -fx-background-color: #1565c0;
+}
+
+.amount-positive {
+    -fx-text-fill: #2e7d32;
+}
+
+.amount-negative {
+    -fx-text-fill: #d32f2f;
+}
+
+.table-view .table-row-cell:odd {
+    -fx-background-color: #fafafa;
+}
+
+.table-view .table-row-cell:selected {
+    -fx-background-color: #e3f2fd;
+}
+
+.detail-panel {
+    -fx-background-color: #f8f9fa;
+    -fx-border-color: #e0e0e0;
+    -fx-border-width: 1 0 0 0;
+}

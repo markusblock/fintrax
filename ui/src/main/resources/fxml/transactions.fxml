@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<BorderPane fx:id="rootPane" xmlns:fx="http://javafx.com/fxml"
+            fx:controller="org.fintrax.ui.controller.TransactionsController">
+    <top>
+        <VBox spacing="8">
+            <padding>
+                <Insets top="20" right="20" bottom="10" left="20"/>
+            </padding>
+            <HBox spacing="10" alignment="CENTER_LEFT">
+                <Label text="%view.transactions" style="-fx-font-size: 24px; -fx-font-weight: bold;"/>
+                <Region HBox.hgrow="ALWAYS"/>
+                <Button fx:id="bulkCategoryButton" text="%button.bulkCategory" onAction="#onBulkCategory" disable="true"/>
+                <Button fx:id="bulkLabelAddButton" text="%button.bulkLabelAdd" onAction="#onBulkLabelAdd" disable="true"/>
+                <Button fx:id="bulkLabelRemoveButton" text="%button.bulkLabelRemove" onAction="#onBulkLabelRemove" disable="true"/>
+                <Button text="%button.toggleDetail" onAction="#onToggleDetail"/>
+            </HBox>
+            <Separator/>
+            <GridPane hgap="10" vgap="8">
+                <columnConstraints>
+                    <ColumnConstraints hgrow="ALWAYS" prefWidth="150"/>
+                    <ColumnConstraints hgrow="ALWAYS" prefWidth="150"/>
+                    <ColumnConstraints hgrow="ALWAYS" prefWidth="150"/>
+                    <ColumnConstraints hgrow="ALWAYS" prefWidth="150"/>
+                    <ColumnConstraints hgrow="ALWAYS" prefWidth="200"/>
+                    <ColumnConstraints halignment="RIGHT"/>
+                </columnConstraints>
+                <ComboBox fx:id="accountFilter" promptText="%filter.account" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+                <ComboBox fx:id="categoryFilter" promptText="%filter.category" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
+                <TextField fx:id="searchField" promptText="%filter.search" GridPane.rowIndex="0" GridPane.columnIndex="2"/>
+                <TextField fx:id="minAmountField" promptText="%filter.minAmount" GridPane.rowIndex="0" GridPane.columnIndex="3"/>
+                <TextField fx:id="maxAmountField" promptText="%filter.maxAmount" GridPane.rowIndex="0" GridPane.columnIndex="4"/>
+                <Button text="%button.search" onAction="#onApplyFilters" styleClass="accent-button" GridPane.rowIndex="0" GridPane.columnIndex="5"/>
+            </GridPane>
+        </VBox>
+    </top>
+    <center>
+        <SplitPane fx:id="splitPane" orientation="VERTICAL" dividerPositions="0.7">
+            <TableView fx:id="transactionTable" SplitPane.resizableWithParent="true">
+                <columns>
+                    <TableColumn fx:id="dateColumn" text="%col.date" prefWidth="100"/>
+                    <TableColumn fx:id="payeeColumn" text="%col.payee" prefWidth="200"/>
+                    <TableColumn fx:id="purposeColumn" text="%col.purpose" prefWidth="250"/>
+                    <TableColumn fx:id="amountColumn" text="%col.amount" prefWidth="100"/>
+                    <TableColumn fx:id="balanceColumn" text="%col.balance" prefWidth="100"/>
+                    <TableColumn fx:id="categoryColumn" text="%col.category" prefWidth="150"/>
+                    <TableColumn fx:id="labelsColumn" text="%col.labels" prefWidth="150"/>
+                </columns>
+            </TableView>
+            <VBox fx:id="detailPanel" visible="false" managed="false" spacing="10" style="-fx-background-color: #f8f9fa;">
+                <padding>
+                    <Insets top="15" right="20" bottom="15" left="20"/>
+                </padding>
+                <HBox spacing="10" alignment="CENTER_LEFT">
+                    <Label text="%detail.title" style="-fx-font-size: 16px; -fx-font-weight: bold;"/>
+                    <Region HBox.hgrow="ALWAYS"/>
+                    <Button text="%button.close" onAction="#onToggleDetail" style="-fx-font-size: 11px;"/>
+                </HBox>
+                <GridPane hgap="10" vgap="10">
+                    <columnConstraints>
+                        <ColumnConstraints minWidth="100" prefWidth="120" halignment="RIGHT"/>
+                        <ColumnConstraints hgrow="ALWAYS" fillWidth="true"/>
+                    </columnConstraints>
+                    <Label text="%detail.payee" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+                    <TextField fx:id="payeeField" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
+                    <Label text="%detail.category" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
+                    <ComboBox fx:id="detailCategoryCombo" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
+                    <Label text="%detail.labels" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
+                    <HBox fx:id="labelsContainer" spacing="5" GridPane.rowIndex="2" GridPane.columnIndex="1"/>
+                    <Label text="%detail.note" GridPane.rowIndex="3" GridPane.columnIndex="0"/>
+                    <TextArea fx:id="noteArea" prefRowCount="3" wrapText="true" GridPane.rowIndex="3" GridPane.columnIndex="1"/>
+                </GridPane>
+                <HBox spacing="10" alignment="CENTER_RIGHT">
+                    <Button text="%button.save" onAction="#onSaveDetail" styleClass="accent-button"/>
+                </HBox>
+            </VBox>
+        </SplitPane>
+    </center>
+</BorderPane>

@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.ColorPicker?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Separator?>
+<?import javafx.scene.control.SplitPane?>
+<?import javafx.geometry.Insets?>
+
+<BorderPane fx:id="rootPane" xmlns:fx="http://javafx.com/fxml"
+            fx:controller="org.fintrax.ui.controller.LabelsController">
+    <top>
+        <VBox spacing="5">
+            <padding>
+                <Insets top="20" right="20" bottom="10" left="20"/>
+            </padding>
+            <HBox spacing="10" alignment="CENTER_LEFT">
+                <Label text="%view.labels" style="-fx-font-size: 24px; -fx-font-weight: bold;"/>
+                <Region HBox.hgrow="ALWAYS"/>
+                <Button fx:id="addButton" text="%button.addLabel" onAction="#onAdd" styleClass="accent-button"/>
+            </HBox>
+            <Label text="%subtitle.labels"/>
+        </VBox>
+    </top>
+    <center>
+        <SplitPane dividerPositions="0.6">
+            <TableView fx:id="labelTable">
+                <columns>
+                    <TableColumn fx:id="nameColumn" text="%label.name" prefWidth="150"/>
+                    <TableColumn fx:id="colorColumn" text="%label.color" prefWidth="120"/>
+                    <TableColumn fx:id="commentColumn" text="%label.comment" prefWidth="200"/>
+                </columns>
+            </TableView>
+            <VBox spacing="10">
+                <padding>
+                    <Insets top="15" right="20" bottom="15" left="20"/>
+                </padding>
+                <Label text="%detail.labelEditor" style="-fx-font-size: 16px; -fx-font-weight: bold;"/>
+                <Separator/>
+                <GridPane hgap="10" vgap="10">
+                    <columnConstraints>
+                        <ColumnConstraints minWidth="80" prefWidth="100" halignment="RIGHT"/>
+                        <ColumnConstraints hgrow="ALWAYS" fillWidth="true"/>
+                    </columnConstraints>
+                    <Label text="%label.name" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+                    <TextField fx:id="nameField" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
+                    <Label text="%label.color" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
+                    <ColorPicker fx:id="colorPicker" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
+                    <Label text="%label.comment" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
+                    <TextField fx:id="commentField" GridPane.rowIndex="2" GridPane.columnIndex="1"/>
+                </GridPane>
+                <Region VBox.vgrow="ALWAYS"/>
+                <HBox spacing="10" alignment="CENTER_RIGHT">
+                    <Button fx:id="deleteButton" text="%button.delete" onAction="#onDelete" disable="true" styleClass="delete-button"/>
+                    <Button fx:id="saveButton" text="%button.save" onAction="#onSave" disable="true" styleClass="accent-button"/>
+                </HBox>
+            </VBox>
+        </SplitPane>
+    </center>
+</BorderPane>

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Separator?>
+<?import javafx.geometry.Insets?>
+
+<BorderPane fx:id="rootPane" xmlns:fx="http://javafx.com/fxml"
+            fx:controller="org.fintrax.ui.controller.ActivityLogController">
+    <top>
+        <VBox spacing="5">
+            <padding>
+                <Insets top="20" right="20" bottom="10" left="20"/>
+            </padding>
+            <HBox spacing="10" alignment="CENTER_LEFT">
+                <Label text="%view.activityLog" style="-fx-font-size: 24px; -fx-font-weight: bold;"/>
+                <Region HBox.hgrow="ALWAYS"/>
+            </HBox>
+            <Separator/>
+            <HBox spacing="10" alignment="CENTER_LEFT">
+                <ComboBox fx:id="actionFilter" promptText="%filter.action"/>
+                <ComboBox fx:id="entityTypeFilter" promptText="%filter.entityType"/>
+                <Button text="%button.filter" onAction="#onApplyFilters" styleClass="accent-button"/>
+            </HBox>
+        </VBox>
+    </top>
+    <center>
+        <TableView fx:id="logTable">
+            <columns>
+                <TableColumn fx:id="timestampColumn" text="%col.timestamp" prefWidth="160"/>
+                <TableColumn fx:id="actionColumn" text="%col.action" prefWidth="80"/>
+                <TableColumn fx:id="entityTypeColumn" text="%col.entityType" prefWidth="100"/>
+                <TableColumn fx:id="entityIdColumn" text="%col.entityId" prefWidth="60"/>
+                <TableColumn fx:id="descriptionColumn" text="%col.description" prefWidth="400"/>
+            </columns>
+        </TableView>
+    </center>
+</BorderPane>

@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Separator?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.geometry.Insets?>
+
+<BorderPane fx:id="rootPane" xmlns:fx="http://javafx.com/fxml"
+            fx:controller="org.fintrax.ui.controller.SettingsController">
+    <top>
+        <VBox spacing="5">
+            <padding>
+                <Insets top="20" right="20" bottom="10" left="20"/>
+            </padding>
+            <HBox spacing="10" alignment="CENTER_LEFT">
+                <Label text="%view.settings" style="-fx-font-size: 24px; -fx-font-weight: bold;"/>
+            </HBox>
+        </VBox>
+    </top>
+    <center>
+        <ScrollPane fitToWidth="true">
+            <VBox spacing="20">
+                <padding>
+                    <Insets top="10" right="20" bottom="20" left="20"/>
+                </padding>
+
+                <Label text="%settings.section.general" style="-fx-font-size: 16px; -fx-font-weight: bold;"/>
+                <GridPane hgap="10" vgap="10">
+                    <columnConstraints>
+                        <ColumnConstraints minWidth="120" prefWidth="150" halignment="RIGHT"/>
+                        <ColumnConstraints hgrow="ALWAYS" prefWidth="200"/>
+                        <ColumnConstraints/>
+                    </columnConstraints>
+                    <Label text="%settings.language" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+                    <ComboBox fx:id="languageCombo" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
+                    <Button text="%button.save" onAction="#onSaveLanguage" GridPane.rowIndex="0" GridPane.columnIndex="2"/>
+
+                    <Label text="%settings.theme" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
+                    <ComboBox fx:id="themeCombo" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
+                    <Button text="%button.save" onAction="#onSaveTheme" GridPane.rowIndex="1" GridPane.columnIndex="2"/>
+                </GridPane>
+
+                <Separator/>
+
+                <Label text="%settings.section.data" style="-fx-font-size: 16px; -fx-font-weight: bold;"/>
+                <GridPane hgap="10" vgap="10">
+                    <columnConstraints>
+                        <ColumnConstraints minWidth="120" prefWidth="150" halignment="RIGHT"/>
+                        <ColumnConstraints hgrow="ALWAYS"/>
+                    </columnConstraints>
+                    <Label text="%settings.dataDir" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+                    <Label fx:id="dataDirLabel" style="-fx-font-family: monospace; -fx-text-fill: #666;"
+                           GridPane.rowIndex="0" GridPane.columnIndex="1"/>
+                </GridPane>
+
+                <Separator/>
+
+                <Label text="%settings.section.credentials" style="-fx-font-size: 16px; -fx-font-weight: bold;"/>
+                <TableView fx:id="credentialTable" prefHeight="200">
+                    <columns>
+                        <TableColumn fx:id="accountColumn" text="%settings.credential.account" prefWidth="250"/>
+                        <TableColumn fx:id="statusColumn" text="%settings.credential.status" prefWidth="150"/>
+                    </columns>
+                </TableView>
+                <HBox spacing="10" alignment="CENTER_RIGHT">
+                    <Button text="%button.deleteCredential" onAction="#onDeleteCredential" styleClass="delete-button"/>
+                </HBox>
+
+                <Separator/>
+
+                <Label text="%settings.section.import" style="-fx-font-size: 16px; -fx-font-weight: bold;"/>
+                <VBox spacing="5">
+                    <Label text="%settings.import.hibiscus.desc" wrapText="true" style="-fx-text-fill: #666;"/>
+                    <HBox spacing="10" alignment="CENTER_LEFT">
+                        <Button text="%button.import" onAction="#onImportHibiscus"/>
+                    </HBox>
+                </VBox>
+            </VBox>
+        </ScrollPane>
+    </center>
+</BorderPane>
