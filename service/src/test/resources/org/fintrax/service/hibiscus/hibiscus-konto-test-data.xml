@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<objects>
+
+  <object type="de.willuhn.jameica.hbci.server.KontoImpl" id="1">
+    <bezeichnung type="java.lang.String">Testkonto SEPA</bezeichnung>
+    <unterkonto type="java.lang.String"></unterkonto>
+    <saldo type="java.lang.Double">4.67</saldo>
+    <blz type="java.lang.String">37040044</blz>
+    <kundennummer type="java.lang.String">12345678</kundennummer>
+    <kontonummer type="java.lang.String">0532013000</kontonummer>
+    <passport_class type="java.lang.String">de.willuhn.jameica.hbci.passports.pintan.server.PassportImpl</passport_class>
+    <iban type="java.lang.String">DE89370400440532013000</iban>
+    <name type="java.lang.String">Max Mustermann</name>
+    <waehrung type="java.lang.String">EUR</waehrung>
+    <saldo_datum type="java.sql.Timestamp">04.01.2026 12:21:00</saldo_datum>
+    <bic type="java.lang.String">COBADEFFXXX</bic>
+  </object>
+
+  <object type="de.willuhn.jameica.hbci.server.KontoImpl" id="2">
+    <bezeichnung type="java.lang.String">Deutsche Bank Girokonto</bezeichnung>
+    <unterkonto type="java.lang.String"></unterkonto>
+    <saldo type="java.lang.Double">2847.32</saldo>
+    <blz type="java.lang.String">10070000</blz>
+    <kundennummer type="java.lang.String">20010020</kundennummer>
+    <kontonummer type="java.lang.String">0593945999</kontonummer>
+    <passport_class type="java.lang.String">de.willuhn.jameica.hbci.passports.pintan.server.PassportImpl</passport_class>
+    <iban type="java.lang.String">DE53100700000593945999</iban>
+    <name type="java.lang.String">Anna Schmidt</name>
+    <waehrung type="java.lang.String">EUR</waehrung>
+    <saldo_datum type="java.sql.Timestamp">01.01.2025 00:00:00</saldo_datum>
+    <bic type="java.lang.String">DEUTDEFFXXX</bic>
+  </object>
+
+  <object type="de.willuhn.jameica.hbci.server.KontoImpl" id="3">
+    <bezeichnung type="java.lang.String">Sparkasse Sparkonto</bezeichnung>
+    <unterkonto type="java.lang.String"></unterkonto>
+    <saldo type="java.lang.Double">15420.75</saldo>
+    <blz type="java.lang.String">50010517</blz>
+    <kundennummer type="java.lang.String">30020030</kundennummer>
+    <kontonummer type="java.lang.String">0000000100</kontonummer>
+    <passport_class type="java.lang.String">de.willuhn.jameica.hbci.passports.pintan.server.PassportImpl</passport_class>
+    <iban type="java.lang.String">DE43500105170000000100</iban>
+    <name type="java.lang.String">Thomas Weber</name>
+    <waehrung type="java.lang.String">EUR</waehrung>
+    <saldo_datum type="java.sql.Timestamp">01.01.2025 00:00:00</saldo_datum>
+    <bic type="java.lang.String">SPKNDEFFXXX</bic>
+  </object>
+
+  <object type="de.willuhn.jameica.hbci.server.KontoImpl" id="4">
+    <bezeichnung type="java.lang.String">Commerzbank Geschäftskonto</bezeichnung>
+    <unterkonto type="java.lang.String"></unterkonto>
+    <saldo type="java.lang.Double">8956.44</saldo>
+    <blz type="java.lang.String">20040000</blz>
+    <kundennummer type="java.lang.String">40030040</kundennummer>
+    <kontonummer type="java.lang.String">0098765430</kontonummer>
+    <passport_class type="java.lang.String">de.willuhn.jameica.hbci.passports.pintan.server.PassportImpl</passport_class>
+    <iban type="java.lang.String">DE83200400000098765430</iban>
+    <name type="java.lang.String">Weber GmbH</name>
+    <waehrung type="java.lang.String">EUR</waehrung>
+    <saldo_datum type="java.sql.Timestamp">01.01.2025 00:00:00</saldo_datum>
+    <bic type="java.lang.String">COBADEFFXXX</bic>
+  </object>
+
+  <object type="de.willuhn.jameica.hbci.server.KontoImpl" id="5">
+    <bezeichnung type="java.lang.String">HypoVereinsbank Privatkonto</bezeichnung>
+    <unterkonto type="java.lang.String"></unterkonto>
+    <saldo type="java.lang.Double">-234.56</saldo>
+    <blz type="java.lang.String">70020270</blz>
+    <kundennummer type="java.lang.String">50040050</kundennummer>
+    <kontonummer type="java.lang.String">0045612376</kontonummer>
+    <passport_class type="java.lang.String">de.willuhn.jameica.hbci.passports.pintan.server.PassportImpl</passport_class>
+    <iban type="java.lang.String">DE85700202700045612376</iban>
+    <name type="java.lang.String">Maria Müller</name>
+    <waehrung type="java.lang.String">EUR</waehrung>
+    <saldo_datum type="java.sql.Timestamp">01.01.2025 00:00:00</saldo_datum>
+    <bic type="java.lang.String">HYVEDEMMXXX</bic>
+  </object>
+
+</objects>

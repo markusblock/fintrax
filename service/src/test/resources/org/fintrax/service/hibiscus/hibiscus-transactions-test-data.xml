@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<objects>
+
+  <object type="de.willuhn.jameica.hbci.server.TurnusImpl" id="1">
+    <initial type="java.lang.Integer">1</initial>
+    <intervall type="java.lang.Integer">1</intervall>
+    <tag type="java.lang.Integer">1</tag>
+    <zeiteinheit type="java.lang.Integer">2</zeiteinheit>
+  </object>
+
+  <object type="de.willuhn.jameica.hbci.server.UmsatzImpl" id="1">
+    <datum type="java.sql.Date">15.03.2024 00:00:00</datum>
+    <valuta type="java.sql.Date">15.03.2024 00:00:00</valuta>
+    <empfaenger_konto type="java.lang.String"></empfaenger_konto>
+    <primanota type="java.lang.String">009500</primanota>
+    <empfaenger_name type="java.lang.String">VISA Test GmbH</empfaenger_name>
+    <customerref type="java.lang.String">NONREF</customerref>
+    <checksum type="java.math.BigDecimal">1647417865</checksum>
+    <zweck type="java.lang.String">SVWZ+NR XXXX 1024 Pforzheim</zweck>
+    <art type="java.lang.String">Lastschrifteinzug</art>
+    <betrag type="java.lang.Double">-14.54</betrag>
+    <konto_id type="java.lang.Integer">1</konto_id>
+    <zweck3 type="java.lang.String">123456789000000000000</zweck3>
+    <zweck2 type="java.lang.String">DEKAUFUMSATZ08.10 14.54170</zweck2>
+    <saldo type="java.lang.Double">4506.97</saldo>
+    <gvcode type="java.lang.String">005</gvcode>
+    <empfaenger_blz type="java.lang.String"></empfaenger_blz>
+  </object>
+
+  <object type="de.willuhn.jameica.hbci.server.UmsatzImpl" id="2">
+    <datum type="java.sql.Date">01.08.2024 00:00:00</datum>
+    <valuta type="java.sql.Date">01.08.2024 00:00:00</valuta>
+    <empfaenger_konto type="java.lang.String"></empfaenger_konto>
+    <primanota type="java.lang.String">001000</primanota>
+    <empfaenger_name type="java.lang.String">REWE Filiale</empfaenger_name>
+    <customerref type="java.lang.String">REF001</customerref>
+    <checksum type="java.math.BigDecimal">1111111111</checksum>
+    <zweck type="java.lang.String">Einkauf Supermarkt</zweck>
+    <art type="java.lang.String">Kartenabrechnung</art>
+    <betrag type="java.lang.Double">-67.43</betrag>
+    <konto_id type="java.lang.Integer">2</konto_id>
+    <zweck3 type="java.lang.String">Z3-001</zweck3>
+    <zweck2 type="java.lang.String">Z2-001</zweck2>
+    <saldo type="java.lang.Double">2779.89</saldo>
+    <gvcode type="java.lang.String">001</gvcode>
+    <empfaenger_blz type="java.lang.String"></empfaenger_blz>
+  </object>
+
+  <object type="de.willuhn.jameica.hbci.server.UmsatzImpl" id="3">
+    <datum type="java.sql.Date">12.11.2024 00:00:00</datum>
+    <valuta type="java.sql.Date">12.11.2024 00:00:00</valuta>
+    <empfaenger_konto type="java.lang.String"></empfaenger_konto>
+    <primanota type="java.lang.String">002000</primanota>
+    <empfaenger_name type="java.lang.String">ACME GmbH</empfaenger_name>
+    <customerref type="java.lang.String">SALARY08</customerref>
+    <checksum type="java.math.BigDecimal">2222222222</checksum>
+    <zweck type="java.lang.String">Gehaltszahlung Juli</zweck>
+    <art type="java.lang.String">Gehalt</art>
+    <betrag type="java.lang.Double">3200.0</betrag>
+    <konto_id type="java.lang.Integer">3</konto_id>
+    <zweck3 type="java.lang.String">Z3-002</zweck3>
+    <zweck2 type="java.lang.String">Z2-002</zweck2>
+    <saldo type="java.lang.Double">18620.75</saldo>
+    <gvcode type="java.lang.String">002</gvcode>
+    <empfaenger_blz type="java.lang.String"></empfaenger_blz>
+  </object>
+
+  <object type="de.willuhn.jameica.hbci.server.UmsatzImpl" id="4">
+    <datum type="java.sql.Date">05.01.2025 00:00:00</datum>
+    <valuta type="java.sql.Date">05.01.2025 00:00:00</valuta>
+    <empfaenger_konto type="java.lang.String"></empfaenger_konto>
+    <primanota type="java.lang.String">003000</primanota>
+    <empfaenger_name type="java.lang.String">Bueromaterial GmbH</empfaenger_name>
+    <customerref type="java.lang.String">INV556</customerref>
+    <checksum type="java.math.BigDecimal">3333333333</checksum>
+    <zweck type="java.lang.String">Büromaterial Bestellung</zweck>
+    <art type="java.lang.String">Überweisung</art>
+    <betrag type="java.lang.Double">-156.78</betrag>
+    <konto_id type="java.lang.Integer">4</konto_id>
+    <zweck3 type="java.lang.String">Z3-003</zweck3>
+    <zweck2 type="java.lang.String">Z2-003</zweck2>
+    <saldo type="java.lang.Double">8799.66</saldo>
+    <gvcode type="java.lang.String">003</gvcode>
+    <empfaenger_blz type="java.lang.String"></empfaenger_blz>
+  </object>
+
+  <object type="de.willuhn.jameica.hbci.server.UmsatzImpl" id="5">
+    <datum type="java.sql.Date">01.01.2026 00:00:00</datum>
+    <valuta type="java.sql.Date">01.01.2026 00:00:00</valuta>
+    <empfaenger_konto type="java.lang.String"></empfaenger_konto>
+    <primanota type="java.lang.String">004000</primanota>
+    <empfaenger_name type="java.lang.String">Vermieter</empfaenger_name>
+    <customerref type="java.lang.String">RENT01</customerref>
+    <checksum type="java.math.BigDecimal">4444444444</checksum>
+    <zweck type="java.lang.String">Miete Januar</zweck>
+    <art type="java.lang.String">Lastschrift</art>
+    <betrag type="java.lang.Double">-850.0</betrag>
+    <konto_id type="java.lang.Integer">5</konto_id>
+    <zweck3 type="java.lang.String">Z3-004</zweck3>
+    <zweck2 type="java.lang.String">Z2-004</zweck2>
+    <saldo type="java.lang.Double">-1084.56</saldo>
+    <gvcode type="java.lang.String">004</gvcode>
+    <empfaenger_blz type="java.lang.String"></empfaenger_blz>
+  </object>
+
+</objects>
