@@ -48,7 +48,7 @@ class HibiscusXmlImporterTest {
 
         assertEquals(5, store.getRoot().getAccounts().size());
         assertEquals(5, store.getRoot().getTransactions().size());
-        assertEquals(33 + 8, store.getRoot().getCategories().size());
+        assertEquals(8, store.getRoot().getCategories().size());
         assertEquals(3, store.getRoot().getRules().size());
         assertEquals(5, store.getRoot().getActivityLogs().size());
     }

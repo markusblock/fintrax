@@ -21,8 +21,12 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
 
 @Slf4j
 public class HibiscusXmlImporter {
@@ -48,7 +52,7 @@ public class HibiscusXmlImporter {
             log.info("Found {} objects in XML", objects.getLength());
 
             Map<Integer, Long> accountIdMap = new HashMap<>();
-            Map<Integer, Long> categoryIdMap = new HashMap<>();
+            Map<Integer, Long> hibiscusToFintraxCategoryIdMap = new HashMap<>();
             List<CategoryImport> categoryImports = new ArrayList<>();
             List<TransactionImport> transactionImports = new ArrayList<>();
             List<ActivityLogImport> activityImports = new ArrayList<>();
@@ -75,27 +79,71 @@ public class HibiscusXmlImporter {
             int rulesCreated = 0;
             int activitiesCreated = 0;
 
-            for (var catImport : categoryImports) {
-                Long parentId = null;
-                if (catImport.parentHibiscusId != null && categoryIdMap.containsKey(catImport.parentHibiscusId)) {
-                    parentId = categoryIdMap.get(catImport.parentHibiscusId);
-                }
+            if (importCategories) {
+                rejectDuplicateSourceCategories(categoryImports);
 
-                if (importCategories) {
-                    long newId = nextCategoryId(root);
-                    Category cat = Category.builder()
-                            .id(newId)
-                            .name(catImport.name)
-                            .parentId(parentId)
-                            .color(catImport.color)
-                            .createdAt(LocalDateTime.now())
-                            .updatedAt(LocalDateTime.now())
-                            .build();
-                    root.getCategories().add(cat);
-                    categoryIdMap.put(catImport.hibiscusId, newId);
-                    categoriesCreated++;
-                } else {
-                    categoryIdMap.put(catImport.hibiscusId, null);
+                // Process categories in topological order (parents before children),
+                // retrying until no more progress is possible. XML order is irrelevant.
+                int processedCount;
+                do {
+                    processedCount = 0;
+                    for (var catImport : categoryImports) {
+                        // Skip if already processed
+                        if (hibiscusToFintraxCategoryIdMap.containsKey(catImport.hibiscusId)) {
+                            continue;
+                        }
+
+                        // Resolve parent fintrax ID from the hibiscus parent ID
+                        Long parentFintraxId = resolveParentFintraxId(
+                                hibiscusToFintraxCategoryIdMap, catImport.parentHibiscusId);
+
+                        // Parent not resolved yet, will try again in next iteration
+                        if (parentFintraxId == null && catImport.parentHibiscusId != null) {
+                            continue;
+                        }
+
+                        // Check if category already exists in fintrax
+                        if (shouldSkipCategoryImport(catImport, parentFintraxId, root)) {
+                            // Map hibiscus ID to existing fintrax category ID
+                            findExistingFintraxCategory(root, catImport.name, parentFintraxId)
+                                    .ifPresent(cat -> {
+                                        hibiscusToFintraxCategoryIdMap.put(catImport.hibiscusId, cat.getId());
+                                        log.debug("Skipping duplicate category: {} (parent: {})", catImport.name,
+                                                parentFintraxId != null ? "ID:" + parentFintraxId : "none");
+                                    });
+                        } else {
+                            long newId = nextCategoryId(root);
+                            Category cat = Category.builder()
+                                    .id(newId)
+                                    .name(catImport.name)
+                                    .parentId(parentFintraxId)
+                                    .color(catImport.color)
+                                    .createdAt(LocalDateTime.now())
+                                    .updatedAt(LocalDateTime.now())
+                                    .build();
+                            root.getCategories().add(cat);
+                            hibiscusToFintraxCategoryIdMap.put(catImport.hibiscusId, newId);
+                            categoriesCreated++;
+                            log.debug("Created new category: {} (parent: {})", catImport.name,
+                                    parentFintraxId != null ? "ID:" + parentFintraxId : "none");
+                        }
+                        processedCount++;
+                    }
+                } while (processedCount > 0 && hibiscusToFintraxCategoryIdMap.size() < categoryImports.size());
+
+                // Any remaining category has an unresolvable parent: invalid input, fail clearly
+                for (var catImport : categoryImports) {
+                    if (hibiscusToFintraxCategoryIdMap.containsKey(catImport.hibiscusId)) {
+                        continue;
+                    }
+                    throw new IllegalArgumentException(
+                            "Category '" + catImport.name + "' has unresolved parent (hibiscus ID: "
+                                    + catImport.parentHibiscusId + "); expected a full category export");
+                }
+            } else {
+                // Not importing categories, but still need to map IDs for rules
+                for (var catImport : categoryImports) {
+                    hibiscusToFintraxCategoryIdMap.put(catImport.hibiscusId, null);
                 }
             }
 
@@ -129,7 +177,7 @@ public class HibiscusXmlImporter {
             if (importRules) {
                 for (var catImport : categoryImports) {
                     if (catImport.pattern != null && !catImport.pattern.isEmpty()) {
-                        Long mappedCategoryId = categoryIdMap.get(catImport.hibiscusId);
+                        Long mappedCategoryId = hibiscusToFintraxCategoryIdMap.get(catImport.hibiscusId);
                         if (mappedCategoryId == null) continue;
 
                         long ruleId = nextRuleId(root);
@@ -202,6 +250,43 @@ public class HibiscusXmlImporter {
             log.error("Failed to import Hibiscus XML", e);
             throw new RuntimeException("Failed to import Hibiscus XML: " + e.getMessage(), e);
         }
+    }
+
+    private void rejectDuplicateSourceCategories(List<CategoryImport> categoryImports) {
+        Set<CategoryKey> seen = new HashSet<>();
+        for (var catImport : categoryImports) {
+            CategoryKey key = new CategoryKey(catImport.name, catImport.parentHibiscusId);
+            if (!seen.add(key)) {
+                throw new IllegalArgumentException(
+                        "Duplicate sibling category '" + catImport.name + "' in XML (parent hibiscus ID: "
+                                + catImport.parentHibiscusId + ")");
+            }
+        }
+    }
+
+    private Optional<Category> findExistingFintraxCategory(DataRoot root, String name, Long parentFintraxId) {
+        return root.getCategories().stream()
+                .filter(c -> name.equals(c.getName()))
+                .filter(c -> Objects.equals(parentFintraxId, c.getParentId()))
+                .findFirst();
+    }
+
+    private Long resolveParentFintraxId(
+            Map<Integer, Long> hibiscusToFintraxCategoryIdMap,
+            Integer parentHibiscusId) {
+
+        if (parentHibiscusId == null) {
+            return null;
+        }
+        return hibiscusToFintraxCategoryIdMap.get(parentHibiscusId);
+    }
+
+    private boolean shouldSkipCategoryImport(
+            CategoryImport hibiscusCategory,
+            Long parentFintraxId,
+            DataRoot root) {
+        
+        return findExistingFintraxCategory(root, hibiscusCategory.name, parentFintraxId).isPresent();
     }
 
     private void parseKonto(Element elem, int hibiscusId, Map<Integer, Long> accountIdMap) {
@@ -432,6 +517,8 @@ public class HibiscusXmlImporter {
         String pattern;
         boolean isRegex;
     }
+
+    private record CategoryKey(String name, Integer parentHibiscusId) {}
 
     private static class ActivityLogImport {
         Integer accountHibiscusId;
