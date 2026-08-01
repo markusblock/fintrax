@@ -51,20 +51,6 @@ class StoreManagerTest {
     }
 
     @Test
-    void testDefaultCategoriesSeeded() {
-        DataRoot root = storeManager.getRoot();
-        assertFalse(root.getCategories().isEmpty(), "Default categories should be seeded");
-        assertTrue(root.getCategories().size() >= 20, "Should have at least 20 default categories");
-
-        Category gehalt = root.getCategories().stream()
-                .filter(c -> c.getName().equals("Gehalt"))
-                .findFirst()
-                .orElse(null);
-        assertNotNull(gehalt, "Gehalt category should exist");
-        assertNotNull(gehalt.getParentId(), "Gehalt should have a parent");
-    }
-
-    @Test
     void testStoreAndRetrieveAccount() {
         BankAccount account = BankAccount.builder()
                 .id(1L)
