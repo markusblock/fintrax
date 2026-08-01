@@ -1,7 +1,6 @@
 package org.fintrax.service.hibiscus;
 
 import org.fintrax.model.*;
-import org.fintrax.service.ActivityLogger;
 import org.fintrax.store.StoreManager;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -11,11 +10,13 @@ import java.io.File;
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Comparator;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class HibiscusXmlImporterTest {
+    private static final String IMPORT_TEST_DATA = "/org/fintrax/service/hibiscus/hibiscus-import-test-data.xml";
+
+    private final HibiscusXmlImportTestSupport support = new HibiscusXmlImportTestSupport();
     private Path tempDir;
     private StoreManager store;
     private HibiscusXmlImporter importer;
@@ -30,18 +31,12 @@ class HibiscusXmlImporterTest {
     @AfterEach
     void tearDown() throws Exception {
         store.shutdown();
-        Files.walk(tempDir).sorted(Comparator.reverseOrder()).forEach(p -> {
-            try { Files.delete(p); } catch (Exception e) {}
-        });
+        support.deleteTempFiles(tempDir);
     }
 
     @Test
     void testImportAll() {
-        File xmlFile = findTestXml();
-        if (xmlFile == null) {
-            System.out.println("Skipping test: hibiscus test data XML not found");
-            return;
-        }
+        File xmlFile = support.loadXmlTestData(IMPORT_TEST_DATA);
 
         HibiscusXmlImporter.ImportResult result = importer.importFile(xmlFile, true, true);
 
@@ -53,34 +48,14 @@ class HibiscusXmlImporterTest {
 
         assertEquals(5, store.getRoot().getAccounts().size());
         assertEquals(5, store.getRoot().getTransactions().size());
-        assertEquals(33 + 8, store.getRoot().getCategories().size());
+        assertEquals(8, store.getRoot().getCategories().size());
         assertEquals(3, store.getRoot().getRules().size());
         assertEquals(5, store.getRoot().getActivityLogs().size());
     }
 
-    private File findTestXml() {
-        String[] candidates = {
-                "../hibiscus/testdata/hibiscus-test-data.xml",
-                "../../hibiscus/testdata/hibiscus-test-data.xml",
-                "../../../hibiscus/testdata/hibiscus-test-data.xml",
-                "../../../../hibiscus/testdata/hibiscus-test-data.xml",
-        };
-        for (String path : candidates) {
-            File f = new File(path);
-            if (f.exists()) return f;
-        }
-        String userDir = System.getProperty("user.dir");
-        System.out.println("Test working directory: " + userDir);
-        return null;
-    }
-
     @Test
     void testImportWithoutCategoriesAndRules() {
-        File xmlFile = findTestXml();
-        if (xmlFile == null) {
-            System.out.println("Skipping test: hibiscus test data XML not found");
-            return;
-        }
+        File xmlFile = support.loadXmlTestData(IMPORT_TEST_DATA);
 
         HibiscusXmlImporter.ImportResult result = importer.importFile(xmlFile, false, false);
 
@@ -93,9 +68,7 @@ class HibiscusXmlImporterTest {
 
     @Test
     void testImportAccountMapping() {
-        File xmlFile = findTestXml();
-        if (xmlFile == null) return;
-
+        File xmlFile = support.loadXmlTestData(IMPORT_TEST_DATA);
         importer.importFile(xmlFile, true, true);
 
         BankAccount firstAccount = store.getRoot().getAccounts().stream()
@@ -113,9 +86,7 @@ class HibiscusXmlImporterTest {
 
     @Test
     void testImportTransactionMapping() {
-        File xmlFile = findTestXml();
-        if (xmlFile == null) return;
-
+        File xmlFile = support.loadXmlTestData(IMPORT_TEST_DATA);
         importer.importFile(xmlFile, true, true);
 
         Transaction firstTx = store.getRoot().getTransactions().stream()
@@ -130,32 +101,8 @@ class HibiscusXmlImporterTest {
     }
 
     @Test
-    void testImportCategoryHierarchy() {
-        File xmlFile = findTestXml();
-        if (xmlFile == null) return;
-
-        importer.importFile(xmlFile, true, true);
-
-        Category agip = store.getRoot().getCategories().stream()
-                .filter(c -> "AGIP".equals(c.getName()))
-                .findFirst().orElse(null);
-
-        assertNotNull(agip);
-        assertNotNull(agip.getParentId());
-
-        Category parent = store.getRoot().getCategories().stream()
-                .filter(c -> c.getId().equals(agip.getParentId()))
-                .findFirst().orElse(null);
-
-        assertNotNull(parent);
-        assertEquals("Kraftstoff", parent.getName());
-    }
-
-    @Test
     void testImportRulesFromPatterns() {
-        File xmlFile = findTestXml();
-        if (xmlFile == null) return;
-
+        File xmlFile = support.loadXmlTestData(IMPORT_TEST_DATA);
         importer.importFile(xmlFile, true, true);
 
         assertEquals(3, store.getRoot().getRules().size());
@@ -183,9 +130,7 @@ class HibiscusXmlImporterTest {
 
     @Test
     void testImportSavingsAccountType() {
-        File xmlFile = findTestXml();
-        if (xmlFile == null) return;
-
+        File xmlFile = support.loadXmlTestData(IMPORT_TEST_DATA);
         importer.importFile(xmlFile, true, true);
 
         BankAccount sparkonto = store.getRoot().getAccounts().stream()

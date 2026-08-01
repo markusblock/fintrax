@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<objects>
+
+  <object type="de.willuhn.jameica.hbci.server.UmsatzTypImpl" id="2">
+    <customcolor type="java.lang.Integer">0</customcolor>
+    <name type="java.lang.String">Auto</name>
+    <pattern type="java.lang.String"></pattern>
+    <umsatztyp type="java.lang.Integer">2</umsatztyp>
+    <isregex type="java.lang.Integer">0</isregex>
+    <nummer type="java.lang.String"></nummer>
+    <kommentar type="java.lang.String"></kommentar>
+  </object>
+  <object type="de.willuhn.jameica.hbci.server.UmsatzTypImpl" id="3">
+    <customcolor type="java.lang.Integer">0</customcolor>
+    <parent_id type="java.lang.Integer">2</parent_id>
+    <name type="java.lang.String">Kraftstoff</name>
+    <pattern type="java.lang.String"></pattern>
+    <umsatztyp type="java.lang.Integer">2</umsatztyp>
+    <isregex type="java.lang.Integer">0</isregex>
+    <nummer type="java.lang.String"></nummer>
+    <kommentar type="java.lang.String"></kommentar>
+  </object>
+  <object type="de.willuhn.jameica.hbci.server.UmsatzTypImpl" id="4">
+    <customcolor type="java.lang.Integer">0</customcolor>
+    <parent_id type="java.lang.Integer">3</parent_id>
+    <name type="java.lang.String">AGIP</name>
+    <pattern type="java.lang.String">AGIP</pattern>
+    <umsatztyp type="java.lang.Integer">2</umsatztyp>
+    <isregex type="java.lang.Integer">0</isregex>
+    <nummer type="java.lang.String"></nummer>
+    <kommentar type="java.lang.String"></kommentar>
+  </object>
+  <object type="de.willuhn.jameica.hbci.server.UmsatzTypImpl" id="5">
+    <customcolor type="java.lang.Integer">0</customcolor>
+    <parent_id type="java.lang.Integer">3</parent_id>
+    <name type="java.lang.String">ESSO</name>
+    <pattern type="java.lang.String">ESSO</pattern>
+    <umsatztyp type="java.lang.Integer">2</umsatztyp>
+    <isregex type="java.lang.Integer">0</isregex>
+    <nummer type="java.lang.String"></nummer>
+    <kommentar type="java.lang.String"></kommentar>
+  </object>
+
+  <object type="de.willuhn.jameica.hbci.server.UmsatzTypImpl" id="6">
+    <customcolor type="java.lang.Integer">0</customcolor>
+    <name type="java.lang.String">Lebensmittel</name>
+    <pattern type="java.lang.String"></pattern>
+    <umsatztyp type="java.lang.Integer">2</umsatztyp>
+    <isregex type="java.lang.Integer">0</isregex>
+    <nummer type="java.lang.String"></nummer>
+    <kommentar type="java.lang.String"></kommentar>
+  </object>
+  <object type="de.willuhn.jameica.hbci.server.UmsatzTypImpl" id="7">
+    <customcolor type="java.lang.Integer">0</customcolor>
+    <parent_id type="java.lang.Integer">6</parent_id>
+    <name type="java.lang.String">Supermarkt</name>
+    <pattern type="java.lang.String">REWE|EDEKA|ALDI</pattern>
+    <umsatztyp type="java.lang.Integer">2</umsatztyp>
+    <isregex type="java.lang.Integer">1</isregex>
+    <nummer type="java.lang.String"></nummer>
+    <kommentar type="java.lang.String"></kommentar>
+  </object>
+  <object type="de.willuhn.jameica.hbci.server.UmsatzTypImpl" id="8">
+    <customcolor type="java.lang.Integer">0</customcolor>
+    <name type="java.lang.String">Einkommen</name>
+    <pattern type="java.lang.String"></pattern>
+    <umsatztyp type="java.lang.Integer">1</umsatztyp>
+    <isregex type="java.lang.Integer">0</isregex>
+    <nummer type="java.lang.String"></nummer>
+    <kommentar type="java.lang.String"></kommentar>
+  </object>
+  <object type="de.willuhn.jameica.hbci.server.UmsatzTypImpl" id="9">
+    <customcolor type="java.lang.Integer">0</customcolor>
+    <name type="java.lang.String">Miete und Wohnen</name>
+    <pattern type="java.lang.String"></pattern>
+    <umsatztyp type="java.lang.Integer">2</umsatztyp>
+    <isregex type="java.lang.Integer">0</isregex>
+    <nummer type="java.lang.String"></nummer>
+    <kommentar type="java.lang.String"></kommentar>
+  </object>
+
+</objects>

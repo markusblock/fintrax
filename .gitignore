@@ -1,10 +1,10 @@
 # fintrax
 .gradle/
 build/
-!gradle/wrapper/gradle-wrapper.jar
 *.class
 *.jar
 *.log
+!gradle/wrapper/gradle-wrapper.jar
 .idea/
 *.iml
 .DS_Store

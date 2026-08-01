@@ -1,0 +1,424 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<objects>
+
+  <!-- Original Turnus (id=1) -->
+  <object type="de.willuhn.jameica.hbci.server.TurnusImpl" id="1">
+    <initial type="java.lang.Integer">1</initial>
+    <intervall type="java.lang.Integer">1</intervall>
+    <tag type="java.lang.Integer">1</tag>
+    <zeiteinheit type="java.lang.Integer">2</zeiteinheit>
+  </object>
+
+  <!-- Original Konto (id=1) -->
+  <object type="de.willuhn.jameica.hbci.server.KontoImpl" id="1">
+    <bezeichnung type="java.lang.String">Testkonto SEPA</bezeichnung>
+    <unterkonto type="java.lang.String"></unterkonto>
+    <saldo type="java.lang.Double">4.67</saldo>
+    <blz type="java.lang.String">37040044</blz>
+    <kundennummer type="java.lang.String">12345678</kundennummer>
+    <kontonummer type="java.lang.String">0532013000</kontonummer>
+    <passport_class type="java.lang.String">de.willuhn.jameica.hbci.passports.pintan.server.PassportImpl</passport_class>
+    <iban type="java.lang.String">DE89370400440532013000</iban>
+    <name type="java.lang.String">Max Mustermann</name>
+    <waehrung type="java.lang.String">EUR</waehrung>
+    <saldo_datum type="java.sql.Timestamp">04.01.2026 12:21:00</saldo_datum>
+    <bic type="java.lang.String">COBADEFFXXX</bic>
+  </object>
+
+  <!-- Original Umsatz (id=1) -->
+  <object type="de.willuhn.jameica.hbci.server.UmsatzImpl" id="1">
+    <datum type="java.sql.Date">15.03.2024 00:00:00</datum>
+    <valuta type="java.sql.Date">15.03.2024 00:00:00</valuta>
+    <empfaenger_konto type="java.lang.String"></empfaenger_konto>
+    <primanota type="java.lang.String">009500</primanota>
+    <empfaenger_name type="java.lang.String">VISA Test GmbH</empfaenger_name>
+    <customerref type="java.lang.String">NONREF</customerref>
+    <checksum type="java.math.BigDecimal">1647417865</checksum>
+    <zweck type="java.lang.String">SVWZ+NR XXXX 1024 Pforzheim</zweck>
+    <art type="java.lang.String">Lastschrifteinzug</art>
+    <betrag type="java.lang.Double">-14.54</betrag>
+    <konto_id type="java.lang.Integer">1</konto_id>
+    <zweck3 type="java.lang.String">123456789000000000000</zweck3>
+    <zweck2 type="java.lang.String">DEKAUFUMSATZ08.10 14.54170</zweck2>
+    <saldo type="java.lang.Double">4506.97</saldo>
+    <gvcode type="java.lang.String">005</gvcode>
+    <empfaenger_blz type="java.lang.String"></empfaenger_blz>
+  </object>
+
+  <!-- Original UmsatzTyp entries (ids 2-5) -->
+  <object type="de.willuhn.jameica.hbci.server.UmsatzTypImpl" id="2">
+    <customcolor type="java.lang.Integer">0</customcolor>
+    <name type="java.lang.String">Auto</name>
+    <pattern type="java.lang.String"></pattern>
+    <umsatztyp type="java.lang.Integer">2</umsatztyp>
+    <isregex type="java.lang.Integer">0</isregex>
+    <nummer type="java.lang.String"></nummer>
+    <kommentar type="java.lang.String"></kommentar>
+  </object>
+  <object type="de.willuhn.jameica.hbci.server.UmsatzTypImpl" id="3">
+    <customcolor type="java.lang.Integer">0</customcolor>
+    <parent_id type="java.lang.Integer">2</parent_id>
+    <name type="java.lang.String">Kraftstoff</name>
+    <pattern type="java.lang.String"></pattern>
+    <umsatztyp type="java.lang.Integer">2</umsatztyp>
+    <isregex type="java.lang.Integer">0</isregex>
+    <nummer type="java.lang.String"></nummer>
+    <kommentar type="java.lang.String"></kommentar>
+  </object>
+  <object type="de.willuhn.jameica.hbci.server.UmsatzTypImpl" id="4">
+    <customcolor type="java.lang.Integer">0</customcolor>
+    <parent_id type="java.lang.Integer">3</parent_id>
+    <name type="java.lang.String">AGIP</name>
+    <pattern type="java.lang.String">AGIP</pattern>
+    <umsatztyp type="java.lang.Integer">2</umsatztyp>
+    <isregex type="java.lang.Integer">0</isregex>
+    <nummer type="java.lang.String"></nummer>
+    <kommentar type="java.lang.String"></kommentar>
+  </object>
+  <object type="de.willuhn.jameica.hbci.server.UmsatzTypImpl" id="5">
+    <customcolor type="java.lang.Integer">0</customcolor>
+    <parent_id type="java.lang.Integer">3</parent_id>
+    <name type="java.lang.String">ESSO</name>
+    <pattern type="java.lang.String">ESSO</pattern>
+    <umsatztyp type="java.lang.Integer">2</umsatztyp>
+    <isregex type="java.lang.Integer">0</isregex>
+    <nummer type="java.lang.String"></nummer>
+    <kommentar type="java.lang.String"></kommentar>
+  </object>
+
+  <!-- Original Sepa Dauerauftrag (id=1) -->
+  <object type="de.willuhn.jameica.hbci.server.SepaDauerauftragImpl" id="1">
+    <empfaenger_bic type="java.lang.String">COBADEFFXXX</empfaenger_bic>
+    <orderid type="java.lang.String">0000001</orderid>
+    <empfaenger_konto type="java.lang.String">DE75512108001245126199</empfaenger_konto>
+    <betrag type="java.lang.Double">1000.0</betrag>
+    <candelete type="java.lang.Integer">0</candelete>
+    <konto_id type="java.lang.Integer">1</konto_id>
+    <empfaenger_name type="java.lang.String">ERIKA MUSTERMANN</empfaenger_name>
+    <zeiteinheit type="java.lang.Integer">2</zeiteinheit>
+    <canchange type="java.lang.Integer">0</canchange>
+    <erste_zahlung type="java.sql.Date">05.01.2026 00:00:00</erste_zahlung>
+    <intervall type="java.lang.Integer">1</intervall>
+    <tag type="java.lang.Integer">5</tag>
+    <pmtinfid type="java.lang.String">0123456-156e-4ba1-8e67-72918683d62</pmtinfid>
+    <zweck type="java.lang.String">Test Dauerauftrag</zweck>
+  </object>
+
+  <!-- Original Protokoll (id=1) -->
+  <object type="de.willuhn.jameica.hbci.server.ProtokollImpl" id="1">
+    <datum type="java.sql.Timestamp">27.11.2023 16:09:58</datum>
+    <konto_id type="java.lang.Integer">1</konto_id>
+    <typ type="java.lang.Integer">1</typ>
+    <kommentar type="java.lang.String">Testdaten angelegt</kommentar>
+  </object>
+
+  <!-- New Turnus entries (ids 2-5) -->
+  <object type="de.willuhn.jameica.hbci.server.TurnusImpl" id="2">
+    <initial type="java.lang.Integer">1</initial>
+    <intervall type="java.lang.Integer">1</intervall>
+    <tag type="java.lang.Integer">1</tag>
+    <zeiteinheit type="java.lang.Integer">1</zeiteinheit>
+  </object>
+
+  
+
+  <object type="de.willuhn.jameica.hbci.server.TurnusImpl" id="3">
+    <initial type="java.lang.Integer">1</initial>
+    <intervall type="java.lang.Integer">1</intervall>
+    <tag type="java.lang.Integer">15</tag>
+    <zeiteinheit type="java.lang.Integer">2</zeiteinheit>
+  </object>
+
+  <object type="de.willuhn.jameica.hbci.server.TurnusImpl" id="4">
+    <initial type="java.lang.Integer">1</initial>
+    <intervall type="java.lang.Integer">3</intervall>
+    <tag type="java.lang.Integer">1</tag>
+    <zeiteinheit type="java.lang.Integer">2</zeiteinheit>
+  </object>
+
+  <object type="de.willuhn.jameica.hbci.server.TurnusImpl" id="5">
+    <initial type="java.lang.Integer">1</initial>
+    <intervall type="java.lang.Integer">3</intervall>
+    <tag type="java.lang.Integer">1</tag>
+    <zeiteinheit type="java.lang.Integer">2</zeiteinheit>
+  </object>
+
+  <!-- New Konto entries (ids 2-5) -->
+  <object type="de.willuhn.jameica.hbci.server.KontoImpl" id="2">
+    <bezeichnung type="java.lang.String">Deutsche Bank Girokonto</bezeichnung>
+    <unterkonto type="java.lang.String"></unterkonto>
+    <saldo type="java.lang.Double">2847.32</saldo>
+    <blz type="java.lang.String">10070000</blz>
+    <kundennummer type="java.lang.String">20010020</kundennummer>
+    <kontonummer type="java.lang.String">0593945999</kontonummer>
+    <passport_class type="java.lang.String">de.willuhn.jameica.hbci.passports.pintan.server.PassportImpl</passport_class>
+    <iban type="java.lang.String">DE53100700000593945999</iban>
+    <name type="java.lang.String">Anna Schmidt</name>
+    <waehrung type="java.lang.String">EUR</waehrung>
+    <saldo_datum type="java.sql.Timestamp">01.01.2025 00:00:00</saldo_datum>
+    <bic type="java.lang.String">DEUTDEFFXXX</bic>
+  </object>
+
+  <object type="de.willuhn.jameica.hbci.server.KontoImpl" id="3">
+    <bezeichnung type="java.lang.String">Sparkasse Sparkonto</bezeichnung>
+    <unterkonto type="java.lang.String"></unterkonto>
+    <saldo type="java.lang.Double">15420.75</saldo>
+    <blz type="java.lang.String">50010517</blz>
+    <kundennummer type="java.lang.String">30020030</kundennummer>
+    <kontonummer type="java.lang.String">0000000100</kontonummer>
+    <passport_class type="java.lang.String">de.willuhn.jameica.hbci.passports.pintan.server.PassportImpl</passport_class>
+    <iban type="java.lang.String">DE43500105170000000100</iban>
+    <name type="java.lang.String">Thomas Weber</name>
+    <waehrung type="java.lang.String">EUR</waehrung>
+    <saldo_datum type="java.sql.Timestamp">01.01.2025 00:00:00</saldo_datum>
+    <bic type="java.lang.String">SPKNDEFFXXX</bic>
+  </object>
+
+  <object type="de.willuhn.jameica.hbci.server.KontoImpl" id="4">
+    <bezeichnung type="java.lang.String">Commerzbank Geschäftskonto</bezeichnung>
+    <unterkonto type="java.lang.String"></unterkonto>
+    <saldo type="java.lang.Double">8956.44</saldo>
+    <blz type="java.lang.String">20040000</blz>
+    <kundennummer type="java.lang.String">40030040</kundennummer>
+    <kontonummer type="java.lang.String">0098765430</kontonummer>
+    <passport_class type="java.lang.String">de.willuhn.jameica.hbci.passports.pintan.server.PassportImpl</passport_class>
+    <iban type="java.lang.String">DE83200400000098765430</iban>
+    <name type="java.lang.String">Weber GmbH</name>
+    <waehrung type="java.lang.String">EUR</waehrung>
+    <saldo_datum type="java.sql.Timestamp">01.01.2025 00:00:00</saldo_datum>
+    <bic type="java.lang.String">COBADEFFXXX</bic>
+  </object>
+
+  <object type="de.willuhn.jameica.hbci.server.KontoImpl" id="5">
+    <bezeichnung type="java.lang.String">HypoVereinsbank Privatkonto</bezeichnung>
+    <unterkonto type="java.lang.String"></unterkonto>
+    <saldo type="java.lang.Double">-234.56</saldo>
+    <blz type="java.lang.String">70020270</blz>
+    <kundennummer type="java.lang.String">50040050</kundennummer>
+    <kontonummer type="java.lang.String">0045612376</kontonummer>
+    <passport_class type="java.lang.String">de.willuhn.jameica.hbci.passports.pintan.server.PassportImpl</passport_class>
+    <iban type="java.lang.String">DE85700202700045612376</iban>
+    <name type="java.lang.String">Maria Müller</name>
+    <waehrung type="java.lang.String">EUR</waehrung>
+    <saldo_datum type="java.sql.Timestamp">01.01.2025 00:00:00</saldo_datum>
+    <bic type="java.lang.String">HYVEDEMMXXX</bic>
+  </object>
+
+  <!-- New Umsatz entries (ids 2-5) -->
+  <object type="de.willuhn.jameica.hbci.server.UmsatzImpl" id="2">
+    <datum type="java.sql.Date">01.08.2024 00:00:00</datum>
+    <valuta type="java.sql.Date">01.08.2024 00:00:00</valuta>
+    <empfaenger_konto type="java.lang.String"></empfaenger_konto>
+    <primanota type="java.lang.String">001000</primanota>
+    <empfaenger_name type="java.lang.String">REWE Filiale</empfaenger_name>
+    <customerref type="java.lang.String">REF001</customerref>
+    <checksum type="java.math.BigDecimal">1111111111</checksum>
+    <zweck type="java.lang.String">Einkauf Supermarkt</zweck>
+    <art type="java.lang.String">Kartenabrechnung</art>
+    <betrag type="java.lang.Double">-67.43</betrag>
+    <konto_id type="java.lang.Integer">2</konto_id>
+    <zweck3 type="java.lang.String">Z3-001</zweck3>
+    <zweck2 type="java.lang.String">Z2-001</zweck2>
+    <saldo type="java.lang.Double">2779.89</saldo>
+    <gvcode type="java.lang.String">001</gvcode>
+    <empfaenger_blz type="java.lang.String"></empfaenger_blz>
+  </object>
+
+  <object type="de.willuhn.jameica.hbci.server.UmsatzImpl" id="3">
+    <datum type="java.sql.Date">12.11.2024 00:00:00</datum>
+    <valuta type="java.sql.Date">12.11.2024 00:00:00</valuta>
+    <empfaenger_konto type="java.lang.String"></empfaenger_konto>
+    <primanota type="java.lang.String">002000</primanota>
+    <empfaenger_name type="java.lang.String">ACME GmbH</empfaenger_name>
+    <customerref type="java.lang.String">SALARY08</customerref>
+    <checksum type="java.math.BigDecimal">2222222222</checksum>
+    <zweck type="java.lang.String">Gehaltszahlung Juli</zweck>
+    <art type="java.lang.String">Gehalt</art>
+    <betrag type="java.lang.Double">3200.0</betrag>
+    <konto_id type="java.lang.Integer">3</konto_id>
+    <zweck3 type="java.lang.String">Z3-002</zweck3>
+    <zweck2 type="java.lang.String">Z2-002</zweck2>
+    <saldo type="java.lang.Double">18620.75</saldo>
+    <gvcode type="java.lang.String">002</gvcode>
+    <empfaenger_blz type="java.lang.String"></empfaenger_blz>
+  </object>
+
+  <object type="de.willuhn.jameica.hbci.server.UmsatzImpl" id="4">
+    <datum type="java.sql.Date">05.01.2025 00:00:00</datum>
+    <valuta type="java.sql.Date">05.01.2025 00:00:00</valuta>
+    <empfaenger_konto type="java.lang.String"></empfaenger_konto>
+    <primanota type="java.lang.String">003000</primanota>
+    <empfaenger_name type="java.lang.String">Bueromaterial GmbH</empfaenger_name>
+    <customerref type="java.lang.String">INV556</customerref>
+    <checksum type="java.math.BigDecimal">3333333333</checksum>
+    <zweck type="java.lang.String">Büromaterial Bestellung</zweck>
+    <art type="java.lang.String">Überweisung</art>
+    <betrag type="java.lang.Double">-156.78</betrag>
+    <konto_id type="java.lang.Integer">4</konto_id>
+    <zweck3 type="java.lang.String">Z3-003</zweck3>
+    <zweck2 type="java.lang.String">Z2-003</zweck2>
+    <saldo type="java.lang.Double">8799.66</saldo>
+    <gvcode type="java.lang.String">003</gvcode>
+    <empfaenger_blz type="java.lang.String"></empfaenger_blz>
+  </object>
+
+  <object type="de.willuhn.jameica.hbci.server.UmsatzImpl" id="5">
+    <datum type="java.sql.Date">01.01.2026 00:00:00</datum>
+    <valuta type="java.sql.Date">01.01.2026 00:00:00</valuta>
+    <empfaenger_konto type="java.lang.String"></empfaenger_konto>
+    <primanota type="java.lang.String">004000</primanota>
+    <empfaenger_name type="java.lang.String">Vermieter</empfaenger_name>
+    <customerref type="java.lang.String">RENT01</customerref>
+    <checksum type="java.math.BigDecimal">4444444444</checksum>
+    <zweck type="java.lang.String">Miete Januar</zweck>
+    <art type="java.lang.String">Lastschrift</art>
+    <betrag type="java.lang.Double">-850.0</betrag>
+    <konto_id type="java.lang.Integer">5</konto_id>
+    <zweck3 type="java.lang.String">Z3-004</zweck3>
+    <zweck2 type="java.lang.String">Z2-004</zweck2>
+    <saldo type="java.lang.Double">-1084.56</saldo>
+    <gvcode type="java.lang.String">004</gvcode>
+    <empfaenger_blz type="java.lang.String"></empfaenger_blz>
+  </object>
+
+  <!-- New UmsatzTyp entries (ids 6-9) -->
+  <object type="de.willuhn.jameica.hbci.server.UmsatzTypImpl" id="6">
+    <customcolor type="java.lang.Integer">0</customcolor>
+    <name type="java.lang.String">Lebensmittel</name>
+    <pattern type="java.lang.String"></pattern>
+    <umsatztyp type="java.lang.Integer">2</umsatztyp>
+    <isregex type="java.lang.Integer">0</isregex>
+    <nummer type="java.lang.String"></nummer>
+    <kommentar type="java.lang.String"></kommentar>
+  </object>
+
+  <object type="de.willuhn.jameica.hbci.server.UmsatzTypImpl" id="7">
+    <customcolor type="java.lang.Integer">0</customcolor>
+    <parent_id type="java.lang.Integer">6</parent_id>
+    <name type="java.lang.String">Supermarkt</name>
+    <pattern type="java.lang.String">REWE|EDEKA|ALDI</pattern>
+    <umsatztyp type="java.lang.Integer">2</umsatztyp>
+    <isregex type="java.lang.Integer">1</isregex>
+    <nummer type="java.lang.String"></nummer>
+    <kommentar type="java.lang.String"></kommentar>
+  </object>
+
+  <object type="de.willuhn.jameica.hbci.server.UmsatzTypImpl" id="8">
+    <customcolor type="java.lang.Integer">0</customcolor>
+    <name type="java.lang.String">Einkommen</name>
+    <pattern type="java.lang.String"></pattern>
+    <umsatztyp type="java.lang.Integer">1</umsatztyp>
+    <isregex type="java.lang.Integer">0</isregex>
+    <nummer type="java.lang.String"></nummer>
+    <kommentar type="java.lang.String"></kommentar>
+  </object>
+
+  <object type="de.willuhn.jameica.hbci.server.UmsatzTypImpl" id="9">
+    <customcolor type="java.lang.Integer">0</customcolor>
+    <name type="java.lang.String">Miete und Wohnen</name>
+    <pattern type="java.lang.String"></pattern>
+    <umsatztyp type="java.lang.Integer">2</umsatztyp>
+    <isregex type="java.lang.Integer">0</isregex>
+    <nummer type="java.lang.String"></nummer>
+    <kommentar type="java.lang.String"></kommentar>
+  </object>
+
+  <!-- New Sepa Dauerauftrag entries (ids 2-5) -->
+  <object type="de.willuhn.jameica.hbci.server.SepaDauerauftragImpl" id="2">
+    <empfaenger_bic type="java.lang.String">DEUTDEFFXXX</empfaenger_bic>
+    <orderid type="java.lang.String">DA0002</orderid>
+    <empfaenger_konto type="java.lang.String">DE62100700000000750000</empfaenger_konto>
+    <betrag type="java.lang.Double">750.0</betrag>
+    <candelete type="java.lang.Integer">0</candelete>
+    <konto_id type="java.lang.Integer">2</konto_id>
+    <empfaenger_name type="java.lang.String">Wohnung GmbH</empfaenger_name>
+    <zeiteinheit type="java.lang.Integer">2</zeiteinheit>
+    <canchange type="java.lang.Integer">0</canchange>
+    <erste_zahlung type="java.sql.Date">01.04.2024 00:00:00</erste_zahlung>
+    <intervall type="java.lang.Integer">1</intervall>
+    <tag type="java.lang.Integer">1</tag>
+    <pmtinfid type="java.lang.String">pmt-0002</pmtinfid>
+    <zweck type="java.lang.String">Miete</zweck>
+  </object>
+
+  <object type="de.willuhn.jameica.hbci.server.SepaDauerauftragImpl" id="3">
+    <empfaenger_bic type="java.lang.String">WELADED1XXX</empfaenger_bic>
+    <orderid type="java.lang.String">DA0003</orderid>
+    <empfaenger_konto type="java.lang.String">DE70500502220000200000</empfaenger_konto>
+    <betrag type="java.lang.Double">200.0</betrag>
+    <candelete type="java.lang.Integer">0</candelete>
+    <konto_id type="java.lang.Integer">3</konto_id>
+    <empfaenger_name type="java.lang.String">Sparvertrag</empfaenger_name>
+    <zeiteinheit type="java.lang.Integer">2</zeiteinheit>
+    <canchange type="java.lang.Integer">0</canchange>
+    <erste_zahlung type="java.sql.Date">15.05.2024 00:00:00</erste_zahlung>
+    <intervall type="java.lang.Integer">1</intervall>
+    <tag type="java.lang.Integer">15</tag>
+    <pmtinfid type="java.lang.String">pmt-0003</pmtinfid>
+    <zweck type="java.lang.String">Sparen</zweck>
+  </object>
+
+  <object type="de.willuhn.jameica.hbci.server.SepaDauerauftragImpl" id="4">
+    <empfaenger_bic type="java.lang.String">COBADEFFXXX</empfaenger_bic>
+    <orderid type="java.lang.String">DA0004</orderid>
+    <empfaenger_konto type="java.lang.String">DE81200400000000089500</empfaenger_konto>
+    <betrag type="java.lang.Double">89.5</betrag>
+    <candelete type="java.lang.Integer">0</candelete>
+    <konto_id type="java.lang.Integer">4</konto_id>
+    <empfaenger_name type="java.lang.String">Versicherung AG</empfaenger_name>
+    <zeiteinheit type="java.lang.Integer">2</zeiteinheit>
+    <canchange type="java.lang.Integer">0</canchange>
+    <erste_zahlung type="java.sql.Date">01.06.2024 00:00:00</erste_zahlung>
+    <intervall type="java.lang.Integer">3</intervall>
+    <tag type="java.lang.Integer">1</tag>
+    <pmtinfid type="java.lang.String">pmt-0004</pmtinfid>
+    <zweck type="java.lang.String">Versicherung</zweck>
+  </object>
+
+  <object type="de.willuhn.jameica.hbci.server.SepaDauerauftragImpl" id="5">
+    <empfaenger_bic type="java.lang.String">HYVEDEMMXXX</empfaenger_bic>
+    <orderid type="java.lang.String">DA0005</orderid>
+    <empfaenger_konto type="java.lang.String">DE04700202700000012000</empfaenger_konto>
+    <betrag type="java.lang.Double">120.0</betrag>
+    <candelete type="java.lang.Integer">0</candelete>
+    <konto_id type="java.lang.Integer">5</konto_id>
+    <empfaenger_name type="java.lang.String">Sportverein</empfaenger_name>
+    <zeiteinheit type="java.lang.Integer">2</zeiteinheit>
+    <canchange type="java.lang.Integer">0</canchange>
+    <erste_zahlung type="java.sql.Date">01.09.2024 00:00:00</erste_zahlung>
+    <intervall type="java.lang.Integer">1</intervall>
+    <tag type="java.lang.Integer">1</tag>
+    <pmtinfid type="java.lang.String">pmt-0005</pmtinfid>
+    <zweck type="java.lang.String">Mitgliedsbeitrag</zweck>
+  </object>
+
+  <!-- New Protokoll entries (ids 2-5) -->
+  <object type="de.willuhn.jameica.hbci.server.ProtokollImpl" id="2">
+    <datum type="java.sql.Timestamp">10.03.2024 09:15:00</datum>
+    <konto_id type="java.lang.Integer">2</konto_id>
+    <typ type="java.lang.Integer">1</typ>
+    <kommentar type="java.lang.String">Konto eröffnet</kommentar>
+  </object>
+
+  <object type="de.willuhn.jameica.hbci.server.ProtokollImpl" id="3">
+    <datum type="java.sql.Timestamp">20.05.2024 11:20:00</datum>
+    <konto_id type="java.lang.Integer">3</konto_id>
+    <typ type="java.lang.Integer">2</typ>
+    <kommentar type="java.lang.String">Dauerauftrag eingerichtet</kommentar>
+  </object>
+
+  <object type="de.willuhn.jameica.hbci.server.ProtokollImpl" id="4">
+    <datum type="java.sql.Timestamp">05.09.2024 14:05:00</datum>
+    <konto_id type="java.lang.Integer">4</konto_id>
+    <typ type="java.lang.Integer">3</typ>
+    <kommentar type="java.lang.String">Umsätze importiert</kommentar>
+  </object>
+
+  <object type="de.willuhn.jameica.hbci.server.ProtokollImpl" id="5">
+    <datum type="java.sql.Timestamp">10.01.2025 08:00:00</datum>
+    <konto_id type="java.lang.Integer">5</konto_id>
+    <typ type="java.lang.Integer">1</typ>
+    <kommentar type="java.lang.String">Kontostand aktualisiert</kommentar>
+  </object>
+
+</objects>

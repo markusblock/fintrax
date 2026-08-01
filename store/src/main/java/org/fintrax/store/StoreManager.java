@@ -29,7 +29,6 @@ public class StoreManager {
         root = storage.ensureRoot(DataRoot::new);
         log.info("DataRoot initialized");
 
-        new CategorySeeder().seed(root);
         if (!root.getCategories().isEmpty()) {
             storage.store(root.getCategories());
         }

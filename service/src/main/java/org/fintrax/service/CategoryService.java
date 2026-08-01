@@ -6,6 +6,7 @@ import org.fintrax.store.StoreManager;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -37,6 +38,10 @@ public class CategoryService {
             }
         }
 
+        if (hasSiblingWithName(name, parentId)) {
+            throw new IllegalArgumentException("A sibling category with name '" + name + "' already exists");
+        }
+
         Category category = Category.builder()
                 .id(nextId++)
                 .name(name)
@@ -55,6 +60,11 @@ public class CategoryService {
 
         log.info("Created category {} with name {}", category.getId(), name);
         return category;
+    }
+
+    private boolean hasSiblingWithName(String name, Long parentId) {
+        return store.getRoot().getCategories().stream()
+                .anyMatch(c -> name.equals(c.getName()) && Objects.equals(parentId, c.getParentId()));
     }
 
     private int calculateDepth(Long parentId) {
@@ -95,6 +105,10 @@ public class CategoryService {
         Category category = store.getCategory(id);
         if (category == null) {
             throw new IllegalArgumentException("Category not found: " + id);
+        }
+
+        if (!name.equals(category.getName()) && hasSiblingWithName(name, category.getParentId())) {
+            throw new IllegalArgumentException("A sibling category with name '" + name + "' already exists");
         }
 
         category.setName(name);
