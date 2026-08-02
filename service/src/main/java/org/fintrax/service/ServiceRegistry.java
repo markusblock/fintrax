@@ -40,6 +40,8 @@ public class ServiceRegistry {
     private final PinStorage pinStorage;
     @Getter
     private final HibiscusXmlImporter hibiscusXmlImporter;
+    @Getter
+    private final ResetService resetService;
 
     public ServiceRegistry() {
         log.info("Initializing ServiceRegistry");
@@ -58,6 +60,7 @@ public class ServiceRegistry {
         syncService = new SyncService(storeManager, bankingProtocol, transactionService,
                 accountService, activityLogger, pinStorage, ruleEngine);
         hibiscusXmlImporter = new HibiscusXmlImporter(storeManager);
+        resetService = new ResetService(storeManager, pinStorage);
 
         log.info("ServiceRegistry initialized with {} accounts, {} transactions, {} categories",
                 storeManager.getRoot().getAccounts().size(),

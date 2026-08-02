@@ -55,3 +55,18 @@ A rule derived from a Hibiscus Category's matching pattern that assigns matching
 
 **Pattern Match Mode**:
 The way a Category Rule evaluates its pattern: regex or contains matching.
+
+### Data Reset
+
+**Data Reset**:
+An operation that deletes one or more selected groups of Fintrax-owned data from the local application.
+_Avoid_: database wipe, cleanup
+
+**Reset Group**:
+A user-facing set of related data selected together during a Data Reset.
+
+**Stored Credential**:
+A bank PIN held by Fintrax for an account connection, separately from the account and transaction data.
+
+**Stored Setting**:
+An application setting persisted in Fintrax and eligible for removal by the Application Settings Reset Group.

@@ -85,6 +85,16 @@
                         <Button text="%button.import" onAction="#onImportHibiscus"/>
                     </HBox>
                 </VBox>
+
+                <Separator/>
+
+                <Label text="%settings.section.reset" style="-fx-font-size: 16px; -fx-font-weight: bold;"/>
+                <VBox spacing="5">
+                    <Label text="%settings.reset.desc" wrapText="true" style="-fx-text-fill: #666;"/>
+                    <HBox spacing="10" alignment="CENTER_LEFT">
+                        <Button text="%button.reset" onAction="#onResetData" styleClass="delete-button"/>
+                    </HBox>
+                </VBox>
             </VBox>
         </ScrollPane>
     </center>

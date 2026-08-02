@@ -84,6 +84,23 @@ public class PinStorage {
         }
     }
 
+    public void clearAll() {
+        try {
+            var aliases = keyStore.aliases();
+            while (aliases.hasMoreElements()) {
+                String alias = aliases.nextElement();
+                if (alias.startsWith(KEYSTORE_ALIAS + "_")) {
+                    keyStore.deleteEntry(alias);
+                }
+            }
+            saveKeyStore();
+            log.info("Deleted all stored PINs");
+        } catch (Exception e) {
+            log.error("Failed to delete all stored PINs", e);
+            throw new RuntimeException("Failed to delete stored PINs", e);
+        }
+    }
+
     private void saveKeyStore() throws Exception {
         try (FileOutputStream fos = new FileOutputStream(keystorePath.toFile())) {
             keyStore.store(fos, KEYSTORE_PASSWORD);

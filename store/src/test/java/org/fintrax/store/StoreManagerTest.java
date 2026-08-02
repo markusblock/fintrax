@@ -11,6 +11,8 @@ import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Comparator;
+import java.util.HashSet;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -157,5 +159,72 @@ class StoreManagerTest {
 
         reloaded.shutdown();
         storeManager = null;
+    }
+
+    @Test
+    void resetCategoriesRulesAndLabelsClearsRetainedTransactionReferences() {
+        Category category = Category.builder().id(1L).name("Food").build();
+        Label label = Label.builder().id(2L).name("Important").build();
+        Rule rule = Rule.builder().id(3L).name("Food rule").build();
+        Transaction transaction = Transaction.builder()
+                .id(4L)
+                .categoryId(category.getId())
+                .labelIds(new HashSet<>(Set.of(label.getId())))
+                .build();
+
+        storeManager.getRoot().getCategories().add(category);
+        storeManager.getRoot().getLabels().add(label);
+        storeManager.getRoot().getRules().add(rule);
+        storeManager.getRoot().getTransactions().add(transaction);
+        storeManager.store(storeManager.getRoot());
+
+        storeManager.reset(Set.of(ResetGroup.CATEGORIES_RULES_LABELS));
+
+        assertAll(
+                () -> assertTrue(storeManager.getRoot().getCategories().isEmpty()),
+                () -> assertTrue(storeManager.getRoot().getLabels().isEmpty()),
+                () -> assertTrue(storeManager.getRoot().getRules().isEmpty()),
+                () -> assertNull(transaction.getCategoryId()),
+                () -> assertTrue(transaction.getLabelIds().isEmpty()),
+                () -> assertNull(storeManager.getCategory(category.getId()))
+        );
+        assertNotNull(storeManager.getTransaction(transaction.getId()));
+    }
+
+    @Test
+    void resetAccountsTransactionsAndHistoryClearsOnlyThatGroup() {
+        storeManager.getRoot().getAccounts().add(BankAccount.builder().id(1L).build());
+        storeManager.getRoot().getTransactions().add(Transaction.builder().id(2L).build());
+        storeManager.getRoot().getCategories().add(Category.builder().id(3L).name("Food").build());
+        storeManager.getRoot().getSyncLogs().add(SyncLog.builder().id(4L).build());
+        storeManager.getRoot().getActivityLogs().add(ActivityLog.builder().id(5L).build());
+        storeManager.store(storeManager.getRoot());
+
+        storeManager.reset(Set.of(ResetGroup.ACCOUNTS_TRANSACTIONS_HISTORY));
+
+        assertAll(
+                () -> assertTrue(storeManager.getRoot().getAccounts().isEmpty()),
+                () -> assertTrue(storeManager.getRoot().getTransactions().isEmpty()),
+                () -> assertTrue(storeManager.getRoot().getSyncLogs().isEmpty()),
+                () -> assertTrue(storeManager.getRoot().getActivityLogs().isEmpty()),
+                () -> assertEquals(1, storeManager.getRoot().getCategories().size())
+        );
+    }
+
+    @Test
+    void resetSettingsClearsOnlyPersistedSettings() {
+        storeManager.getRoot().getSettings().put("columns", AppSetting.builder().key("columns").value("saved").build());
+        storeManager.getRoot().getCategories().add(Category.builder().id(1L).name("Food").build());
+        storeManager.store(storeManager.getRoot());
+
+        storeManager.reset(Set.of(ResetGroup.APPLICATION_SETTINGS));
+
+        assertTrue(storeManager.getRoot().getSettings().isEmpty());
+        assertEquals(1, storeManager.getRoot().getCategories().size());
+    }
+
+    @Test
+    void resetRequiresAtLeastOneGroup() {
+        assertThrows(IllegalArgumentException.class, () -> storeManager.reset(Set.of()));
     }
 }

@@ -1,0 +1,8 @@
+package org.fintrax.store;
+
+public enum ResetGroup {
+    ACCOUNTS_TRANSACTIONS_HISTORY,
+    CATEGORIES_RULES_LABELS,
+    STORED_CREDENTIALS,
+    APPLICATION_SETTINGS
+}
