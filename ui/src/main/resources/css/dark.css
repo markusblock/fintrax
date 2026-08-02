@@ -1,0 +1,34 @@
+.root {
+    -fx-base: #252525;
+    -fx-background: #252525;
+    -fx-control-inner-background: #303030;
+    -fx-text-fill: #eeeeee;
+}
+
+.label {
+    -fx-text-fill: #eeeeee;
+}
+
+.sidebar-panel,
+.content-area,
+.sync-status-pane {
+    -fx-background-color: #252525;
+}
+
+.sync-status-pane {
+    -fx-border-color: #505050;
+}
+
+.sidebar-button:hover,
+.button:hover {
+    -fx-background-color: #454545;
+}
+
+.table-view .table-row-cell:odd {
+    -fx-background-color: #383838;
+}
+
+.detail-panel {
+    -fx-background-color: #303030;
+    -fx-border-color: #505050;
+}

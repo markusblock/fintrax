@@ -10,22 +10,22 @@
 
 <BorderPane fx:id="rootPane" xmlns:fx="http://javafx.com/fxml" fx:controller="org.fintrax.ui.controller.MainController">
     <left>
-        <VBox fx:id="sidebar" prefWidth="200" style="-fx-background-color: #f5f5f5;">
+        <VBox fx:id="sidebar" prefWidth="200" styleClass="sidebar-panel">
             <padding>
                 <Insets top="10" right="10" bottom="10" left="10"/>
             </padding>
             <Button fx:id="toggleSidebarButton" text="☰" onAction="#onToggleSidebar" maxWidth="Infinity" style="-fx-font-size: 18px;"/>
             <Separator/>
-            <Button text="🏦 Bank Accounts" onAction="#onBankAccounts" maxWidth="Infinity" style="-fx-alignment: CENTER_LEFT;"/>
-            <Button text="💰 Transactions" onAction="#onTransactions" maxWidth="Infinity" style="-fx-alignment: CENTER_LEFT;"/>
-            <Button text="📁 Categories" onAction="#onCategories" maxWidth="Infinity" style="-fx-alignment: CENTER_LEFT;"/>
-            <Button text="⚙️ Rules" onAction="#onRules" maxWidth="Infinity" style="-fx-alignment: CENTER_LEFT;"/>
-            <Button text="🏷️ Labels" onAction="#onLabels" maxWidth="Infinity" style="-fx-alignment: CENTER_LEFT;"/>
-            <Button text="📋 Activity Log" onAction="#onActivityLog" maxWidth="Infinity" style="-fx-alignment: CENTER_LEFT;"/>
-            <Button text="⚙️ Settings" onAction="#onSettings" maxWidth="Infinity" style="-fx-alignment: CENTER_LEFT;"/>
+            <Button fx:id="bankAccountsButton" onAction="#onBankAccounts" maxWidth="Infinity" style="-fx-alignment: CENTER_LEFT;"/>
+            <Button fx:id="transactionsButton" onAction="#onTransactions" maxWidth="Infinity" style="-fx-alignment: CENTER_LEFT;"/>
+            <Button fx:id="categoriesButton" onAction="#onCategories" maxWidth="Infinity" style="-fx-alignment: CENTER_LEFT;"/>
+            <Button fx:id="rulesButton" onAction="#onRules" maxWidth="Infinity" style="-fx-alignment: CENTER_LEFT;"/>
+            <Button fx:id="labelsButton" onAction="#onLabels" maxWidth="Infinity" style="-fx-alignment: CENTER_LEFT;"/>
+            <Button fx:id="activityLogButton" onAction="#onActivityLog" maxWidth="Infinity" style="-fx-alignment: CENTER_LEFT;"/>
+            <Button fx:id="settingsButton" onAction="#onSettings" maxWidth="Infinity" style="-fx-alignment: CENTER_LEFT;"/>
         </VBox>
     </left>
     <center>
-        <StackPane fx:id="contentArea" style="-fx-background-color: white;"/>
+        <StackPane fx:id="contentArea" styleClass="content-area"/>
     </center>
 </BorderPane>

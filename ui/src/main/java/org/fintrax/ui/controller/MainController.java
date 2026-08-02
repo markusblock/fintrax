@@ -23,13 +23,40 @@ public class MainController {
 
     @FXML
     private Button toggleSidebarButton;
+    @FXML
+    private Button bankAccountsButton;
+    @FXML
+    private Button transactionsButton;
+    @FXML
+    private Button categoriesButton;
+    @FXML
+    private Button rulesButton;
+    @FXML
+    private Button labelsButton;
+    @FXML
+    private Button activityLogButton;
+    @FXML
+    private Button settingsButton;
 
     private boolean sidebarExpanded = true;
+    private String currentView;
 
     @FXML
     public void initialize() {
         log.info("MainController initialized");
+        rootPane.getProperties().put(MainController.class.getName(), this);
+        refreshLocale();
         loadView("bankAccounts");
+    }
+
+    public void refreshLocale() {
+        bankAccountsButton.setText("🏦 " + I18n.get("view.bankAccounts"));
+        transactionsButton.setText("💰 " + I18n.get("view.transactions"));
+        categoriesButton.setText("📁 " + I18n.get("view.categories"));
+        rulesButton.setText("⚙️ " + I18n.get("view.rules"));
+        labelsButton.setText("🏷️ " + I18n.get("view.labels"));
+        activityLogButton.setText("📋 " + I18n.get("view.activityLog"));
+        settingsButton.setText("⚙️ " + I18n.get("view.settings"));
     }
 
     @FXML
@@ -87,6 +114,13 @@ public class MainController {
             log.info("Loaded view: {}", viewName);
         } catch (Exception e) {
             log.error("Failed to load view: {}", viewName, e);
+        }
+        currentView = viewName;
+    }
+
+    public void reloadCurrentView() {
+        if (currentView != null) {
+            loadView(currentView);
         }
     }
 }
