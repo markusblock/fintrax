@@ -39,7 +39,7 @@
         </ScrollPane>
     </center>
     <bottom>
-        <VBox fx:id="syncStatusPane" spacing="5" style="-fx-background-color: #f8f8f8; -fx-border-color: #e0e0e0; -fx-border-width: 1 0 0 0;">
+        <VBox fx:id="syncStatusPane" spacing="5" styleClass="sync-status-pane">
             <padding>
                 <Insets top="10" right="20" bottom="10" left="20"/>
             </padding>

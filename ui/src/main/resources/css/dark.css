@@ -10,8 +10,13 @@
 }
 
 .sidebar-panel,
-.content-area {
+.content-area,
+.sync-status-pane {
     -fx-background-color: #252525;
+}
+
+.sync-status-pane {
+    -fx-border-color: #505050;
 }
 
 .sidebar-button:hover,
