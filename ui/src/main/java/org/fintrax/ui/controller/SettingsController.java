@@ -4,6 +4,7 @@ import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import lombok.extern.slf4j.Slf4j;
@@ -11,13 +12,20 @@ import org.fintrax.config.I18n;
 import org.fintrax.fintx.PinStorage;
 import org.fintrax.model.BankAccount;
 import org.fintrax.service.AccountService;
+import org.fintrax.service.ResetService;
 import org.fintrax.service.ServiceRegistry;
+import org.fintrax.service.SyncService;
 import org.fintrax.service.hibiscus.HibiscusXmlImporter;
+import org.fintrax.store.ResetGroup;
 import org.fintrax.store.StoragePathResolver;
 
 import java.io.File;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Slf4j
 public class SettingsController {
@@ -39,6 +47,8 @@ public class SettingsController {
     private final AccountService accountService = ServiceRegistry.getInstance().getAccountService();
     private final PinStorage pinStorage = ServiceRegistry.getInstance().getPinStorage();
     private final HibiscusXmlImporter hibiscusXmlImporter = ServiceRegistry.getInstance().getHibiscusXmlImporter();
+    private final ResetService resetService = ServiceRegistry.getInstance().getResetService();
+    private final SyncService syncService = ServiceRegistry.getInstance().getSyncService();
 
     @FXML
     public void initialize() {
@@ -137,6 +147,94 @@ public class SettingsController {
                 alert.showAndWait();
             }
         }
+    }
+
+    @FXML
+    private void onResetData() {
+        if (syncService.isSyncing()) {
+            Alert alert = new Alert(Alert.AlertType.INFORMATION);
+            alert.setTitle(I18n.get("settings.reset.busy"));
+            alert.setHeaderText(I18n.get("settings.reset.busy"));
+            alert.setContentText(I18n.get("settings.reset.busy.desc"));
+            alert.showAndWait();
+            return;
+        }
+
+        Dialog<Set<ResetGroup>> dialog = new Dialog<>();
+        dialog.setTitle(I18n.get("settings.reset.title"));
+        dialog.setHeaderText(I18n.get("settings.reset.header"));
+
+        ButtonType resetButtonType = new ButtonType(
+                I18n.get("button.reset"), ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(resetButtonType, ButtonType.CANCEL);
+
+        Label warning = new Label(I18n.get("settings.reset.warning"));
+        warning.setWrapText(true);
+        warning.setStyle("-fx-text-fill: #b71c1c; -fx-font-weight: bold;");
+
+        Map<ResetGroup, CheckBox> choices = new LinkedHashMap<>();
+        VBox content = new VBox(10, warning);
+        addResetChoice(content, choices, ResetGroup.ACCOUNTS_TRANSACTIONS_HISTORY,
+                "settings.reset.accounts");
+        addResetChoice(content, choices, ResetGroup.CATEGORIES_RULES_LABELS,
+                "settings.reset.categories");
+        addResetChoice(content, choices, ResetGroup.STORED_CREDENTIALS,
+                "settings.reset.credentials");
+        addResetChoice(content, choices, ResetGroup.APPLICATION_SETTINGS,
+                "settings.reset.settings");
+
+        HBox selectionButtons = new HBox(10);
+        Button selectAll = new Button(I18n.get("button.selectAll"));
+        Button clearAll = new Button(I18n.get("button.clearAll"));
+        selectionButtons.getChildren().addAll(selectAll, clearAll);
+        content.getChildren().add(selectionButtons);
+        dialog.getDialogPane().setContent(content);
+
+        Button resetButton = (Button) dialog.getDialogPane().lookupButton(resetButtonType);
+        resetButton.setDisable(true);
+        Runnable updateResetButton = () -> resetButton.setDisable(
+                choices.values().stream().noneMatch(CheckBox::isSelected));
+        choices.values().forEach(checkBox -> checkBox.selectedProperty().addListener(
+                (observable, oldValue, newValue) -> updateResetButton.run()));
+        selectAll.setOnAction(event -> choices.values().forEach(checkBox -> checkBox.setSelected(true)));
+        clearAll.setOnAction(event -> choices.values().forEach(checkBox -> checkBox.setSelected(false)));
+
+        dialog.setResultConverter(buttonType -> {
+            if (buttonType != resetButtonType) return null;
+            return choices.entrySet().stream()
+                    .filter(entry -> entry.getValue().isSelected())
+                    .map(Map.Entry::getKey)
+                    .collect(Collectors.toSet());
+        });
+
+        Optional<Set<ResetGroup>> result = dialog.showAndWait();
+        if (result.isEmpty() || result.get().isEmpty()) return;
+
+        try {
+            resetService.reset(result.get());
+            loadCredentials();
+
+            Alert alert = new Alert(Alert.AlertType.INFORMATION);
+            alert.setTitle(I18n.get("settings.reset.success"));
+            alert.setHeaderText(I18n.get("settings.reset.success"));
+            alert.setContentText(I18n.get("settings.reset.result"));
+            alert.showAndWait();
+        } catch (Exception e) {
+            log.error("Reset failed", e);
+            Alert alert = new Alert(Alert.AlertType.ERROR);
+            alert.setTitle(I18n.get("settings.reset.error"));
+            alert.setHeaderText(I18n.get("settings.reset.error"));
+            alert.setContentText(e.getMessage());
+            alert.showAndWait();
+        }
+    }
+
+    private void addResetChoice(VBox content, Map<ResetGroup, CheckBox> choices,
+                                ResetGroup group, String labelKey) {
+        CheckBox checkBox = new CheckBox(I18n.get(labelKey));
+        checkBox.setWrapText(true);
+        choices.put(group, checkBox);
+        content.getChildren().add(checkBox);
     }
 
     public static class CredentialRow {

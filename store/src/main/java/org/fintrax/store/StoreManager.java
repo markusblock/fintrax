@@ -7,6 +7,8 @@ import org.fintrax.model.*;
 
 import java.nio.file.Path;
 import java.util.Map;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -143,6 +145,49 @@ public class StoreManager {
                 root.getActivityLogs().remove(0);
             }
             storage.store(root.getActivityLogs());
+        } finally {
+            lock.writeLock().unlock();
+        }
+    }
+
+    public void reset(Set<ResetGroup> groups) {
+        if (groups == null || groups.isEmpty()) {
+            throw new IllegalArgumentException("At least one reset group is required");
+        }
+
+        lock.writeLock().lock();
+        try {
+            if (groups.contains(ResetGroup.ACCOUNTS_TRANSACTIONS_HISTORY)) {
+                root.getAccounts().clear();
+                root.getTransactions().clear();
+                root.getSyncLogs().clear();
+                root.getActivityLogs().clear();
+                storage.store(root.getAccounts());
+                storage.store(root.getTransactions());
+                storage.store(root.getSyncLogs());
+                storage.store(root.getActivityLogs());
+            }
+
+            if (groups.contains(ResetGroup.CATEGORIES_RULES_LABELS)) {
+                root.getCategories().clear();
+                root.getRules().clear();
+                root.getLabels().clear();
+                root.getTransactions().forEach(transaction -> {
+                    transaction.setCategoryId(null);
+                    transaction.setLabelIds(new HashSet<>());
+                });
+                storage.store(root.getCategories());
+                storage.store(root.getRules());
+                storage.store(root.getLabels());
+                storage.store(root.getTransactions());
+            }
+
+            if (groups.contains(ResetGroup.APPLICATION_SETTINGS)) {
+                root.getSettings().clear();
+                storage.store(root.getSettings());
+            }
+
+            rebuildIndexes();
         } finally {
             lock.writeLock().unlock();
         }

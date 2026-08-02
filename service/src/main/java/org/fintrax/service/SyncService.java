@@ -9,6 +9,7 @@ import org.fintrax.store.StoreManager;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Slf4j
 public class SyncService {
@@ -19,6 +20,7 @@ public class SyncService {
     private final ActivityLogger activityLogger;
     private final PinStorage pinStorage;
     private final RuleEngine ruleEngine;
+    private final AtomicInteger activeSyncs = new AtomicInteger();
     private long nextId = 1;
 
     public SyncService(StoreManager store, BankingProtocol bankingProtocol,
@@ -42,6 +44,19 @@ public class SyncService {
     }
 
     public SyncLog syncAccount(Long accountId, String pin) {
+        activeSyncs.incrementAndGet();
+        try {
+            return syncAccountInternal(accountId, pin);
+        } finally {
+            activeSyncs.decrementAndGet();
+        }
+    }
+
+    public boolean isSyncing() {
+        return activeSyncs.get() > 0;
+    }
+
+    private SyncLog syncAccountInternal(Long accountId, String pin) {
         BankAccount account = store.getAccount(accountId);
         if (account == null) {
             throw new IllegalArgumentException("Account not found: " + accountId);
