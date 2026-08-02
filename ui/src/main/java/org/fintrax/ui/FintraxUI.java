@@ -22,6 +22,7 @@ public class FintraxUI extends Application {
         I18n.setLocale(ServiceRegistry.getInstance().getSettingsService().getLocale());
 
         FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/main.fxml"));
+        loader.setResources(I18n.getResourceBundle());
         Parent root = loader.load();
 
         Scene scene = new Scene(root, MIN_WIDTH, MIN_HEIGHT);

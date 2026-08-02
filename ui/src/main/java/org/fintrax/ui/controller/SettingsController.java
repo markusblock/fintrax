@@ -94,6 +94,7 @@ public class SettingsController {
         String lang = languageCombo.getValue();
         settingsService.saveLanguage("Deutsch".equals(lang) ? "de" : "en");
         I18n.setLocale(settingsService.getLocale());
+        refreshMainLocale();
         reloadMainView();
         log.info("Language changed to: {}", lang);
     }
@@ -110,6 +111,13 @@ public class SettingsController {
         Object controller = rootPane.getScene().getRoot().getProperties().get(MainController.class.getName());
         if (controller instanceof MainController mainController) {
             mainController.reloadCurrentView();
+        }
+    }
+
+    private void refreshMainLocale() {
+        Object controller = rootPane.getScene().getRoot().getProperties().get(MainController.class.getName());
+        if (controller instanceof MainController mainController) {
+            mainController.refreshLocale();
         }
     }
 
