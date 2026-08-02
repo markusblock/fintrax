@@ -2,6 +2,14 @@
     -fx-font-family: "System";
 }
 
+.sidebar-panel {
+    -fx-background-color: #f5f5f5;
+}
+
+.content-area {
+    -fx-background-color: white;
+}
+
 .button {
     -fx-cursor: hand;
 }

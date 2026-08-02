@@ -9,6 +9,11 @@
     -fx-text-fill: #eeeeee;
 }
 
+.sidebar-panel,
+.content-area {
+    -fx-background-color: #252525;
+}
+
 .sidebar-button:hover,
 .button:hover {
     -fx-background-color: #454545;

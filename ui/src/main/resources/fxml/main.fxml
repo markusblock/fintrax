@@ -10,7 +10,7 @@
 
 <BorderPane fx:id="rootPane" xmlns:fx="http://javafx.com/fxml" fx:controller="org.fintrax.ui.controller.MainController">
     <left>
-        <VBox fx:id="sidebar" prefWidth="200" style="-fx-background-color: #f5f5f5;">
+        <VBox fx:id="sidebar" prefWidth="200" styleClass="sidebar-panel">
             <padding>
                 <Insets top="10" right="10" bottom="10" left="10"/>
             </padding>
@@ -26,6 +26,6 @@
         </VBox>
     </left>
     <center>
-        <StackPane fx:id="contentArea" style="-fx-background-color: white;"/>
+        <StackPane fx:id="contentArea" styleClass="content-area"/>
     </center>
 </BorderPane>
