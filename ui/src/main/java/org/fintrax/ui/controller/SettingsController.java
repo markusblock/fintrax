@@ -9,12 +9,14 @@ import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import lombok.extern.slf4j.Slf4j;
 import org.fintrax.config.I18n;
+import org.fintrax.ui.FintraxUI;
 import org.fintrax.fintx.PinStorage;
 import org.fintrax.model.BankAccount;
 import org.fintrax.service.AccountService;
 import org.fintrax.service.ResetService;
 import org.fintrax.service.ServiceRegistry;
 import org.fintrax.service.SyncService;
+import org.fintrax.service.SettingsService;
 import org.fintrax.service.hibiscus.HibiscusXmlImporter;
 import org.fintrax.store.ResetGroup;
 import org.fintrax.store.StoragePathResolver;
@@ -49,16 +51,17 @@ public class SettingsController {
     private final HibiscusXmlImporter hibiscusXmlImporter = ServiceRegistry.getInstance().getHibiscusXmlImporter();
     private final ResetService resetService = ServiceRegistry.getInstance().getResetService();
     private final SyncService syncService = ServiceRegistry.getInstance().getSyncService();
+    private final SettingsService settingsService = ServiceRegistry.getInstance().getSettingsService();
 
     @FXML
     public void initialize() {
         log.info("SettingsController initialized");
 
         languageCombo.getItems().setAll("English", "Deutsch");
-        languageCombo.setValue("English");
+        languageCombo.setValue("de".equals(settingsService.getLanguage()) ? "Deutsch" : "English");
 
         themeCombo.getItems().setAll("Light", "Dark");
-        themeCombo.setValue("Light");
+        themeCombo.setValue("dark".equals(settingsService.getTheme()) ? "Dark" : "Light");
 
         dataDirLabel.setText(StoragePathResolver.resolve().toString());
 
@@ -89,13 +92,25 @@ public class SettingsController {
     @FXML
     private void onSaveLanguage() {
         String lang = languageCombo.getValue();
+        settingsService.saveLanguage("Deutsch".equals(lang) ? "de" : "en");
+        I18n.setLocale(settingsService.getLocale());
+        reloadMainView();
         log.info("Language changed to: {}", lang);
     }
 
     @FXML
     private void onSaveTheme() {
         String theme = themeCombo.getValue();
+        settingsService.saveTheme("Dark".equals(theme) ? "dark" : "light");
+        FintraxUI.applyTheme(rootPane.getScene(), settingsService.getTheme());
         log.info("Theme changed to: {}", theme);
+    }
+
+    private void reloadMainView() {
+        Object controller = rootPane.getScene().getRoot().getProperties().get(MainController.class.getName());
+        if (controller instanceof MainController mainController) {
+            mainController.reloadCurrentView();
+        }
     }
 
     @FXML

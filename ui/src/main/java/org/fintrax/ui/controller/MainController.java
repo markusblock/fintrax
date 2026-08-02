@@ -25,10 +25,12 @@ public class MainController {
     private Button toggleSidebarButton;
 
     private boolean sidebarExpanded = true;
+    private String currentView;
 
     @FXML
     public void initialize() {
         log.info("MainController initialized");
+        rootPane.getProperties().put(MainController.class.getName(), this);
         loadView("bankAccounts");
     }
 
@@ -87,6 +89,13 @@ public class MainController {
             log.info("Loaded view: {}", viewName);
         } catch (Exception e) {
             log.error("Failed to load view: {}", viewName, e);
+        }
+        currentView = viewName;
+    }
+
+    public void reloadCurrentView() {
+        if (currentView != null) {
+            loadView(currentView);
         }
     }
 }
