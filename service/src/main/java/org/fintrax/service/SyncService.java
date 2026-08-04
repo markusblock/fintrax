@@ -6,12 +6,14 @@ import org.fintrax.fintx.BankingProtocol;
 import org.fintrax.fintx.PinStorage;
 import org.fintrax.model.*;
 import org.fintrax.store.StoreManager;
+import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @Slf4j
+@Service
 public class SyncService {
     private final StoreManager store;
     private final BankingProtocol bankingProtocol;

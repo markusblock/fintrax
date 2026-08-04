@@ -2,9 +2,11 @@ package org.fintrax.service;
 
 import org.fintrax.model.AppSetting;
 import org.fintrax.store.StoreManager;
+import org.springframework.stereotype.Service;
 
 import java.util.Locale;
 
+@Service
 public class SettingsService {
     public static final String LANGUAGE_KEY = "language";
     public static final String THEME_KEY = "theme";

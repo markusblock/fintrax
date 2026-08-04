@@ -3,10 +3,12 @@ package org.fintrax.service;
 import lombok.extern.slf4j.Slf4j;
 import org.fintrax.model.*;
 import org.fintrax.store.StoreManager;
+import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 
 @Slf4j
+@Service
 public class ActivityLogger {
     private static final int MAX_LOGS = 10_000;
     private final StoreManager store;

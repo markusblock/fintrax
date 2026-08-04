@@ -5,4 +5,5 @@ plugins {
 dependencies {
     implementation(project(":model"))
     implementation("com.github.hbci4j:hbci4j-core:${property("hbci4javaVersion")}")
+    implementation("org.springframework.boot:spring-boot-starter:${property("springBootVersion")}")
 }
