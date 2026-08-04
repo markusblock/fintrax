@@ -18,6 +18,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Slf4j
+@org.springframework.stereotype.Component
+@org.springframework.context.annotation.Scope("prototype")
 public class ActivityLogController {
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 

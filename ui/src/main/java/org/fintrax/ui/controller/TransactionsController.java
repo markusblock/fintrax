@@ -24,6 +24,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
+@org.springframework.stereotype.Component
+@org.springframework.context.annotation.Scope("prototype")
 public class TransactionsController {
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     private static final String COLUMN_CONFIG_KEY = "transaction.columns";

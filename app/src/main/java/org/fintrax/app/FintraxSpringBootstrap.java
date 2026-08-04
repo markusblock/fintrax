@@ -8,10 +8,11 @@ import org.springframework.context.annotation.Import;
 import org.fintrax.fintx.FintxConfiguration;
 import org.fintrax.service.ServiceConfiguration;
 import org.fintrax.store.StoreConfiguration;
+import org.fintrax.ui.UiModule;
 
 /** Starts the embedded Spring context without taking ownership of the desktop lifecycle. */
 @SpringBootConfiguration
-@Import({StoreConfiguration.class, FintxConfiguration.class, ServiceConfiguration.class})
+@Import({StoreConfiguration.class, FintxConfiguration.class, ServiceConfiguration.class, UiModule.class})
 public class FintraxSpringBootstrap {
     private FintraxSpringBootstrap() {
     }

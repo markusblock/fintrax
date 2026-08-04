@@ -14,6 +14,8 @@ import org.fintrax.service.AccountService;
 import org.fintrax.service.ServiceRegistry;
 
 @Slf4j
+@org.springframework.stereotype.Component
+@org.springframework.context.annotation.Scope("prototype")
 public class AddAccountDialogController {
     @FXML
     private TextField ibanField;

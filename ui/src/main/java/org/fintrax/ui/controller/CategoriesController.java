@@ -13,6 +13,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
+@org.springframework.stereotype.Component
+@org.springframework.context.annotation.Scope("prototype")
 public class CategoriesController {
     @FXML
     private BorderPane rootPane;

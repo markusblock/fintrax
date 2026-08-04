@@ -2,7 +2,6 @@ package org.fintrax.ui.controller;
 
 import javafx.application.Platform;
 import javafx.fxml.FXML;
-import javafx.fxml.FXMLLoader;
 import javafx.geometry.Insets;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
@@ -18,6 +17,9 @@ import org.fintrax.model.SyncLog;
 import org.fintrax.model.SyncStatus;
 import org.fintrax.service.AccountService;
 import org.fintrax.service.ServiceRegistry;
+import org.fintrax.ui.ViewLoader;
+import org.springframework.context.annotation.Scope;
+import org.springframework.stereotype.Component;
 import org.fintrax.service.SyncService;
 
 import java.math.BigDecimal;
@@ -28,6 +30,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 @Slf4j
+@Component
+@Scope("prototype")
 public class BankAccountsController {
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
@@ -50,11 +54,16 @@ public class BankAccountsController {
 
     private final AccountService accountService = ServiceRegistry.getInstance().getAccountService();
     private final SyncService syncService = ServiceRegistry.getInstance().getSyncService();
+    private final ViewLoader viewLoader;
     private final ExecutorService executor = Executors.newCachedThreadPool(r -> {
         Thread t = new Thread(r, "sync-worker");
         t.setDaemon(true);
         return t;
     });
+
+    public BankAccountsController(ViewLoader viewLoader) {
+        this.viewLoader = viewLoader;
+    }
 
     @FXML
     public void initialize() {
@@ -148,9 +157,7 @@ public class BankAccountsController {
     @FXML
     private void onAddAccount() {
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/addAccountDialog.fxml"));
-            loader.setResources(I18n.getResourceBundle());
-            Parent root = loader.load();
+            Parent root = viewLoader.load("addAccountDialog");
 
             Stage dialog = new Stage();
             dialog.setTitle(I18n.get("dialog.addAccount.title"));

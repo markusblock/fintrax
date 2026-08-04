@@ -30,6 +30,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @Slf4j
+@org.springframework.stereotype.Component
+@org.springframework.context.annotation.Scope("prototype")
 public class SettingsController {
     @FXML
     private BorderPane rootPane;

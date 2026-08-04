@@ -16,6 +16,8 @@ import org.fintrax.service.ServiceRegistry;
 import java.util.Optional;
 
 @Slf4j
+@org.springframework.stereotype.Component
+@org.springframework.context.annotation.Scope("prototype")
 public class LabelsController {
     @FXML
     private BorderPane rootPane;

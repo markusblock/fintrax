@@ -1,5 +1,6 @@
 package org.fintrax.app;
 
+import org.springframework.context.ConfigurableApplicationContext;
 import org.fintrax.service.ServiceRegistry;
 import org.fintrax.ui.FintraxUI;
 import org.fintrax.config.I18n;
@@ -9,7 +10,10 @@ public final class FintraxApplication {
         ServiceRegistry.initialize();
         I18n.setLocale(ServiceRegistry.getInstance().getSettingsService().getLocale());
         Runtime.getRuntime().addShutdownHook(new Thread(ServiceRegistry::shutdown));
-        FintraxUI.main(args);
+        try (ConfigurableApplicationContext context = FintraxSpringBootstrap.start(args)) {
+            FintraxUI.configure(context);
+            FintraxUI.main(args);
+        }
         System.exit(0);
     }
 }
