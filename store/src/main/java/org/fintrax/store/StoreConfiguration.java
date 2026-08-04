@@ -1,16 +1,17 @@
 package org.fintrax.store;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 
 import java.nio.file.Path;
 
 @Configuration(proxyBeanMethods = false)
+@EnableConfigurationProperties(StorageProperties.class)
 public class StoreConfiguration {
     @Bean
-    Path storagePath(@Value("${fintrax.storage.path:~/.fintrax/data}") String configuredPath) {
-        return StoragePathResolver.resolve(configuredPath);
+    Path storagePath(StorageProperties properties) {
+        return StoragePathResolver.resolve(properties.path());
     }
 
     @Bean(destroyMethod = "shutdown")
