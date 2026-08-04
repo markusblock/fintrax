@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.fintrax.model.*;
 import org.fintrax.store.DataRoot;
 import org.fintrax.store.StoreManager;
+import org.springframework.stereotype.Service;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
@@ -29,6 +30,7 @@ import java.util.Optional;
 import java.util.Set;
 
 @Slf4j
+@Service
 public class HibiscusXmlImporter {
     private static final DateTimeFormatter DATE_TIME_FMT = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss");
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd.MM.yyyy[ HH:mm:ss]");

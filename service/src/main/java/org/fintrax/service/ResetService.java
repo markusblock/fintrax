@@ -3,9 +3,11 @@ package org.fintrax.service;
 import org.fintrax.fintx.PinStorage;
 import org.fintrax.store.ResetGroup;
 import org.fintrax.store.StoreManager;
+import org.springframework.stereotype.Service;
 
 import java.util.Set;
 
+@Service
 public class ResetService {
     private final StoreManager storeManager;
     private final PinStorage pinStorage;
