@@ -1,11 +1,9 @@
 package org.fintrax.app;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.WebApplicationType;
-import org.springframework.boot.builder.SpringApplicationBuilder;
+import org.springframework.boot.web.context.WebServerApplicationContext;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.boot.web.context.WebServerApplicationContext;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -36,9 +34,8 @@ class FintraxSpringBootstrapTest {
 
     @Test
     void startupFailureIsPropagated() {
-        assertThrows(RuntimeException.class, () -> new SpringApplicationBuilder(FailingConfiguration.class)
-                .web(WebApplicationType.NONE)
-                .run("--spring.main.banner-mode=off"));
+        assertThrows(RuntimeException.class, () -> FintraxSpringBootstrap.start(
+                FailingConfiguration.class, "--spring.main.banner-mode=off"));
     }
 
     @Configuration(proxyBeanMethods = false)

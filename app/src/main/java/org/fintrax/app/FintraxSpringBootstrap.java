@@ -12,7 +12,11 @@ public class FintraxSpringBootstrap {
     }
 
     public static ConfigurableApplicationContext start(String... args) {
-        return new SpringApplicationBuilder(FintraxSpringBootstrap.class)
+        return start(FintraxSpringBootstrap.class, args);
+    }
+
+    static ConfigurableApplicationContext start(Class<?> source, String... args) {
+        return new SpringApplicationBuilder(source)
                 .web(WebApplicationType.NONE)
                 .run(args);
     }
