@@ -2,6 +2,7 @@ plugins {
     java
     application
     id("org.openjfx.javafxplugin")
+    id("org.springframework.boot")
 }
 
 javafx {
@@ -16,6 +17,7 @@ dependencies {
     implementation(project(":ui"))
     implementation(project(":config"))
     implementation(project(":fintx"))
+    implementation("org.springframework.boot:spring-boot-starter:${property("springBootVersion")}")
     implementation("ch.qos.logback:logback-classic:${property("logbackVersion")}")
 }
 

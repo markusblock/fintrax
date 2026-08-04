@@ -1,3 +1,9 @@
+pluginManagement {
+    plugins {
+        id("org.springframework.boot") version providers.gradleProperty("springBootVersion").get()
+    }
+}
+
 rootProject.name = "fintrax"
 
 include("app")
