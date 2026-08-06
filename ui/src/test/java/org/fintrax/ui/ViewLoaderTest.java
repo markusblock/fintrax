@@ -4,7 +4,10 @@ import javafx.scene.Parent;
 import javafx.scene.layout.BorderPane;
 import org.fintrax.ui.controller.AddAccountDialogController;
 import org.fintrax.ui.controller.BankAccountsController;
+import org.fintrax.ui.controller.CategoriesController;
+import org.fintrax.ui.controller.LabelsController;
 import org.fintrax.ui.controller.MainController;
+import org.fintrax.ui.controller.RulesController;
 import org.fintrax.ui.controller.TransactionsController;
 import org.junit.jupiter.api.Test;
 
@@ -72,6 +75,28 @@ class ViewLoaderTest extends AbstractUITest {
         assertNotNull(second);
         assertNotSame(first, second);
         assertNotSame(first, applicationContext.getBean(TransactionsController.class));
+    }
+
+    @Test
+    void createsCategoriesLabelsAndRulesControllersThroughSpring() throws Exception {
+        ViewLoader viewLoader = applicationContext.getBean(ViewLoader.class);
+
+        CategoriesController firstCategories = (CategoriesController) ((BorderPane) viewLoader.load("categories"))
+                .getProperties().get(CategoriesController.class.getName());
+        CategoriesController secondCategories = (CategoriesController) ((BorderPane) viewLoader.load("categories"))
+                .getProperties().get(CategoriesController.class.getName());
+        LabelsController labels = (LabelsController) ((BorderPane) viewLoader.load("labels"))
+                .getProperties().get(LabelsController.class.getName());
+        RulesController rules = (RulesController) ((BorderPane) viewLoader.load("rules"))
+                .getProperties().get(RulesController.class.getName());
+
+        assertNotNull(firstCategories);
+        assertNotNull(labels);
+        assertNotNull(rules);
+        assertNotSame(firstCategories, secondCategories);
+        assertNotSame(firstCategories, applicationContext.getBean(CategoriesController.class));
+        assertNotSame(labels, applicationContext.getBean(LabelsController.class));
+        assertNotSame(rules, applicationContext.getBean(RulesController.class));
     }
 
     @Test
