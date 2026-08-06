@@ -44,10 +44,6 @@ public class FintraxUI extends Application {
         javafx.application.Platform.exit();
     }
 
-    public static void main(String[] args) {
-        Application.launch(FintraxUI.class, args);
-    }
-
     public static void launch(ApplicationContext context, String... args) {
         configureContext(context);
         Application.launch(FintraxUI.class, args);

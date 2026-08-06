@@ -45,10 +45,12 @@ class FintraxSpringBootstrapTest {
     @Test
     void closeIsDeterministic() {
         ConfigurableApplicationContext context = startContext();
+        StoreManager storeManager = context.getBean(StoreManager.class);
 
         context.close();
 
         assertFalse(context.isActive());
+        assertTrue(storeManager.isShutdown());
     }
 
     @Test
