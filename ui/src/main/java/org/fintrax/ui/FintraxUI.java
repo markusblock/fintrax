@@ -45,10 +45,15 @@ public class FintraxUI extends Application {
     }
 
     public static void main(String[] args) {
-        launch(args);
+        Application.launch(FintraxUI.class, args);
     }
 
-    public static void configure(ApplicationContext context) {
+    public static void launch(ApplicationContext context, String... args) {
+        configureContext(context);
+        Application.launch(FintraxUI.class, args);
+    }
+
+    private static void configureContext(ApplicationContext context) {
         applicationContext = context;
     }
 

@@ -16,6 +16,7 @@ import org.fintrax.service.SettingsService;
 import org.fintrax.service.SyncService;
 import org.fintrax.service.TransactionService;
 import org.fintrax.store.StoreManager;
+import org.fintrax.ui.ViewLoader;
 import org.springframework.boot.web.context.WebServerApplicationContext;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Configuration;
@@ -67,6 +68,7 @@ class FintraxSpringBootstrapTest {
             assertNotNull(context.getBean(HibiscusXmlImporter.class));
             assertNotNull(context.getBean(SettingsService.class));
             assertNotNull(context.getBean(ResetService.class));
+            assertNotNull(context.getBean(ViewLoader.class));
         }
     }
 
