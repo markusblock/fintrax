@@ -3,11 +3,13 @@ package org.fintrax.ui;
 import javafx.scene.Parent;
 import javafx.scene.layout.BorderPane;
 import org.fintrax.ui.controller.AddAccountDialogController;
+import org.fintrax.ui.controller.ActivityLogController;
 import org.fintrax.ui.controller.BankAccountsController;
 import org.fintrax.ui.controller.CategoriesController;
 import org.fintrax.ui.controller.LabelsController;
 import org.fintrax.ui.controller.MainController;
 import org.fintrax.ui.controller.RulesController;
+import org.fintrax.ui.controller.SettingsController;
 import org.fintrax.ui.controller.TransactionsController;
 import org.junit.jupiter.api.Test;
 
@@ -106,5 +108,23 @@ class ViewLoaderTest extends AbstractUITest {
         Parent root = viewLoader.load("addAccountDialog");
 
         assertNotNull(root.getProperties().get(AddAccountDialogController.class.getName()));
+    }
+
+    @Test
+    void createsSettingsAndActivityLogControllersThroughSpring() throws Exception {
+        ViewLoader viewLoader = applicationContext.getBean(ViewLoader.class);
+
+        SettingsController firstSettings = (SettingsController) ((BorderPane) viewLoader.load("settings"))
+                .getProperties().get(SettingsController.class.getName());
+        SettingsController secondSettings = (SettingsController) ((BorderPane) viewLoader.load("settings"))
+                .getProperties().get(SettingsController.class.getName());
+        ActivityLogController activityLog = (ActivityLogController) ((BorderPane) viewLoader.load("activityLog"))
+                .getProperties().get(ActivityLogController.class.getName());
+
+        assertNotNull(firstSettings);
+        assertNotNull(activityLog);
+        assertNotSame(firstSettings, secondSettings);
+        assertNotSame(firstSettings, applicationContext.getBean(SettingsController.class));
+        assertNotSame(activityLog, applicationContext.getBean(ActivityLogController.class));
     }
 }
