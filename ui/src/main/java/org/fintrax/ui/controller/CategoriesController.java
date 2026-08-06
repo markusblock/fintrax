@@ -7,14 +7,15 @@ import lombok.extern.slf4j.Slf4j;
 import org.fintrax.config.I18n;
 import org.fintrax.model.Category;
 import org.fintrax.service.CategoryService;
-import org.fintrax.service.ServiceRegistry;
+import org.springframework.context.annotation.Scope;
+import org.springframework.stereotype.Component;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
-@org.springframework.stereotype.Component
-@org.springframework.context.annotation.Scope("prototype")
+@Component
+@Scope("prototype")
 public class CategoriesController {
     @FXML
     private BorderPane rootPane;
@@ -35,10 +36,14 @@ public class CategoriesController {
     @FXML
     private Label depthLabel;
 
-    private final CategoryService categoryService = ServiceRegistry.getInstance().getCategoryService();
+    private final CategoryService categoryService;
     private final Map<Long, TreeItem<String>> itemByCategoryId = new HashMap<>();
     private Long selectedCategoryId;
     private boolean editingNew = false;
+
+    public CategoriesController(CategoryService categoryService) {
+        this.categoryService = categoryService;
+    }
 
     @FXML
     public void initialize() {

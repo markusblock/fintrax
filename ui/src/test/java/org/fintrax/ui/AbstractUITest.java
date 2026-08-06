@@ -1,6 +1,8 @@
 package org.fintrax.ui;
 
-import org.fintrax.service.ServiceRegistry;
+import org.fintrax.fintx.FintxConfiguration;
+import org.fintrax.service.ServiceConfiguration;
+import org.fintrax.store.StoreConfiguration;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -20,13 +22,13 @@ public abstract class AbstractUITest extends ApplicationTest {
     static void beforeAll() throws Exception {
         tempDir = Files.createTempDirectory("fintrax-ui-test");
         System.setProperty("fintrax.storage.path", tempDir.toString());
-        ServiceRegistry.initialize();
-        applicationContext = new AnnotationConfigApplicationContext(UiModule.class);
+        applicationContext = new AnnotationConfigApplicationContext(
+                StoreConfiguration.class, FintxConfiguration.class,
+                ServiceConfiguration.class, UiModule.class);
     }
 
     @AfterAll
     static void afterAll() throws Exception {
-        ServiceRegistry.shutdown();
         applicationContext.close();
         if (tempDir != null) {
             Files.walk(tempDir)

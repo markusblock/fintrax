@@ -6,9 +6,8 @@ import javafx.scene.Scene;
 import javafx.stage.Stage;
 import lombok.extern.slf4j.Slf4j;
 import org.fintrax.config.I18n;
-import org.fintrax.service.ServiceRegistry;
+import org.fintrax.service.SettingsService;
 import org.springframework.context.ApplicationContext;
-import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 
 @Slf4j
 public class FintraxUI extends Application {
@@ -21,13 +20,14 @@ public class FintraxUI extends Application {
     public void start(Stage primaryStage) throws Exception {
         log.info("Starting Fintrax UI");
 
-        I18n.setLocale(ServiceRegistry.getInstance().getSettingsService().getLocale());
+        SettingsService settingsService = getApplicationContext().getBean(SettingsService.class);
+        I18n.setLocale(settingsService.getLocale());
 
         Parent root = getApplicationContext().getBean(ViewLoader.class).load("main");
 
         Scene scene = new Scene(root, MIN_WIDTH, MIN_HEIGHT);
         scene.getStylesheets().add(getClass().getResource("/css/fintrax.css").toExternalForm());
-        applyTheme(scene, ServiceRegistry.getInstance().getSettingsService().getTheme());
+        applyTheme(scene, settingsService.getTheme());
 
         primaryStage.setTitle(TITLE);
         primaryStage.setScene(scene);
@@ -54,7 +54,7 @@ public class FintraxUI extends Application {
 
     private static ApplicationContext getApplicationContext() {
         if (applicationContext == null) {
-            applicationContext = new AnnotationConfigApplicationContext(UiModule.class);
+            throw new IllegalStateException("FintraxUI application context is not configured");
         }
         return applicationContext;
     }

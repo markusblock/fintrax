@@ -16,7 +16,7 @@ import org.fintrax.model.BankAccount;
 import org.fintrax.model.SyncLog;
 import org.fintrax.model.SyncStatus;
 import org.fintrax.service.AccountService;
-import org.fintrax.service.ServiceRegistry;
+import org.fintrax.fintx.PinStorage;
 import org.fintrax.ui.ViewLoader;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
@@ -52,8 +52,9 @@ public class BankAccountsController {
     @FXML
     private VBox syncLogContainer;
 
-    private final AccountService accountService = ServiceRegistry.getInstance().getAccountService();
-    private final SyncService syncService = ServiceRegistry.getInstance().getSyncService();
+    private final AccountService accountService;
+    private final SyncService syncService;
+    private final PinStorage pinStorage;
     private final ViewLoader viewLoader;
     private final ExecutorService executor = Executors.newCachedThreadPool(r -> {
         Thread t = new Thread(r, "sync-worker");
@@ -61,7 +62,11 @@ public class BankAccountsController {
         return t;
     });
 
-    public BankAccountsController(ViewLoader viewLoader) {
+    public BankAccountsController(AccountService accountService, SyncService syncService,
+                                  PinStorage pinStorage, ViewLoader viewLoader) {
+        this.accountService = accountService;
+        this.syncService = syncService;
+        this.pinStorage = pinStorage;
         this.viewLoader = viewLoader;
     }
 
@@ -184,7 +189,7 @@ public class BankAccountsController {
     }
 
     private void onSyncAccount(Long accountId) {
-        String pin = ServiceRegistry.getInstance().getPinStorage().retrievePin(String.valueOf(accountId));
+        String pin = pinStorage.retrievePin(String.valueOf(accountId));
 
         if (pin == null) {
             pin = showPinDialog(accountId);
@@ -237,7 +242,7 @@ public class BankAccountsController {
         Optional<ButtonType> result = alert.showAndWait();
         if (result.isPresent() && result.get() == ButtonType.OK) {
             accountService.deleteAccount(account.getId());
-            ServiceRegistry.getInstance().getPinStorage().deletePin(String.valueOf(account.getId()));
+            pinStorage.deletePin(String.valueOf(account.getId()));
             loadAccounts();
         }
     }

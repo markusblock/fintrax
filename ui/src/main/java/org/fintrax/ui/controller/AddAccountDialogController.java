@@ -11,11 +11,12 @@ import org.fintrax.fintx.PinStorage;
 import org.fintrax.model.AccountType;
 import org.fintrax.model.BankAccount;
 import org.fintrax.service.AccountService;
-import org.fintrax.service.ServiceRegistry;
+import org.springframework.context.annotation.Scope;
+import org.springframework.stereotype.Component;
 
 @Slf4j
-@org.springframework.stereotype.Component
-@org.springframework.context.annotation.Scope("prototype")
+@Component
+@Scope("prototype")
 public class AddAccountDialogController {
     @FXML
     private TextField ibanField;
@@ -34,9 +35,16 @@ public class AddAccountDialogController {
     @FXML
     private Button saveButton;
 
-    private final AccountService accountService = ServiceRegistry.getInstance().getAccountService();
-    private final BankingProtocol bankingProtocol = ServiceRegistry.getInstance().getBankingProtocol();
-    private final PinStorage pinStorage = ServiceRegistry.getInstance().getPinStorage();
+    private final AccountService accountService;
+    private final BankingProtocol bankingProtocol;
+    private final PinStorage pinStorage;
+
+    public AddAccountDialogController(AccountService accountService, BankingProtocol bankingProtocol,
+                                      PinStorage pinStorage) {
+        this.accountService = accountService;
+        this.bankingProtocol = bankingProtocol;
+        this.pinStorage = pinStorage;
+    }
 
     @FXML
     public void initialize() {

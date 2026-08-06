@@ -11,14 +11,16 @@ import lombok.extern.slf4j.Slf4j;
 import org.fintrax.config.I18n;
 import org.fintrax.model.*;
 import org.fintrax.service.*;
+import org.springframework.context.annotation.Scope;
+import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
-@org.springframework.stereotype.Component
-@org.springframework.context.annotation.Scope("prototype")
+@Component
+@Scope("prototype")
 public class RulesController {
     @FXML
     private BorderPane rootPane;
@@ -41,15 +43,21 @@ public class RulesController {
     @FXML
     private javafx.scene.control.Label matchCountLabel;
 
-    private final RuleService ruleService = ServiceRegistry.getInstance().getRuleService();
-    private final CategoryService categoryService = ServiceRegistry.getInstance().getCategoryService();
-    private final LabelService labelService = ServiceRegistry.getInstance().getLabelService();
+    private final RuleService ruleService;
+    private final CategoryService categoryService;
+    private final LabelService labelService;
 
     private final ObservableList<Rule> ruleData = FXCollections.observableArrayList();
     private Long editingRuleId;
     private boolean editingNew = false;
     private final List<ConditionRow> conditionRows = new ArrayList<>();
     private final List<ActionRow> actionRows = new ArrayList<>();
+
+    public RulesController(RuleService ruleService, CategoryService categoryService, LabelService labelService) {
+        this.ruleService = ruleService;
+        this.categoryService = categoryService;
+        this.labelService = labelService;
+    }
 
     @FXML
     public void initialize() {

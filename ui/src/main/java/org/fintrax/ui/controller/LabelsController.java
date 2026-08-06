@@ -11,13 +11,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.fintrax.config.I18n;
 import org.fintrax.model.Label;
 import org.fintrax.service.LabelService;
-import org.fintrax.service.ServiceRegistry;
+import org.springframework.context.annotation.Scope;
+import org.springframework.stereotype.Component;
 
 import java.util.Optional;
 
 @Slf4j
-@org.springframework.stereotype.Component
-@org.springframework.context.annotation.Scope("prototype")
+@Component
+@Scope("prototype")
 public class LabelsController {
     @FXML
     private BorderPane rootPane;
@@ -42,10 +43,14 @@ public class LabelsController {
     @FXML
     private Button addButton;
 
-    private final LabelService labelService = ServiceRegistry.getInstance().getLabelService();
+    private final LabelService labelService;
     private final ObservableList<Label> tableData = FXCollections.observableArrayList();
     private Long selectedLabelId;
     private boolean editingNew = false;
+
+    public LabelsController(LabelService labelService) {
+        this.labelService = labelService;
+    }
 
     @FXML
     public void initialize() {

@@ -16,6 +16,8 @@ import org.fintrax.config.I18n;
 import org.fintrax.model.*;
 import org.fintrax.service.*;
 import org.fintrax.store.StoreManager;
+import org.springframework.context.annotation.Scope;
+import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -24,8 +26,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
-@org.springframework.stereotype.Component
-@org.springframework.context.annotation.Scope("prototype")
+@Component
+@Scope("prototype")
 public class TransactionsController {
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     private static final String COLUMN_CONFIG_KEY = "transaction.columns";
@@ -77,15 +79,25 @@ public class TransactionsController {
     @FXML
     private TextArea noteArea;
 
-    private final AccountService accountService = ServiceRegistry.getInstance().getAccountService();
-    private final TransactionService transactionService = ServiceRegistry.getInstance().getTransactionService();
-    private final CategoryService categoryService = ServiceRegistry.getInstance().getCategoryService();
-    private final LabelService labelService = ServiceRegistry.getInstance().getLabelService();
-    private final StoreManager storeManager = ServiceRegistry.getInstance().getStoreManager();
+    private final AccountService accountService;
+    private final TransactionService transactionService;
+    private final CategoryService categoryService;
+    private final LabelService labelService;
+    private final StoreManager storeManager;
 
     private final ObservableList<Transaction> tableData = FXCollections.observableArrayList();
     private boolean detailVisible = false;
     private Map<Long, CheckBox> labelCheckBoxes = new HashMap<>();
+
+    public TransactionsController(AccountService accountService, TransactionService transactionService,
+                                  CategoryService categoryService, LabelService labelService,
+                                  StoreManager storeManager) {
+        this.accountService = accountService;
+        this.transactionService = transactionService;
+        this.categoryService = categoryService;
+        this.labelService = labelService;
+        this.storeManager = storeManager;
+    }
 
     @FXML
     public void initialize() {
