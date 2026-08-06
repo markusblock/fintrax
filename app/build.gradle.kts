@@ -19,6 +19,7 @@ dependencies {
     implementation(project(":fintx"))
     implementation("org.springframework.boot:spring-boot-starter:${property("springBootVersion")}")
     implementation("ch.qos.logback:logback-classic:${property("logbackVersion")}")
+    testImplementation("org.eclipse.store:storage-embedded:${property("eclipsestoreVersion")}")
 }
 
 application {
