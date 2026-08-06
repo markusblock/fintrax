@@ -16,6 +16,7 @@ import org.fintrax.service.SettingsService;
 import org.fintrax.service.SyncService;
 import org.fintrax.service.TransactionService;
 import org.fintrax.store.StoreManager;
+import org.fintrax.ui.ViewLoader;
 import org.springframework.boot.web.context.WebServerApplicationContext;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Configuration;
@@ -44,10 +45,12 @@ class FintraxSpringBootstrapTest {
     @Test
     void closeIsDeterministic() {
         ConfigurableApplicationContext context = startContext();
+        StoreManager storeManager = context.getBean(StoreManager.class);
 
         context.close();
 
         assertFalse(context.isActive());
+        assertTrue(storeManager.isShutdown());
     }
 
     @Test
@@ -67,6 +70,7 @@ class FintraxSpringBootstrapTest {
             assertNotNull(context.getBean(HibiscusXmlImporter.class));
             assertNotNull(context.getBean(SettingsService.class));
             assertNotNull(context.getBean(ResetService.class));
+            assertNotNull(context.getBean(ViewLoader.class));
         }
     }
 

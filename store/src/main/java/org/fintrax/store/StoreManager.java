@@ -17,6 +17,7 @@ public class StoreManager {
     private static final int MAX_ACTIVITY_LOGS = 10_000;
     private final EmbeddedStorageManager storage;
     private final DataRoot root;
+    private volatile boolean shutdown;
     private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
     private final Map<Long, BankAccount> accountIndex = new ConcurrentHashMap<>();
     private final Map<Long, Transaction> transactionIndex = new ConcurrentHashMap<>();
@@ -194,6 +195,13 @@ public class StoreManager {
 
     public void shutdown() {
         log.info("Shutting down StoreManager");
-        storage.shutdown();
+        if (!shutdown) {
+            shutdown = true;
+            storage.shutdown();
+        }
+    }
+
+    public boolean isShutdown() {
+        return shutdown;
     }
 }
