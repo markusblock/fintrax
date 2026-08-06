@@ -14,12 +14,13 @@ import org.fintrax.fintx.PinStorage;
 import org.fintrax.model.BankAccount;
 import org.fintrax.service.AccountService;
 import org.fintrax.service.ResetService;
-import org.fintrax.service.ServiceRegistry;
 import org.fintrax.service.SyncService;
 import org.fintrax.service.SettingsService;
 import org.fintrax.service.hibiscus.HibiscusXmlImporter;
 import org.fintrax.store.ResetGroup;
 import org.fintrax.store.StoragePathResolver;
+import org.springframework.context.annotation.Scope;
+import org.springframework.stereotype.Component;
 
 import java.io.File;
 import java.util.LinkedHashMap;
@@ -30,6 +31,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @Slf4j
+@Component
+@Scope("prototype")
 public class SettingsController {
     @FXML
     private BorderPane rootPane;
@@ -46,12 +49,23 @@ public class SettingsController {
     @FXML
     private TableColumn<CredentialRow, String> statusColumn;
 
-    private final AccountService accountService = ServiceRegistry.getInstance().getAccountService();
-    private final PinStorage pinStorage = ServiceRegistry.getInstance().getPinStorage();
-    private final HibiscusXmlImporter hibiscusXmlImporter = ServiceRegistry.getInstance().getHibiscusXmlImporter();
-    private final ResetService resetService = ServiceRegistry.getInstance().getResetService();
-    private final SyncService syncService = ServiceRegistry.getInstance().getSyncService();
-    private final SettingsService settingsService = ServiceRegistry.getInstance().getSettingsService();
+    private final AccountService accountService;
+    private final PinStorage pinStorage;
+    private final HibiscusXmlImporter hibiscusXmlImporter;
+    private final ResetService resetService;
+    private final SyncService syncService;
+    private final SettingsService settingsService;
+
+    public SettingsController(AccountService accountService, PinStorage pinStorage,
+                               HibiscusXmlImporter hibiscusXmlImporter, ResetService resetService,
+                               SyncService syncService, SettingsService settingsService) {
+        this.accountService = accountService;
+        this.pinStorage = pinStorage;
+        this.hibiscusXmlImporter = hibiscusXmlImporter;
+        this.resetService = resetService;
+        this.syncService = syncService;
+        this.settingsService = settingsService;
+    }
 
     @FXML
     public void initialize() {

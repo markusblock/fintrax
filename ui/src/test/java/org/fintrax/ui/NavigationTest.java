@@ -1,6 +1,5 @@
 package org.fintrax.ui;
 
-import javafx.fxml.FXMLLoader;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
@@ -16,8 +15,7 @@ class NavigationTest extends AbstractUITest {
 
     @Override
     public void start(Stage stage) throws Exception {
-        FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/main.fxml"));
-        Parent root = loader.load();
+        Parent root = applicationContext.getBean(ViewLoader.class).load("main");
 
         Scene scene = new Scene(root, 1024, 768);
         stage.setScene(scene);

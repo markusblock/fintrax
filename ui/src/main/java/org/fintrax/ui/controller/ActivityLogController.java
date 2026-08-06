@@ -10,14 +10,17 @@ import javafx.scene.layout.BorderPane;
 import lombok.extern.slf4j.Slf4j;
 import org.fintrax.config.I18n;
 import org.fintrax.model.*;
-import org.fintrax.service.ServiceRegistry;
 import org.fintrax.store.StoreManager;
+import org.springframework.context.annotation.Scope;
+import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Slf4j
+@Component
+@Scope("prototype")
 public class ActivityLogController {
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
@@ -40,8 +43,12 @@ public class ActivityLogController {
     @FXML
     private ComboBox<String> entityTypeFilter;
 
-    private final StoreManager storeManager = ServiceRegistry.getInstance().getStoreManager();
+    private final StoreManager storeManager;
     private final ObservableList<ActivityLog> tableData = FXCollections.observableArrayList();
+
+    public ActivityLogController(StoreManager storeManager) {
+        this.storeManager = storeManager;
+    }
 
     @FXML
     public void initialize() {

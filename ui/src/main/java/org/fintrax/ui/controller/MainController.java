@@ -1,7 +1,6 @@
 package org.fintrax.ui.controller;
 
 import javafx.fxml.FXML;
-import javafx.fxml.FXMLLoader;
 import javafx.scene.Node;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.StackPane;
@@ -9,8 +8,13 @@ import javafx.scene.layout.VBox;
 import javafx.scene.control.Button;
 import lombok.extern.slf4j.Slf4j;
 import org.fintrax.config.I18n;
+import org.fintrax.ui.ViewLoader;
+import org.springframework.context.annotation.Scope;
+import org.springframework.stereotype.Component;
 
 @Slf4j
+@Component
+@Scope("prototype")
 public class MainController {
     @FXML
     private BorderPane rootPane;
@@ -40,6 +44,11 @@ public class MainController {
 
     private boolean sidebarExpanded = true;
     private String currentView;
+    private final ViewLoader viewLoader;
+
+    public MainController(ViewLoader viewLoader) {
+        this.viewLoader = viewLoader;
+    }
 
     @FXML
     public void initialize() {
@@ -106,9 +115,7 @@ public class MainController {
 
     private void loadView(String viewName) {
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/" + viewName + ".fxml"));
-            loader.setResources(I18n.getResourceBundle());
-            Node view = (Node) loader.load();
+            Node view = viewLoader.load(viewName);
             contentArea.getChildren().clear();
             contentArea.getChildren().add(view);
             log.info("Loaded view: {}", viewName);

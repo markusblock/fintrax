@@ -1,16 +1,17 @@
 package org.fintrax.ui;
 
 import javafx.application.Application;
-import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 import lombok.extern.slf4j.Slf4j;
 import org.fintrax.config.I18n;
-import org.fintrax.service.ServiceRegistry;
+import org.fintrax.service.SettingsService;
+import org.springframework.context.ApplicationContext;
 
 @Slf4j
 public class FintraxUI extends Application {
+    private static ApplicationContext applicationContext;
     private static final String TITLE = "Fintrax";
     private static final double MIN_WIDTH = 1024;
     private static final double MIN_HEIGHT = 768;
@@ -19,15 +20,14 @@ public class FintraxUI extends Application {
     public void start(Stage primaryStage) throws Exception {
         log.info("Starting Fintrax UI");
 
-        I18n.setLocale(ServiceRegistry.getInstance().getSettingsService().getLocale());
+        SettingsService settingsService = getApplicationContext().getBean(SettingsService.class);
+        I18n.setLocale(settingsService.getLocale());
 
-        FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/main.fxml"));
-        loader.setResources(I18n.getResourceBundle());
-        Parent root = loader.load();
+        Parent root = getApplicationContext().getBean(ViewLoader.class).load("main");
 
         Scene scene = new Scene(root, MIN_WIDTH, MIN_HEIGHT);
         scene.getStylesheets().add(getClass().getResource("/css/fintrax.css").toExternalForm());
-        applyTheme(scene, ServiceRegistry.getInstance().getSettingsService().getTheme());
+        applyTheme(scene, settingsService.getTheme());
 
         primaryStage.setTitle(TITLE);
         primaryStage.setScene(scene);
@@ -46,6 +46,17 @@ public class FintraxUI extends Application {
 
     public static void main(String[] args) {
         launch(args);
+    }
+
+    public static void configure(ApplicationContext context) {
+        applicationContext = context;
+    }
+
+    private static ApplicationContext getApplicationContext() {
+        if (applicationContext == null) {
+            throw new IllegalStateException("FintraxUI application context is not configured");
+        }
+        return applicationContext;
     }
 
     public static void applyTheme(Scene scene, String theme) {

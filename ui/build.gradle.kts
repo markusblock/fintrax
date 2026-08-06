@@ -14,6 +14,7 @@ dependencies {
     implementation(project(":store"))
     implementation(project(":config"))
     implementation(project(":fintx"))
+    implementation("org.springframework:spring-context:${property("springVersion")}")
     implementation("io.github.mkpaz:atlantafx-base:${property("atlantafxVersion")}")
 
     testImplementation(project(":testkit"))
