@@ -2,6 +2,8 @@ package org.fintrax.ui;
 
 import javafx.scene.Parent;
 import javafx.scene.layout.BorderPane;
+import org.fintrax.ui.controller.AddAccountDialogController;
+import org.fintrax.ui.controller.BankAccountsController;
 import org.fintrax.ui.controller.MainController;
 import org.junit.jupiter.api.Test;
 
@@ -33,5 +35,32 @@ class ViewLoaderTest extends AbstractUITest {
                 .getProperties().get(MainController.class.getName());
 
         assertNotSame(first, second);
+    }
+
+    @Test
+    void createsBankAccountsControllerThroughSpring() throws Exception {
+        ViewLoader viewLoader = applicationContext.getBean(ViewLoader.class);
+
+        BorderPane firstRoot = (BorderPane) viewLoader.load("bankAccounts");
+        BorderPane secondRoot = (BorderPane) viewLoader.load("bankAccounts");
+
+        BankAccountsController first = (BankAccountsController) firstRoot.getProperties()
+                .get(BankAccountsController.class.getName());
+        BankAccountsController second = (BankAccountsController) secondRoot.getProperties()
+                .get(BankAccountsController.class.getName());
+
+        assertNotNull(first);
+        assertNotNull(second);
+        assertNotSame(first, second);
+        assertNotSame(first, applicationContext.getBean(BankAccountsController.class));
+    }
+
+    @Test
+    void createsAddAccountDialogControllerThroughSpring() throws Exception {
+        ViewLoader viewLoader = applicationContext.getBean(ViewLoader.class);
+
+        Parent root = viewLoader.load("addAccountDialog");
+
+        assertNotNull(root.getProperties().get(AddAccountDialogController.class.getName()));
     }
 }
