@@ -5,6 +5,7 @@ import javafx.scene.layout.BorderPane;
 import org.fintrax.ui.controller.AddAccountDialogController;
 import org.fintrax.ui.controller.BankAccountsController;
 import org.fintrax.ui.controller.MainController;
+import org.fintrax.ui.controller.TransactionsController;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -53,6 +54,24 @@ class ViewLoaderTest extends AbstractUITest {
         assertNotNull(second);
         assertNotSame(first, second);
         assertNotSame(first, applicationContext.getBean(BankAccountsController.class));
+    }
+
+    @Test
+    void createsTransactionsControllerThroughSpring() throws Exception {
+        ViewLoader viewLoader = applicationContext.getBean(ViewLoader.class);
+
+        BorderPane firstRoot = (BorderPane) viewLoader.load("transactions");
+        BorderPane secondRoot = (BorderPane) viewLoader.load("transactions");
+
+        TransactionsController first = (TransactionsController) firstRoot.getProperties()
+                .get(TransactionsController.class.getName());
+        TransactionsController second = (TransactionsController) secondRoot.getProperties()
+                .get(TransactionsController.class.getName());
+
+        assertNotNull(first);
+        assertNotNull(second);
+        assertNotSame(first, second);
+        assertNotSame(first, applicationContext.getBean(TransactionsController.class));
     }
 
     @Test
