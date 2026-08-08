@@ -37,6 +37,8 @@ Explicit non-goals:
 - The fixture remains readable after restart.
 - Startup failure exits without opening a partially initialized UI or silently changing storage location.
 
+The compatibility gate uses a synthetic EclipseStore data set shaped by the pre-migration model. No real production data is available for testing. Sync coverage verifies Spring wiring of `SyncService`, `BankingProtocol`, `PinStorage`, and `StoreManager`; it does not execute a live banking synchronization.
+
 ## Bean policy
 
 - `@Service` for application services.

@@ -18,11 +18,11 @@ import org.fintrax.service.SyncService;
 import org.fintrax.service.SettingsService;
 import org.fintrax.service.hibiscus.HibiscusXmlImporter;
 import org.fintrax.store.ResetGroup;
-import org.fintrax.store.StoragePathResolver;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
+import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -55,16 +55,19 @@ public class SettingsController {
     private final ResetService resetService;
     private final SyncService syncService;
     private final SettingsService settingsService;
+    private final Path storagePath;
 
     public SettingsController(AccountService accountService, PinStorage pinStorage,
                                HibiscusXmlImporter hibiscusXmlImporter, ResetService resetService,
-                               SyncService syncService, SettingsService settingsService) {
+                               SyncService syncService, SettingsService settingsService,
+                               Path storagePath) {
         this.accountService = accountService;
         this.pinStorage = pinStorage;
         this.hibiscusXmlImporter = hibiscusXmlImporter;
         this.resetService = resetService;
         this.syncService = syncService;
         this.settingsService = settingsService;
+        this.storagePath = storagePath;
     }
 
     @FXML
@@ -77,7 +80,7 @@ public class SettingsController {
         themeCombo.getItems().setAll("Light", "Dark");
         themeCombo.setValue("dark".equals(settingsService.getTheme()) ? "Dark" : "Light");
 
-        dataDirLabel.setText(StoragePathResolver.resolve().toString());
+        dataDirLabel.setText(storagePath.toString());
 
         loadCredentials();
     }

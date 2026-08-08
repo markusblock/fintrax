@@ -127,4 +127,5 @@ class ViewLoaderTest extends AbstractUITest {
         assertNotSame(firstSettings, applicationContext.getBean(SettingsController.class));
         assertNotSame(activityLog, applicationContext.getBean(ActivityLogController.class));
     }
+
 }

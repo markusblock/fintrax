@@ -9,9 +9,11 @@ import org.junit.jupiter.api.BeforeAll;
 import org.testfx.framework.junit5.ApplicationTest;
 
 import javafx.stage.Stage;
+import org.springframework.core.env.MapPropertySource;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Map;
 import java.util.Comparator;
 
 public abstract class AbstractUITest extends ApplicationTest {
@@ -21,10 +23,12 @@ public abstract class AbstractUITest extends ApplicationTest {
     @BeforeAll
     static void beforeAll() throws Exception {
         tempDir = Files.createTempDirectory("fintrax-ui-test");
-        System.setProperty("fintrax.storage.path", tempDir.toString());
-        applicationContext = new AnnotationConfigApplicationContext(
-                StoreConfiguration.class, FintxConfiguration.class,
+        applicationContext = new AnnotationConfigApplicationContext();
+        applicationContext.getEnvironment().getPropertySources().addFirst(
+                new MapPropertySource("test-properties", Map.of("fintrax.storage.path", tempDir.toString())));
+        applicationContext.register(StoreConfiguration.class, FintxConfiguration.class,
                 ServiceConfiguration.class, UiModule.class);
+        applicationContext.refresh();
     }
 
     @AfterAll
