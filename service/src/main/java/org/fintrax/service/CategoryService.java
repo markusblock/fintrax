@@ -6,9 +6,11 @@ import org.fintrax.store.StoreManager;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -126,25 +128,35 @@ public class CategoryService {
     }
 
     public void deleteCategory(Long id, Long reassignToId) {
+        deleteCategory(id, reassignToId, true);
+    }
+
+    public void deleteCategory(Long id, Long reassignToId, boolean moveChildrenToParent) {
         Category category = store.getCategory(id);
         if (category == null) {
             throw new IllegalArgumentException("Category not found: " + id);
         }
 
         List<Category> children = getChildCategories(id);
-        for (Category child : children) {
-            child.setParentId(category.getParentId());
-            store.store(child);
+        Set<Long> categoriesToDelete = new HashSet<>();
+        categoriesToDelete.add(id);
+        if (moveChildrenToParent) {
+            for (Category child : children) {
+                child.setParentId(category.getParentId());
+                store.store(child);
+            }
+        } else {
+            collectDescendantIds(id, categoriesToDelete);
         }
 
         store.getRoot().getTransactions().stream()
-                .filter(t -> id.equals(t.getCategoryId()))
+                .filter(t -> categoriesToDelete.contains(t.getCategoryId()))
                 .forEach(t -> {
                     t.setCategoryId(reassignToId);
                     store.store(t);
                 });
 
-        store.getRoot().getCategories().remove(category);
+        store.getRoot().getCategories().removeIf(candidate -> categoriesToDelete.contains(candidate.getId()));
         store.store(store.getRoot().getCategories());
 
         activityLogger.log(ActivityAction.DELETE, EntityType.CATEGORY, id,
@@ -153,9 +165,26 @@ public class CategoryService {
         log.info("Deleted category {} and reassigned transactions to {}", id, reassignToId);
     }
 
+    private void collectDescendantIds(Long parentId, Set<Long> descendantIds) {
+        for (Category child : getChildCategories(parentId)) {
+            descendantIds.add(child.getId());
+            collectDescendantIds(child.getId(), descendantIds);
+        }
+    }
+
     public List<Transaction> getTransactionsInCategory(Long categoryId) {
         return store.getRoot().getTransactions().stream()
                 .filter(t -> categoryId.equals(t.getCategoryId()))
+                .toList();
+    }
+
+    public List<Transaction> getTransactionsInCategoryAndDescendants(Long categoryId) {
+        Set<Long> categoryIds = new HashSet<>();
+        categoryIds.add(categoryId);
+        collectDescendantIds(categoryId, categoryIds);
+
+        return store.getRoot().getTransactions().stream()
+                .filter(transaction -> categoryIds.contains(transaction.getCategoryId()))
                 .toList();
     }
 }
