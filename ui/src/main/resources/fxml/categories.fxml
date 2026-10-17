@@ -34,7 +34,7 @@
                         <TableColumn fx:id="transactionPayeeColumn" text="%col.payee" prefWidth="130" sortable="true"/>
                         <TableColumn fx:id="transactionPurposeColumn" text="%col.purpose" prefWidth="160" sortable="true"/>
                         <TableColumn fx:id="transactionAmountColumn" text="%col.amount" prefWidth="100" sortable="true"/>
-                        <TableColumn fx:id="transactionBalanceColumn" text="%col.balance" prefWidth="100" sortable="true"/>
+                        <TableColumn fx:id="transactionCategoryColumn" text="%col.category" prefWidth="130" sortable="true"/>
                     </columns>
                 </TableView>
             </VBox>

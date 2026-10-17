@@ -3,6 +3,7 @@ package org.fintrax.ui;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TreeCell;
 import javafx.scene.control.TreeItem;
@@ -21,6 +22,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -105,9 +107,86 @@ class CategoriesControllerTest extends AbstractUITest {
 
         rightClickOn(treeCell(tree, categoryName));
         clickOn("Delete");
+        assertTrue(lookup("#moveChildrenCheckBox").queryAll().isEmpty());
         interact(lookup("#confirmDeleteButton").<Button>query()::fire);
 
         assertTrue(categoryService().getCategory(categoryId).isEmpty());
+    }
+
+    @Test
+    void deletingCategoryDefaultsToDeletingItsEntireSubtree() {
+        TreeView<String> tree = lookup("#categoryTree").query();
+        String categoryName = "Delete subtree " + System.nanoTime();
+        addCategoryAt(tree, tree.getRoot(), categoryName);
+        TreeItem<String> categoryItem = treeItem(tree.getRoot(), categoryName);
+        String childName = "Child " + System.nanoTime();
+        addCategoryAt(tree, categoryItem, childName);
+        TreeItem<String> childItem = treeItem(treeItem(tree.getRoot(), categoryName), childName);
+        String grandchildName = "Grandchild " + System.nanoTime();
+        addCategoryAt(tree, childItem, grandchildName);
+        Long categoryId = findCategory(categoryName).getId();
+        Long childId = findCategory(childName).getId();
+        Long grandchildId = findCategory(grandchildName).getId();
+
+        rightClickOn(treeCell(tree, categoryName));
+        clickOn("Delete");
+        CheckBox moveChildren = lookup("#moveChildrenCheckBox").query();
+        assertFalse(moveChildren.isSelected());
+        interact(lookup("#confirmDeleteButton").<Button>query()::fire);
+
+        assertTrue(categoryService().getCategory(categoryId).isEmpty());
+        assertTrue(categoryService().getCategory(childId).isEmpty());
+        assertTrue(categoryService().getCategory(grandchildId).isEmpty());
+    }
+
+    @Test
+    void selectingMoveChildrenPromotesThemToDeletedCategoriesParent() {
+        TreeView<String> tree = lookup("#categoryTree").query();
+        String parentName = "Parent " + System.nanoTime();
+        addCategoryAt(tree, tree.getRoot(), parentName);
+        TreeItem<String> parentItem = treeItem(tree.getRoot(), parentName);
+        String categoryName = "Delete and promote " + System.nanoTime();
+        addCategoryAt(tree, parentItem, categoryName);
+        TreeItem<String> categoryItem = treeItem(treeItem(tree.getRoot(), parentName), categoryName);
+        String childName = "Promoted child " + System.nanoTime();
+        addCategoryAt(tree, categoryItem, childName);
+        Long parentId = findCategory(parentName).getId();
+        Long categoryId = findCategory(categoryName).getId();
+        Long childId = findCategory(childName).getId();
+
+        rightClickOn(treeCell(tree, categoryName));
+        clickOn("Delete");
+        CheckBox moveChildren = lookup("#moveChildrenCheckBox").query();
+        assertEquals(I18n.get("categories.delete.moveChildrenToParent", parentName), moveChildren.getText());
+        assertFalse(moveChildren.isSelected());
+        interact(moveChildren::fire);
+        interact(lookup("#confirmDeleteButton").<Button>query()::fire);
+
+        assertTrue(categoryService().getCategory(categoryId).isEmpty());
+        assertEquals(parentId, categoryService().getCategory(childId).orElseThrow().getParentId());
+    }
+
+    @Test
+    void movingChildrenOfTopLevelCategoryPromotesThemToTopLevel() {
+        TreeView<String> tree = lookup("#categoryTree").query();
+        String categoryName = "Top-level to delete " + System.nanoTime();
+        addCategoryAt(tree, tree.getRoot(), categoryName);
+        TreeItem<String> categoryItem = treeItem(tree.getRoot(), categoryName);
+        String childName = "Top-level child " + System.nanoTime();
+        addCategoryAt(tree, categoryItem, childName);
+        Long categoryId = findCategory(categoryName).getId();
+        Long childId = findCategory(childName).getId();
+
+        rightClickOn(treeCell(tree, categoryName));
+        clickOn("Delete");
+        CheckBox moveChildren = lookup("#moveChildrenCheckBox").query();
+        assertEquals(I18n.get("categories.delete.moveChildrenToParent",
+                I18n.get("categories.delete.topLevel")), moveChildren.getText());
+        interact(moveChildren::fire);
+        interact(lookup("#confirmDeleteButton").<Button>query()::fire);
+
+        assertTrue(categoryService().getCategory(categoryId).isEmpty());
+        assertNull(categoryService().getCategory(childId).orElseThrow().getParentId());
     }
 
     @Test
@@ -158,15 +237,22 @@ class CategoriesControllerTest extends AbstractUITest {
     }
 
     @Test
-    void selectedCategoryShowsOnlyItsTransactionsAndColumnsSortRows() {
+    void selectedCategoryShowsTransactionsFromItsSubtreeAndColumnsSortRows() {
         TreeView<String> tree = lookup("#categoryTree").query();
         String categoryName = "Transactions " + System.nanoTime();
         addCategoryAt(tree, tree.getRoot(), categoryName);
         Category category = findCategory(categoryName);
+        Category childCategory = categoryService().createCategory("Child " + System.nanoTime(), category.getId(), null);
+        Category grandchildCategory = categoryService().createCategory(
+                "Grandchild " + System.nanoTime(), childCategory.getId(), null);
         Category otherCategory = categoryService().createCategory("Other " + System.nanoTime(), null, null);
 
         Transaction larger = createTransaction(category.getId(), "Larger", "20", LocalDate.of(2025, 2, 1));
         Transaction smaller = createTransaction(category.getId(), "Smaller", "-5", LocalDate.of(2025, 1, 1));
+        Transaction childTransaction = createTransaction(
+                childCategory.getId(), "Child transaction", "7", LocalDate.of(2025, 2, 2));
+        Transaction grandchildTransaction = createTransaction(
+                grandchildCategory.getId(), "Grandchild transaction", "2", LocalDate.of(2025, 2, 3));
         createTransaction(otherCategory.getId(), "Unrelated", "100", LocalDate.of(2025, 3, 1));
 
         interact(() -> tree.getSelectionModel().select(treeItem(tree.getRoot(), categoryName)));
@@ -176,9 +262,22 @@ class CategoriesControllerTest extends AbstractUITest {
                 .findFirst()
                 .orElseThrow();
 
-        assertEquals(2, table.getItems().size());
-        assertTrue(table.getItems().stream().allMatch(tx -> category.getId().equals(tx.getCategoryId())));
+        assertEquals(4, table.getItems().size());
+        assertTrue(table.getItems().stream().allMatch(tx -> Set.of(category.getId(), childCategory.getId(),
+                grandchildCategory.getId()).contains(tx.getCategoryId())));
         assertTrue(table.getColumns().stream().allMatch(column -> column.isSortable()));
+        assertFalse(table.getColumns().stream()
+                .anyMatch(column -> I18n.get("col.balance").equals(column.getText())));
+        TableColumn<Transaction, ?> transactionCategoryColumn = table.getColumns().stream()
+                .filter(column -> I18n.get("col.category").equals(column.getText()))
+                .findFirst()
+                .orElseThrow();
+        assertEquals(category.getName(), transactionCategoryColumn.getCellData(table.getItems().indexOf(larger)));
+        assertEquals(category.getName(), transactionCategoryColumn.getCellData(table.getItems().indexOf(smaller)));
+        assertEquals(childCategory.getName(),
+                transactionCategoryColumn.getCellData(table.getItems().indexOf(childTransaction)));
+        assertEquals(grandchildCategory.getName(),
+                transactionCategoryColumn.getCellData(table.getItems().indexOf(grandchildTransaction)));
 
         interact(() -> {
             amountColumn.setSortType(TableColumn.SortType.ASCENDING);

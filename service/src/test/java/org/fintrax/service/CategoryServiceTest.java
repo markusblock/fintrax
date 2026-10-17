@@ -132,4 +132,36 @@ class CategoryServiceTest {
 
         assertEquals(cat2.getId(), store.getRoot().getTransactions().get(0).getCategoryId());
     }
+
+    @Test
+    void deleteCategoryWithoutMovingChildrenDeletesEntireSubtree() {
+        Category parent = categoryService.createCategory("Parent", null, null);
+        Category category = categoryService.createCategory("Category", parent.getId(), null);
+        Category child = categoryService.createCategory("Child", category.getId(), null);
+        Category grandchild = categoryService.createCategory("Grandchild", child.getId(), null);
+        Transaction transaction = Transaction.builder().id(1L).categoryId(grandchild.getId()).build();
+        store.getRoot().getTransactions().add(transaction);
+
+        categoryService.deleteCategory(category.getId(), null, false);
+
+        assertTrue(categoryService.getCategory(category.getId()).isEmpty());
+        assertTrue(categoryService.getCategory(child.getId()).isEmpty());
+        assertTrue(categoryService.getCategory(grandchild.getId()).isEmpty());
+        assertTrue(categoryService.getCategory(parent.getId()).isPresent());
+        assertNull(transaction.getCategoryId());
+    }
+
+    @Test
+    void deleteCategoryMovingChildrenPromotesThemToDeletedCategoriesParent() {
+        Category parent = categoryService.createCategory("Parent", null, null);
+        Category category = categoryService.createCategory("Category", parent.getId(), null);
+        Category child = categoryService.createCategory("Child", category.getId(), null);
+        Category grandchild = categoryService.createCategory("Grandchild", child.getId(), null);
+
+        categoryService.deleteCategory(category.getId(), null, true);
+
+        assertTrue(categoryService.getCategory(category.getId()).isEmpty());
+        assertEquals(parent.getId(), categoryService.getCategory(child.getId()).orElseThrow().getParentId());
+        assertEquals(child.getId(), categoryService.getCategory(grandchild.getId()).orElseThrow().getParentId());
+    }
 }

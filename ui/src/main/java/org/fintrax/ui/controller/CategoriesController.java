@@ -49,7 +49,7 @@ public class CategoriesController {
     @FXML
     private TableColumn<Transaction, BigDecimal> transactionAmountColumn;
     @FXML
-    private TableColumn<Transaction, BigDecimal> transactionBalanceColumn;
+    private TableColumn<Transaction, String> transactionCategoryColumn;
 
     private final CategoryService categoryService;
     private final Map<Long, TreeItem<String>> itemByCategoryId = new HashMap<>();
@@ -104,21 +104,17 @@ public class CategoriesController {
             }
         });
 
-        transactionBalanceColumn.setCellValueFactory(cell ->
-                new SimpleObjectProperty<>(cell.getValue().getBalanceAfter()));
-        transactionBalanceColumn.setCellFactory(column -> new TableCell<>() {
-            @Override
-            protected void updateItem(BigDecimal item, boolean empty) {
-                super.updateItem(item, empty);
-                setText(empty || item == null ? null : String.format("%,.2f EUR", item.doubleValue()));
-            }
+        transactionCategoryColumn.setCellValueFactory(cell -> {
+            Long categoryId = cell.getValue().getCategoryId();
+            return new SimpleStringProperty(categoryId == null ? "" : categoryService.getCategory(categoryId)
+                    .map(Category::getName).orElse(""));
         });
 
         transactionDateColumn.setSortable(true);
         transactionPayeeColumn.setSortable(true);
         transactionPurposeColumn.setSortable(true);
         transactionAmountColumn.setSortable(true);
-        transactionBalanceColumn.setSortable(true);
+        transactionCategoryColumn.setSortable(true);
     }
 
     private void loadCategoryTransactions(Long categoryId) {
@@ -127,7 +123,7 @@ public class CategoriesController {
             return;
         }
 
-        categoryTransactions.setAll(categoryService.getTransactionsInCategory(categoryId));
+        categoryTransactions.setAll(categoryService.getTransactionsInCategoryAndDescendants(categoryId));
         if (!categoryTransactionsTable.getSortOrder().isEmpty()) {
             categoryTransactionsTable.sort();
         }
@@ -357,16 +353,34 @@ public class CategoriesController {
         List<Category> children = categoryService.getChildCategories(categoryId);
         String message = children.isEmpty()
                 ? I18n.get("categories.delete.confirm", category.getName())
-                : I18n.get("categories.delete.withChildren", category.getName(), children.size());
-        Alert alert = new Alert(Alert.AlertType.CONFIRMATION, message, ButtonType.OK, ButtonType.CANCEL);
+                : I18n.get("categories.delete.withChildren", category.getName());
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION, null, ButtonType.OK, ButtonType.CANCEL);
         alert.setTitle(I18n.get("categories.delete.title"));
         alert.initOwner(rootPane.getScene().getWindow());
 
+        Label messageLabel = new Label(message);
+        messageLabel.setWrapText(true);
+        VBox content = new VBox(10, messageLabel);
+        CheckBox moveChildrenCheckBox = null;
+        if (!children.isEmpty()) {
+            String targetName = category.getParentId() == null
+                    ? I18n.get("categories.delete.topLevel")
+                    : categoryService.getCategory(category.getParentId())
+                            .map(Category::getName)
+                            .orElse(I18n.get("categories.delete.topLevel"));
+            moveChildrenCheckBox = new CheckBox(I18n.get("categories.delete.moveChildrenToParent", targetName));
+            moveChildrenCheckBox.setId("moveChildrenCheckBox");
+            content.getChildren().add(moveChildrenCheckBox);
+        }
+        alert.getDialogPane().setContent(content);
+
         Button confirmButton = (Button) alert.getDialogPane().lookupButton(ButtonType.OK);
         confirmButton.setId("confirmDeleteButton");
+        CheckBox finalMoveChildrenCheckBox = moveChildrenCheckBox;
         alert.setOnHidden(event -> {
             if (alert.getResult() == ButtonType.OK) {
-                categoryService.deleteCategory(categoryId, null);
+                categoryService.deleteCategory(categoryId, null,
+                        finalMoveChildrenCheckBox == null || finalMoveChildrenCheckBox.isSelected());
                 loadTree();
             }
         });

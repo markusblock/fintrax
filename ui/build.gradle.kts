@@ -16,6 +16,7 @@ dependencies {
     implementation(project(":fintx"))
     implementation("org.springframework:spring-context:${property("springVersion")}")
     implementation("io.github.mkpaz:atlantafx-base:${property("atlantafxVersion")}")
+    implementation("org.controlsfx:controlsfx:${property("controlsfxVersion")}")
 
     testImplementation(project(":testkit"))
     testImplementation("org.testfx:testfx-junit5:${property("testfxVersion")}")
