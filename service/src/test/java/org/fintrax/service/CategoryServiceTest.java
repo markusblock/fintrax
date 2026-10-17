@@ -36,7 +36,7 @@ class CategoryServiceTest {
 
     @Test
     void testCreateCategory() {
-        Category cat = categoryService.createCategory("Food", null, "#FF0000", null);
+        Category cat = categoryService.createCategory("Food", null, null);
 
         assertNotNull(cat.getId());
         assertEquals("Food", cat.getName());
@@ -45,70 +45,70 @@ class CategoryServiceTest {
 
     @Test
     void testCreateChildCategory() {
-        Category parent = categoryService.createCategory("Food", null, null, null);
-        Category child = categoryService.createCategory("Groceries", parent.getId(), null, null);
+        Category parent = categoryService.createCategory("Food", null, null);
+        Category child = categoryService.createCategory("Groceries", parent.getId(), null);
 
         assertEquals(parent.getId(), child.getParentId());
     }
 
     @Test
     void testMaxDepth() {
-        Category c1 = categoryService.createCategory("L1", null, null, null);
-        Category c2 = categoryService.createCategory("L2", c1.getId(), null, null);
-        Category c3 = categoryService.createCategory("L3", c2.getId(), null, null);
-        Category c4 = categoryService.createCategory("L4", c3.getId(), null, null);
-        Category c5 = categoryService.createCategory("L5", c4.getId(), null, null);
+        Category c1 = categoryService.createCategory("L1", null, null);
+        Category c2 = categoryService.createCategory("L2", c1.getId(), null);
+        Category c3 = categoryService.createCategory("L3", c2.getId(), null);
+        Category c4 = categoryService.createCategory("L4", c3.getId(), null);
+        Category c5 = categoryService.createCategory("L5", c4.getId(), null);
 
         assertThrows(IllegalArgumentException.class, () ->
-                categoryService.createCategory("L6", c5.getId(), null, null));
+                categoryService.createCategory("L6", c5.getId(), null));
     }
 
     @Test
     void testGetRootCategories() {
         int initialRootCount = categoryService.getRootCategories().size();
-        categoryService.createCategory("TestRoot1", null, null, null);
-        Category root2 = categoryService.createCategory("TestRoot2", null, null, null);
-        categoryService.createCategory("Child", root2.getId(), null, null);
+        categoryService.createCategory("TestRoot1", null, null);
+        Category root2 = categoryService.createCategory("TestRoot2", null, null);
+        categoryService.createCategory("Child", root2.getId(), null);
 
         assertEquals(initialRootCount + 2, categoryService.getRootCategories().size());
     }
 
     @Test
     void testCreateDuplicateSiblingRejected() {
-        categoryService.createCategory("Food", null, null, null);
+        categoryService.createCategory("Food", null, null);
 
         assertThrows(IllegalArgumentException.class, () ->
-                categoryService.createCategory("Food", null, null, null));
+                categoryService.createCategory("Food", null, null));
     }
 
     @Test
     void testCreateSameNameUnderDifferentParentAllowed() {
-        Category parent1 = categoryService.createCategory("Parent1", null, null, null);
-        Category parent2 = categoryService.createCategory("Parent2", null, null, null);
+        Category parent1 = categoryService.createCategory("Parent1", null, null);
+        Category parent2 = categoryService.createCategory("Parent2", null, null);
 
-        categoryService.createCategory("Shared", parent1.getId(), null, null);
-        Category child2 = categoryService.createCategory("Shared", parent2.getId(), null, null);
+        categoryService.createCategory("Shared", parent1.getId(), null);
+        Category child2 = categoryService.createCategory("Shared", parent2.getId(), null);
 
         assertEquals(parent2.getId(), child2.getParentId());
     }
 
     @Test
     void testUpdateCategoryRenameToDuplicateSiblingRejected() {
-        Category cat1 = categoryService.createCategory("Cat1", null, null, null);
-        categoryService.createCategory("Cat2", null, null, null);
+        Category cat1 = categoryService.createCategory("Cat1", null, null);
+        categoryService.createCategory("Cat2", null, null);
 
         assertThrows(IllegalArgumentException.class, () ->
-                categoryService.updateCategory(cat1.getId(), "Cat2", null, null));
+                categoryService.updateCategory(cat1.getId(), "Cat2", null));
     }
 
     @Test
     void testUpdateCategoryRenameToNameUsedUnderAnotherParentAllowed() {
-        Category parent1 = categoryService.createCategory("Parent1", null, null, null);
-        Category parent2 = categoryService.createCategory("Parent2", null, null, null);
-        Category cat = categoryService.createCategory("Old", parent1.getId(), null, null);
-        categoryService.createCategory("New", parent2.getId(), null, null);
+        Category parent1 = categoryService.createCategory("Parent1", null, null);
+        Category parent2 = categoryService.createCategory("Parent2", null, null);
+        Category cat = categoryService.createCategory("Old", parent1.getId(), null);
+        categoryService.createCategory("New", parent2.getId(), null);
 
-        categoryService.updateCategory(cat.getId(), "New", null, null);
+        categoryService.updateCategory(cat.getId(), "New", null);
 
         assertEquals("New", categoryService.getCategory(cat.getId()).get().getName());
     }
@@ -116,8 +116,8 @@ class CategoryServiceTest {
     @Test
     void testDeleteCategoryReassignsTransactions() {
         CategoryService txService = new CategoryService(store, activityLogger);
-        Category cat1 = categoryService.createCategory("Cat1", null, null, null);
-        Category cat2 = categoryService.createCategory("Cat2", null, null, null);
+        Category cat1 = categoryService.createCategory("Cat1", null, null);
+        Category cat2 = categoryService.createCategory("Cat2", null, null);
 
         Transaction tx = Transaction.builder()
                 .id(1L).accountId(1L).originalPayee("Test").categoryId(cat1.getId())

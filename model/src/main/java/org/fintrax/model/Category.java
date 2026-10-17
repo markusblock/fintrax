@@ -16,7 +16,6 @@ public class Category {
     private Long id;
     private String name;
     private Long parentId;
-    private String color;
     private String comment;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

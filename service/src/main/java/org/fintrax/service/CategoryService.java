@@ -32,7 +32,7 @@ public class CategoryService {
                 .orElse(0) + 1;
     }
 
-    public Category createCategory(String name, Long parentId, String color, String comment) {
+    public Category createCategory(String name, Long parentId, String comment) {
         if (parentId != null) {
             int depth = calculateDepth(parentId);
             if (depth >= MAX_DEPTH) {
@@ -48,7 +48,6 @@ public class CategoryService {
                 .id(nextId++)
                 .name(name)
                 .parentId(parentId)
-                .color(color)
                 .comment(comment)
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
@@ -103,7 +102,7 @@ public class CategoryService {
                 .toList();
     }
 
-    public Category updateCategory(Long id, String name, String color, String comment) {
+    public Category updateCategory(Long id, String name, String comment) {
         Category category = store.getCategory(id);
         if (category == null) {
             throw new IllegalArgumentException("Category not found: " + id);
@@ -114,7 +113,6 @@ public class CategoryService {
         }
 
         category.setName(name);
-        category.setColor(color);
         category.setComment(comment);
         category.setUpdatedAt(LocalDateTime.now());
 
