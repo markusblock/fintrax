@@ -119,7 +119,6 @@ public class HibiscusXmlImporter {
                                     .id(newId)
                                     .name(catImport.name)
                                     .parentId(parentFintraxId)
-                                    .color(catImport.color)
                                     .createdAt(LocalDateTime.now())
                                     .updatedAt(LocalDateTime.now())
                                     .build();
@@ -367,11 +366,6 @@ public class HibiscusXmlImporter {
         String parentIdStr = getChildText(elem, "parent_id");
         cat.parentHibiscusId = parentIdStr != null && !parentIdStr.isEmpty() ? Integer.parseInt(parentIdStr) : null;
 
-        String customColorStr = getChildText(elem, "customcolor");
-        if (customColorStr != null && !customColorStr.equals("0")) {
-            cat.color = intToHexColor(Integer.parseInt(customColorStr));
-        }
-
         cat.pattern = getChildText(elem, "pattern");
         String isRegexStr = getChildText(elem, "isregex");
         cat.isRegex = "1".equals(isRegexStr);
@@ -417,10 +411,6 @@ public class HibiscusXmlImporter {
             case "3" -> ActivityAction.EXECUTE;
             default -> ActivityAction.CREATE;
         };
-    }
-
-    private String intToHexColor(int colorInt) {
-        return String.format("#%06X", (0xFFFFFF & colorInt));
     }
 
     private LocalDateTime parseDateTime(String str) {
@@ -515,7 +505,6 @@ public class HibiscusXmlImporter {
         int hibiscusId;
         Integer parentHibiscusId;
         String name;
-        String color;
         String pattern;
         boolean isRegex;
     }

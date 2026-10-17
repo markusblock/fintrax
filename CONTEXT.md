@@ -31,7 +31,7 @@ A category is identified by its name together with its parent. Sibling names mus
 ### Category Import
 
 **Hibiscus Category**:
-A category defined in a Hibiscus XML export, carrying a hibiscus ID, a name, an optional parent hibiscus ID, an optional color, and an optional matching pattern.
+A category defined in a Hibiscus XML export, carrying a hibiscus ID, a name, an optional parent hibiscus ID, and an optional matching pattern.
 _Avoid_: imported category
 
 **Fintrax Category**:

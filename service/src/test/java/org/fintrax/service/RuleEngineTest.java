@@ -49,7 +49,7 @@ class RuleEngineTest {
     void testRuleMatchesPayeeContains() {
         BankAccount account = accountService.createAccount(
                 "DE89370400440532013000", null, "Bank", "User", AccountType.GIRO, null);
-        Category foodCategory = categoryService.createCategory("Food", null, null, null);
+        Category foodCategory = categoryService.createCategory("Food", null, null);
 
         Rule rule = Rule.builder()
                 .id(1L).name("REWE Rule").priority(1).enabled(true)
@@ -122,8 +122,8 @@ class RuleEngineTest {
     void testFirstMatchWins() {
         BankAccount account = accountService.createAccount(
                 "DE89370400440532013000", null, "Bank", "User", AccountType.GIRO, null);
-        Category cat1 = categoryService.createCategory("Cat1", null, null, null);
-        Category cat2 = categoryService.createCategory("Cat2", null, null, null);
+        Category cat1 = categoryService.createCategory("Cat1", null, null);
+        Category cat2 = categoryService.createCategory("Cat2", null, null);
 
         Rule rule1 = Rule.builder()
                 .id(1L).name("Rule 1").priority(1).enabled(true)
@@ -200,7 +200,7 @@ class RuleEngineTest {
     void testDisabledRuleSkipped() {
         BankAccount account = accountService.createAccount(
                 "DE89370400440532013000", null, "Bank", "User", AccountType.GIRO, null);
-        Category cat = categoryService.createCategory("Cat", null, null, null);
+        Category cat = categoryService.createCategory("Cat", null, null);
 
         Rule rule = Rule.builder()
                 .id(1L).name("Disabled").priority(1).enabled(false)

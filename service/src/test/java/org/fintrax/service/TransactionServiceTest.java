@@ -114,7 +114,7 @@ class TransactionServiceTest {
     void testUpdateCategory() {
         BankAccount account = accountService.createAccount(
                 "DE89370400440532013000", null, "Bank", "User", AccountType.GIRO, null);
-        Category category = categoryService.createCategory("Food", null, null, null);
+        Category category = categoryService.createCategory("Food", null, null);
 
         Transaction tx = transactionService.createTransaction(Transaction.builder()
                 .accountId(account.getId()).originalPayee("REWE").amount(BigDecimal.ONE)
@@ -129,7 +129,7 @@ class TransactionServiceTest {
     void testBulkUpdateCategory() {
         BankAccount account = accountService.createAccount(
                 "DE89370400440532013000", null, "Bank", "User", AccountType.GIRO, null);
-        Category category = categoryService.createCategory("Food", null, null, null);
+        Category category = categoryService.createCategory("Food", null, null);
 
         Transaction tx1 = transactionService.createTransaction(Transaction.builder()
                 .accountId(account.getId()).originalPayee("A").amount(BigDecimal.ONE)

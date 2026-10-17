@@ -167,6 +167,7 @@ public class TransactionsController {
             return new SimpleStringProperty(categoryService.getCategory(catId)
                     .map(Category::getName).orElse(""));
         });
+        categoryColumn.setCellFactory(column -> createAssignmentCell(this::onBulkCategory));
 
         labelsColumn.setCellValueFactory(cd -> {
             Set<Long> labelIds = cd.getValue().getLabelIds();
@@ -177,6 +178,26 @@ public class TransactionsController {
                     .collect(Collectors.joining(", "));
             return new SimpleStringProperty(text);
         });
+        labelsColumn.setCellFactory(column -> createAssignmentCell(this::onBulkLabelAdd));
+    }
+
+    private TableCell<Transaction, String> createAssignmentCell(Runnable openAssignmentDialog) {
+        TableCell<Transaction, String> cell = new TableCell<>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty ? null : item);
+            }
+        };
+        cell.setOnMouseClicked(event -> {
+            if (event.getClickCount() == 2 && !cell.isEmpty()) {
+                if (!transactionTable.getSelectionModel().isSelected(cell.getIndex())) {
+                    transactionTable.getSelectionModel().clearAndSelect(cell.getIndex());
+                }
+                openAssignmentDialog.run();
+            }
+        });
+        return cell;
     }
 
     private void loadFilterOptions() {
