@@ -72,6 +72,10 @@ class ApplicationIconTest {
             assertEquals(272, image.getHeight());
             assertEquals(0x00000000, image.getRGB(0, 0), "Expected transparent space beyond the border");
             assertEquals(0xFFFF0000, image.getRGB(29, 136), "Expected red border around the icon");
+            assertEquals(0xFFFF0000, image.getRGB(31, 136), "Expected red border to reach the tile edge");
+            assertTrue((image.getRGB(32, 136) & 0x00FF0000) > (image.getRGB(32, 136) & 0x0000FF00),
+                    "Expected border color beneath the tile's antialiased edge");
+            assertEquals(0xFFFFFFFF, image.getRGB(33, 136), "Expected tile immediately inside the border");
             assertEquals(0xFFFFFFFF, image.getRGB(58, 136), "Expected the Fintrax tile to remain visible");
         }
     }
