@@ -9,6 +9,7 @@ Decision:
 - Evaluate enabled rules in ascending priority order.
 - The highest-priority matching rule supplies the category and note actions for a transaction.
 - Add labels from every matching rule, retaining existing labels and avoiding duplicates.
+- Applying one rule from its context menu uses that selected rule's actions only; other enabled matches are shown as overlap warnings.
 - Applying rules to existing transactions first produces a review preview. Saving changes occurs only after the user confirms that preview; cancelling leaves transactions unchanged.
 - The review defaults to filling missing categories and labels. Disabling that option permits category replacement; notes remain unaffected by the option.
 - Transactions matched by rules but receiving no effective changes remain visible in the review summary.
