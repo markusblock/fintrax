@@ -215,6 +215,8 @@ public class HibiscusXmlImporter {
                             .balanceAfter(txImport.balanceAfter)
                             .transactionType(txImport.transactionType)
                             .checksum(txImport.checksum)
+                            .categoryId(txImport.categoryHibiscusId == null ? null
+                                    : hibiscusToFintraxCategoryIdMap.get(txImport.categoryHibiscusId))
                             .createdAt(LocalDateTime.now())
                             .updatedAt(LocalDateTime.now())
                             .build();
@@ -496,6 +498,7 @@ public class HibiscusXmlImporter {
         String art = getChildText(elem, "art");
         String checksumStr = getChildText(elem, "checksum");
         String kontoIdStr = getChildText(elem, "konto_id");
+        String categoryIdStr = getChildText(elem, "umsatztyp_id");
 
         tx.bookingDate = datumStr != null ? parseDate(datumStr) : LocalDate.now();
         tx.valueDate = valutaStr != null ? parseDate(valutaStr) : LocalDate.now();
@@ -506,6 +509,8 @@ public class HibiscusXmlImporter {
         tx.transactionType = art;
         tx.checksum = checksumStr;
         tx.accountHibiscusId = kontoIdStr != null ? Integer.parseInt(kontoIdStr) : null;
+        tx.categoryHibiscusId = categoryIdStr != null && !categoryIdStr.isBlank()
+                ? Integer.parseInt(categoryIdStr) : null;
 
         return tx;
     }
@@ -643,6 +648,7 @@ public class HibiscusXmlImporter {
     private static class TransactionImport {
         int hibiscusId;
         Integer accountHibiscusId;
+        Integer categoryHibiscusId;
         String payee;
         String purpose;
         BigDecimal amount;

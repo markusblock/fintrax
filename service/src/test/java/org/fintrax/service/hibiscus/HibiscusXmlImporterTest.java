@@ -173,6 +173,27 @@ class HibiscusXmlImporterTest {
     }
 
     @Test
+    void importedTransactionKeepsItsMappedHibiscusCategoryAssignment() throws IOException {
+        String xml = Files.readString(support.loadXmlTestData(IMPORT_TEST_DATA).toPath());
+        String transactionStart = "<object type=\"de.willuhn.jameica.hbci.server.UmsatzImpl\" id=\"1\">";
+        int start = xml.indexOf(transactionStart);
+        int end = xml.indexOf("</object>", start);
+        String categoryAssignment = "\n    <umsatztyp_id type=\"java.lang.Integer\">2</umsatztyp_id>";
+        String withCategoryAssignment = xml.substring(0, end) + categoryAssignment + xml.substring(end);
+        File xmlFile = writeImportFile("assigned-transaction.xml", withCategoryAssignment);
+
+        importer.importFile(xmlFile, true, true);
+
+        Long importedCategoryId = store.getRoot().getCategories().stream()
+                .filter(category -> "Auto".equals(category.getName()))
+                .map(Category::getId).findFirst().orElseThrow();
+        Transaction importedTransaction = store.getRoot().getTransactions().stream()
+                .filter(transaction -> "VISA Test GmbH".equals(transaction.getOriginalPayee()))
+                .findFirst().orElseThrow();
+        assertEquals(importedCategoryId, importedTransaction.getCategoryId());
+    }
+
+    @Test
     void failedImportRollsBackAllPartialDataInMemoryAndAfterRestart() throws Exception {
         String xml = """
                 <?xml version="1.0" encoding="UTF-8"?>
