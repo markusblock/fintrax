@@ -60,4 +60,18 @@ class ApplicationIconTest {
             assertTrue((image.getRGB(128, 26) >>> 24) > 0, "Expected the tile within ten percent of the edge");
         }
     }
+
+    @Test
+    void providesRedBackedIconForTestRuns() throws IOException {
+        try (InputStream iconStream = getClass().getResourceAsStream("/icons/fintrax-test-256.png")) {
+            assertNotNull(iconStream, "Missing test Dock icon resource");
+            var image = ImageIO.read(iconStream);
+
+            assertNotNull(image, "Unreadable test Dock icon resource");
+            assertEquals(256, image.getWidth());
+            assertEquals(256, image.getHeight());
+            assertEquals(0xFFFF0000, image.getRGB(0, 0), "Expected red background outside the tile");
+            assertEquals(0xFFFFFFFF, image.getRGB(50, 128), "Expected the Fintrax tile to remain visible");
+        }
+    }
 }
