@@ -26,6 +26,7 @@ allprojects {
 
 dependencies {
     jacocoAggregation(project(":app"))
+    jacocoAggregation(project(":testkit"))
 }
 
 tasks.named<JacocoReport>("testCodeCoverageReport") {
@@ -59,6 +60,7 @@ subprojects {
         implementation("org.slf4j:slf4j-api:${property("slf4jVersion")}")
 
         testImplementation("org.junit.jupiter:junit-jupiter:${property("junitVersion")}")
+        testRuntimeOnly("org.junit.platform:junit-platform-launcher:${property("junitPlatformVersion")}")
         testRuntimeOnly("ch.qos.logback:logback-classic:${property("logbackVersion")}")
     }
 
@@ -74,12 +76,22 @@ subprojects {
     extensions.configure<JacocoPluginExtension> {
         toolVersion = jacocoVersion
     }
+
+    extensions.configure<org.sonarqube.gradle.SonarExtension> {
+        properties {
+            property(
+                "sonar.coverage.jacoco.xmlReportPaths",
+                rootProject.layout.buildDirectory
+                    .file("reports/jacoco/testCodeCoverageReport/testCodeCoverageReport.xml")
+                    .get().asFile.absolutePath
+            )
+        }
+    }
 }
 
 sonar {
     properties {
         property("sonar.projectKey", "markusblock_fintrax")
         property("sonar.organization", "markusblock")
-        property("sonar.coverage.jacoco.xmlReportPaths", "build/reports/jacoco/testCodeCoverageReport/testCodeCoverageReport.xml")
     }
 }

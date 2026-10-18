@@ -185,34 +185,33 @@ public class HibiscusXmlImporter {
                                 || importedTransactionsWithoutChecksum.contains(fingerprint);
                 if (duplicate) {
                     log.debug("Skipping duplicate transaction {}", txImport.hibiscusId);
-                    continue;
-                }
-
-                long newId = nextTransactionId(root);
-                Transaction tx = Transaction.builder()
-                        .id(newId)
-                        .accountId(mappedAccountId)
-                        .originalPayee(txImport.payee)
-                        .payeeDisplay(txImport.payee)
-                        .purpose(txImport.purpose)
-                        .amount(txImport.amount)
-                        .bookingDate(txImport.bookingDate)
-                        .valueDate(txImport.valueDate)
-                        .balanceAfter(txImport.balanceAfter)
-                        .transactionType(txImport.transactionType)
-                        .checksum(txImport.checksum)
-                        .createdAt(LocalDateTime.now())
-                        .updatedAt(LocalDateTime.now())
-                        .build();
-                root.getTransactions().add(tx);
-                importedTransactionFingerprints.add(fingerprint);
-                if (checksum == null) {
-                    importedTransactionsWithoutChecksum.add(fingerprint);
                 } else {
-                    importedTransactionChecksums.add(new TransactionChecksum(
-                            fingerprint.accountIdentity(), checksum));
+                    long newId = nextTransactionId(root);
+                    Transaction tx = Transaction.builder()
+                            .id(newId)
+                            .accountId(mappedAccountId)
+                            .originalPayee(txImport.payee)
+                            .payeeDisplay(txImport.payee)
+                            .purpose(txImport.purpose)
+                            .amount(txImport.amount)
+                            .bookingDate(txImport.bookingDate)
+                            .valueDate(txImport.valueDate)
+                            .balanceAfter(txImport.balanceAfter)
+                            .transactionType(txImport.transactionType)
+                            .checksum(txImport.checksum)
+                            .createdAt(LocalDateTime.now())
+                            .updatedAt(LocalDateTime.now())
+                            .build();
+                    root.getTransactions().add(tx);
+                    importedTransactionFingerprints.add(fingerprint);
+                    if (checksum == null) {
+                        importedTransactionsWithoutChecksum.add(fingerprint);
+                    } else {
+                        importedTransactionChecksums.add(new TransactionChecksum(
+                                fingerprint.accountIdentity(), checksum));
+                    }
+                    transactionsCreated++;
                 }
-                transactionsCreated++;
             }
 
             if (importRules) {
@@ -228,37 +227,36 @@ public class HibiscusXmlImporter {
                         Operator op = catImport.isRegex ? Operator.REGEX : Operator.CONTAINS;
                         if (hasMatchingImportedRule(root, mappedCategoryId, op, catImport.pattern)) {
                             log.debug("Skipping duplicate imported rule for category {}", catImport.name);
-                            continue;
+                        } else {
+                            RuleCondition condition = RuleCondition.builder()
+                                    .id(condId)
+                                    .ruleId(ruleId)
+                                    .matchField(MatchField.PAYEE_NAME)
+                                    .operator(op)
+                                    .value(catImport.pattern)
+                                    .build();
+
+                            RuleAction action = RuleAction.builder()
+                                    .id(actionId)
+                                    .ruleId(ruleId)
+                                    .actionType(ActionType.ASSIGN_CATEGORY)
+                                    .categoryId(mappedCategoryId)
+                                    .build();
+
+                            Rule rule = Rule.builder()
+                                    .id(ruleId)
+                                    .name("Imported: " + catImport.name)
+                                    .priority(root.getRules().size() + 1)
+                                    .enabled(true)
+                                    .conditions(List.of(condition))
+                                    .actions(List.of(action))
+                                    .createdAt(LocalDateTime.now())
+                                    .updatedAt(LocalDateTime.now())
+                                    .build();
+
+                            root.getRules().add(rule);
+                            rulesCreated++;
                         }
-
-                        RuleCondition condition = RuleCondition.builder()
-                                .id(condId)
-                                .ruleId(ruleId)
-                                .matchField(MatchField.PAYEE_NAME)
-                                .operator(op)
-                                .value(catImport.pattern)
-                                .build();
-
-                        RuleAction action = RuleAction.builder()
-                                .id(actionId)
-                                .ruleId(ruleId)
-                                .actionType(ActionType.ASSIGN_CATEGORY)
-                                .categoryId(mappedCategoryId)
-                                .build();
-
-                        Rule rule = Rule.builder()
-                                .id(ruleId)
-                                .name("Imported: " + catImport.name)
-                                .priority(root.getRules().size() + 1)
-                                .enabled(true)
-                                .conditions(List.of(condition))
-                                .actions(List.of(action))
-                                .createdAt(LocalDateTime.now())
-                                .updatedAt(LocalDateTime.now())
-                                .build();
-
-                        root.getRules().add(rule);
-                        rulesCreated++;
                     }
                 }
             }
