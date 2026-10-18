@@ -56,6 +56,14 @@ A rule derived from a Hibiscus Category's matching pattern that assigns matching
 **Pattern Match Mode**:
 The way a Category Rule evaluates its pattern: regex or contains matching.
 
+### Transaction Import
+
+**Hibiscus Transaction**:
+A transaction defined in a Hibiscus XML export, carrying an account reference, booking date, amount, payee, purpose, and optional checksum.
+
+**Transaction Match**:
+An association between an incoming Hibiscus Transaction and an existing Fintrax transaction during import. When both have checksums, they match only when checksums and account identities match. If either checksum is absent, they match by account identity, booking date, amount, and normalized payee and purpose.
+
 ### Data Reset
 
 **Data Reset**:
