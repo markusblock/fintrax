@@ -7,6 +7,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -101,6 +102,91 @@ class HibiscusXmlImporterTest {
     }
 
     @Test
+    void sameChecksumIdentifiesTransactionDespiteChangedDescription() throws IOException {
+        String xml = Files.readString(support.loadXmlTestData(IMPORT_TEST_DATA).toPath());
+        File firstImport = writeImportFile("first-import.xml", xml);
+        File secondImport = writeImportFile("second-import.xml", xml.replaceFirst(
+                "<empfaenger_name type=\"java.lang.String\">VISA Test GmbH</empfaenger_name>",
+                "<empfaenger_name type=\"java.lang.String\">Changed payee</empfaenger_name>"));
+
+        importer.importFile(firstImport, false, false);
+        HibiscusXmlImporter.ImportResult secondResult = importer.importFile(secondImport, false, false);
+
+        assertEquals(0, secondResult.getTransactionsImported());
+        assertEquals(5, store.getRoot().getTransactions().size());
+    }
+
+    @Test
+    void sameTransactionFieldsWithDifferentChecksumsAreImportedSeparately() throws IOException {
+        String xml = Files.readString(support.loadXmlTestData(IMPORT_TEST_DATA).toPath());
+        File firstImport = writeImportFile("first-import.xml", xml);
+        File secondImport = writeImportFile("second-import.xml", xml.replaceFirst(
+                "<checksum type=\"java.math.BigDecimal\">1647417865</checksum>",
+                "<checksum type=\"java.math.BigDecimal\">987654321</checksum>"));
+
+        importer.importFile(firstImport, false, false);
+        HibiscusXmlImporter.ImportResult secondResult = importer.importFile(secondImport, false, false);
+
+        assertEquals(1, secondResult.getTransactionsImported());
+        assertEquals(6, store.getRoot().getTransactions().size());
+    }
+
+    @Test
+    void transactionsWithoutChecksumsUseNormalizedFieldsToDetectDuplicates() throws IOException {
+        String xml = Files.readString(support.loadXmlTestData(IMPORT_TEST_DATA).toPath());
+        String withoutFirstChecksum = xml.replaceFirst(
+                "<checksum type=\"java.math.BigDecimal\">1647417865</checksum>", "");
+        String changedPayee = withoutFirstChecksum.replaceFirst(
+                "<empfaenger_name type=\"java.lang.String\">VISA Test GmbH</empfaenger_name>",
+                "<empfaenger_name type=\"java.lang.String\">  visa   test gmbh  </empfaenger_name>");
+        String changedPurpose = changedPayee.replaceFirst(
+                "<zweck type=\"java.lang.String\">SVWZ\\+NR XXXX 1024 Pforzheim</zweck>",
+                "<zweck type=\"java.lang.String\"> svwz+nr   xxxx 1024 pforzheim </zweck>");
+        File firstImport = writeImportFile("first-import.xml", xml);
+        File secondImport = writeImportFile("second-import.xml", changedPurpose);
+
+        importer.importFile(firstImport, false, false);
+        HibiscusXmlImporter.ImportResult secondResult = importer.importFile(secondImport, false, false);
+
+        assertEquals(0, secondResult.getTransactionsImported());
+        assertEquals(5, store.getRoot().getTransactions().size());
+    }
+
+    @Test
+    void bookingDateDistinguishesTransactionsWithoutChecksums() throws IOException {
+        String xml = Files.readString(support.loadXmlTestData(IMPORT_TEST_DATA).toPath());
+        String withoutFirstChecksum = xml.replaceFirst(
+                "<checksum type=\"java.math.BigDecimal\">1647417865</checksum>", "");
+        String changedDate = withoutFirstChecksum.replaceFirst(
+                "<datum type=\"java.sql.Date\">15.03.2024 00:00:00</datum>",
+                "<datum type=\"java.sql.Date\">16.03.2024 00:00:00</datum>");
+        File firstImport = writeImportFile("first-import.xml", withoutFirstChecksum);
+        File secondImport = writeImportFile("second-import.xml", changedDate);
+
+        importer.importFile(firstImport, false, false);
+        HibiscusXmlImporter.ImportResult secondResult = importer.importFile(secondImport, false, false);
+
+        assertEquals(1, secondResult.getTransactionsImported());
+        assertEquals(6, store.getRoot().getTransactions().size());
+    }
+
+    @Test
+    void sameChecksumOnDifferentAccountsDoesNotMarkTransactionsAsDuplicates() throws IOException {
+        String xml = Files.readString(support.loadXmlTestData(IMPORT_TEST_DATA).toPath());
+        String transactionOnAnotherAccount = xml.replaceFirst(
+                "<konto_id type=\"java.lang.Integer\">1</konto_id>",
+                "<konto_id type=\"java.lang.Integer\">2</konto_id>");
+        File firstImport = writeImportFile("first-import.xml", xml);
+        File secondImport = writeImportFile("second-import.xml", transactionOnAnotherAccount);
+
+        importer.importFile(firstImport, false, false);
+        HibiscusXmlImporter.ImportResult secondResult = importer.importFile(secondImport, false, false);
+
+        assertEquals(1, secondResult.getTransactionsImported());
+        assertEquals(6, store.getRoot().getTransactions().size());
+    }
+
+    @Test
     void testImportRulesFromPatterns() {
         File xmlFile = support.loadXmlTestData(IMPORT_TEST_DATA);
         importer.importFile(xmlFile, true, true);
@@ -139,5 +225,11 @@ class HibiscusXmlImporterTest {
 
         assertNotNull(sparkonto);
         assertEquals(AccountType.SAVINGS, sparkonto.getAccountType());
+    }
+
+    private File writeImportFile(String name, String xml) throws IOException {
+        Path path = tempDir.resolve(name);
+        Files.writeString(path, xml);
+        return path.toFile();
     }
 }

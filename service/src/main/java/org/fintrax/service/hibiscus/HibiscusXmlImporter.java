@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -148,10 +149,39 @@ public class HibiscusXmlImporter {
                 }
             }
 
+            Set<TransactionFingerprint> importedTransactionFingerprints = new HashSet<>();
+            Set<TransactionFingerprint> importedTransactionsWithoutChecksum = new HashSet<>();
+            Set<TransactionChecksum> importedTransactionChecksums = new HashSet<>();
+            for (Transaction transaction : root.getTransactions()) {
+                TransactionFingerprint fingerprint = transactionFingerprint(root, transaction);
+                importedTransactionFingerprints.add(fingerprint);
+                String checksum = normalizeChecksum(transaction.getChecksum());
+                if (checksum == null) {
+                    importedTransactionsWithoutChecksum.add(fingerprint);
+                } else {
+                    importedTransactionChecksums.add(new TransactionChecksum(
+                            fingerprint.accountIdentity(), checksum));
+                }
+            }
+
             for (var txImport : transactionImports) {
                 Long mappedAccountId = accountIdMap.get(txImport.accountHibiscusId);
                 if (mappedAccountId == null) {
                     log.warn("Transaction {} references unknown account {}, skipping", txImport.hibiscusId, txImport.accountHibiscusId);
+                    continue;
+                }
+
+                TransactionFingerprint fingerprint = transactionFingerprint(
+                        accountIdentity(root, mappedAccountId), txImport.bookingDate, txImport.amount,
+                        txImport.payee, txImport.purpose);
+                String checksum = normalizeChecksum(txImport.checksum);
+                boolean duplicate = checksum == null
+                        ? importedTransactionFingerprints.contains(fingerprint)
+                        : importedTransactionChecksums.contains(
+                                new TransactionChecksum(fingerprint.accountIdentity(), checksum))
+                                || importedTransactionsWithoutChecksum.contains(fingerprint);
+                if (duplicate) {
+                    log.debug("Skipping duplicate transaction {}", txImport.hibiscusId);
                     continue;
                 }
 
@@ -172,6 +202,13 @@ public class HibiscusXmlImporter {
                         .updatedAt(LocalDateTime.now())
                         .build();
                 root.getTransactions().add(tx);
+                importedTransactionFingerprints.add(fingerprint);
+                if (checksum == null) {
+                    importedTransactionsWithoutChecksum.add(fingerprint);
+                } else {
+                    importedTransactionChecksums.add(new TransactionChecksum(
+                            fingerprint.accountIdentity(), checksum));
+                }
                 transactionsCreated++;
             }
 
@@ -289,6 +326,73 @@ public class HibiscusXmlImporter {
         
         return findExistingFintraxCategory(root, hibiscusCategory.name, parentFintraxId).isPresent();
     }
+
+    private TransactionFingerprint transactionFingerprint(DataRoot root, Transaction transaction) {
+        return transactionFingerprint(
+                accountIdentity(root, transaction.getAccountId()), transaction.getBookingDate(),
+                transaction.getAmount(), transaction.getOriginalPayee(), transaction.getPurpose());
+    }
+
+    private TransactionFingerprint transactionFingerprint(
+            String accountIdentity,
+            LocalDate bookingDate,
+            BigDecimal amount,
+            String payee,
+            String purpose) {
+        return new TransactionFingerprint(
+                accountIdentity,
+                bookingDate,
+                amount != null ? amount.stripTrailingZeros() : null,
+                normalizeText(payee),
+                normalizeText(purpose));
+    }
+
+    private String accountIdentity(DataRoot root, Long accountId) {
+        BankAccount account = root.getAccounts().stream()
+                .filter(candidate -> Objects.equals(accountId, candidate.getId()))
+                .findFirst()
+                .orElse(null);
+        if (account == null) {
+            return "id:" + accountId;
+        }
+
+        String iban = normalizeText(account.getIban());
+        if (!iban.isEmpty()) {
+            return "iban:" + iban;
+        }
+
+        String bic = normalizeText(account.getBic());
+        String bankName = normalizeText(account.getBankName());
+        String accountHolder = normalizeText(account.getAccountHolder());
+        String currency = normalizeText(account.getCurrency());
+        if (!bic.isEmpty() || !bankName.isEmpty() || !accountHolder.isEmpty()) {
+            return "account:" + bic + '\u0000' + bankName + '\u0000' + accountHolder + '\u0000' + currency;
+        }
+        return "id:" + accountId;
+    }
+
+    private String normalizeChecksum(String checksum) {
+        if (checksum == null || checksum.isBlank()) {
+            return null;
+        }
+        return checksum.trim();
+    }
+
+    private String normalizeText(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.trim().replaceAll("\\s+", " ").toLowerCase(Locale.ROOT);
+    }
+
+    private record TransactionFingerprint(
+            String accountIdentity,
+            LocalDate bookingDate,
+            BigDecimal amount,
+            String payee,
+            String purpose) {}
+
+    private record TransactionChecksum(String accountIdentity, String checksum) {}
 
     private void parseKonto(Element elem, int hibiscusId, Map<Integer, Long> accountIdMap) {
         DataRoot root = storeManager.getRoot();
