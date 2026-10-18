@@ -1,6 +1,5 @@
 package org.fintrax.ui;
 
-import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
@@ -9,7 +8,10 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
+import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class NavigationTest extends AbstractUITest {
 
@@ -22,57 +24,39 @@ class NavigationTest extends AbstractUITest {
         stage.show();
     }
 
-    private void waitForPulse() {
-        try {
-            Thread.sleep(100);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
+    @Test
+    void navigationLoadsTheSelectedViewController() {
+        StackPane contentArea = lookup("#contentArea").query();
+        assertLoadedController(contentArea, "org.fintrax.ui.controller.BankAccountsController");
+
+        Map<String, String> navigationTargets = Map.of(
+                "#bankAccountsButton", "org.fintrax.ui.controller.BankAccountsController",
+                "#transactionsButton", "org.fintrax.ui.controller.TransactionsController",
+                "#categoriesButton", "org.fintrax.ui.controller.CategoriesController",
+                "#rulesButton", "org.fintrax.ui.controller.RulesController",
+                "#labelsButton", "org.fintrax.ui.controller.LabelsController",
+                "#activityLogButton", "org.fintrax.ui.controller.ActivityLogController",
+                "#settingsButton", "org.fintrax.ui.controller.SettingsController");
+        for (Map.Entry<String, String> target : navigationTargets.entrySet()) {
+            interact(lookup(target.getKey()).<Button>query()::fire);
+            assertLoadedController(contentArea, target.getValue());
         }
     }
 
-    @Test
-    void testInitialViewLoads() {
-        StackPane contentArea = lookup("#contentArea").query();
-        
-        assertTrue(contentArea.getChildren().size() > 0,
-                "Content area should have initial view loaded");
-    }
-
-    @Test
-    void testNavigationClicks() {
-        VBox sidebar = lookup("#sidebar").query();
-        StackPane contentArea = lookup("#contentArea").query();
-
-        int buttonIndex = 0;
-        for (Node child : sidebar.getChildren()) {
-            if (child instanceof Button) {
-                if (buttonIndex >= 2) {
-                    Button button = (Button) child;
-                    
-                    clickOn(button);
-                    waitForPulse();
-                    
-                    assertTrue(contentArea.getChildren().size() > 0,
-                            "Content area should have children after clicking: " + button.getText());
-                }
-                buttonIndex++;
-            }
-        }
+    private void assertLoadedController(StackPane contentArea, String controllerClassName) {
+        assertEquals(1, contentArea.getChildren().size());
+        assertTrue(contentArea.getChildren().getFirst().getProperties().containsKey(controllerClassName));
     }
 
     @Test
     void testSidebarToggle() {
         VBox sidebar = lookup("#sidebar").query();
         Button toggleButton = lookup("#toggleSidebarButton").query();
-        assertNotNull(toggleButton, "Toggle button should exist");
-        
         double initialWidth = sidebar.getPrefWidth();
-        assertEquals(200.0, initialWidth, "Initial sidebar width should be 200");
+        assertEquals(200.0, initialWidth);
 
         interact(() -> toggleButton.fire());
-        waitForPulse();
-        
         double newWidth = sidebar.getPrefWidth();
-        assertEquals(60.0, newWidth, "Sidebar width should be 60 after toggle");
+        assertEquals(60.0, newWidth);
     }
 }

@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -163,5 +164,38 @@ class CategoryServiceTest {
         assertTrue(categoryService.getCategory(category.getId()).isEmpty());
         assertEquals(parent.getId(), categoryService.getCategory(child.getId()).orElseThrow().getParentId());
         assertEquals(child.getId(), categoryService.getCategory(grandchild.getId()).orElseThrow().getParentId());
+    }
+
+    @Test
+    void deleteTopLevelCategoryMovingChildrenPromotesThemToTopLevel() {
+        Category category = categoryService.createCategory("Category", null, null);
+        Category child = categoryService.createCategory("Child", category.getId(), null);
+        Category grandchild = categoryService.createCategory("Grandchild", child.getId(), null);
+
+        categoryService.deleteCategory(category.getId(), null, true);
+
+        assertTrue(categoryService.getCategory(category.getId()).isEmpty());
+        assertNull(categoryService.getCategory(child.getId()).orElseThrow().getParentId());
+        assertEquals(child.getId(), categoryService.getCategory(grandchild.getId()).orElseThrow().getParentId());
+    }
+
+    @Test
+    void getTransactionsInCategoryAndDescendantsIncludesOnlyCategorySubtree() {
+        Category category = categoryService.createCategory("Category", null, null);
+        Category child = categoryService.createCategory("Child", category.getId(), null);
+        Category grandchild = categoryService.createCategory("Grandchild", child.getId(), null);
+        Category unrelated = categoryService.createCategory("Unrelated", null, null);
+        store.getRoot().getTransactions().addAll(List.of(
+                Transaction.builder().id(1L).categoryId(category.getId()).build(),
+                Transaction.builder().id(2L).categoryId(child.getId()).build(),
+                Transaction.builder().id(3L).categoryId(grandchild.getId()).build(),
+                Transaction.builder().id(4L).categoryId(unrelated.getId()).build()));
+
+        List<Long> transactionIds = categoryService.getTransactionsInCategoryAndDescendants(category.getId())
+                .stream()
+                .map(Transaction::getId)
+                .toList();
+
+        assertEquals(List.of(1L, 2L, 3L), transactionIds);
     }
 }

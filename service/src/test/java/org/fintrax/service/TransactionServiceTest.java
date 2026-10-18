@@ -11,6 +11,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -142,5 +143,28 @@ class TransactionServiceTest {
 
         assertEquals(category.getId(), transactionService.getTransaction(tx1.getId()).get().getCategoryId());
         assertEquals(category.getId(), transactionService.getTransaction(tx2.getId()).get().getCategoryId());
+    }
+
+    @Test
+    void bulkAddLabelAddsLabelToEachTransaction() {
+        Transaction tx1 = transactionService.createTransaction(Transaction.builder()
+                .originalPayee("A").amount(BigDecimal.ONE).labelIds(new HashSet<>(Set.of(1L))).build());
+        Transaction tx2 = transactionService.createTransaction(Transaction.builder()
+                .originalPayee("B").amount(BigDecimal.ONE).labelIds(new HashSet<>()).build());
+
+        transactionService.bulkAddLabel(List.of(tx1.getId(), tx2.getId()), 2L);
+
+        assertEquals(Set.of(1L, 2L), transactionService.getTransaction(tx1.getId()).orElseThrow().getLabelIds());
+        assertEquals(Set.of(2L), transactionService.getTransaction(tx2.getId()).orElseThrow().getLabelIds());
+    }
+
+    @Test
+    void bulkRemoveLabelRemovesOnlyRequestedLabel() {
+        Transaction tx = transactionService.createTransaction(Transaction.builder()
+                .originalPayee("A").amount(BigDecimal.ONE).labelIds(new HashSet<>(Set.of(1L, 2L))).build());
+
+        transactionService.bulkRemoveLabel(List.of(tx.getId()), 1L);
+
+        assertEquals(Set.of(2L), transactionService.getTransaction(tx.getId()).orElseThrow().getLabelIds());
     }
 }
