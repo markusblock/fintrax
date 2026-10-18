@@ -77,7 +77,7 @@ public class RuleEngine {
             switch (action.getActionType()) {
                 case ASSIGN_CATEGORY -> transaction.setCategoryId(action.getCategoryId());
                 case ADD_LABEL -> transaction.getLabelIds().add(action.getLabelId());
-                case SET_NOTE -> transaction.setNote(action.getNote());
+                case SET_NOTE -> { /* Legacy stored actions must not override manually edited notes. */ }
             }
         }
         store.store(transaction);

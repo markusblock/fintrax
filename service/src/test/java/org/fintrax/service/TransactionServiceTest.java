@@ -127,6 +127,16 @@ class TransactionServiceTest {
     }
 
     @Test
+    void userCanStillSetTransactionNoteManually() {
+        Transaction transaction = transactionService.createTransaction(Transaction.builder()
+                .originalPayee("Manual note").amount(BigDecimal.ONE).build());
+
+        Transaction updated = transactionService.updateNote(transaction.getId(), "Remember receipt");
+
+        assertEquals("Remember receipt", updated.getNote());
+    }
+
+    @Test
     void testBulkUpdateCategory() {
         BankAccount account = accountService.createAccount(
                 "DE89370400440532013000", null, "Bank", "User", AccountType.GIRO, null);

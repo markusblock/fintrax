@@ -15,5 +15,6 @@ public class RuleAction {
     private ActionType actionType;
     private Long categoryId;
     private Long labelId;
+    /** Legacy persisted field retained to read rules created before note actions were removed. */
     private String note;
 }

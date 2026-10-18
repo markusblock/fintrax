@@ -104,7 +104,9 @@ public class RulesController {
         actionsContainer.getChildren().clear();
         actionRows.clear();
         for (RuleAction action : rule.getActions()) {
-            addActionRow(action);
+            if (action.getActionType() != ActionType.SET_NOTE) {
+                addActionRow(action);
+            }
         }
 
         int matchCount = ruleService.previewRule(rule.getId());
@@ -165,7 +167,8 @@ public class RulesController {
 
     private void addActionRow(RuleAction existing) {
         ActionRow row = new ActionRow();
-        row.typeCombo.getItems().setAll(Arrays.stream(ActionType.values()).map(Enum::name).toList());
+        row.typeCombo.getItems().setAll(Arrays.stream(ActionType.values())
+                .filter(actionType -> actionType != ActionType.SET_NOTE).map(Enum::name).toList());
 
         if (existing != null) {
             row.typeCombo.setValue(existing.getActionType().name());
@@ -205,9 +208,6 @@ public class RulesController {
         } else if ("ADD_LABEL".equals(type)) {
             row.targetCombo.getItems().setAll(
                     labelService.getAllLabels().stream().map(org.fintrax.model.Label::getName).toList());
-        } else if ("SET_NOTE".equals(type)) {
-            row.targetCombo.setDisable(false);
-            row.targetCombo.setEditable(true);
         }
     }
 
@@ -289,8 +289,6 @@ public class RulesController {
                         .filter(l -> l.getName().equals(target))
                         .findFirst()
                         .ifPresent(l -> action.setLabelId(l.getId()));
-            } else if ("SET_NOTE".equals(type)) {
-                action.setNote(target);
             }
 
             actions.add(action);
