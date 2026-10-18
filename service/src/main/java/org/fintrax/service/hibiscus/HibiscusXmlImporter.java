@@ -50,7 +50,7 @@ public class HibiscusXmlImporter {
         } catch (RuntimeException | Error failure) {
             snapshot.restore(root);
             try {
-                snapshot.persist(storeManager);
+                snapshot.persist(root, storeManager);
             } catch (RuntimeException | Error rollbackFailure) {
                 failure.addSuppressed(rollbackFailure);
             }
@@ -691,12 +691,12 @@ public class HibiscusXmlImporter {
             root.getActivityLogs().addAll(activityLogs);
         }
 
-        private void persist(StoreManager storeManager) {
-            storeManager.store(accounts);
-            storeManager.store(transactions);
-            storeManager.store(categories);
-            storeManager.store(rules);
-            storeManager.store(activityLogs);
+        private void persist(DataRoot root, StoreManager storeManager) {
+            storeManager.store(root.getAccounts());
+            storeManager.store(root.getTransactions());
+            storeManager.store(root.getCategories());
+            storeManager.store(root.getRules());
+            storeManager.store(root.getActivityLogs());
         }
     }
 

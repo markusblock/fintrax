@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -195,6 +196,13 @@ class HibiscusXmlImporterTest {
 
     @Test
     void failedImportRollsBackAllPartialDataInMemoryAndAfterRestart() throws Exception {
+        BankAccount existingAccount = BankAccount.builder().id(90L).bankName("Existing account").build();
+        Category existingCategory = Category.builder().id(90L).name("Existing category").build();
+        store.getRoot().getAccounts().add(existingAccount);
+        store.getRoot().getCategories().add(existingCategory);
+        store.store(store.getRoot().getAccounts());
+        store.store(store.getRoot().getCategories());
+
         String xml = """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <objects>
@@ -216,15 +224,15 @@ class HibiscusXmlImporterTest {
 
         assertThrows(IllegalArgumentException.class, () -> importer.importFile(xmlFile, true, true));
 
-        assertTrue(store.getRoot().getAccounts().isEmpty());
-        assertTrue(store.getRoot().getCategories().isEmpty());
+        assertEquals(List.of(existingAccount), store.getRoot().getAccounts());
+        assertEquals(List.of(existingCategory), store.getRoot().getCategories());
         assertTrue(store.getRoot().getTransactions().isEmpty());
         assertTrue(store.getRoot().getRules().isEmpty());
 
         store.shutdown();
         store = new StoreManager(tempDir);
-        assertTrue(store.getRoot().getAccounts().isEmpty());
-        assertTrue(store.getRoot().getCategories().isEmpty());
+        assertEquals(List.of(existingAccount), store.getRoot().getAccounts());
+        assertEquals(List.of(existingCategory), store.getRoot().getCategories());
         assertTrue(store.getRoot().getTransactions().isEmpty());
         assertTrue(store.getRoot().getRules().isEmpty());
     }
