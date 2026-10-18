@@ -30,6 +30,7 @@ public class FintraxUI extends Application {
         applyTheme(scene, settingsService.getTheme());
 
         primaryStage.setTitle(TITLE);
+        ApplicationIcon.applyTo(primaryStage);
         primaryStage.setScene(scene);
         primaryStage.setMinWidth(MIN_WIDTH);
         primaryStage.setMinHeight(MIN_HEIGHT);
