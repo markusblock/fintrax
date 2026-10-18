@@ -26,4 +26,15 @@ class ApplicationIconTest {
             }
         }
     }
+
+    @Test
+    void leavesTransparentSpaceOutsideTheWhiteTileInsteadOfDrawingAnOutline() throws IOException {
+        try (InputStream iconStream = getClass().getResourceAsStream("/icons/fintrax-256.png")) {
+            assertNotNull(iconStream, "Missing 256 px icon resource");
+            var image = ImageIO.read(iconStream);
+
+            assertNotNull(image, "Unreadable 256 px icon resource");
+            assertEquals(0, image.getRGB(128, 4) >>> 24, "Expected no outline above the tile");
+        }
+    }
 }
