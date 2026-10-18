@@ -9,6 +9,7 @@ import org.fintrax.store.StoreManager;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -21,20 +22,18 @@ public class SyncService {
     private final AccountService accountService;
     private final ActivityLogger activityLogger;
     private final PinStorage pinStorage;
-    private final RuleEngine ruleEngine;
     private final AtomicInteger activeSyncs = new AtomicInteger();
     private long nextId = 1;
 
     public SyncService(StoreManager store, BankingProtocol bankingProtocol,
                        TransactionService transactionService, AccountService accountService,
-                       ActivityLogger activityLogger, PinStorage pinStorage, RuleEngine ruleEngine) {
+                       ActivityLogger activityLogger, PinStorage pinStorage) {
         this.store = store;
         this.bankingProtocol = bankingProtocol;
         this.transactionService = transactionService;
         this.accountService = accountService;
         this.activityLogger = activityLogger;
         this.pinStorage = pinStorage;
-        this.ruleEngine = ruleEngine;
         initializeNextId();
     }
 
@@ -45,7 +44,7 @@ public class SyncService {
                 .orElse(0) + 1;
     }
 
-    public SyncLog syncAccount(Long accountId, String pin) {
+    public SyncResult syncAccount(Long accountId, String pin) {
         activeSyncs.incrementAndGet();
         try {
             return syncAccountInternal(accountId, pin);
@@ -58,7 +57,7 @@ public class SyncService {
         return activeSyncs.get() > 0;
     }
 
-    private SyncLog syncAccountInternal(Long accountId, String pin) {
+    private SyncResult syncAccountInternal(Long accountId, String pin) {
         BankAccount account = store.getAccount(accountId);
         if (account == null) {
             throw new IllegalArgumentException("Account not found: " + accountId);
@@ -74,6 +73,7 @@ public class SyncService {
         store.getRoot().getSyncLogs().add(syncLog);
         store.store(store.getRoot().getSyncLogs());
 
+        List<Long> newTransactionIds = new ArrayList<>();
         try {
             List<Transaction> fetchedTransactions = bankingProtocol.fetchTransactions(account, pin);
 
@@ -85,8 +85,8 @@ public class SyncService {
                         .anyMatch(t -> t.getChecksum().equals(fetched.getChecksum()));
 
                 if (!exists) {
-                    transactionService.createTransaction(fetched);
-                    ruleEngine.applyRules(fetched);
+                    Transaction created = transactionService.createTransaction(fetched);
+                    newTransactionIds.add(created.getId());
                     newCount++;
                 } else {
                     skippedCount++;
@@ -119,7 +119,7 @@ public class SyncService {
             log.error("Sync failed for account {}", accountId, e);
         }
 
-        return syncLog;
+        return new SyncResult(syncLog, newTransactionIds);
     }
 
     public List<SyncLog> getSyncLogs(Long accountId) {

@@ -43,6 +43,17 @@ public class RuleEngine {
         return new RuleApplicationPreview(matchingTransactions);
     }
 
+    public RuleApplicationPreview previewRulesForTransactions(List<Long> transactionIds, boolean onlyFillMissing) {
+        Set<Long> requestedIds = Set.copyOf(transactionIds);
+        List<Rule> enabledRules = enabledRules();
+        List<TransactionRulePreview> matchingTransactions = store.getRoot().getTransactions().stream()
+                .filter(transaction -> requestedIds.contains(transaction.getId()))
+                .map(transaction -> previewTransaction(transaction, enabledRules, null, onlyFillMissing))
+                .filter(preview -> !preview.matchedRuleNames().isEmpty())
+                .toList();
+        return new RuleApplicationPreview(matchingTransactions);
+    }
+
     public RuleApplicationPreview previewSingleRule(Long ruleId, boolean onlyFillMissing) {
         Rule selectedRule = store.getRule(ruleId);
         if (selectedRule == null) {

@@ -18,4 +18,4 @@ Consequences:
 
 - Overlapping rules can add labels together without allowing lower-priority category or note actions to override the top match.
 - Users can inspect proposed changes and conflicts before applying them.
-- Rules applied during transaction import continue to use the per-transaction rule path; this review decision governs the explicit batch Apply Rules action.
+- Hibiscus import and bank sync save source data without applying rules automatically. Their success reports offer scoped review: all transactions after import, successful new transactions after sync.
