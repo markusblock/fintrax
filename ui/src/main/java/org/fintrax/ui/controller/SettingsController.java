@@ -211,7 +211,7 @@ public class SettingsController {
         report.showAndWait().ifPresent(button -> {
             if (button == applyRulesType) {
                 new RuleReviewDialog(rootPane.getScene().getWindow(), ruleService, accountService,
-                        categoryService, labelService).show();
+                        categoryService, labelService, ruleService::previewAllRules, false).show();
             }
         });
     }
