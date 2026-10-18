@@ -11,7 +11,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -263,5 +265,138 @@ class RuleEngineTest {
         assertThrows(IllegalArgumentException.class,
                 () -> ruleService.createRule("No notes", List.of(condition), List.of(noteAction)));
         assertTrue(store.getRoot().getRules().isEmpty());
+
+    }
+
+    @Test
+    void previewRulesCombinesMatchingRuleActionsWithoutSavingChanges() {
+        BankAccount account = accountService.createAccount(
+                "DE89370400440532013000", null, "Bank", "User", AccountType.GIRO, null);
+        Category currentCategory = categoryService.createCategory("Current", null, null);
+        Category proposedCategory = categoryService.createCategory("Proposed", null, null);
+        Label existingLabel = labelService.createLabel("Existing", null, null);
+        Label firstLabel = labelService.createLabel("First", null, null);
+        Label secondLabel = labelService.createLabel("Second", null, null);
+        Label disabledLabel = labelService.createLabel("Disabled", null, null);
+
+        Rule firstRule = rule(1L, "First rule", 1, true, "SHOP", List.of(
+                RuleAction.builder().actionType(ActionType.ASSIGN_CATEGORY)
+                        .categoryId(proposedCategory.getId()).build(),
+                RuleAction.builder().actionType(ActionType.SET_NOTE).note("Reviewed note").build(),
+                RuleAction.builder().actionType(ActionType.ADD_LABEL).labelId(firstLabel.getId()).build()));
+        Rule secondRule = rule(2L, "Second rule", 2, true, "SHOP", List.of(
+                RuleAction.builder().actionType(ActionType.ADD_LABEL).labelId(secondLabel.getId()).build(),
+                RuleAction.builder().actionType(ActionType.ADD_LABEL).labelId(firstLabel.getId()).build()));
+        Rule disabledRule = rule(3L, "Disabled rule", 0, false, "SHOP", List.of(
+                RuleAction.builder().actionType(ActionType.ADD_LABEL).labelId(disabledLabel.getId()).build()));
+        store.getRoot().getRules().addAll(List.of(firstRule, secondRule, disabledRule));
+
+        Transaction transaction = transactionService.createTransaction(Transaction.builder()
+                .accountId(account.getId()).originalPayee("SHOP purchase").amount(BigDecimal.ONE)
+                .bookingDate(LocalDate.now()).valueDate(LocalDate.now())
+                .categoryId(currentCategory.getId()).labelIds(new HashSet<>(Set.of(existingLabel.getId())))
+                .note("Existing note").build());
+
+        RuleApplicationPreview preview = ruleEngine.previewRules(true);
+
+        assertEquals(1, preview.matchingTransactions().size());
+        TransactionRulePreview row = preview.matchingTransactions().get(0);
+        assertEquals(currentCategory.getId(), row.proposedCategoryId());
+        assertEquals(Set.of(existingLabel.getId(), firstLabel.getId(), secondLabel.getId()), row.proposedLabelIds());
+        assertFalse(row.proposedLabelIds().contains(disabledLabel.getId()));
+        assertEquals("Existing note", row.proposedNote());
+        assertEquals(List.of("First rule", "Second rule"), row.matchedRuleNames());
+        assertTrue(row.hasChanges());
+        assertEquals(currentCategory.getId(), transaction.getCategoryId());
+        assertEquals(Set.of(existingLabel.getId()), transaction.getLabelIds());
+        assertEquals("Existing note", transaction.getNote());
+
+        RuleApplicationPreview replacementPreview = ruleEngine.previewRules(false);
+        assertEquals(proposedCategory.getId(), replacementPreview.matchingTransactions().get(0).proposedCategoryId());
+    }
+
+    @Test
+    void applyingReviewedRulesPersistsOnlyReviewedChanges() {
+        BankAccount account = accountService.createAccount(
+                "DE89370400440532013000", null, "Bank", "User", AccountType.GIRO, null);
+        Category category = categoryService.createCategory("Food", null, null);
+        Rule rule = rule(1L, "Food rule", 1, true, "MARKET", List.of(
+                RuleAction.builder().actionType(ActionType.ASSIGN_CATEGORY).categoryId(category.getId()).build()));
+        store.getRoot().getRules().add(rule);
+        Transaction transaction = transactionService.createTransaction(Transaction.builder()
+                .accountId(account.getId()).originalPayee("MARKET").amount(BigDecimal.ONE)
+                .bookingDate(LocalDate.now()).valueDate(LocalDate.now()).build());
+
+        RuleApplicationPreview preview = ruleEngine.previewRules(true);
+        assertNull(transactionService.getTransaction(transaction.getId()).orElseThrow().getCategoryId());
+
+        ruleEngine.applyReviewedRules(preview);
+
+        assertEquals(category.getId(), transactionService.getTransaction(transaction.getId()).orElseThrow().getCategoryId());
+    }
+
+    @Test
+    void previewCountsMatchingTransactionsThatNeedNoChanges() {
+        BankAccount account = accountService.createAccount(
+                "DE89370400440532013000", null, "Bank", "User", AccountType.GIRO, null);
+        Category category = categoryService.createCategory("Already assigned", null, null);
+        store.getRoot().getRules().add(rule(1L, "Existing category", 1, true, "SHOP", List.of(
+                RuleAction.builder().actionType(ActionType.ASSIGN_CATEGORY).categoryId(category.getId()).build())));
+        transactionService.createTransaction(Transaction.builder()
+                .accountId(account.getId()).originalPayee("SHOP").amount(BigDecimal.ONE)
+                .bookingDate(LocalDate.now()).valueDate(LocalDate.now()).categoryId(category.getId()).build());
+
+        RuleApplicationPreview preview = ruleEngine.previewRules(true);
+
+        assertEquals(1, preview.matchingTransactions().size());
+        assertEquals(1, preview.matchingTransactionsWithoutChanges());
+        assertTrue(preview.transactionsWithChanges().isEmpty());
+    }
+
+    @Test
+    void previewSingleRuleProposesOnlySelectedRuleActionsButShowsOverlaps() {
+        BankAccount account = accountService.createAccount(
+                "DE89370400440532013000", null, "Bank", "User", AccountType.GIRO, null);
+        Category higherPriorityCategory = categoryService.createCategory("Higher priority", null, null);
+        Category selectedCategory = categoryService.createCategory("Selected", null, null);
+        Label higherPriorityLabel = labelService.createLabel("Higher label", null, null);
+        Label selectedLabel = labelService.createLabel("Selected label", null, null);
+        Rule higherPriorityRule = rule(1L, "Higher priority", 1, true, "SHOP", List.of(
+                RuleAction.builder().actionType(ActionType.ASSIGN_CATEGORY)
+                        .categoryId(higherPriorityCategory.getId()).build(),
+                RuleAction.builder().actionType(ActionType.SET_NOTE).note("Higher note").build(),
+                RuleAction.builder().actionType(ActionType.ADD_LABEL).labelId(higherPriorityLabel.getId()).build()));
+        Rule selectedRule = rule(2L, "Selected rule", 2, true, "SHOP", List.of(
+                RuleAction.builder().actionType(ActionType.ASSIGN_CATEGORY)
+                        .categoryId(selectedCategory.getId()).build(),
+                RuleAction.builder().actionType(ActionType.SET_NOTE).note("Selected note").build(),
+                RuleAction.builder().actionType(ActionType.ADD_LABEL).labelId(selectedLabel.getId()).build()));
+        store.getRoot().getRules().addAll(List.of(higherPriorityRule, selectedRule));
+        transactionService.createTransaction(Transaction.builder()
+                .accountId(account.getId()).originalPayee("SHOP").amount(BigDecimal.ONE)
+                .bookingDate(LocalDate.now()).valueDate(LocalDate.now()).note("Manual note").build());
+
+        RuleApplicationPreview preview = ruleEngine.previewSingleRule(selectedRule.getId(), false);
+
+        TransactionRulePreview row = preview.transactionsWithChanges().get(0);
+        assertEquals(selectedCategory.getId(), row.proposedCategoryId());
+        assertEquals("Manual note", row.proposedNote());
+        assertEquals(Set.of(selectedLabel.getId()), row.proposedLabelIds());
+        assertEquals(List.of("Higher priority", "Selected rule"), row.matchedRuleNames());
+        assertFalse(row.proposedLabelIds().contains(higherPriorityLabel.getId()));
+    }
+
+    @Test
+    void disabledRuleCannotBePreviewedForApplication() {
+        store.getRoot().getRules().add(rule(1L, "Disabled", 1, false, "SHOP", List.of()));
+
+        assertThrows(IllegalArgumentException.class, () -> ruleEngine.previewSingleRule(1L, false));
+    }
+
+    private Rule rule(Long id, String name, int priority, boolean enabled, String payee, List<RuleAction> actions) {
+        return Rule.builder().id(id).name(name).priority(priority).enabled(enabled)
+                .conditions(List.of(RuleCondition.builder().matchField(MatchField.PAYEE_NAME)
+                        .operator(Operator.CONTAINS).value(payee).build()))
+                .actions(actions).build();
     }
 }

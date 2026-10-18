@@ -6,10 +6,12 @@ import org.fintrax.store.StoreManager;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
+import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -23,20 +25,70 @@ public class RuleEngine {
     }
 
     public List<Transaction> applyRules(Transaction transaction) {
-        List<Rule> enabledRules = store.getRoot().getRules().stream()
-                .filter(Rule::isEnabled)
-                .sorted((r1, r2) -> Integer.compare(r1.getPriority(), r2.getPriority()))
-                .toList();
+        TransactionRulePreview preview = previewTransaction(transaction, enabledRules(), null, false);
+        if (!preview.matchedRuleNames().isEmpty()) {
+            applyPreview(transaction, preview);
+            store.store(transaction);
+            log.debug("Rules matched transaction {}: {}", transaction.getId(), preview.matchedRuleNames());
+        }
+        return List.of(transaction);
+    }
 
-        for (Rule rule : enabledRules) {
-            if (matchesRule(transaction, rule)) {
-                executeActions(transaction, rule);
-                log.debug("Rule '{}' matched transaction {}", rule.getName(), transaction.getId());
-                break;
-            }
+    public RuleApplicationPreview previewRules(boolean onlyFillMissing) {
+        List<Rule> enabledRules = enabledRules();
+        List<TransactionRulePreview> matchingTransactions = store.getRoot().getTransactions().stream()
+                .map(transaction -> previewTransaction(transaction, enabledRules, null, onlyFillMissing))
+                .filter(preview -> !preview.matchedRuleNames().isEmpty())
+                .toList();
+        return new RuleApplicationPreview(matchingTransactions);
+    }
+
+    public RuleApplicationPreview previewRulesForTransactions(List<Long> transactionIds, boolean onlyFillMissing) {
+        Set<Long> requestedIds = Set.copyOf(transactionIds);
+        List<Rule> enabledRules = enabledRules();
+        List<TransactionRulePreview> matchingTransactions = store.getRoot().getTransactions().stream()
+                .filter(transaction -> requestedIds.contains(transaction.getId()))
+                .map(transaction -> previewTransaction(transaction, enabledRules, null, onlyFillMissing))
+                .filter(preview -> !preview.matchedRuleNames().isEmpty())
+                .toList();
+        return new RuleApplicationPreview(matchingTransactions);
+    }
+
+    public RuleApplicationPreview previewSingleRule(Long ruleId, boolean onlyFillMissing) {
+        Rule selectedRule = store.getRule(ruleId);
+        if (selectedRule == null) {
+            throw new IllegalArgumentException("Rule not found: " + ruleId);
+        }
+        if (!selectedRule.isEnabled()) {
+            throw new IllegalArgumentException("Cannot apply disabled rule: " + ruleId);
         }
 
-        return List.of(transaction);
+        List<Rule> enabledRules = enabledRules();
+        List<TransactionRulePreview> matchingTransactions = store.getRoot().getTransactions().stream()
+                .filter(transaction -> matchesRule(transaction, selectedRule))
+                .map(transaction -> previewTransaction(transaction, enabledRules, selectedRule, onlyFillMissing))
+                .toList();
+        return new RuleApplicationPreview(matchingTransactions);
+    }
+
+    public void applyReviewedRules(RuleApplicationPreview preview) {
+        for (TransactionRulePreview reviewed : preview.transactionsWithChanges()) {
+            Transaction transaction = store.getTransaction(reviewed.transactionId());
+            if (transaction == null) {
+                continue;
+            }
+            applyPreview(transaction, reviewed);
+            transaction.setUpdatedAt(LocalDateTime.now());
+            store.store(transaction);
+        }
+        log.info("Applied reviewed rules to {} transactions", preview.transactionsWithChanges().size());
+    }
+
+    private List<Rule> enabledRules() {
+        return store.getRoot().getRules().stream()
+                .filter(Rule::isEnabled)
+                .sorted((first, second) -> Integer.compare(first.getPriority(), second.getPriority()))
+                .toList();
     }
 
     private boolean matchesRule(Transaction transaction, Rule rule) {
@@ -72,34 +124,65 @@ public class RuleEngine {
         };
     }
 
-    private void executeActions(Transaction transaction, Rule rule) {
-        for (RuleAction action : rule.getActions()) {
-            switch (action.getActionType()) {
-                case ASSIGN_CATEGORY -> transaction.setCategoryId(action.getCategoryId());
-                case ADD_LABEL -> transaction.getLabelIds().add(action.getLabelId());
-                case SET_NOTE -> { /* Legacy stored actions must not override manually edited notes. */ }
-            }
+    private TransactionRulePreview previewTransaction(Transaction transaction, List<Rule> rules,
+                                                       Rule selectedRule, boolean onlyFillMissing) {
+        List<Rule> matchedRules = rules.stream().filter(rule -> matchesRule(transaction, rule)).toList();
+        Set<Long> currentLabels = transaction.getLabelIds() == null
+                ? Set.of() : new HashSet<>(transaction.getLabelIds());
+        if (matchedRules.isEmpty()) {
+            return new TransactionRulePreview(transaction.getId(), transaction.getBookingDate(), payee(transaction),
+                    transaction.getAmount(), transaction.getAccountId(), transaction.getCategoryId(),
+                    transaction.getCategoryId(), currentLabels, currentLabels,
+                    transaction.getNote(), transaction.getNote(), List.of());
         }
-        store.store(transaction);
+
+        List<Rule> actionRules = selectedRule == null ? matchedRules : List.of(selectedRule);
+        Rule selectedActionRule = actionRules.get(0);
+        RuleAction categoryAction = selectedActionRule.getActions().stream()
+                .filter(action -> action.getActionType() == ActionType.ASSIGN_CATEGORY)
+                .findFirst().orElse(null);
+        Long assignedCategoryId = categoryAction == null
+                ? transaction.getCategoryId() : categoryAction.getCategoryId();
+        if (onlyFillMissing && transaction.getCategoryId() != null) {
+            assignedCategoryId = transaction.getCategoryId();
+        }
+
+        String proposedNote = transaction.getNote();
+
+        Set<Long> proposedLabels = new HashSet<>(currentLabels);
+        actionRules.stream().flatMap(rule -> rule.getActions().stream())
+                .filter(action -> action.getActionType() == ActionType.ADD_LABEL)
+                .map(RuleAction::getLabelId)
+                .filter(Objects::nonNull)
+                .forEach(proposedLabels::add);
+
+        return new TransactionRulePreview(transaction.getId(), transaction.getBookingDate(), payee(transaction),
+                transaction.getAmount(), transaction.getAccountId(), transaction.getCategoryId(),
+                assignedCategoryId, currentLabels, proposedLabels, transaction.getNote(), proposedNote,
+                matchedRules.stream().map(Rule::getName).toList());
+    }
+
+    private String payee(Transaction transaction) {
+        return transaction.getPayeeDisplay() != null
+                ? transaction.getPayeeDisplay() : transaction.getOriginalPayee();
+    }
+
+    private void applyPreview(Transaction transaction, TransactionRulePreview preview) {
+        transaction.setCategoryId(preview.proposedCategoryId());
+        transaction.setLabelIds(new HashSet<>(preview.proposedLabelIds()));
+        transaction.setNote(preview.proposedNote());
     }
 
     public List<Transaction> previewRule(Rule rule) {
         return store.getRoot().getTransactions().stream()
-                .filter(t -> matchesRule(t, rule))
-                .collect(Collectors.toList());
+                .filter(transaction -> matchesRule(transaction, rule))
+                .toList();
     }
 
     public int countMatchingTransactions(Rule rule) {
         return (int) store.getRoot().getTransactions().stream()
-                .filter(t -> matchesRule(t, rule))
+                .filter(transaction -> matchesRule(transaction, rule))
                 .count();
     }
 
-    public void applyAllRulesToAllTransactions() {
-        List<Transaction> allTransactions = new ArrayList<>(store.getRoot().getTransactions());
-        for (Transaction transaction : allTransactions) {
-            applyRules(transaction);
-        }
-        log.info("Applied rules to {} transactions", allTransactions.size());
-    }
 }

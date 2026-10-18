@@ -43,6 +43,22 @@ public class HibiscusXmlImporter {
     }
 
     public ImportResult importFile(File xmlFile, boolean importCategories, boolean importRules) {
+        DataRoot root = storeManager.getRoot();
+        ImportSnapshot snapshot = ImportSnapshot.capture(root);
+        try {
+            return importFileInternal(xmlFile, importCategories, importRules);
+        } catch (RuntimeException | Error failure) {
+            snapshot.restore(root);
+            try {
+                snapshot.persist(root, storeManager);
+            } catch (RuntimeException | Error rollbackFailure) {
+                failure.addSuppressed(rollbackFailure);
+            }
+            throw failure;
+        }
+    }
+
+    private ImportResult importFileInternal(File xmlFile, boolean importCategories, boolean importRules) {
         log.info("Importing Hibiscus XML from {}", xmlFile.getAbsolutePath());
 
         try {
@@ -199,6 +215,8 @@ public class HibiscusXmlImporter {
                             .balanceAfter(txImport.balanceAfter)
                             .transactionType(txImport.transactionType)
                             .checksum(txImport.checksum)
+                            .categoryId(txImport.categoryHibiscusId == null ? null
+                                    : hibiscusToFintraxCategoryIdMap.get(txImport.categoryHibiscusId))
                             .createdAt(LocalDateTime.now())
                             .updatedAt(LocalDateTime.now())
                             .build();
@@ -480,6 +498,7 @@ public class HibiscusXmlImporter {
         String art = getChildText(elem, "art");
         String checksumStr = getChildText(elem, "checksum");
         String kontoIdStr = getChildText(elem, "konto_id");
+        String categoryIdStr = getChildText(elem, "umsatztyp_id");
 
         tx.bookingDate = datumStr != null ? parseDate(datumStr) : LocalDate.now();
         tx.valueDate = valutaStr != null ? parseDate(valutaStr) : LocalDate.now();
@@ -490,6 +509,8 @@ public class HibiscusXmlImporter {
         tx.transactionType = art;
         tx.checksum = checksumStr;
         tx.accountHibiscusId = kontoIdStr != null ? Integer.parseInt(kontoIdStr) : null;
+        tx.categoryHibiscusId = categoryIdStr != null && !categoryIdStr.isBlank()
+                ? Integer.parseInt(categoryIdStr) : null;
 
         return tx;
     }
@@ -627,6 +648,7 @@ public class HibiscusXmlImporter {
     private static class TransactionImport {
         int hibiscusId;
         Integer accountHibiscusId;
+        Integer categoryHibiscusId;
         String payee;
         String purpose;
         BigDecimal amount;
@@ -646,6 +668,37 @@ public class HibiscusXmlImporter {
     }
 
     private record CategoryKey(String name, Integer parentHibiscusId) {}
+
+    private record ImportSnapshot(List<BankAccount> accounts, List<Transaction> transactions,
+                                  List<Category> categories, List<Rule> rules,
+                                  List<ActivityLog> activityLogs) {
+        private static ImportSnapshot capture(DataRoot root) {
+            return new ImportSnapshot(List.copyOf(root.getAccounts()), List.copyOf(root.getTransactions()),
+                    List.copyOf(root.getCategories()), List.copyOf(root.getRules()),
+                    List.copyOf(root.getActivityLogs()));
+        }
+
+        private void restore(DataRoot root) {
+            root.getAccounts().clear();
+            root.getAccounts().addAll(accounts);
+            root.getTransactions().clear();
+            root.getTransactions().addAll(transactions);
+            root.getCategories().clear();
+            root.getCategories().addAll(categories);
+            root.getRules().clear();
+            root.getRules().addAll(rules);
+            root.getActivityLogs().clear();
+            root.getActivityLogs().addAll(activityLogs);
+        }
+
+        private void persist(DataRoot root, StoreManager storeManager) {
+            storeManager.store(root.getAccounts());
+            storeManager.store(root.getTransactions());
+            storeManager.store(root.getCategories());
+            storeManager.store(root.getRules());
+            storeManager.store(root.getActivityLogs());
+        }
+    }
 
     private static class ActivityLogImport {
         Integer accountHibiscusId;

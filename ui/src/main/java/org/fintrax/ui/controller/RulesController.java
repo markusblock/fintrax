@@ -44,6 +44,7 @@ public class RulesController {
     private javafx.scene.control.Label matchCountLabel;
 
     private final RuleService ruleService;
+    private final AccountService accountService;
     private final CategoryService categoryService;
     private final LabelService labelService;
 
@@ -53,8 +54,10 @@ public class RulesController {
     private final List<ConditionRow> conditionRows = new ArrayList<>();
     private final List<ActionRow> actionRows = new ArrayList<>();
 
-    public RulesController(RuleService ruleService, CategoryService categoryService, LabelService labelService) {
+    public RulesController(RuleService ruleService, AccountService accountService,
+                           CategoryService categoryService, LabelService labelService) {
         this.ruleService = ruleService;
+        this.accountService = accountService;
         this.categoryService = categoryService;
         this.labelService = labelService;
     }
@@ -80,12 +83,22 @@ public class RulesController {
                 super.updateItem(item, empty);
                 if (empty || item == null) {
                     setText(null);
+                    setContextMenu(null);
                 } else {
                     String status = item.isEnabled() ? "\u2705" : "\u274C";
                     setText(status + "  " + item.getName() + "  (#" + item.getPriority() + ")");
+                    setContextMenu(item.isEnabled() ? createRuleContextMenu(item) : null);
                 }
             }
         });
+    }
+
+    private ContextMenu createRuleContextMenu(Rule rule) {
+        MenuItem applyRule = new MenuItem(I18n.get("rules.applySelected"));
+        applyRule.setOnAction(event -> new RuleReviewDialog(rootPane.getScene().getWindow(), ruleService,
+                accountService, categoryService, labelService,
+                onlyFillMissing -> ruleService.previewSingleRule(rule.getId(), onlyFillMissing), true).show());
+        return new ContextMenu(applyRule);
     }
 
     private void loadRuleEditor(Rule rule) {
@@ -366,17 +379,8 @@ public class RulesController {
 
     @FXML
     private void onApplyAll() {
-        Alert alert = new Alert(Alert.AlertType.CONFIRMATION,
-                I18n.get("rules.applyAll.confirm"),
-                ButtonType.OK, ButtonType.CANCEL);
-        alert.initOwner(rootPane.getScene().getWindow());
-
-        alert.showAndWait().ifPresent(btn -> {
-            if (btn == ButtonType.OK) {
-                ruleService.applyAllRules();
-                log.info("Applied all rules");
-            }
-        });
+        new RuleReviewDialog(rootPane.getScene().getWindow(), ruleService, accountService,
+                categoryService, labelService, ruleService::previewAllRules, false).show();
     }
 
     private void clearEditor() {
