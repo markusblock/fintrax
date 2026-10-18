@@ -1,7 +1,18 @@
+import org.gradle.testing.jacoco.plugins.JacocoPluginExtension
+
 plugins {
     java
+    jacoco
+    id("jacoco-report-aggregation")
+    id("org.sonarqube") version "7.5.0.8588"
     id("org.openjfx.javafxplugin") version "0.1.0" apply false
     id("org.springframework.boot") apply false
+}
+
+val jacocoVersion = "0.8.15"
+
+extensions.configure<JacocoPluginExtension> {
+    toolVersion = jacocoVersion
 }
 
 allprojects {
@@ -13,8 +24,23 @@ allprojects {
     }
 }
 
+dependencies {
+    jacocoAggregation(project(":app"))
+}
+
+tasks.named<JacocoReport>("testCodeCoverageReport") {
+    reports {
+        xml.required.set(true)
+    }
+}
+
+tasks.named("sonar") {
+    dependsOn(tasks.named<JacocoReport>("testCodeCoverageReport"))
+}
+
 subprojects {
     apply(plugin = "java")
+    apply(plugin = "jacoco")
 
     java {
         sourceCompatibility = JavaVersion.VERSION_21
@@ -43,5 +69,17 @@ subprojects {
 
     tasks.withType<Test> {
         useJUnitPlatform()
+    }
+
+    extensions.configure<JacocoPluginExtension> {
+        toolVersion = jacocoVersion
+    }
+}
+
+sonar {
+    properties {
+        property("sonar.projectKey", "markusblock_fintrax")
+        property("sonar.organization", "markusblock")
+        property("sonar.coverage.jacoco.xmlReportPaths", "build/reports/jacoco/testCodeCoverageReport/testCodeCoverageReport.xml")
     }
 }

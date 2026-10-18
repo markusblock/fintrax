@@ -11,6 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -18,4 +20,11 @@ jobs:
       - uses: gradle/actions/setup-gradle@v3
       - name: Install Xvfb
         run: sudo apt-get update && sudo apt-get install -y xvfb
-      - run: xvfb-run ./gradlew build
+      - name: Build and analyze
+        if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: xvfb-run ./gradlew build sonar
+      - name: Build fork pull request
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository
+        run: xvfb-run ./gradlew build
