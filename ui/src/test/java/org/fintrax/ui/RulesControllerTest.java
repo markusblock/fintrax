@@ -14,6 +14,7 @@ import org.fintrax.config.I18n;
 import org.fintrax.model.*;
 import org.fintrax.service.AccountService;
 import org.fintrax.service.CategoryService;
+import org.fintrax.service.LabelService;
 import org.fintrax.service.RuleService;
 import org.fintrax.service.TransactionService;
 import org.fintrax.service.TransactionRulePreview;
@@ -29,6 +30,7 @@ class RulesControllerTest extends AbstractUITest {
     private Transaction transaction;
     private Category currentCategory;
     private Category proposedCategory;
+    private Long proposedLabelId;
     private String ruleName;
     private String disabledRuleName;
 
@@ -36,6 +38,7 @@ class RulesControllerTest extends AbstractUITest {
     public void start(Stage stage) throws Exception {
         AccountService accountService = applicationContext.getBean(AccountService.class);
         CategoryService categoryService = applicationContext.getBean(CategoryService.class);
+        LabelService labelService = applicationContext.getBean(LabelService.class);
         RuleService ruleService = applicationContext.getBean(RuleService.class);
         TransactionService transactionService = applicationContext.getBean(TransactionService.class);
 
@@ -44,12 +47,14 @@ class RulesControllerTest extends AbstractUITest {
         String suffix = Long.toString(System.nanoTime());
         currentCategory = categoryService.createCategory("Review Current " + suffix, null, null);
         proposedCategory = categoryService.createCategory("Review Proposed " + suffix, null, null);
+        proposedLabelId = labelService.createLabel("Review label " + suffix, null, null).getId();
         ruleName = "Review rule " + suffix;
         ruleService.createRule(ruleName, List.of(RuleCondition.builder()
                         .matchField(MatchField.PAYEE_NAME).operator(Operator.CONTAINS).value("REVIEW-" + suffix).build()),
                 List.of(RuleAction.builder().actionType(ActionType.ASSIGN_CATEGORY)
                                 .categoryId(proposedCategory.getId()).build(),
-                        RuleAction.builder().actionType(ActionType.SET_NOTE).note("Proposed note").build()));
+                        RuleAction.builder().actionType(ActionType.ADD_LABEL)
+                                .labelId(proposedLabelId).build()));
         disabledRuleName = "Disabled review rule " + suffix;
         Rule disabledRule = ruleService.createRule(disabledRuleName, List.of(RuleCondition.builder()
                         .matchField(MatchField.PAYEE_NAME).operator(Operator.CONTAINS).value("REVIEW-" + suffix).build()),
@@ -76,6 +81,7 @@ class RulesControllerTest extends AbstractUITest {
         TableView<TransactionRulePreview> reviewTable = lookup("#ruleReviewTable").query();
         TransactionRulePreview initialRow = rowFor(reviewTable, transaction.getId());
         assertEquals(currentCategory.getId(), initialRow.proposedCategoryId());
+        assertTrue(initialRow.proposedLabelIds().contains(proposedLabelId));
 
         clickOn(onlyFillMissing);
         assertFalse(onlyFillMissing.isSelected());
@@ -103,7 +109,8 @@ class RulesControllerTest extends AbstractUITest {
         Transaction updated = applicationContext.getBean(TransactionService.class)
                 .getTransaction(transaction.getId()).orElseThrow();
         assertEquals(proposedCategory.getId(), updated.getCategoryId());
-        assertEquals("Proposed note", updated.getNote());
+        assertTrue(updated.getLabelIds().contains(proposedLabelId));
+        assertEquals("Current note", updated.getNote());
     }
 
     @Test

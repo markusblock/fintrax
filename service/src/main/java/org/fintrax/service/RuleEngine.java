@@ -147,10 +147,7 @@ public class RuleEngine {
             assignedCategoryId = transaction.getCategoryId();
         }
 
-        RuleAction noteAction = selectedActionRule.getActions().stream()
-                .filter(action -> action.getActionType() == ActionType.SET_NOTE)
-                .findFirst().orElse(null);
-        String proposedNote = noteAction == null ? transaction.getNote() : noteAction.getNote();
+        String proposedNote = transaction.getNote();
 
         Set<Long> proposedLabels = new HashSet<>(currentLabels);
         actionRules.stream().flatMap(rule -> rule.getActions().stream())

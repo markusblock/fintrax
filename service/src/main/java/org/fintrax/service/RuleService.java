@@ -71,11 +71,8 @@ public class RuleService {
             throw new IllegalArgumentException("Rule can have at most 1 ASSIGN_CATEGORY action");
         }
 
-        long noteActions = actions.stream()
-                .filter(a -> a.getActionType() == ActionType.SET_NOTE)
-                .count();
-        if (noteActions > 1) {
-            throw new IllegalArgumentException("Rule can have at most 1 SET_NOTE action");
+        if (actions.stream().anyMatch(action -> action.getActionType() == ActionType.SET_NOTE)) {
+            throw new IllegalArgumentException("Rules cannot set transaction notes");
         }
     }
 

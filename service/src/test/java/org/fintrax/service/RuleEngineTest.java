@@ -22,6 +22,7 @@ class RuleEngineTest {
     private StoreManager store;
     private ActivityLogger activityLogger;
     private RuleEngine ruleEngine;
+    private RuleService ruleService;
     private TransactionService transactionService;
     private AccountService accountService;
     private CategoryService categoryService;
@@ -33,6 +34,7 @@ class RuleEngineTest {
         store = new StoreManager(tempDir);
         activityLogger = new ActivityLogger(store);
         ruleEngine = new RuleEngine(store, activityLogger);
+        ruleService = new RuleService(store, activityLogger, ruleEngine);
         transactionService = new TransactionService(store, activityLogger);
         accountService = new AccountService(store, activityLogger);
         categoryService = new CategoryService(store, activityLogger);
@@ -235,6 +237,38 @@ class RuleEngineTest {
     }
 
     @Test
+    void legacyRuleNoteActionDoesNotChangeTransactionNote() {
+        BankAccount account = accountService.createAccount(
+                "DE89370400440532013000", null, "Bank", "User", AccountType.GIRO, null);
+        Rule legacyRule = Rule.builder().id(1L).name("Legacy note rule").priority(1).enabled(true)
+                .conditions(List.of(RuleCondition.builder().matchField(MatchField.PAYEE_NAME)
+                        .operator(Operator.CONTAINS).value("SHOP").build()))
+                .actions(List.of(RuleAction.builder().actionType(ActionType.SET_NOTE)
+                        .note("Automatic note").build())).build();
+        store.getRoot().getRules().add(legacyRule);
+        Transaction transaction = transactionService.createTransaction(Transaction.builder()
+                .accountId(account.getId()).originalPayee("SHOP").amount(BigDecimal.ONE)
+                .bookingDate(LocalDate.now()).valueDate(LocalDate.now()).note("Manual note").build());
+
+        ruleEngine.applyRules(transaction);
+
+        assertEquals("Manual note", transaction.getNote());
+    }
+
+    @Test
+    void rulesCannotBeCreatedWithNoteActions() {
+        RuleCondition condition = RuleCondition.builder().matchField(MatchField.PAYEE_NAME)
+                .operator(Operator.CONTAINS).value("SHOP").build();
+        RuleAction noteAction = RuleAction.builder().actionType(ActionType.SET_NOTE)
+                .note("Rule note").build();
+
+        assertThrows(IllegalArgumentException.class,
+                () -> ruleService.createRule("No notes", List.of(condition), List.of(noteAction)));
+        assertTrue(store.getRoot().getRules().isEmpty());
+
+    }
+
+    @Test
     void previewRulesCombinesMatchingRuleActionsWithoutSavingChanges() {
         BankAccount account = accountService.createAccount(
                 "DE89370400440532013000", null, "Bank", "User", AccountType.GIRO, null);
@@ -270,7 +304,7 @@ class RuleEngineTest {
         assertEquals(currentCategory.getId(), row.proposedCategoryId());
         assertEquals(Set.of(existingLabel.getId(), firstLabel.getId(), secondLabel.getId()), row.proposedLabelIds());
         assertFalse(row.proposedLabelIds().contains(disabledLabel.getId()));
-        assertEquals("Reviewed note", row.proposedNote());
+        assertEquals("Existing note", row.proposedNote());
         assertEquals(List.of("First rule", "Second rule"), row.matchedRuleNames());
         assertTrue(row.hasChanges());
         assertEquals(currentCategory.getId(), transaction.getCategoryId());
@@ -340,13 +374,13 @@ class RuleEngineTest {
         store.getRoot().getRules().addAll(List.of(higherPriorityRule, selectedRule));
         transactionService.createTransaction(Transaction.builder()
                 .accountId(account.getId()).originalPayee("SHOP").amount(BigDecimal.ONE)
-                .bookingDate(LocalDate.now()).valueDate(LocalDate.now()).build());
+                .bookingDate(LocalDate.now()).valueDate(LocalDate.now()).note("Manual note").build());
 
         RuleApplicationPreview preview = ruleEngine.previewSingleRule(selectedRule.getId(), false);
 
         TransactionRulePreview row = preview.transactionsWithChanges().get(0);
         assertEquals(selectedCategory.getId(), row.proposedCategoryId());
-        assertEquals("Selected note", row.proposedNote());
+        assertEquals("Manual note", row.proposedNote());
         assertEquals(Set.of(selectedLabel.getId()), row.proposedLabelIds());
         assertEquals(List.of("Higher priority", "Selected rule"), row.matchedRuleNames());
         assertFalse(row.proposedLabelIds().contains(higherPriorityLabel.getId()));
