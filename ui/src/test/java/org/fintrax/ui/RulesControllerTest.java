@@ -4,8 +4,13 @@ import javafx.scene.Scene;
 import javafx.scene.Parent;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.ListCell;
+import javafx.scene.control.ListView;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.TableView;
 import javafx.stage.Stage;
+import org.fintrax.config.I18n;
 import org.fintrax.model.*;
 import org.fintrax.service.AccountService;
 import org.fintrax.service.CategoryService;
@@ -24,6 +29,8 @@ class RulesControllerTest extends AbstractUITest {
     private Transaction transaction;
     private Category currentCategory;
     private Category proposedCategory;
+    private String ruleName;
+    private String disabledRuleName;
 
     @Override
     public void start(Stage stage) throws Exception {
@@ -37,11 +44,18 @@ class RulesControllerTest extends AbstractUITest {
         String suffix = Long.toString(System.nanoTime());
         currentCategory = categoryService.createCategory("Review Current " + suffix, null, null);
         proposedCategory = categoryService.createCategory("Review Proposed " + suffix, null, null);
-        ruleService.createRule("Review rule " + System.nanoTime(), List.of(RuleCondition.builder()
+        ruleName = "Review rule " + suffix;
+        ruleService.createRule(ruleName, List.of(RuleCondition.builder()
                         .matchField(MatchField.PAYEE_NAME).operator(Operator.CONTAINS).value("REVIEW-" + suffix).build()),
                 List.of(RuleAction.builder().actionType(ActionType.ASSIGN_CATEGORY)
                                 .categoryId(proposedCategory.getId()).build(),
                         RuleAction.builder().actionType(ActionType.SET_NOTE).note("Proposed note").build()));
+        disabledRuleName = "Disabled review rule " + suffix;
+        Rule disabledRule = ruleService.createRule(disabledRuleName, List.of(RuleCondition.builder()
+                        .matchField(MatchField.PAYEE_NAME).operator(Operator.CONTAINS).value("REVIEW-" + suffix).build()),
+                List.of(RuleAction.builder().actionType(ActionType.ASSIGN_CATEGORY)
+                        .categoryId(proposedCategory.getId()).build()));
+        ruleService.toggleRule(disabledRule.getId());
         transaction = transactionService.createTransaction(Transaction.builder()
                 .accountId(account.getId()).originalPayee("REVIEW-" + suffix + " purchase").amount(BigDecimal.TEN)
                 .bookingDate(LocalDate.now()).valueDate(LocalDate.now())
@@ -92,9 +106,30 @@ class RulesControllerTest extends AbstractUITest {
         assertEquals("Proposed note", updated.getNote());
     }
 
+    @Test
+    void enabledRuleContextMenuReviewsSelectedRuleAndDisabledRuleHasNoApplyAction() {
+        ListView<?> ruleList = lookup("#ruleList").query();
+        ListCell<?> enabledCell = cellForRule(ruleList, ruleName);
+        ContextMenu contextMenu = enabledCell.getContextMenu();
+        assertNotNull(contextMenu);
+        MenuItem applySelected = contextMenu.getItems().get(0);
+        assertEquals(I18n.get("rules.applySelected"), applySelected.getText());
+
+        ListCell<?> disabledCell = cellForRule(ruleList, disabledRuleName);
+        assertNull(disabledCell.getContextMenu());
+    }
+
     private TransactionRulePreview rowFor(TableView<TransactionRulePreview> table, Long transactionId) {
         return table.getItems().stream()
                 .filter(row -> row.transactionId().equals(transactionId))
+                .findFirst().orElseThrow();
+    }
+
+    private ListCell<?> cellForRule(ListView<?> list, String name) {
+        return list.lookupAll(".list-cell").stream()
+                .filter(node -> node instanceof ListCell<?> cell && cell.getText() != null
+                        && cell.getText().contains(name))
+                .map(node -> (ListCell<?>) node)
                 .findFirst().orElseThrow();
     }
 }
