@@ -382,11 +382,13 @@ public class BankAccountsController {
         ButtonType closeType = new ButtonType(I18n.get("button.close"), ButtonBar.ButtonData.CANCEL_CLOSE);
         if (newTransactionIds.isEmpty()) {
             report.getButtonTypes().setAll(closeType);
+            ((Button) report.getDialogPane().lookupButton(closeType)).setId("syncReportCloseButton");
         } else {
             ButtonType applyRulesType = new ButtonType(
                     I18n.get("button.applyRulesToNewTransactions"), ButtonBar.ButtonData.OK_DONE);
             report.getButtonTypes().setAll(applyRulesType, closeType);
             ((Button) report.getDialogPane().lookupButton(applyRulesType)).setId("applyRulesToNewTransactions");
+            ((Button) report.getDialogPane().lookupButton(closeType)).setId("syncReportCloseButton");
             report.showAndWait().ifPresent(button -> {
                 if (button == applyRulesType) {
                     new RuleReviewDialog(rootPane.getScene().getWindow(), ruleService, accountService,

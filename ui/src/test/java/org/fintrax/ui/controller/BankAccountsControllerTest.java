@@ -26,6 +26,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class BankAccountsControllerTest extends AbstractUITest {
     private BankAccountsController controller;
@@ -88,6 +89,18 @@ class BankAccountsControllerTest extends AbstractUITest {
         assertNull(unchanged.getCategoryId());
         assertNull(applicationContext.getBean(TransactionService.class)
                 .getTransaction(olderTransaction.getId()).orElseThrow().getCategoryId());
+    }
+
+    @Test
+    void syncReportWithoutNewTransactionsDoesNotOfferRuleReview() {
+        SyncLog syncLog = SyncLog.builder().bankAccountId(account.getId()).status(SyncStatus.SUCCESS)
+                .newCount(0).skippedCount(1).build();
+        SyncResult result = new SyncResult(syncLog, List.of());
+        Platform.runLater(() -> controller.showSyncReport(List.of(result), Map.of()));
+        WaitForAsyncUtils.waitForFxEvents();
+
+        assertTrue(lookup("#applyRulesToNewTransactions").queryAll().isEmpty());
+        clickOn(lookup("#syncReportCloseButton").<Button>query());
     }
 
     private Transaction transaction(String checksum, String payee) {
