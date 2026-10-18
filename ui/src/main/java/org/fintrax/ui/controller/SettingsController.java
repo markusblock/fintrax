@@ -14,6 +14,9 @@ import org.fintrax.fintx.PinStorage;
 import org.fintrax.model.BankAccount;
 import org.fintrax.service.AccountService;
 import org.fintrax.service.ResetService;
+import org.fintrax.service.CategoryService;
+import org.fintrax.service.LabelService;
+import org.fintrax.service.RuleService;
 import org.fintrax.service.SyncService;
 import org.fintrax.service.SettingsService;
 import org.fintrax.service.hibiscus.HibiscusXmlImporter;
@@ -55,11 +58,15 @@ public class SettingsController {
     private final ResetService resetService;
     private final SyncService syncService;
     private final SettingsService settingsService;
+    private final RuleService ruleService;
+    private final CategoryService categoryService;
+    private final LabelService labelService;
     private final Path storagePath;
 
     public SettingsController(AccountService accountService, PinStorage pinStorage,
                                HibiscusXmlImporter hibiscusXmlImporter, ResetService resetService,
                                SyncService syncService, SettingsService settingsService,
+                               RuleService ruleService, CategoryService categoryService, LabelService labelService,
                                Path storagePath) {
         this.accountService = accountService;
         this.pinStorage = pinStorage;
@@ -67,6 +74,9 @@ public class SettingsController {
         this.resetService = resetService;
         this.syncService = syncService;
         this.settingsService = settingsService;
+        this.ruleService = ruleService;
+        this.categoryService = categoryService;
+        this.labelService = labelService;
         this.storagePath = storagePath;
     }
 
@@ -171,11 +181,7 @@ public class SettingsController {
                 HibiscusXmlImporter.ImportResult importResult = hibiscusXmlImporter.importFile(
                         file, categoriesBox.isSelected(), rulesBox.isSelected());
 
-                Alert alert = new Alert(Alert.AlertType.INFORMATION);
-                alert.setTitle(I18n.get("settings.import.success"));
-                alert.setHeaderText(I18n.get("settings.import.success"));
-                alert.setContentText(I18n.get("settings.import.result", importResult.toString()));
-                alert.showAndWait();
+                showImportSuccess(importResult);
 
                 loadCredentials();
             } catch (Exception e) {
@@ -187,6 +193,27 @@ public class SettingsController {
                 alert.showAndWait();
             }
         }
+    }
+
+    void showImportSuccess(HibiscusXmlImporter.ImportResult importResult) {
+        Alert report = new Alert(Alert.AlertType.INFORMATION);
+        report.setTitle(I18n.get("settings.import.success"));
+        report.setHeaderText(I18n.get("settings.import.success"));
+        report.setContentText(I18n.get("settings.import.result", importResult.toString()));
+        report.initOwner(rootPane.getScene().getWindow());
+
+        ButtonType applyRulesType = new ButtonType(
+                I18n.get("settings.import.applyRules"), ButtonBar.ButtonData.OK_DONE);
+        ButtonType closeType = new ButtonType(I18n.get("button.close"), ButtonBar.ButtonData.CANCEL_CLOSE);
+        report.getButtonTypes().setAll(applyRulesType, closeType);
+        ((Button) report.getDialogPane().lookupButton(applyRulesType)).setId("applyRulesAfterImport");
+
+        report.showAndWait().ifPresent(button -> {
+            if (button == applyRulesType) {
+                new RuleReviewDialog(rootPane.getScene().getWindow(), ruleService, accountService,
+                        categoryService, labelService).show();
+            }
+        });
     }
 
     @FXML

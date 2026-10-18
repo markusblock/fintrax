@@ -55,6 +55,20 @@ class HibiscusXmlImporterTest {
     }
 
     @Test
+    void successfulImportPersistsTheCompleteRootForRestart() {
+        importer.importFile(support.loadXmlTestData(IMPORT_TEST_DATA), true, true);
+
+        store.shutdown();
+        store = new StoreManager(tempDir);
+
+        assertEquals(5, store.getRoot().getAccounts().size());
+        assertEquals(5, store.getRoot().getTransactions().size());
+        assertEquals(8, store.getRoot().getCategories().size());
+        assertEquals(3, store.getRoot().getRules().size());
+        assertEquals(5, store.getRoot().getActivityLogs().size());
+    }
+
+    @Test
     void reimportingWholeExportDoesNotDuplicateAccountsOrRules() {
         File xmlFile = support.loadXmlTestData(IMPORT_TEST_DATA);
         importer.importFile(xmlFile, true, true);
@@ -141,6 +155,57 @@ class HibiscusXmlImporterTest {
         assertEquals(0, result.getCategoriesImported());
         assertEquals(0, result.getRulesImported());
         assertEquals(5, result.getActivityLogsImported());
+    }
+
+    @Test
+    void importedCategoryRulesDoNotCategorizeImportedTransactions() throws IOException {
+        String xml = Files.readString(support.loadXmlTestData(IMPORT_TEST_DATA).toPath())
+                .replaceFirst("VISA Test GmbH", "AGIP");
+        File xmlFile = writeImportFile("transaction-matching-imported-rule.xml", xml);
+
+        importer.importFile(xmlFile, true, true);
+
+        Transaction importedTransaction = store.getRoot().getTransactions().stream()
+                .filter(transaction -> "AGIP".equals(transaction.getOriginalPayee()))
+                .findFirst().orElseThrow();
+        assertNull(importedTransaction.getCategoryId());
+        assertTrue(store.getRoot().getRules().stream().anyMatch(rule -> rule.getName().equals("Imported: AGIP")));
+    }
+
+    @Test
+    void failedImportRollsBackAllPartialDataInMemoryAndAfterRestart() throws Exception {
+        String xml = """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <objects>
+                  <object type="de.willuhn.jameica.hbci.server.KontoImpl" id="1">
+                    <bezeichnung type="java.lang.String">Partial account</bezeichnung>
+                    <saldo type="java.lang.Double">10.0</saldo>
+                    <iban type="java.lang.String"></iban>
+                  </object>
+                  <object type="de.willuhn.jameica.hbci.server.UmsatzTypImpl" id="2">
+                    <name type="java.lang.String">Imported category</name>
+                  </object>
+                  <object type="de.willuhn.jameica.hbci.server.UmsatzTypImpl" id="3">
+                    <parent_id type="java.lang.Integer">99</parent_id>
+                    <name type="java.lang.String">Orphan category</name>
+                  </object>
+                </objects>
+                """;
+        File xmlFile = writeImportFile("failed-import.xml", xml);
+
+        assertThrows(IllegalArgumentException.class, () -> importer.importFile(xmlFile, true, true));
+
+        assertTrue(store.getRoot().getAccounts().isEmpty());
+        assertTrue(store.getRoot().getCategories().isEmpty());
+        assertTrue(store.getRoot().getTransactions().isEmpty());
+        assertTrue(store.getRoot().getRules().isEmpty());
+
+        store.shutdown();
+        store = new StoreManager(tempDir);
+        assertTrue(store.getRoot().getAccounts().isEmpty());
+        assertTrue(store.getRoot().getCategories().isEmpty());
+        assertTrue(store.getRoot().getTransactions().isEmpty());
+        assertTrue(store.getRoot().getRules().isEmpty());
     }
 
     @Test
