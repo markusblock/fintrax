@@ -25,7 +25,7 @@ public class RuleEngine {
     }
 
     public List<Transaction> applyRules(Transaction transaction) {
-        TransactionRulePreview preview = previewTransaction(transaction, enabledRules(), false);
+        TransactionRulePreview preview = previewTransaction(transaction, enabledRules(), null, false);
         if (!preview.matchedRuleNames().isEmpty()) {
             applyPreview(transaction, preview);
             store.store(transaction);
@@ -37,8 +37,25 @@ public class RuleEngine {
     public RuleApplicationPreview previewRules(boolean onlyFillMissing) {
         List<Rule> enabledRules = enabledRules();
         List<TransactionRulePreview> matchingTransactions = store.getRoot().getTransactions().stream()
-                .map(transaction -> previewTransaction(transaction, enabledRules, onlyFillMissing))
+                .map(transaction -> previewTransaction(transaction, enabledRules, null, onlyFillMissing))
                 .filter(preview -> !preview.matchedRuleNames().isEmpty())
+                .toList();
+        return new RuleApplicationPreview(matchingTransactions);
+    }
+
+    public RuleApplicationPreview previewSingleRule(Long ruleId, boolean onlyFillMissing) {
+        Rule selectedRule = store.getRule(ruleId);
+        if (selectedRule == null) {
+            throw new IllegalArgumentException("Rule not found: " + ruleId);
+        }
+        if (!selectedRule.isEnabled()) {
+            throw new IllegalArgumentException("Cannot apply disabled rule: " + ruleId);
+        }
+
+        List<Rule> enabledRules = enabledRules();
+        List<TransactionRulePreview> matchingTransactions = store.getRoot().getTransactions().stream()
+                .filter(transaction -> matchesRule(transaction, selectedRule))
+                .map(transaction -> previewTransaction(transaction, enabledRules, selectedRule, onlyFillMissing))
                 .toList();
         return new RuleApplicationPreview(matchingTransactions);
     }
@@ -97,7 +114,7 @@ public class RuleEngine {
     }
 
     private TransactionRulePreview previewTransaction(Transaction transaction, List<Rule> rules,
-                                                       boolean onlyFillMissing) {
+                                                       Rule selectedRule, boolean onlyFillMissing) {
         List<Rule> matchedRules = rules.stream().filter(rule -> matchesRule(transaction, rule)).toList();
         Set<Long> currentLabels = transaction.getLabelIds() == null
                 ? Set.of() : new HashSet<>(transaction.getLabelIds());
@@ -108,8 +125,9 @@ public class RuleEngine {
                     transaction.getNote(), transaction.getNote(), List.of());
         }
 
-        Rule highestPriorityRule = matchedRules.get(0);
-        RuleAction categoryAction = highestPriorityRule.getActions().stream()
+        List<Rule> actionRules = selectedRule == null ? matchedRules : List.of(selectedRule);
+        Rule selectedActionRule = actionRules.get(0);
+        RuleAction categoryAction = selectedActionRule.getActions().stream()
                 .filter(action -> action.getActionType() == ActionType.ASSIGN_CATEGORY)
                 .findFirst().orElse(null);
         Long assignedCategoryId = categoryAction == null
@@ -118,13 +136,13 @@ public class RuleEngine {
             assignedCategoryId = transaction.getCategoryId();
         }
 
-        RuleAction noteAction = highestPriorityRule.getActions().stream()
+        RuleAction noteAction = selectedActionRule.getActions().stream()
                 .filter(action -> action.getActionType() == ActionType.SET_NOTE)
                 .findFirst().orElse(null);
         String proposedNote = noteAction == null ? transaction.getNote() : noteAction.getNote();
 
         Set<Long> proposedLabels = new HashSet<>(currentLabels);
-        matchedRules.stream().flatMap(rule -> rule.getActions().stream())
+        actionRules.stream().flatMap(rule -> rule.getActions().stream())
                 .filter(action -> action.getActionType() == ActionType.ADD_LABEL)
                 .map(RuleAction::getLabelId)
                 .filter(Objects::nonNull)

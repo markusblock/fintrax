@@ -31,20 +31,26 @@ final class RuleReviewDialog {
     private final AccountService accountService;
     private final CategoryService categoryService;
     private final LabelService labelService;
+    private final Function<Boolean, RuleApplicationPreview> previewProvider;
+    private final boolean selectedRuleOnly;
 
     RuleReviewDialog(Window owner, RuleService ruleService, AccountService accountService,
-                     CategoryService categoryService, LabelService labelService) {
+                     CategoryService categoryService, LabelService labelService,
+                     Function<Boolean, RuleApplicationPreview> previewProvider, boolean selectedRuleOnly) {
         this.owner = owner;
         this.ruleService = ruleService;
         this.accountService = accountService;
         this.categoryService = categoryService;
         this.labelService = labelService;
+        this.previewProvider = previewProvider;
+        this.selectedRuleOnly = selectedRuleOnly;
     }
 
     void show() {
         Dialog<ButtonType> dialog = new Dialog<>();
         dialog.setTitle(I18n.get("rules.review.title"));
-        dialog.setHeaderText(I18n.get("rules.review.header"));
+        dialog.setHeaderText(I18n.get(selectedRuleOnly
+                ? "rules.review.single.header" : "rules.review.header"));
         dialog.initOwner(owner);
 
         CheckBox onlyFillMissing = new CheckBox(I18n.get("rules.review.onlyFillMissing"));
@@ -89,7 +95,7 @@ final class RuleReviewDialog {
         AtomicReference<RuleApplicationPreview> currentPreview = new AtomicReference<>();
 
         Runnable refreshPreview = () -> {
-            RuleApplicationPreview preview = ruleService.previewAllRules(onlyFillMissing.isSelected());
+            RuleApplicationPreview preview = previewProvider.apply(onlyFillMissing.isSelected());
             currentPreview.set(preview);
             List<TransactionRulePreview> changedRows = preview.transactionsWithChanges();
             rows.setAll(changedRows);
@@ -99,7 +105,8 @@ final class RuleReviewDialog {
             long multipleMatches = preview.matchingTransactions().stream()
                     .filter(row -> row.matchedRuleNames().size() > 1).count();
             multipleMatchWarning.setText(multipleMatches == 0 ? ""
-                    : I18n.get("rules.review.multipleMatches", multipleMatches));
+                    : I18n.get(selectedRuleOnly
+                    ? "rules.review.single.multipleMatches" : "rules.review.multipleMatches", multipleMatches));
             multipleMatchWarning.setVisible(multipleMatches > 0);
             multipleMatchWarning.setManaged(multipleMatches > 0);
             emptyResult.setVisible(changedRows.isEmpty());

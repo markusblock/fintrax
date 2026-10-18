@@ -83,12 +83,22 @@ public class RulesController {
                 super.updateItem(item, empty);
                 if (empty || item == null) {
                     setText(null);
+                    setContextMenu(null);
                 } else {
                     String status = item.isEnabled() ? "\u2705" : "\u274C";
                     setText(status + "  " + item.getName() + "  (#" + item.getPriority() + ")");
+                    setContextMenu(item.isEnabled() ? createRuleContextMenu(item) : null);
                 }
             }
         });
+    }
+
+    private ContextMenu createRuleContextMenu(Rule rule) {
+        MenuItem applyRule = new MenuItem(I18n.get("rules.applySelected"));
+        applyRule.setOnAction(event -> new RuleReviewDialog(rootPane.getScene().getWindow(), ruleService,
+                accountService, categoryService, labelService,
+                onlyFillMissing -> ruleService.previewSingleRule(rule.getId(), onlyFillMissing), true).show());
+        return new ContextMenu(applyRule);
     }
 
     private void loadRuleEditor(Rule rule) {
@@ -372,7 +382,7 @@ public class RulesController {
     @FXML
     private void onApplyAll() {
         new RuleReviewDialog(rootPane.getScene().getWindow(), ruleService, accountService,
-                categoryService, labelService).show();
+                categoryService, labelService, ruleService::previewAllRules, false).show();
     }
 
     private void clearEditor() {

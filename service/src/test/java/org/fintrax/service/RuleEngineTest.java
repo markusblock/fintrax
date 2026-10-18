@@ -319,6 +319,46 @@ class RuleEngineTest {
         assertTrue(preview.transactionsWithChanges().isEmpty());
     }
 
+    @Test
+    void previewSingleRuleProposesOnlySelectedRuleActionsButShowsOverlaps() {
+        BankAccount account = accountService.createAccount(
+                "DE89370400440532013000", null, "Bank", "User", AccountType.GIRO, null);
+        Category higherPriorityCategory = categoryService.createCategory("Higher priority", null, null);
+        Category selectedCategory = categoryService.createCategory("Selected", null, null);
+        Label higherPriorityLabel = labelService.createLabel("Higher label", null, null);
+        Label selectedLabel = labelService.createLabel("Selected label", null, null);
+        Rule higherPriorityRule = rule(1L, "Higher priority", 1, true, "SHOP", List.of(
+                RuleAction.builder().actionType(ActionType.ASSIGN_CATEGORY)
+                        .categoryId(higherPriorityCategory.getId()).build(),
+                RuleAction.builder().actionType(ActionType.SET_NOTE).note("Higher note").build(),
+                RuleAction.builder().actionType(ActionType.ADD_LABEL).labelId(higherPriorityLabel.getId()).build()));
+        Rule selectedRule = rule(2L, "Selected rule", 2, true, "SHOP", List.of(
+                RuleAction.builder().actionType(ActionType.ASSIGN_CATEGORY)
+                        .categoryId(selectedCategory.getId()).build(),
+                RuleAction.builder().actionType(ActionType.SET_NOTE).note("Selected note").build(),
+                RuleAction.builder().actionType(ActionType.ADD_LABEL).labelId(selectedLabel.getId()).build()));
+        store.getRoot().getRules().addAll(List.of(higherPriorityRule, selectedRule));
+        transactionService.createTransaction(Transaction.builder()
+                .accountId(account.getId()).originalPayee("SHOP").amount(BigDecimal.ONE)
+                .bookingDate(LocalDate.now()).valueDate(LocalDate.now()).build());
+
+        RuleApplicationPreview preview = ruleEngine.previewSingleRule(selectedRule.getId(), false);
+
+        TransactionRulePreview row = preview.transactionsWithChanges().get(0);
+        assertEquals(selectedCategory.getId(), row.proposedCategoryId());
+        assertEquals("Selected note", row.proposedNote());
+        assertEquals(Set.of(selectedLabel.getId()), row.proposedLabelIds());
+        assertEquals(List.of("Higher priority", "Selected rule"), row.matchedRuleNames());
+        assertFalse(row.proposedLabelIds().contains(higherPriorityLabel.getId()));
+    }
+
+    @Test
+    void disabledRuleCannotBePreviewedForApplication() {
+        store.getRoot().getRules().add(rule(1L, "Disabled", 1, false, "SHOP", List.of()));
+
+        assertThrows(IllegalArgumentException.class, () -> ruleEngine.previewSingleRule(1L, false));
+    }
+
     private Rule rule(Long id, String name, int priority, boolean enabled, String payee, List<RuleAction> actions) {
         return Rule.builder().id(id).name(name).priority(priority).enabled(enabled)
                 .conditions(List.of(RuleCondition.builder().matchField(MatchField.PAYEE_NAME)
