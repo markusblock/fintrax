@@ -53,8 +53,19 @@ A parent reference that cannot be mapped to a Fintrax Category during import. Un
 **Category Rule**:
 A rule derived from a Hibiscus Category's matching pattern that assigns matching transactions to the mapped Fintrax Category.
 
+**Imported Category Rule Match**:
+An existing rule with the same payee condition, operator, pattern, and mapped category action. Rule name, priority, and enabled state do not affect the match.
+
 **Pattern Match Mode**:
 The way a Category Rule evaluates its pattern: regex or contains matching.
+
+### Account Import
+
+**Hibiscus Account**:
+An account defined in a Hibiscus XML export, carrying an optional IBAN and account details.
+
+**Account Match**:
+An existing Fintrax account with the same normalized, non-empty IBAN. A match reuses the Fintrax account without changing its details; an account without an IBAN is not matched.
 
 ### Transaction Import
 

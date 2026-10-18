@@ -59,6 +59,7 @@ public class HibiscusXmlImporter {
             List<CategoryImport> categoryImports = new ArrayList<>();
             List<TransactionImport> transactionImports = new ArrayList<>();
             List<ActivityLogImport> activityImports = new ArrayList<>();
+            int accountsCreated = 0;
 
             for (int i = 0; i < objects.getLength(); i++) {
                 Element elem = (Element) objects.item(i);
@@ -66,7 +67,9 @@ public class HibiscusXmlImporter {
                 int hibiscusId = Integer.parseInt(elem.getAttribute("id"));
 
                 if (type.contains("KontoImpl")) {
-                    parseKonto(elem, hibiscusId, accountIdMap);
+                    if (parseKonto(elem, hibiscusId, accountIdMap)) {
+                        accountsCreated++;
+                    }
                 } else if (type.contains("UmsatzImpl")) {
                     transactionImports.add(parseUmsatz(elem, hibiscusId));
                 } else if (type.contains("UmsatzTypImpl")) {
@@ -223,6 +226,10 @@ public class HibiscusXmlImporter {
                         long actionId = System.nanoTime() + 1;
 
                         Operator op = catImport.isRegex ? Operator.REGEX : Operator.CONTAINS;
+                        if (hasMatchingImportedRule(root, mappedCategoryId, op, catImport.pattern)) {
+                            log.debug("Skipping duplicate imported rule for category {}", catImport.name);
+                            continue;
+                        }
 
                         RuleCondition condition = RuleCondition.builder()
                                 .id(condId)
@@ -279,7 +286,7 @@ public class HibiscusXmlImporter {
             storeManager.store(root.getActivityLogs());
 
             ImportResult result = new ImportResult(
-                    accountIdMap.size(), transactionsCreated, categoriesCreated,
+                    accountsCreated, transactionsCreated, categoriesCreated,
                     rulesCreated, activitiesCreated);
             log.info("Import complete: {}", result);
             return result;
@@ -356,17 +363,9 @@ public class HibiscusXmlImporter {
             return "id:" + accountId;
         }
 
-        String iban = normalizeText(account.getIban());
+        String iban = normalizeIban(account.getIban());
         if (!iban.isEmpty()) {
             return "iban:" + iban;
-        }
-
-        String bic = normalizeText(account.getBic());
-        String bankName = normalizeText(account.getBankName());
-        String accountHolder = normalizeText(account.getAccountHolder());
-        String currency = normalizeText(account.getCurrency());
-        if (!bic.isEmpty() || !bankName.isEmpty() || !accountHolder.isEmpty()) {
-            return "account:" + bic + '\u0000' + bankName + '\u0000' + accountHolder + '\u0000' + currency;
         }
         return "id:" + accountId;
     }
@@ -376,6 +375,26 @@ public class HibiscusXmlImporter {
             return null;
         }
         return checksum.trim();
+    }
+
+    private String normalizeIban(String iban) {
+        if (iban == null || iban.isBlank()) {
+            return "";
+        }
+        return iban.replaceAll("\\s+", "").toUpperCase(Locale.ROOT);
+    }
+
+    private boolean hasMatchingImportedRule(DataRoot root, Long categoryId, Operator operator, String pattern) {
+        return root.getRules().stream().anyMatch(rule ->
+                rule.getConditions() != null
+                        && rule.getConditions().size() == 1
+                        && rule.getConditions().get(0).getMatchField() == MatchField.PAYEE_NAME
+                        && rule.getConditions().get(0).getOperator() == operator
+                        && Objects.equals(rule.getConditions().get(0).getValue(), pattern)
+                        && rule.getActions() != null
+                        && rule.getActions().size() == 1
+                        && rule.getActions().get(0).getActionType() == ActionType.ASSIGN_CATEGORY
+                        && Objects.equals(rule.getActions().get(0).getCategoryId(), categoryId));
     }
 
     private String normalizeText(String value) {
@@ -394,9 +413,8 @@ public class HibiscusXmlImporter {
 
     private record TransactionChecksum(String accountIdentity, String checksum) {}
 
-    private void parseKonto(Element elem, int hibiscusId, Map<Integer, Long> accountIdMap) {
+    private boolean parseKonto(Element elem, int hibiscusId, Map<Integer, Long> accountIdMap) {
         DataRoot root = storeManager.getRoot();
-        long newId = nextAccountId(root);
 
         String bezeichnung = getChildText(elem, "bezeichnung");
         String iban = getChildText(elem, "iban");
@@ -405,6 +423,21 @@ public class HibiscusXmlImporter {
         String waehrung = getChildText(elem, "waehrung");
         String saldoStr = getChildText(elem, "saldo");
         String saldoDatumStr = getChildText(elem, "saldo_datum");
+
+        String normalizedIban = normalizeIban(iban);
+        if (!normalizedIban.isEmpty()) {
+            Optional<BankAccount> existingAccount = root.getAccounts().stream()
+                    .filter(account -> normalizedIban.equals(normalizeIban(account.getIban())))
+                    .findFirst();
+            if (existingAccount.isPresent()) {
+                accountIdMap.put(hibiscusId, existingAccount.get().getId());
+                log.debug("Reusing account {} (hibiscus {}) -> fintrax {}", bezeichnung, hibiscusId,
+                        existingAccount.get().getId());
+                return false;
+            }
+        }
+
+        long newId = nextAccountId(root);
 
         BigDecimal balance = saldoStr != null ? new BigDecimal(saldoStr) : BigDecimal.ZERO;
         LocalDateTime balanceDate = saldoDatumStr != null ? parseDateTime(saldoDatumStr) : LocalDateTime.now();
@@ -431,6 +464,7 @@ public class HibiscusXmlImporter {
         root.getAccounts().add(account);
         accountIdMap.put(hibiscusId, newId);
         log.debug("Imported account {} (hibiscus {}) -> fintrax {}", bezeichnung, hibiscusId, newId);
+        return true;
     }
 
     private TransactionImport parseUmsatz(Element elem, int hibiscusId) {

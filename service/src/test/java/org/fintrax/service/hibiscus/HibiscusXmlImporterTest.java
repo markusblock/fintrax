@@ -55,6 +55,82 @@ class HibiscusXmlImporterTest {
     }
 
     @Test
+    void reimportingWholeExportDoesNotDuplicateAccountsOrRules() {
+        File xmlFile = support.loadXmlTestData(IMPORT_TEST_DATA);
+        importer.importFile(xmlFile, true, true);
+
+        BankAccount account = store.getRoot().getAccounts().stream()
+                .filter(candidate -> "DE89370400440532013000".equals(candidate.getIban()))
+                .findFirst().orElseThrow();
+        account.setBankName("Edited bank name");
+        account.setBalance(new BigDecimal("999.99"));
+        Rule importedRule = store.getRoot().getRules().stream()
+                .filter(rule -> rule.getName().equals("Imported: AGIP"))
+                .findFirst().orElseThrow();
+        importedRule.setName("Renamed imported rule");
+        importedRule.setEnabled(false);
+
+        HibiscusXmlImporter.ImportResult secondResult = importer.importFile(xmlFile, true, true);
+
+        assertEquals(0, secondResult.getAccountsImported());
+        assertEquals(0, secondResult.getTransactionsImported());
+        assertEquals(0, secondResult.getCategoriesImported());
+        assertEquals(0, secondResult.getRulesImported());
+        assertEquals(5, store.getRoot().getAccounts().size());
+        assertEquals(5, store.getRoot().getTransactions().size());
+        assertEquals(8, store.getRoot().getCategories().size());
+        assertEquals(3, store.getRoot().getRules().size());
+        assertEquals("Edited bank name", account.getBankName());
+        assertEquals(new BigDecimal("999.99"), account.getBalance());
+        assertEquals("Renamed imported rule", importedRule.getName());
+        assertFalse(importedRule.isEnabled());
+    }
+
+    @Test
+    void accountMatchingNormalizesIbanWhitespaceAndCase() throws IOException {
+        String xml = Files.readString(support.loadXmlTestData(IMPORT_TEST_DATA).toPath());
+        File firstImport = writeImportFile("first-import.xml", xml);
+        File secondImport = writeImportFile("second-import.xml", xml.replaceFirst(
+                "DE89370400440532013000", " de89 3704 0044 0532 0130 00 "));
+
+        importer.importFile(firstImport, false, false);
+        HibiscusXmlImporter.ImportResult secondResult = importer.importFile(secondImport, false, false);
+
+        assertEquals(0, secondResult.getAccountsImported());
+        assertEquals(5, store.getRoot().getAccounts().size());
+    }
+
+    @Test
+    void accountsWithoutIbanAreImportedAsNewRecords() throws IOException {
+        String xml = Files.readString(support.loadXmlTestData(IMPORT_TEST_DATA).toPath());
+        String withoutFirstIban = xml.replaceFirst(
+                "<iban type=\"java.lang.String\">DE89370400440532013000</iban>",
+                "<iban type=\"java.lang.String\"></iban>");
+        File importFile = writeImportFile("without-iban.xml", withoutFirstIban);
+
+        importer.importFile(importFile, false, false);
+        HibiscusXmlImporter.ImportResult secondResult = importer.importFile(importFile, false, false);
+
+        assertEquals(1, secondResult.getAccountsImported());
+        assertEquals(6, store.getRoot().getAccounts().size());
+    }
+
+    @Test
+    void changedImportedRuleBehaviorCreatesNewRule() throws IOException {
+        String xml = Files.readString(support.loadXmlTestData(IMPORT_TEST_DATA).toPath());
+        File firstImport = writeImportFile("first-import.xml", xml);
+        File changedRuleImport = writeImportFile("changed-rule-import.xml", xml.replaceFirst(
+                "<pattern type=\"java.lang.String\">AGIP</pattern>",
+                "<pattern type=\"java.lang.String\">AGIP UPDATED</pattern>"));
+
+        importer.importFile(firstImport, true, true);
+        HibiscusXmlImporter.ImportResult secondResult = importer.importFile(changedRuleImport, true, true);
+
+        assertEquals(1, secondResult.getRulesImported());
+        assertEquals(4, store.getRoot().getRules().size());
+    }
+
+    @Test
     void testImportWithoutCategoriesAndRules() {
         File xmlFile = support.loadXmlTestData(IMPORT_TEST_DATA);
 
