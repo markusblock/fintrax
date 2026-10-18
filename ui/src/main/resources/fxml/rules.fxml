@@ -27,7 +27,7 @@
                 <Button text="%button.moveUp" onAction="#onMoveUp"/>
                 <Button text="%button.moveDown" onAction="#onMoveDown"/>
                 <Button text="%button.toggle" onAction="#onToggleEnabled"/>
-                <Button text="%button.applyAll" onAction="#onApplyAll"/>
+                <Button fx:id="applyAllButton" text="%button.applyAll" onAction="#onApplyAll"/>
             </HBox>
             <Label text="%subtitle.rules"/>
         </VBox>

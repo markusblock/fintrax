@@ -51,7 +51,7 @@ The association between a Hibiscus Category and an existing Fintrax Category dur
 A parent reference that cannot be mapped to a Fintrax Category during import. Under the full-export rule this is invalid input and fails the import.
 
 **Category Rule**:
-A rule derived from a Hibiscus Category's matching pattern that assigns matching transactions to the mapped Fintrax Category.
+A rule, possibly derived from a Hibiscus Category matching pattern, that matches transactions. For overlapping matches, the highest-priority rule supplies the category and note while every matching rule contributes labels without duplicates. Applying rules to existing transactions requires reviewing proposed changes before saving them.
 
 **Imported Category Rule Match**:
 An existing rule with the same payee condition, operator, pattern, and mapped category action. Rule name, priority, and enabled state do not affect the match.
