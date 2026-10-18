@@ -28,4 +28,9 @@ tasks.withType<Test> {
         "--add-opens", "javafx.graphics/com.sun.javafx.application=ALL-UNNAMED",
         "--add-exports", "javafx.graphics/com.sun.javafx.application=ALL-UNNAMED"
     )
+
+    if (System.getProperty("os.name").startsWith("Mac", ignoreCase = true)) {
+        val testDockIcon = rootProject.file("ui/src/test/resources/icons/fintrax-test-256.png")
+        jvmArgs("-Xdock:icon=${testDockIcon.absolutePath}")
+    }
 }
