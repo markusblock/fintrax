@@ -26,6 +26,7 @@ public class ViewLoader {
         }
 
         FXMLLoader loader = new FXMLLoader(resource);
+        loader.setClassLoader(ViewLoader.class.getClassLoader());
         loader.setResources(I18n.getResourceBundle());
         loader.setControllerFactory(applicationContext::getBean);
         Parent root = loader.load();
