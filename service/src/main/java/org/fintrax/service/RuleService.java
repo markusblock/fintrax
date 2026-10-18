@@ -163,9 +163,13 @@ public class RuleService {
         return ruleEngine.countMatchingTransactions(rule);
     }
 
-    public void applyAllRules() {
-        ruleEngine.applyAllRulesToAllTransactions();
+    public RuleApplicationPreview previewAllRules(boolean onlyFillMissing) {
+        return ruleEngine.previewRules(onlyFillMissing);
+    }
+
+    public void applyReviewedRules(RuleApplicationPreview preview) {
+        ruleEngine.applyReviewedRules(preview);
         activityLogger.log(ActivityAction.EXECUTE, EntityType.RULE, null,
-                "Applied all rules to all transactions");
+                "Applied reviewed rules to " + preview.transactionsWithChanges().size() + " transactions");
     }
 }
