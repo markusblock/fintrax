@@ -12,19 +12,26 @@ import javafx.stage.Stage;
 import javafx.stage.Window;
 import lombok.extern.slf4j.Slf4j;
 import org.fintrax.config.I18n;
+import org.fintrax.fintx.PinStorage;
 import org.fintrax.model.BankAccount;
 import org.fintrax.model.SyncLog;
 import org.fintrax.model.SyncStatus;
 import org.fintrax.service.AccountService;
-import org.fintrax.fintx.PinStorage;
+import org.fintrax.service.CategoryService;
+import org.fintrax.service.LabelService;
+import org.fintrax.service.RuleService;
+import org.fintrax.service.SyncResult;
+import org.fintrax.service.SyncService;
 import org.fintrax.ui.ViewLoader;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
-import org.fintrax.service.SyncService;
 
 import java.math.BigDecimal;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -54,6 +61,9 @@ public class BankAccountsController {
 
     private final AccountService accountService;
     private final SyncService syncService;
+    private final RuleService ruleService;
+    private final CategoryService categoryService;
+    private final LabelService labelService;
     private final PinStorage pinStorage;
     private final ViewLoader viewLoader;
     private final ExecutorService executor = Executors.newCachedThreadPool(r -> {
@@ -63,11 +73,15 @@ public class BankAccountsController {
     });
 
     public BankAccountsController(AccountService accountService, SyncService syncService,
-                                  PinStorage pinStorage, ViewLoader viewLoader) {
+                                  PinStorage pinStorage, ViewLoader viewLoader, RuleService ruleService,
+                                  CategoryService categoryService, LabelService labelService) {
         this.accountService = accountService;
         this.syncService = syncService;
         this.pinStorage = pinStorage;
         this.viewLoader = viewLoader;
+        this.ruleService = ruleService;
+        this.categoryService = categoryService;
+        this.labelService = labelService;
     }
 
     @FXML
@@ -183,9 +197,35 @@ public class BankAccountsController {
     @FXML
     private void onSyncAll() {
         List<BankAccount> accounts = accountService.getAllAccounts();
+        Map<Long, String> accountPins = new LinkedHashMap<>();
         for (BankAccount account : accounts) {
-            onSyncAccount(account.getId());
+            String pin = pinStorage.retrievePin(String.valueOf(account.getId()));
+            if (pin == null) {
+                pin = showPinDialog(account.getId());
+            }
+            if (pin != null) {
+                accountPins.put(account.getId(), pin);
+            }
         }
+        if (accountPins.isEmpty()) return;
+
+        executor.submit(() -> {
+            List<SyncResult> results = new ArrayList<>();
+            Map<Long, String> failures = new LinkedHashMap<>();
+            accountPins.forEach((accountId, pin) -> {
+                try {
+                    results.add(syncService.syncAccount(accountId, pin));
+                } catch (Exception e) {
+                    log.error("Sync failed for account {}", accountId, e);
+                    failures.put(accountId, errorMessage(e));
+                }
+            });
+            Platform.runLater(() -> {
+                loadAccounts();
+                loadSyncLogs();
+                showSyncReport(results, failures);
+            });
+        });
     }
 
     private void onSyncAccount(Long accountId) {
@@ -199,17 +239,17 @@ public class BankAccountsController {
         final String finalPin = pin;
         executor.submit(() -> {
             try {
-                SyncLog syncLog = syncService.syncAccount(accountId, finalPin);
+                SyncResult syncResult = syncService.syncAccount(accountId, finalPin);
                 Platform.runLater(() -> {
                     loadAccounts();
                     loadSyncLogs();
-                    showSyncResult(syncLog);
+                    showSyncReport(List.of(syncResult), Map.of());
                 });
             } catch (Exception e) {
                 log.error("Sync failed for account {}", accountId, e);
                 Platform.runLater(() -> {
                     loadSyncLogs();
-                    showError(I18n.get("message.sync.failed", e.getMessage()));
+                    showSyncReport(List.of(), Map.of(accountId, errorMessage(e)));
                 });
             }
         });
@@ -307,12 +347,72 @@ public class BankAccountsController {
         return row;
     }
 
-    private void showSyncResult(SyncLog syncLog) {
-        if (syncLog.getStatus() == SyncStatus.SUCCESS) {
-            showInfo(I18n.get("message.sync.success", syncLog.getNewCount(), syncLog.getSkippedCount()));
-        } else if (syncLog.getStatus() == SyncStatus.FAILED) {
-            showError(I18n.get("message.sync.failed", syncLog.getErrorMessage()));
+    void showSyncReport(List<SyncResult> results, Map<Long, String> failures) {
+        int newCount = results.stream().filter(result -> result.syncLog().getStatus() == SyncStatus.SUCCESS)
+                .mapToInt(result -> result.syncLog().getNewCount()).sum();
+        int skippedCount = results.stream().filter(result -> result.syncLog().getStatus() == SyncStatus.SUCCESS)
+                .mapToInt(result -> result.syncLog().getSkippedCount()).sum();
+        List<Long> newTransactionIds = results.stream()
+                .filter(result -> result.syncLog().getStatus() == SyncStatus.SUCCESS)
+                .flatMap(result -> result.newTransactionIds().stream()).toList();
+
+        List<String> details = new ArrayList<>();
+        for (SyncResult result : results) {
+            SyncLog syncLog = result.syncLog();
+            String accountName = accountName(syncLog.getBankAccountId());
+            if (syncLog.getStatus() == SyncStatus.FAILED) {
+                details.add(I18n.get("message.sync.report.failure", accountName, syncLog.getErrorMessage()));
+            } else {
+                details.add(I18n.get("message.sync.report.account", accountName,
+                        syncLog.getNewCount(), syncLog.getSkippedCount()));
+            }
         }
+        failures.forEach((accountId, error) -> details.add(
+                I18n.get("message.sync.report.failure", accountName(accountId), error)));
+
+        boolean hasFailures = !failures.isEmpty() || results.stream()
+                .anyMatch(result -> result.syncLog().getStatus() == SyncStatus.FAILED);
+        Alert report = new Alert(hasFailures ? Alert.AlertType.WARNING : Alert.AlertType.INFORMATION);
+        report.setTitle(I18n.get("message.sync.report.title"));
+        report.setHeaderText(I18n.get("message.sync.report.title"));
+        String summary = I18n.get("message.sync.report.summary", newCount, skippedCount);
+        report.setContentText(details.isEmpty() ? summary : summary + "\n" + String.join("\n", details));
+        report.initOwner(rootPane.getScene().getWindow());
+
+        ButtonType closeType = new ButtonType(I18n.get("button.close"), ButtonBar.ButtonData.CANCEL_CLOSE);
+        if (newTransactionIds.isEmpty()) {
+            report.getButtonTypes().setAll(closeType);
+        } else {
+            ButtonType applyRulesType = new ButtonType(
+                    I18n.get("button.applyRulesToNewTransactions"), ButtonBar.ButtonData.OK_DONE);
+            report.getButtonTypes().setAll(applyRulesType, closeType);
+            ((Button) report.getDialogPane().lookupButton(applyRulesType)).setId("applyRulesToNewTransactions");
+            report.showAndWait().ifPresent(button -> {
+                if (button == applyRulesType) {
+                    new RuleReviewDialog(rootPane.getScene().getWindow(), ruleService, accountService,
+                            categoryService, labelService,
+                            onlyFillMissing -> ruleService.previewRulesForTransactions(
+                                    newTransactionIds, onlyFillMissing), false).show();
+                }
+            });
+            return;
+        }
+        report.showAndWait();
+    }
+
+    private String accountName(Long accountId) {
+        return accountService.getAccount(accountId)
+                .map(account -> {
+                    String name = account.getBankName() == null ? "" : account.getBankName();
+                    String iban = maskIban(account.getIban());
+                    String label = iban.isBlank() ? name : name + " (" + iban + ")";
+                    return label.isBlank() ? String.valueOf(accountId) : label;
+                })
+                .orElse(String.valueOf(accountId));
+    }
+
+    private String errorMessage(Exception exception) {
+        return exception.getMessage() == null ? exception.toString() : exception.getMessage();
     }
 
     @FXML
@@ -333,13 +433,4 @@ public class BankAccountsController {
         alert.showAndWait();
     }
 
-    private void showInfo(String message) {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle("Info");
-        alert.setContentText(message);
-        if (rootPane.getScene() != null) {
-            alert.getDialogPane().getStylesheets().addAll(rootPane.getScene().getStylesheets());
-        }
-        alert.showAndWait();
-    }
 }

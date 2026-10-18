@@ -171,6 +171,10 @@ public class RuleService {
         return ruleEngine.previewSingleRule(ruleId, onlyFillMissing);
     }
 
+    public RuleApplicationPreview previewRulesForTransactions(List<Long> transactionIds, boolean onlyFillMissing) {
+        return ruleEngine.previewRulesForTransactions(transactionIds, onlyFillMissing);
+    }
+
     public void applyReviewedRules(RuleApplicationPreview preview) {
         ruleEngine.applyReviewedRules(preview);
         activityLogger.log(ActivityAction.EXECUTE, EntityType.RULE, null,
