@@ -25,3 +25,11 @@ dependencies {
 application {
     mainClass.set("org.fintrax.app.FintraxApplication")
 }
+
+// macOS selects the Dock icon from JVM launch options before the JavaFX window starts.
+if (System.getProperty("os.name").startsWith("Mac", ignoreCase = true)) {
+    val dockIcon = rootProject.file("ui/src/main/resources/icons/fintrax-256.png")
+    tasks.withType<JavaExec>().configureEach {
+        jvmArgs("-Xdock:icon=${dockIcon.absolutePath}")
+    }
+}
