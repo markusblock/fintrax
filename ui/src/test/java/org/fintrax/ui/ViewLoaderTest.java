@@ -27,6 +27,25 @@ class ViewLoaderTest extends AbstractUITest {
         }
     }
 
+    @Test
+    void loadsSettingsWhenThreadContextClassLoaderIsNull() throws Exception {
+        ViewLoader viewLoader = applicationContext.getBean(ViewLoader.class);
+        // Initialize JavaFX's FXML loader before simulating a missing thread context classloader.
+        viewLoader.load("settings");
+        ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
+
+        try {
+            Thread.currentThread().setContextClassLoader(null);
+
+            Parent settingsRoot = viewLoader.load("settings");
+
+            assertNotNull(settingsRoot);
+            assertNotNull(controllerFor(settingsRoot));
+        } finally {
+            Thread.currentThread().setContextClassLoader(originalClassLoader);
+        }
+    }
+
     private Object controllerFor(Parent root) {
         return root.getProperties().values().stream()
                 .filter(value -> value.getClass().getPackageName().equals("org.fintrax.ui.controller"))
