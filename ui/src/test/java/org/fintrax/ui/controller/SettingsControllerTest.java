@@ -4,14 +4,17 @@ import javafx.application.Platform;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.stage.Stage;
+import org.fintrax.service.SettingsService;
 import org.fintrax.service.hibiscus.HibiscusXmlImporter;
 import org.fintrax.ui.AbstractUITest;
 import org.fintrax.ui.ViewLoader;
 import org.junit.jupiter.api.Test;
 import org.testfx.util.WaitForAsyncUtils;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SettingsControllerTest extends AbstractUITest {
@@ -38,5 +41,19 @@ class SettingsControllerTest extends AbstractUITest {
         Label emptyResult = lookup("#ruleReviewEmptyResult").query();
         assertTrue(emptyResult.isVisible());
         clickOn(lookup("#cancelRuleReviewButton").<Button>query());
+    }
+
+    @Test
+    void changingLanguageSavesImmediately() {
+        interact(() -> lookup("#languageCombo").<ComboBox<String>>query().setValue("Deutsch"));
+
+        assertEquals("de", applicationContext.getBean(SettingsService.class).getLanguage());
+    }
+
+    @Test
+    void changingThemeSavesImmediately() {
+        interact(() -> lookup("#themeCombo").<ComboBox<String>>query().setValue("Dark"));
+
+        assertEquals("dark", applicationContext.getBean(SettingsService.class).getTheme());
     }
 }

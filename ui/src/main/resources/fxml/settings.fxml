@@ -39,15 +39,12 @@
                     <columnConstraints>
                         <ColumnConstraints minWidth="120" prefWidth="150" halignment="RIGHT"/>
                         <ColumnConstraints hgrow="ALWAYS" prefWidth="200"/>
-                        <ColumnConstraints/>
                     </columnConstraints>
                     <Label text="%settings.language" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
                     <ComboBox fx:id="languageCombo" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
-                    <Button text="%button.save" onAction="#onSaveLanguage" GridPane.rowIndex="0" GridPane.columnIndex="2"/>
 
                     <Label text="%settings.theme" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
                     <ComboBox fx:id="themeCombo" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
-                    <Button text="%button.save" onAction="#onSaveTheme" GridPane.rowIndex="1" GridPane.columnIndex="2"/>
                 </GridPane>
 
                 <Separator/>

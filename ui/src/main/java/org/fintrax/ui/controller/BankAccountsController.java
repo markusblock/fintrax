@@ -130,7 +130,8 @@ public class BankAccountsController {
         header.getChildren().addAll(bankNameLabel, spacer, typeLabel);
 
         Label holderLabel = new Label(account.getAccountHolder() != null ? account.getAccountHolder() : "");
-        holderLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: #666;");
+        holderLabel.setStyle("-fx-font-size: 12px;");
+        holderLabel.getStyleClass().add("account-holder");
 
         String maskedIban = maskIban(account.getIban());
         Label ibanLabel = new Label(maskedIban);
