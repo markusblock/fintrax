@@ -19,6 +19,21 @@
     -fx-border-color: #505050;
 }
 
+.account-card {
+    -fx-background-color: #303030;
+    -fx-border-color: #505050;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 8, 0, 0, 2);
+}
+
+.account-card:hover {
+    -fx-border-color: #1976d2;
+    -fx-effect: dropshadow(gaussian, rgba(25,118,210,0.25), 12, 0, 0, 3);
+}
+
+.account-holder {
+    -fx-text-fill: #b0b0b0;
+}
+
 .sidebar-button:hover,
 .button:hover {
     -fx-background-color: #454545;

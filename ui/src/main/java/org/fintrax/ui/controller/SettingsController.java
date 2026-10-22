@@ -86,9 +86,19 @@ public class SettingsController {
 
         languageCombo.getItems().setAll("English", "Deutsch");
         languageCombo.setValue("de".equals(settingsService.getLanguage()) ? "Deutsch" : "English");
+        languageCombo.valueProperty().addListener((observable, oldValue, newValue) -> {
+            if (newValue != null && !newValue.equals(oldValue)) {
+                onLanguageChanged(newValue);
+            }
+        });
 
         themeCombo.getItems().setAll("Light", "Dark");
         themeCombo.setValue("dark".equals(settingsService.getTheme()) ? "Dark" : "Light");
+        themeCombo.valueProperty().addListener((observable, oldValue, newValue) -> {
+            if (newValue != null && !newValue.equals(oldValue)) {
+                onThemeChanged(newValue);
+            }
+        });
 
         dataDirLabel.setText(storagePath.toString());
 
@@ -116,9 +126,7 @@ public class SettingsController {
         log.info("Deleted credential for account {}", selected.accountId);
     }
 
-    @FXML
-    private void onSaveLanguage() {
-        String lang = languageCombo.getValue();
+    private void onLanguageChanged(String lang) {
         settingsService.saveLanguage("Deutsch".equals(lang) ? "de" : "en");
         I18n.setLocale(settingsService.getLocale());
         refreshMainLocale();
@@ -126,9 +134,7 @@ public class SettingsController {
         log.info("Language changed to: {}", lang);
     }
 
-    @FXML
-    private void onSaveTheme() {
-        String theme = themeCombo.getValue();
+    private void onThemeChanged(String theme) {
         settingsService.saveTheme("Dark".equals(theme) ? "dark" : "light");
         FintraxUI.applyTheme(rootPane.getScene(), settingsService.getTheme());
         log.info("Theme changed to: {}", theme);

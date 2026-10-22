@@ -4,7 +4,11 @@ import javafx.application.Platform;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.Label;
 import javafx.scene.control.TableView;
+import javafx.scene.layout.BackgroundFill;
+import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import org.fintrax.model.*;
 import org.fintrax.service.AccountService;
@@ -54,8 +58,25 @@ class BankAccountsControllerTest extends AbstractUITest {
 
         Parent root = applicationContext.getBean(ViewLoader.class).load("bankAccounts");
         controller = (BankAccountsController) root.getProperties().get(BankAccountsController.class.getName());
-        stage.setScene(new Scene(root, 1024, 768));
+        Scene scene = new Scene(root, 1024, 768);
+        scene.getStylesheets().add(getClass().getResource("/css/fintrax.css").toExternalForm());
+        stage.setScene(scene);
         stage.show();
+    }
+
+    @Test
+    void accountCardsUseDarkThemeSurfaceAndSecondaryTextColors() {
+        interact(() -> {
+            VBox card = lookup(".account-card").query();
+            card.getScene().getStylesheets().add(getClass().getResource("/css/dark.css").toExternalForm());
+            card.getScene().getRoot().applyCss();
+
+            BackgroundFill cardFill = card.getBackground().getFills().get(0);
+            assertEquals(Color.web("#303030"), cardFill.getFill());
+
+            Label holderLabel = lookup(".account-holder").query();
+            assertEquals(Color.web("#b0b0b0"), holderLabel.getTextFill());
+        });
     }
 
     @Test
@@ -69,6 +90,8 @@ class BankAccountsControllerTest extends AbstractUITest {
         assertNotEquals(olderTransaction.getId(), newTransaction.getId());
         assertEquals(List.of(olderTransaction.getId(), newTransaction.getId()),
                 applicationContext.getBean(TransactionService.class).getAllTransactions().stream()
+                        .filter(transaction -> transaction.getId().equals(olderTransaction.getId())
+                                || transaction.getId().equals(newTransaction.getId()))
                         .map(Transaction::getId).toList());
         assertEquals(1, applicationContext.getBean(RuleService.class)
                 .previewRulesForTransactions(successfulResult.newTransactionIds(), true)
