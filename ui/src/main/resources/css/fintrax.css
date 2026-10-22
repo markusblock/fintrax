@@ -96,8 +96,26 @@
     -fx-background-color: #fafafa;
 }
 
+.table-view .table-row-cell.disabled-rule-row .table-cell {
+    -fx-text-fill: #8a929b;
+}
+
 .table-view .table-row-cell:selected {
-    -fx-background-color: #e3f2fd;
+    -fx-background-color: #c8e3f9;
+    -fx-text-background-color: #1b2b3b;
+}
+
+.table-view .table-row-cell:selected .table-cell {
+    -fx-text-fill: #1b2b3b;
+}
+
+.table-view .table-row-cell.disabled-rule-row:selected {
+    -fx-background-color: #3f566b;
+    -fx-text-background-color: #c1c9d0;
+}
+
+.table-view .table-row-cell.disabled-rule-row:selected .table-cell {
+    -fx-text-fill: #c1c9d0;
 }
 
 .detail-panel {

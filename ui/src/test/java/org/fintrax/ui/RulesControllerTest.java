@@ -5,9 +5,8 @@ import javafx.scene.Parent;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ContextMenu;
-import javafx.scene.control.ListCell;
-import javafx.scene.control.ListView;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.stage.Stage;
 import org.fintrax.config.I18n;
@@ -114,16 +113,45 @@ class RulesControllerTest extends AbstractUITest {
     }
 
     @Test
-    void enabledRuleContextMenuReviewsSelectedRuleAndDisabledRuleHasNoApplyAction() {
-        ListView<?> ruleList = lookup("#ruleList").query();
-        ListCell<?> enabledCell = cellForRule(ruleList, ruleName);
-        ContextMenu contextMenu = enabledCell.getContextMenu();
-        assertNotNull(contextMenu);
-        MenuItem applySelected = contextMenu.getItems().get(0);
-        assertEquals(I18n.get("rules.applySelected"), applySelected.getText());
+    void rulesTableShowsPriorityNameDisabledStyleAndPerRuleCommands() {
+        TableView<Rule> ruleTable = lookup("#ruleTable").query();
 
-        ListCell<?> disabledCell = cellForRule(ruleList, disabledRuleName);
-        assertNull(disabledCell.getContextMenu());
+        assertEquals(List.of(I18n.get("rules.column.number"), I18n.get("label.ruleName")),
+                ruleTable.getColumns().stream().map(column -> column.getText()).toList());
+
+        TableRow<?> enabledRow = rowForRule(ruleTable, ruleName);
+        TableRow<?> disabledRow = rowForRule(ruleTable, disabledRuleName);
+        assertEquals("", enabledRow.getStyle());
+        assertTrue(disabledRow.getStyleClass().contains("disabled-rule-row"));
+
+        ContextMenu enabledMenu = enabledRow.getContextMenu();
+        assertNotNull(enabledMenu);
+        assertEquals(List.of(I18n.get("rules.applySelected"), I18n.get("button.moveUp"),
+                        I18n.get("button.moveDown"), I18n.get("rules.disable"),
+                        I18n.get("button.delete")), menuLabels(enabledMenu));
+
+        ContextMenu disabledMenu = disabledRow.getContextMenu();
+        assertNotNull(disabledMenu);
+        assertEquals(List.of(I18n.get("rules.applySelected"), I18n.get("button.moveUp"),
+                        I18n.get("button.moveDown"), I18n.get("rules.enable"),
+                        I18n.get("button.delete")), menuLabels(disabledMenu));
+        assertTrue(menuItem(disabledMenu, I18n.get("rules.applySelected")).isDisable());
+
+        RuleService ruleService = applicationContext.getBean(RuleService.class);
+        Rule enabledRule = ruleService.getAllRules().stream()
+                .filter(rule -> rule.getName().equals(ruleName)).findFirst().orElseThrow();
+        Rule disabledRule = ruleService.getAllRules().stream()
+                .filter(rule -> rule.getName().equals(disabledRuleName)).findFirst().orElseThrow();
+        int enabledPriority = enabledRule.getPriority();
+        int disabledPriority = disabledRule.getPriority();
+        interact(() -> menuItem(enabledMenu, I18n.get("button.moveDown")).fire());
+        assertEquals(disabledPriority, ruleService.getRule(enabledRule.getId()).orElseThrow().getPriority());
+        assertEquals(enabledPriority, ruleService.getRule(disabledRule.getId()).orElseThrow().getPriority());
+
+        ContextMenu reorderedDisabledMenu = rowForRule(ruleTable, disabledRuleName).getContextMenu();
+        interact(() -> menuItem(reorderedDisabledMenu, I18n.get("rules.enable")).fire());
+        assertTrue(ruleService.getRule(disabledRule.getId()).orElseThrow().isEnabled());
+        assertEquals("", rowForRule(ruleTable, disabledRuleName).getStyle());
     }
 
     private TransactionRulePreview rowFor(TableView<TransactionRulePreview> table, Long transactionId) {
@@ -132,11 +160,22 @@ class RulesControllerTest extends AbstractUITest {
                 .findFirst().orElseThrow();
     }
 
-    private ListCell<?> cellForRule(ListView<?> list, String name) {
-        return list.lookupAll(".list-cell").stream()
-                .filter(node -> node instanceof ListCell<?> cell && cell.getText() != null
-                        && cell.getText().contains(name))
-                .map(node -> (ListCell<?>) node)
+    private TableRow<?> rowForRule(TableView<Rule> table, String name) {
+        return table.lookupAll(".table-row-cell").stream()
+                .filter(node -> node instanceof TableRow<?> row && !row.isEmpty()
+                        && row.getItem() instanceof Rule rule && rule.getName().equals(name))
+                .map(node -> (TableRow<?>) node)
+                .findFirst().orElseThrow();
+    }
+
+    private List<String> menuLabels(ContextMenu contextMenu) {
+        return contextMenu.getItems().stream().map(MenuItem::getText)
+                .filter(text -> text != null).toList();
+    }
+
+    private MenuItem menuItem(ContextMenu contextMenu, String text) {
+        return contextMenu.getItems().stream()
+                .filter(item -> text.equals(item.getText()))
                 .findFirst().orElseThrow();
     }
 }

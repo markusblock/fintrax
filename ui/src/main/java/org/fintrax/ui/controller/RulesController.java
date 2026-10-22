@@ -1,5 +1,7 @@
 package org.fintrax.ui.controller;
 
+import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
@@ -22,10 +24,16 @@ import java.util.stream.Collectors;
 @Component
 @Scope("prototype")
 public class RulesController {
+    private static final String DISABLED_RULE_ROW_CLASS = "disabled-rule-row";
+
     @FXML
     private BorderPane rootPane;
     @FXML
-    private ListView<Rule> ruleList;
+    private TableView<Rule> ruleTable;
+    @FXML
+    private TableColumn<Rule, Number> ruleNumberColumn;
+    @FXML
+    private TableColumn<Rule, String> ruleNameColumn;
     @FXML
     private TextField ruleNameField;
     @FXML
@@ -65,9 +73,31 @@ public class RulesController {
     @FXML
     public void initialize() {
         log.info("RulesController initialized");
+        ruleNumberColumn.setCellValueFactory(cell ->
+                new SimpleIntegerProperty(cell.getValue().getPriority()));
+        ruleNameColumn.setCellValueFactory(cell ->
+                new SimpleStringProperty(cell.getValue().getName()));
+        ruleNumberColumn.setSortable(false);
+        ruleNameColumn.setSortable(false);
+        ruleTable.setRowFactory(table -> new TableRow<>() {
+            @Override
+            protected void updateItem(Rule item, boolean empty) {
+                super.updateItem(item, empty);
+                setStyle("");
+                getStyleClass().remove(DISABLED_RULE_ROW_CLASS);
+                if (empty || item == null) {
+                    setContextMenu(null);
+                } else {
+                    if (!item.isEnabled()) {
+                        getStyleClass().add(DISABLED_RULE_ROW_CLASS);
+                    }
+                    setContextMenu(createRuleContextMenu(item));
+                }
+            }
+        });
         loadRules();
 
-        ruleList.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
+        ruleTable.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
             if (newVal != null && !editingNew) {
                 loadRuleEditor(newVal);
             }
@@ -76,29 +106,51 @@ public class RulesController {
 
     private void loadRules() {
         ruleData.setAll(ruleService.getAllRules());
-        ruleList.setItems(ruleData);
-        ruleList.setCellFactory(lv -> new ListCell<>() {
-            @Override
-            protected void updateItem(Rule item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty || item == null) {
-                    setText(null);
-                    setContextMenu(null);
-                } else {
-                    String status = item.isEnabled() ? "\u2705" : "\u274C";
-                    setText(status + "  " + item.getName() + "  (#" + item.getPriority() + ")");
-                    setContextMenu(item.isEnabled() ? createRuleContextMenu(item) : null);
-                }
-            }
-        });
+        ruleTable.setItems(ruleData);
     }
 
     private ContextMenu createRuleContextMenu(Rule rule) {
         MenuItem applyRule = new MenuItem(I18n.get("rules.applySelected"));
+        applyRule.setDisable(!rule.isEnabled());
         applyRule.setOnAction(event -> new RuleReviewDialog(rootPane.getScene().getWindow(), ruleService,
                 accountService, categoryService, labelService,
                 onlyFillMissing -> ruleService.previewSingleRule(rule.getId(), onlyFillMissing), true).show());
-        return new ContextMenu(applyRule);
+
+        int ruleIndex = indexOfRule(rule.getId());
+        MenuItem moveUp = new MenuItem(I18n.get("button.moveUp"));
+        moveUp.setDisable(ruleIndex <= 0);
+        moveUp.setOnAction(event -> moveRule(rule, -1));
+        MenuItem moveDown = new MenuItem(I18n.get("button.moveDown"));
+        moveDown.setDisable(ruleIndex < 0 || ruleIndex >= ruleData.size() - 1);
+        moveDown.setOnAction(event -> moveRule(rule, 1));
+
+        MenuItem toggleEnabled = new MenuItem(I18n.get(rule.isEnabled() ? "rules.disable" : "rules.enable"));
+        toggleEnabled.setOnAction(event -> toggleRule(rule));
+
+        MenuItem deleteRule = new MenuItem(I18n.get("button.delete"));
+        deleteRule.setOnAction(event -> confirmDeleteRule(rule));
+
+        return new ContextMenu(applyRule, new SeparatorMenuItem(), moveUp, moveDown,
+                toggleEnabled, new SeparatorMenuItem(), deleteRule);
+    }
+
+    private void selectRule(Rule rule) {
+        editingNew = false;
+        Rule selected = ruleTable.getSelectionModel().getSelectedItem();
+        if (selected != null && Objects.equals(selected.getId(), rule.getId())) {
+            loadRuleEditor(rule);
+        } else {
+            ruleTable.getSelectionModel().select(rule);
+        }
+    }
+
+    private int indexOfRule(Long ruleId) {
+        for (int index = 0; index < ruleData.size(); index++) {
+            if (Objects.equals(ruleData.get(index).getId(), ruleId)) {
+                return index;
+            }
+        }
+        return -1;
     }
 
     private void loadRuleEditor(Rule rule) {
@@ -321,7 +373,11 @@ public class RulesController {
     @FXML
     private void onDelete() {
         if (editingRuleId == null) return;
+        ruleService.getRule(editingRuleId).ifPresent(this::confirmDeleteRule);
+    }
 
+    private void confirmDeleteRule(Rule rule) {
+        Long ruleId = rule.getId();
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION,
                 I18n.get("rules.delete.confirm"),
                 ButtonType.OK, ButtonType.CANCEL);
@@ -329,52 +385,62 @@ public class RulesController {
 
         alert.showAndWait().ifPresent(btn -> {
             if (btn == ButtonType.OK) {
-                ruleService.deleteRule(editingRuleId);
-                editingRuleId = null;
+                ruleService.deleteRule(ruleId);
+                if (Objects.equals(editingRuleId, ruleId)) {
+                    editingRuleId = null;
+                    editingNew = false;
+                    clearEditor();
+                }
                 loadRules();
-                clearEditor();
             }
         });
     }
 
     @FXML
     private void onToggleEnabled() {
-        Rule selected = ruleList.getSelectionModel().getSelectedItem();
+        Rule selected = ruleTable.getSelectionModel().getSelectedItem();
         if (selected == null) return;
-        ruleService.toggleRule(selected.getId());
+        toggleRule(selected);
+    }
+
+    private void toggleRule(Rule rule) {
+        Long ruleId = rule.getId();
+        editingNew = false;
+        ruleService.toggleRule(ruleId);
         loadRules();
+        ruleData.stream().filter(candidate -> Objects.equals(candidate.getId(), ruleId))
+                .findFirst().ifPresent(this::selectRule);
+    }
+
+    private void moveRule(Rule rule, int offset) {
+        int index = indexOfRule(rule.getId());
+        int destination = index + offset;
+        if (index < 0 || destination < 0 || destination >= ruleData.size()) return;
+
+        List<Long> ids = ruleData.stream().map(Rule::getId).collect(Collectors.toCollection(ArrayList::new));
+        Collections.swap(ids, index, destination);
+        ruleService.reorderRules(ids);
+        loadRules();
+        ruleData.stream().filter(candidate -> Objects.equals(candidate.getId(), rule.getId()))
+                .findFirst().ifPresent(this::selectRule);
     }
 
     @FXML
     private void onMoveUp() {
-        int idx = ruleList.getSelectionModel().getSelectedIndex();
-        if (idx <= 0) return;
-
-        List<Long> ids = ruleData.stream().map(Rule::getId).collect(Collectors.toCollection(ArrayList::new));
-        Collections.swap(ids, idx, idx - 1);
-        ruleService.reorderRules(ids);
-        loadRules();
-        ruleList.getSelectionModel().select(idx - 1);
+        Rule selected = ruleTable.getSelectionModel().getSelectedItem();
+        if (selected != null) moveRule(selected, -1);
     }
 
     @FXML
     private void onMoveDown() {
-        int idx = ruleList.getSelectionModel().getSelectedIndex();
-        if (idx < 0 || idx >= ruleData.size() - 1) return;
-
-        List<Long> ids = ruleData.stream().map(Rule::getId).collect(Collectors.toCollection(ArrayList::new));
-        Collections.swap(ids, idx, idx + 1);
-        ruleService.reorderRules(ids);
-        loadRules();
-        ruleList.getSelectionModel().select(idx + 1);
+        Rule selected = ruleTable.getSelectionModel().getSelectedItem();
+        if (selected != null) moveRule(selected, 1);
     }
 
     @FXML
     private void onPreview() {
-        Rule selected = ruleList.getSelectionModel().getSelectedItem();
-        if (selected == null) return;
-        int count = ruleService.previewRule(selected.getId());
-        matchCountLabel.setText(I18n.get("rules.matchCount", count));
+        Rule selected = ruleTable.getSelectionModel().getSelectedItem();
+        if (selected != null) selectRule(selected);
     }
 
     @FXML
