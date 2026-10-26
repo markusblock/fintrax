@@ -34,6 +34,8 @@ import java.util.stream.Collectors;
 public class TransactionsController {
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     private static final String COLUMN_CONFIG_KEY = "transaction.columns";
+    private static final double TABLE_DIVIDER_WITH_DETAILS = 0.7;
+    private static final double TABLE_DIVIDER_WITHOUT_DETAILS = 1.0;
 
     @FXML
     private BorderPane rootPane;
@@ -121,6 +123,7 @@ public class TransactionsController {
     }
 
     private void setupTableColumns() {
+        transactionTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         dateColumn.setCellValueFactory(cd -> new SimpleObjectProperty<>(cd.getValue().getBookingDate()));
         dateColumn.setCellFactory(col -> new TableCell<>() {
             @Override
@@ -280,6 +283,9 @@ public class TransactionsController {
         detailVisible = !detailVisible;
         detailPanel.setVisible(detailVisible);
         detailPanel.setManaged(detailVisible);
+        splitPane.setDividerPosition(0, detailVisible
+                ? TABLE_DIVIDER_WITH_DETAILS
+                : TABLE_DIVIDER_WITHOUT_DETAILS);
     }
 
     private void loadDetail(Transaction transaction) {

@@ -16,6 +16,8 @@ dependencies {
     implementation(project(":fintx"))
     implementation("org.springframework:spring-context:${property("springVersion")}")
     implementation("io.github.mkpaz:atlantafx-base:${property("atlantafxVersion")}")
+    implementation("org.kordamp.ikonli:ikonli-javafx:${property("ikonliVersion")}")
+    implementation("org.kordamp.ikonli:ikonli-feather-pack:${property("ikonliVersion")}")
     implementation("org.controlsfx:controlsfx:${property("controlsfxVersion")}")
 
     testImplementation(project(":testkit"))

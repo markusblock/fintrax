@@ -1,5 +1,7 @@
 package org.fintrax.ui;
 
+import atlantafx.base.theme.PrimerDark;
+import atlantafx.base.theme.PrimerLight;
 import javafx.application.Application;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
@@ -15,6 +17,9 @@ public class FintraxUI extends Application {
     private static final String TITLE = "Fintrax";
     private static final double MIN_WIDTH = 1024;
     private static final double MIN_HEIGHT = 768;
+    private static final String DARK_THEME_STYLE_CLASS = "theme-dark";
+    private static final String PRIMER_LIGHT_STYLESHEET = new PrimerLight().getUserAgentStylesheet();
+    private static final String PRIMER_DARK_STYLESHEET = new PrimerDark().getUserAgentStylesheet();
 
     @Override
     public void start(Stage primaryStage) throws Exception {
@@ -62,10 +67,14 @@ public class FintraxUI extends Application {
     }
 
     public static void applyTheme(Scene scene, String theme) {
-        String darkStylesheet = FintraxUI.class.getResource("/css/dark.css").toExternalForm();
-        scene.getStylesheets().remove(darkStylesheet);
-        if ("dark".equals(theme)) {
-            scene.getStylesheets().add(darkStylesheet);
+        boolean darkTheme = "dark".equals(theme);
+        scene.getStylesheets().removeAll(PRIMER_LIGHT_STYLESHEET, PRIMER_DARK_STYLESHEET);
+        scene.getStylesheets().add(0, darkTheme
+                ? PRIMER_DARK_STYLESHEET
+                : PRIMER_LIGHT_STYLESHEET);
+        scene.getRoot().getStyleClass().remove(DARK_THEME_STYLE_CLASS);
+        if (darkTheme) {
+            scene.getRoot().getStyleClass().add(DARK_THEME_STYLE_CLASS);
         }
     }
 }

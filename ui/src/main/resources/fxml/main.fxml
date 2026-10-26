@@ -6,23 +6,45 @@
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.Separator?>
+<?import javafx.scene.control.Tooltip?>
 <?import javafx.geometry.Insets?>
+<?import org.kordamp.ikonli.javafx.FontIcon?>
 
 <BorderPane fx:id="rootPane" xmlns:fx="http://javafx.com/fxml" fx:controller="org.fintrax.ui.controller.MainController">
     <left>
-        <VBox fx:id="sidebar" prefWidth="200" styleClass="sidebar-panel">
+        <VBox fx:id="sidebar" prefWidth="200" spacing="6" styleClass="sidebar-panel">
             <padding>
-                <Insets top="10" right="10" bottom="10" left="10"/>
+                <Insets top="14" right="12" bottom="14" left="12"/>
             </padding>
-            <Button fx:id="toggleSidebarButton" text="☰" onAction="#onToggleSidebar" maxWidth="Infinity" style="-fx-font-size: 18px;"/>
+            <Button fx:id="toggleSidebarButton" text="" accessibleText="%button.toggleSidebar"
+                    onAction="#onToggleSidebar" maxWidth="Infinity" styleClass="sidebar-toggle">
+                <graphic>
+                    <FontIcon iconLiteral="fth-sidebar" iconSize="16"/>
+                </graphic>
+                <tooltip><Tooltip text="%button.toggleSidebar"/></tooltip>
+            </Button>
             <Separator/>
-            <Button fx:id="bankAccountsButton" onAction="#onBankAccounts" maxWidth="Infinity" style="-fx-alignment: CENTER_LEFT;"/>
-            <Button fx:id="transactionsButton" onAction="#onTransactions" maxWidth="Infinity" style="-fx-alignment: CENTER_LEFT;"/>
-            <Button fx:id="categoriesButton" onAction="#onCategories" maxWidth="Infinity" style="-fx-alignment: CENTER_LEFT;"/>
-            <Button fx:id="rulesButton" onAction="#onRules" maxWidth="Infinity" style="-fx-alignment: CENTER_LEFT;"/>
-            <Button fx:id="labelsButton" onAction="#onLabels" maxWidth="Infinity" style="-fx-alignment: CENTER_LEFT;"/>
-            <Button fx:id="activityLogButton" onAction="#onActivityLog" maxWidth="Infinity" style="-fx-alignment: CENTER_LEFT;"/>
-            <Button fx:id="settingsButton" onAction="#onSettings" maxWidth="Infinity" style="-fx-alignment: CENTER_LEFT;"/>
+            <Button fx:id="bankAccountsButton" onAction="#onBankAccounts" maxWidth="Infinity" styleClass="sidebar-button">
+                <graphic><FontIcon iconLiteral="fth-credit-card" iconSize="16"/></graphic>
+            </Button>
+            <Button fx:id="transactionsButton" onAction="#onTransactions" maxWidth="Infinity" styleClass="sidebar-button">
+                <graphic><FontIcon iconLiteral="fth-list" iconSize="16"/></graphic>
+            </Button>
+            <Button fx:id="categoriesButton" onAction="#onCategories" maxWidth="Infinity" styleClass="sidebar-button">
+                <graphic><FontIcon iconLiteral="fth-folder" iconSize="16"/></graphic>
+            </Button>
+            <Button fx:id="rulesButton" onAction="#onRules" maxWidth="Infinity" styleClass="sidebar-button">
+                <graphic><FontIcon iconLiteral="fth-filter" iconSize="16"/></graphic>
+            </Button>
+            <Button fx:id="labelsButton" onAction="#onLabels" maxWidth="Infinity" styleClass="sidebar-button">
+                <graphic><FontIcon iconLiteral="fth-tag" iconSize="16"/></graphic>
+            </Button>
+            <Button fx:id="activityLogButton" onAction="#onActivityLog" maxWidth="Infinity" styleClass="sidebar-button">
+                <graphic><FontIcon iconLiteral="fth-activity" iconSize="16"/></graphic>
+            </Button>
+            <Button fx:id="settingsButton" onAction="#onSettings" maxWidth="Infinity" styleClass="sidebar-button">
+                <graphic><FontIcon iconLiteral="fth-settings" iconSize="16"/></graphic>
+            </Button>
         </VBox>
     </left>
     <center>
