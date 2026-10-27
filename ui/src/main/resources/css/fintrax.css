@@ -381,6 +381,10 @@
     -fx-fixed-cell-size: 2.4em;
 }
 
+.transaction-table-toolbar {
+    -fx-padding: 0 12 6 0;
+}
+
 .transactions-header {
     -fx-padding: 22 24 16 24;
     -fx-spacing: 14;

@@ -60,6 +60,8 @@ public class TransactionsController {
     @FXML
     private TableView<Transaction> transactionTable;
     @FXML
+    private MenuButton columnMenuButton;
+    @FXML
     private TableColumn<Transaction, LocalDate> dateColumn;
     @FXML
     private TableColumn<Transaction, String> payeeColumn;
@@ -122,6 +124,7 @@ public class TransactionsController {
         loadFilterOptions();
         loadTransactions();
         restoreColumnConfig();
+        setupColumnMenu();
 
         transactionTable.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
             if (newVal != null) {
@@ -524,6 +527,28 @@ public class TransactionsController {
         }
     }
 
+    private void setupColumnMenu() {
+        addColumnMenuItem(dateColumn);
+        addColumnMenuItem(payeeColumn);
+        addColumnMenuItem(purposeColumn);
+        addColumnMenuItem(amountColumn);
+        addColumnMenuItem(balanceColumn);
+        addColumnMenuItem(categoryColumn);
+        addColumnMenuItem(labelsColumn);
+    }
+
+    private void addColumnMenuItem(TableColumn<?, ?> column) {
+        CheckMenuItem menuItem = new CheckMenuItem(column.getText());
+        menuItem.setSelected(column.isVisible());
+        menuItem.selectedProperty().addListener((observable, wasVisible, isVisible) ->
+                column.setVisible(isVisible));
+        column.visibleProperty().addListener((observable, wasVisible, isVisible) -> {
+            menuItem.setSelected(isVisible);
+            saveColumnConfig();
+        });
+        columnMenuButton.getItems().add(menuItem);
+    }
+
     private TableColumn<?, ?> findColumn(String name) {
         return switch (name) {
             case "date" -> dateColumn;
@@ -551,5 +576,6 @@ public class TransactionsController {
                 COLUMN_CONFIG_KEY, k -> AppSetting.builder().key(k).build());
         setting.setValue(sb.toString());
         storeManager.store(setting);
+        storeManager.store(storeManager.getRoot().getSettings());
     }
 }
