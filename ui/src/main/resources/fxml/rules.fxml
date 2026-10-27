@@ -13,55 +13,65 @@
 <?import javafx.scene.control.SplitPane?>
 <?import javafx.scene.control.ScrollPane?>
 <?import javafx.geometry.Insets?>
+<?import org.kordamp.ikonli.javafx.FontIcon?>
 
 <BorderPane fx:id="rootPane" xmlns:fx="http://javafx.com/fxml"
-            fx:controller="org.fintrax.ui.controller.RulesController">
+            fx:controller="org.fintrax.ui.controller.RulesController" styleClass="view-root">
     <top>
-        <VBox spacing="5">
-            <padding>
-                <Insets top="20" right="20" bottom="10" left="20"/>
-            </padding>
+        <VBox styleClass="view-header">
             <HBox spacing="10" alignment="CENTER_LEFT">
-                <Label text="%view.rules" style="-fx-font-size: 24px; -fx-font-weight: bold;"/>
+                <Label text="%view.rules" styleClass="page-title"/>
                 <Region HBox.hgrow="ALWAYS"/>
-                <Button text="%button.addRule" onAction="#onAddRule" styleClass="accent-button"/>
-                <Button text="%button.moveUp" onAction="#onMoveUp"/>
-                <Button text="%button.moveDown" onAction="#onMoveDown"/>
-                <Button text="%button.toggle" onAction="#onToggleEnabled"/>
-                <Button fx:id="applyAllButton" text="%button.applyAll" onAction="#onApplyAll"/>
+                <Button text="%button.addRule" onAction="#onAddRule" styleClass="accent-button">
+                    <graphic><FontIcon iconLiteral="fth-plus" iconSize="15"/></graphic>
+                </Button>
+                <Button text="%button.moveUp" onAction="#onMoveUp" styleClass="button-outlined">
+                    <graphic><FontIcon iconLiteral="fth-arrow-up" iconSize="14"/></graphic>
+                </Button>
+                <Button text="%button.moveDown" onAction="#onMoveDown" styleClass="button-outlined">
+                    <graphic><FontIcon iconLiteral="fth-arrow-down" iconSize="14"/></graphic>
+                </Button>
+                <Button text="%button.toggle" onAction="#onToggleEnabled" styleClass="button-outlined">
+                    <graphic><FontIcon iconLiteral="fth-toggle-right" iconSize="14"/></graphic>
+                </Button>
+                <Button fx:id="applyAllButton" text="%button.applyAll" onAction="#onApplyAll" styleClass="button-outlined">
+                    <graphic><FontIcon iconLiteral="fth-play" iconSize="14"/></graphic>
+                </Button>
             </HBox>
-            <Label text="%subtitle.rules"/>
+            <Label text="%subtitle.rules" styleClass="view-subtitle"/>
         </VBox>
     </top>
     <center>
-        <SplitPane dividerPositions="0.35">
-            <TableView fx:id="ruleTable" VBox.vgrow="ALWAYS">
+        <SplitPane dividerPositions="0.34" styleClass="content-split-pane">
+            <TableView fx:id="ruleTable" styleClass="dense" VBox.vgrow="ALWAYS">
                 <columns>
-                    <TableColumn fx:id="ruleNumberColumn" text="%rules.column.number" prefWidth="55" sortable="false"/>
-                    <TableColumn fx:id="ruleNameColumn" text="%label.ruleName" prefWidth="220" sortable="false"/>
+                    <TableColumn fx:id="ruleNumberColumn" text="%rules.column.number" prefWidth="44" sortable="false"/>
+                    <TableColumn fx:id="ruleNameColumn" text="%label.ruleName" prefWidth="170" sortable="false"/>
                 </columns>
             </TableView>
-            <VBox spacing="10">
+            <VBox spacing="12" styleClass="editor-panel rule-editor-panel">
                 <padding>
                     <Insets top="15" right="20" bottom="15" left="20"/>
                 </padding>
                 <HBox spacing="10" alignment="CENTER_LEFT">
-                    <Label text="%label.ruleName" style="-fx-font-weight: bold;"/>
+                    <Label text="%label.ruleName" styleClass="section-heading"/>
                     <TextField fx:id="ruleNameField" HBox.hgrow="ALWAYS"/>
                 </HBox>
                 <Separator/>
-                <Label text="%label.conditions" style="-fx-font-size: 14px; -fx-font-weight: bold;"/>
-                <ScrollPane fitToWidth="true" prefHeight="150">
+                <Label text="%label.conditions" styleClass="section-heading"/>
+                <ScrollPane fitToWidth="true" prefHeight="150" styleClass="editor-list-scroll">
                     <VBox fx:id="conditionsContainer" spacing="5">
                         <padding>
                             <Insets top="5" right="5" bottom="5" left="5"/>
                         </padding>
                     </VBox>
                 </ScrollPane>
-                <Button text="%button.addCondition" onAction="#onAddCondition"/>
+                <Button text="%button.addCondition" onAction="#onAddCondition" styleClass="button-outlined">
+                    <graphic><FontIcon iconLiteral="fth-plus" iconSize="14"/></graphic>
+                </Button>
                 <Separator/>
-                <Label text="%label.actions" style="-fx-font-size: 14px; -fx-font-weight: bold;"/>
-                <ScrollPane fitToWidth="true" prefHeight="120">
+                <Label text="%label.actions" styleClass="section-heading"/>
+                <ScrollPane fitToWidth="true" prefHeight="120" styleClass="editor-list-scroll">
                     <VBox fx:id="actionsContainer" spacing="5">
                         <padding>
                             <Insets top="5" right="5" bottom="5" left="5"/>
@@ -69,15 +79,24 @@
                     </VBox>
                 </ScrollPane>
                 <HBox spacing="10" alignment="CENTER_LEFT">
-                    <Button text="%button.addAction" onAction="#onAddAction"/>
+                    <Button text="%button.addAction" onAction="#onAddAction" styleClass="button-outlined">
+                        <graphic><FontIcon iconLiteral="fth-plus" iconSize="14"/></graphic>
+                    </Button>
                     <Region HBox.hgrow="ALWAYS"/>
-                    <Button fx:id="previewButton" text="%button.preview" onAction="#onPreview" disable="true"/>
-                    <Label fx:id="matchCountLabel" style="-fx-font-size: 12px; -fx-text-fill: #888;"/>
+                    <Button fx:id="previewButton" text="%button.preview" onAction="#onPreview" disable="true"
+                            styleClass="button-outlined">
+                        <graphic><FontIcon iconLiteral="fth-eye" iconSize="14"/></graphic>
+                    </Button>
+                    <Label fx:id="matchCountLabel" styleClass="secondary-text"/>
                 </HBox>
                 <Region VBox.vgrow="ALWAYS"/>
                 <HBox spacing="10" alignment="CENTER_RIGHT">
-                    <Button fx:id="deleteButton" text="%button.delete" onAction="#onDelete" disable="true" styleClass="delete-button"/>
-                    <Button fx:id="saveButton" text="%button.save" onAction="#onSave" disable="true" styleClass="accent-button"/>
+                    <Button fx:id="deleteButton" text="%button.delete" onAction="#onDelete" disable="true" styleClass="delete-button">
+                        <graphic><FontIcon iconLiteral="fth-trash-2" iconSize="14"/></graphic>
+                    </Button>
+                    <Button fx:id="saveButton" text="%button.save" onAction="#onSave" disable="true" styleClass="accent-button">
+                        <graphic><FontIcon iconLiteral="fth-save" iconSize="14"/></graphic>
+                    </Button>
                 </HBox>
             </VBox>
         </SplitPane>

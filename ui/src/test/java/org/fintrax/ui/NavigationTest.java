@@ -3,12 +3,18 @@ package org.fintrax.ui;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.Dialog;
+import javafx.scene.control.DialogPane;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.SplitPane;
+import javafx.scene.control.ScrollBar;
 import javafx.scene.control.TableView;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.layout.BackgroundFill;
+import javafx.scene.layout.Region;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import org.fintrax.config.I18n;
@@ -22,8 +28,11 @@ import java.time.LocalDate;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class NavigationTest extends AbstractUITest {
@@ -33,7 +42,7 @@ class NavigationTest extends AbstractUITest {
         Parent root = applicationContext.getBean(ViewLoader.class).load("main");
 
         Scene scene = new Scene(root, 1024, 768);
-        scene.getStylesheets().add(FintraxUI.class.getResource("/css/fintrax.css").toExternalForm());
+        FintraxUI.configureScene(scene);
         FintraxUI.applyTheme(scene, "light");
         stage.setScene(scene);
         stage.show();
@@ -78,18 +87,47 @@ class NavigationTest extends AbstractUITest {
     }
 
     @Test
-    void themeSwitchingLoadsOnlyTheSelectedPrimerTheme() {
+    void themeSwitchingUpdatesSceneThemeClass() {
         Scene scene = lookup("#rootPane").query().getScene();
 
         interact(() -> FintraxUI.applyTheme(scene, "light"));
-        assertTrue(scene.getStylesheets().stream().anyMatch(path -> path.endsWith("primer-light.css")));
-        assertTrue(scene.getStylesheets().stream().noneMatch(path -> path.endsWith("primer-dark.css")));
         assertFalse(scene.getRoot().getStyleClass().contains("theme-dark"));
 
         interact(() -> FintraxUI.applyTheme(scene, "dark"));
-        assertTrue(scene.getStylesheets().stream().anyMatch(path -> path.endsWith("primer-dark.css")));
-        assertTrue(scene.getStylesheets().stream().noneMatch(path -> path.endsWith("primer-light.css")));
         assertTrue(scene.getRoot().getStyleClass().contains("theme-dark"));
+    }
+
+    @Test
+    void themeSwitchingWorksWhenEventThreadHasNoContextClassLoader() {
+        Scene scene = lookup("#rootPane").query().getScene();
+
+        interact(() -> {
+            Thread eventThread = Thread.currentThread();
+            ClassLoader originalClassLoader = eventThread.getContextClassLoader();
+            eventThread.setContextClassLoader(null);
+            try {
+                assertDoesNotThrow(() -> FintraxUI.applyTheme(scene, "dark"));
+                assertNull(eventThread.getContextClassLoader(), "theme switch should restore the event thread loader");
+                assertTrue(scene.getRoot().getStyleClass().contains("theme-dark"));
+            } finally {
+                eventThread.setContextClassLoader(originalClassLoader);
+            }
+        });
+    }
+
+    @Test
+    void newDialogsInheritCurrentThemeAndFintraxStyles() {
+        Scene scene = lookup("#rootPane").query().getScene();
+        interact(() -> FintraxUI.applyTheme(scene, "dark"));
+        DialogPane[] pane = new DialogPane[1];
+        interact(() -> {
+            Dialog<Button> dialog = new Dialog<>();
+            FintraxUI.configureDialog(dialog);
+            pane[0] = dialog.getDialogPane();
+        });
+
+        assertTrue(pane[0].getStyleClass().contains("theme-dark"));
+        assertTrue(pane[0].getStylesheets().stream().anyMatch(path -> path.endsWith("fintrax.css")));
     }
 
     @Test
@@ -124,6 +162,43 @@ class NavigationTest extends AbstractUITest {
         double columnsWidth = table.getColumns().stream().mapToDouble(column -> column.getWidth()).sum();
         assertTrue(columnsWidth <= table.getWidth() + 1.0,
                 "column width " + columnsWidth + " should fit table width " + table.getWidth());
+        assertTrue(table.lookupAll(".scroll-bar").stream()
+                        .filter(ScrollBar.class::isInstance)
+                        .map(ScrollBar.class::cast)
+                        .filter(bar -> bar.getOrientation() == javafx.geometry.Orientation.HORIZONTAL)
+                        .noneMatch(ScrollBar::isVisible),
+                "transaction table should not need horizontal scrolling at minimum window width");
+    }
+
+    @Test
+    void syncStatusPanelStaysCompactAtMinimumWindowSize() {
+        VBox syncStatusPane = lookup("#syncStatusPane").query();
+        layout(lookup("#rootPane").query());
+
+        assertTrue(syncStatusPane.getHeight() <= 140.0,
+                "sync status panel should stay compact, got " + syncStatusPane.getHeight());
+    }
+
+    @Test
+    void ruleColumnsFitAtMinimumWindowWidth() {
+        interact(lookup("#rulesButton").<Button>query()::fire);
+        TableView<?> table = lookup("#ruleTable").query();
+        layout(table);
+
+        double columnsWidth = table.getColumns().stream().mapToDouble(column -> column.getWidth()).sum();
+        assertTrue(columnsWidth <= table.getWidth() + 1.0,
+                "rule column width " + columnsWidth + " should fit table width " + table.getWidth());
+    }
+
+    @Test
+    void categoryDateColumnKeepsEnoughWidthForFullDate() {
+        interact(lookup("#categoriesButton").<Button>query()::fire);
+        TableView<?> table = lookup("#categoryTransactionsTable").query();
+        layout(table);
+
+        assertTrue(table.getColumns().getFirst().getWidth() >= 100.0,
+                "date column should remain wide enough for yyyy-MM-dd, got "
+                        + table.getColumns().getFirst().getWidth());
     }
 
     @Test
@@ -151,7 +226,7 @@ class NavigationTest extends AbstractUITest {
     }
 
     @Test
-    void selectedTransactionKeepsTheUnselectedColumnBorderColorInBothThemes() {
+    void selectedTransactionsUseDarkAccentAndKeepColumnBordersInBothThemes() {
         TransactionService transactionService = applicationContext.getBean(TransactionService.class);
         interact(() -> {
             transactionService.createTransaction(Transaction.builder()
@@ -168,6 +243,7 @@ class NavigationTest extends AbstractUITest {
         interact(lookup("#transactionsButton").<Button>query()::fire);
         TableView<?> table = lookup("#transactionTable").query();
         Color[] borderColors = new Color[4];
+        Color[] stripedSelectionColors = new Color[2];
 
         for (int themeIndex = 0; themeIndex < 2; themeIndex++) {
             String theme = themeIndex == 0 ? "light" : "dark";
@@ -177,13 +253,52 @@ class NavigationTest extends AbstractUITest {
                 table.getScene().getRoot().applyCss();
                 table.getScene().getRoot().layout();
                 table.getSelectionModel().clearSelection();
+                table.getSelectionModel().select(1);
+                table.getScene().getRoot().applyCss();
+                table.getScene().getRoot().layout();
+                stripedSelectionColors[colorIndex / 2] = rowBackground(table, 1);
+                table.getSelectionModel().clearSelection();
                 table.getSelectionModel().select(0);
                 borderColors[colorIndex] = rightBorderColor(table, 0);
                 borderColors[colorIndex + 1] = rightBorderColor(table, 1);
             });
+            Color expectedSelectionColor = themeIndex == 0 ? Color.web("#033d8b") : Color.web("#0d419d");
+            assertEquals(expectedSelectionColor, stripedSelectionColors[themeIndex],
+                    "striped selected row should use a dark accent fill in " + theme + " theme");
             assertEquals(borderColors[themeIndex * 2 + 1], borderColors[themeIndex * 2],
                     "selected row border should match unselected row in " + theme + " theme");
         }
+    }
+
+    @Test
+    void changingThemeFromSettingsUpdatesTheOpenWindowImmediately() {
+        StackPane contentArea = lookup("#contentArea").query();
+        Color previousBackground = firstBackgroundFill(contentArea).getFill() instanceof Color color
+                ? color
+                : null;
+        assertNotNull(previousBackground);
+
+        interact(lookup("#settingsButton").<Button>query()::fire);
+        ComboBox<String> themeCombo = lookup("#themeCombo").query();
+        for (String theme : new String[]{"Dark", "Light", "Dark"}) {
+            interact(() -> themeCombo.setValue(theme));
+            interact(() -> {
+                contentArea.applyCss();
+                contentArea.layout();
+            });
+
+            Color currentBackground = (Color) firstBackgroundFill(contentArea).getFill();
+            assertNotEquals(previousBackground, currentBackground,
+                    "content surface should update immediately after switching to " + theme);
+            boolean darkTheme = "Dark".equals(theme);
+            assertEquals(darkTheme,
+                    contentArea.getScene().getRoot().getStyleClass().contains("theme-dark"));
+            previousBackground = currentBackground;
+        }
+    }
+
+    private BackgroundFill firstBackgroundFill(Region node) {
+        return node.getBackground().getFills().getFirst();
     }
 
     private Color rightBorderColor(TableView<?> table, int rowIndex) {
@@ -197,6 +312,16 @@ class NavigationTest extends AbstractUITest {
         assertNotNull(cell);
         assertNotNull(cell.getBorder());
         return (Color) cell.getBorder().getStrokes().getFirst().getRightStroke();
+    }
+
+    private Color rowBackground(TableView<?> table, int rowIndex) {
+        TableRow<?> row = table.lookupAll(".table-row-cell").stream()
+                .filter(TableRow.class::isInstance)
+                .map(node -> (TableRow<?>) node)
+                .filter(candidate -> !candidate.isEmpty() && candidate.getIndex() == rowIndex)
+                .findFirst()
+                .orElseThrow();
+        return (Color) row.getBackground().getFills().getLast().getFill();
     }
 
     private void layout(Parent node) {

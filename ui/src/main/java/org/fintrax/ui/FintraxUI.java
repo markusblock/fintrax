@@ -5,6 +5,8 @@ import atlantafx.base.theme.PrimerLight;
 import javafx.application.Application;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.control.Dialog;
+import javafx.scene.control.DialogPane;
 import javafx.stage.Stage;
 import lombok.extern.slf4j.Slf4j;
 import org.fintrax.config.I18n;
@@ -18,8 +20,10 @@ public class FintraxUI extends Application {
     private static final double MIN_WIDTH = 1024;
     private static final double MIN_HEIGHT = 768;
     private static final String DARK_THEME_STYLE_CLASS = "theme-dark";
+    private static final String FINTRAX_STYLESHEET = FintraxUI.class.getResource("/css/fintrax.css").toExternalForm();
     private static final String PRIMER_LIGHT_STYLESHEET = new PrimerLight().getUserAgentStylesheet();
     private static final String PRIMER_DARK_STYLESHEET = new PrimerDark().getUserAgentStylesheet();
+    private static boolean darkThemeEnabled;
 
     @Override
     public void start(Stage primaryStage) throws Exception {
@@ -31,7 +35,7 @@ public class FintraxUI extends Application {
         Parent root = getApplicationContext().getBean(ViewLoader.class).load("main");
 
         Scene scene = new Scene(root, MIN_WIDTH, MIN_HEIGHT);
-        scene.getStylesheets().add(getClass().getResource("/css/fintrax.css").toExternalForm());
+        configureScene(scene);
         applyTheme(scene, settingsService.getTheme());
 
         primaryStage.setTitle(TITLE);
@@ -67,14 +71,44 @@ public class FintraxUI extends Application {
     }
 
     public static void applyTheme(Scene scene, String theme) {
-        boolean darkTheme = "dark".equals(theme);
-        scene.getStylesheets().removeAll(PRIMER_LIGHT_STYLESHEET, PRIMER_DARK_STYLESHEET);
-        scene.getStylesheets().add(0, darkTheme
-                ? PRIMER_DARK_STYLESHEET
-                : PRIMER_LIGHT_STYLESHEET);
-        scene.getRoot().getStyleClass().remove(DARK_THEME_STYLE_CLASS);
-        if (darkTheme) {
-            scene.getRoot().getStyleClass().add(DARK_THEME_STYLE_CLASS);
+        darkThemeEnabled = "dark".equals(theme);
+        Thread currentThread = Thread.currentThread();
+        ClassLoader previousClassLoader = currentThread.getContextClassLoader();
+        try {
+            // JavaFX resolves user-agent stylesheets via the thread context classloader.
+            // On macOS, UI events can arrive on AppKit Thread with no context loader.
+            currentThread.setContextClassLoader(FintraxUI.class.getClassLoader());
+            Application.setUserAgentStylesheet(darkThemeEnabled
+                    ? PRIMER_DARK_STYLESHEET
+                    : PRIMER_LIGHT_STYLESHEET);
+        } finally {
+            currentThread.setContextClassLoader(previousClassLoader);
+        }
+        applyThemeClass(scene.getRoot());
+    }
+
+    public static void configureScene(Scene scene) {
+        if (!scene.getStylesheets().contains(FINTRAX_STYLESHEET)) {
+            scene.getStylesheets().add(FINTRAX_STYLESHEET);
+        }
+        applyThemeClass(scene.getRoot());
+    }
+
+    public static void configureDialog(Dialog<?> dialog) {
+        configureDialogPane(dialog.getDialogPane());
+    }
+
+    public static void configureDialogPane(DialogPane dialogPane) {
+        if (!dialogPane.getStylesheets().contains(FINTRAX_STYLESHEET)) {
+            dialogPane.getStylesheets().add(FINTRAX_STYLESHEET);
+        }
+        applyThemeClass(dialogPane);
+    }
+
+    private static void applyThemeClass(Parent root) {
+        root.getStyleClass().remove(DARK_THEME_STYLE_CLASS);
+        if (darkThemeEnabled) {
+            root.getStyleClass().add(DARK_THEME_STYLE_CLASS);
         }
     }
 }

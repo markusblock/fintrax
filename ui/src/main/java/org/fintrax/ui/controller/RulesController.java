@@ -10,9 +10,11 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import lombok.extern.slf4j.Slf4j;
+import org.kordamp.ikonli.javafx.FontIcon;
 import org.fintrax.config.I18n;
 import org.fintrax.model.*;
 import org.fintrax.service.*;
+import org.fintrax.ui.FintraxUI;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
@@ -77,6 +79,7 @@ public class RulesController {
                 new SimpleIntegerProperty(cell.getValue().getPriority()));
         ruleNameColumn.setCellValueFactory(cell ->
                 new SimpleStringProperty(cell.getValue().getName()));
+        ruleTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         ruleNumberColumn.setSortable(false);
         ruleNameColumn.setSortable(false);
         ruleTable.setRowFactory(table -> new TableRow<>() {
@@ -111,6 +114,7 @@ public class RulesController {
 
     private ContextMenu createRuleContextMenu(Rule rule) {
         MenuItem applyRule = new MenuItem(I18n.get("rules.applySelected"));
+        applyRule.setGraphic(icon("fth-play", 14));
         applyRule.setDisable(!rule.isEnabled());
         applyRule.setOnAction(event -> new RuleReviewDialog(rootPane.getScene().getWindow(), ruleService,
                 accountService, categoryService, labelService,
@@ -118,16 +122,20 @@ public class RulesController {
 
         int ruleIndex = indexOfRule(rule.getId());
         MenuItem moveUp = new MenuItem(I18n.get("button.moveUp"));
+        moveUp.setGraphic(icon("fth-arrow-up", 14));
         moveUp.setDisable(ruleIndex <= 0);
         moveUp.setOnAction(event -> moveRule(rule, -1));
         MenuItem moveDown = new MenuItem(I18n.get("button.moveDown"));
+        moveDown.setGraphic(icon("fth-arrow-down", 14));
         moveDown.setDisable(ruleIndex < 0 || ruleIndex >= ruleData.size() - 1);
         moveDown.setOnAction(event -> moveRule(rule, 1));
 
         MenuItem toggleEnabled = new MenuItem(I18n.get(rule.isEnabled() ? "rules.disable" : "rules.enable"));
+        toggleEnabled.setGraphic(icon("fth-toggle-right", 14));
         toggleEnabled.setOnAction(event -> toggleRule(rule));
 
         MenuItem deleteRule = new MenuItem(I18n.get("button.delete"));
+        deleteRule.setGraphic(icon("fth-trash-2", 14));
         deleteRule.setOnAction(event -> confirmDeleteRule(rule));
 
         return new ContextMenu(applyRule, new SeparatorMenuItem(), moveUp, moveDown,
@@ -381,6 +389,7 @@ public class RulesController {
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION,
                 I18n.get("rules.delete.confirm"),
                 ButtonType.OK, ButtonType.CANCEL);
+        FintraxUI.configureDialog(alert);
         alert.initOwner(rootPane.getScene().getWindow());
 
         alert.showAndWait().ifPresent(btn -> {
@@ -463,6 +472,7 @@ public class RulesController {
 
     private void showError(String message) {
         Alert alert = new Alert(Alert.AlertType.ERROR, message);
+        FintraxUI.configureDialog(alert);
         alert.setTitle("Error");
         alert.initOwner(rootPane.getScene().getWindow());
         alert.showAndWait();
@@ -476,6 +486,12 @@ public class RulesController {
         Button removeButton = new Button("\u2716");
 
         ConditionRow() {
+            hBox.getStyleClass().add("rule-condition-row");
+            removeButton.setText("");
+            removeButton.setGraphic(icon("fth-x", 14));
+            removeButton.getStyleClass().addAll("icon-button", "danger");
+            removeButton.setAccessibleText(I18n.get("button.delete"));
+            removeButton.setTooltip(new Tooltip(I18n.get("button.delete")));
             fieldCombo.setPromptText("Field");
             operatorCombo.setPromptText("Operator");
             valueField.setPromptText("Value");
@@ -490,9 +506,22 @@ public class RulesController {
         Button removeButton = new Button("\u2716");
 
         ActionRow() {
+            hBox.getStyleClass().add("rule-action-row");
+            removeButton.setText("");
+            removeButton.setGraphic(icon("fth-x", 14));
+            removeButton.getStyleClass().addAll("icon-button", "danger");
+            removeButton.setAccessibleText(I18n.get("button.delete"));
+            removeButton.setTooltip(new Tooltip(I18n.get("button.delete")));
             typeCombo.setPromptText("Action");
             targetCombo.setPromptText("Target");
             hBox.getChildren().addAll(typeCombo, targetCombo, removeButton);
         }
+    }
+
+    private static FontIcon icon(String literal, int size) {
+        FontIcon icon = new FontIcon();
+        icon.setIconLiteral(literal);
+        icon.setIconSize(size);
+        return icon;
     }
 }

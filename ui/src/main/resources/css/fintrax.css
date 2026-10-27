@@ -3,6 +3,91 @@
     -fx-font-size: 13px;
 }
 
+.view-root {
+    -fx-background-color: -color-bg-default;
+}
+
+.view-header {
+    -fx-padding: 22 24 16 24;
+    -fx-spacing: 12;
+}
+
+.view-subtitle,
+.help-text,
+.secondary-text {
+    -fx-text-fill: -color-fg-muted;
+}
+
+.view-content {
+    -fx-padding: 0 24 24 24;
+}
+
+.view-toolbar {
+    -fx-spacing: 8;
+    -fx-alignment: CENTER_LEFT;
+}
+
+.editor-panel,
+.settings-card,
+.content-panel {
+    -fx-background-color: -color-bg-subtle;
+    -fx-border-color: -color-border-default;
+    -fx-border-radius: 10;
+    -fx-background-radius: 10;
+    -fx-padding: 18;
+}
+
+.editor-panel,
+.settings-card {
+    -fx-spacing: 12;
+}
+
+.content-split-pane {
+    -fx-background-color: -color-bg-default;
+    -fx-padding: 0 12 12 12;
+}
+
+.content-split-pane > .split-pane-divider {
+    -fx-background-color: -color-border-default;
+    -fx-padding: 0 1;
+}
+
+.content-split-pane > .split-pane-divider:hover {
+    -fx-background-color: -color-accent-muted;
+}
+
+.category-tree {
+    -fx-background-color: -color-bg-default;
+    -fx-border-color: -color-border-default;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+}
+
+.empty-state {
+    -fx-padding: 40;
+    -fx-text-fill: -color-fg-muted;
+    -fx-font-size: 14px;
+}
+
+.empty-state.compact {
+    -fx-padding: 4 8;
+    -fx-font-size: 12px;
+}
+
+.danger-copy {
+    -fx-text-fill: -color-danger-fg;
+    -fx-font-weight: bold;
+}
+
+.warning-copy {
+    -fx-text-fill: -color-warning-fg;
+    -fx-font-weight: bold;
+}
+
+.table-view.dense .table-row-cell {
+    -fx-cell-size: 2.4em;
+}
+
 .sidebar-panel {
     -fx-background-color: -color-bg-subtle;
     -fx-border-color: -color-border-default;
@@ -72,6 +157,85 @@
     -fx-text-fill: -color-fg-muted;
 }
 
+.account-type,
+.account-iban,
+.account-last-sync {
+    -fx-text-fill: -color-fg-muted;
+}
+
+.account-name {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -color-fg-default;
+}
+
+.account-balance {
+    -fx-font-size: 20px;
+    -fx-font-weight: bold;
+}
+
+.account-balance.positive {
+    -fx-text-fill: -color-success-fg;
+}
+
+.account-balance.negative {
+    -fx-text-fill: -color-danger-fg;
+}
+
+.account-iban {
+    -fx-font-family: monospace;
+}
+
+.sync-account-name {
+    -fx-font-weight: bold;
+}
+
+.sync-time {
+    -fx-font-size: 11px;
+    -fx-text-fill: -color-fg-muted;
+}
+
+.sync-message {
+    -fx-text-fill: -color-fg-default;
+}
+
+.status-success .ikonli-font-icon {
+    -fx-icon-color: -color-success-fg;
+}
+
+.status-warning .ikonli-font-icon {
+    -fx-icon-color: -color-warning-fg;
+}
+
+.status-error .ikonli-font-icon {
+    -fx-icon-color: -color-danger-fg;
+}
+
+.account-scroll,
+.settings-scroll,
+.editor-list-scroll {
+    -fx-background-color: transparent;
+    -fx-background: transparent;
+}
+
+.account-scroll > .viewport,
+.settings-scroll > .viewport {
+    -fx-background-color: -color-bg-default;
+}
+
+.account-grid {
+    -fx-background-color: -color-bg-default;
+}
+
+.sync-log-row {
+    -fx-padding: 6 8;
+    -fx-background-radius: 6;
+}
+
+.sync-log-row.failed {
+    -fx-background-color: -color-danger-subtle;
+}
+
 .sync-button {
     -fx-background-color: -color-accent-emphasis;
     -fx-text-fill: -color-fg-emphasis;
@@ -131,24 +295,72 @@
 
 .table-view {
     -fx-background-color: -color-bg-default;
+    -color-cell-bg-selected: -color-accent-7;
+    -color-cell-bg-selected-focused: -color-accent-7;
+    -color-cell-fg-selected: white;
+    -color-cell-fg-selected-focused: white;
 }
 
-.theme-dark .transactions-view .table-view {
+.table-view .table-row-cell:filled:selected {
+    -fx-background-color: -color-cell-border, -color-cell-bg-selected;
+}
+
+.theme-dark .table-view {
     -fx-table-cell-border-color: #252a30;
     -fx-table-header-border-color: #252a30;
     -color-cell-border: #252a30;
 }
 
-.theme-dark .transactions-view .table-view .table-row-cell:filled:selected .table-cell {
-    -fx-border-color: transparent -color-cell-border transparent transparent;
+.path-value {
+    -fx-font-family: monospace;
+    -fx-text-fill: -color-fg-muted;
+}
+
+.rule-editor-panel .text-field,
+.rule-editor-panel .combo-box,
+.label-editor-panel .text-field,
+.label-editor-panel .color-picker {
+    -fx-pref-height: 36px;
+}
+
+.settings-content {
+    -fx-padding: 8 24 24 24;
+    -fx-spacing: 16;
+}
+
+.settings-card .table-view {
+    -fx-pref-height: 200px;
+}
+
+.settings-card .grid-pane {
+    -fx-hgap: 12;
+    -fx-vgap: 12;
+}
+
+.editor-list-scroll {
+    -fx-border-color: -color-border-default;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
 }
 
 .table-view > .virtual-flow > .clipped-container > .sheet {
     -fx-background-color: -color-bg-default;
 }
 
+.table-view .table-row-cell > .table-cell {
+    -fx-border-color: transparent -color-cell-border transparent transparent;
+}
+
 .table-view .table-row-cell.disabled-rule-row .table-cell {
     -fx-text-fill: -color-fg-muted;
+}
+
+.table-view {
+    -fx-background-insets: 0;
+}
+
+.table-view > .column-header-background .column-header {
+    -fx-font-weight: bold;
 }
 
 .detail-panel {
@@ -178,6 +390,12 @@
     -fx-text-fill: -color-fg-default;
 }
 
+.section-heading {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -color-fg-default;
+}
+
 .filter-panel {
     -fx-background-color: -color-bg-subtle;
     -fx-border-color: -color-border-default;
@@ -201,6 +419,64 @@
     -fx-background-color: -color-bg-subtle;
     -fx-border-color: -color-border-default;
     -fx-border-width: 1 0 0 0;
+}
+
+.dialog-content {
+    -fx-background-color: -color-bg-default;
+    -fx-spacing: 14;
+    -fx-padding: 18;
+}
+
+.dialog-title {
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -color-fg-default;
+}
+
+.dialog-subtitle {
+    -fx-font-size: 12px;
+    -fx-text-fill: -color-fg-muted;
+}
+
+.rule-condition-row,
+.rule-action-row {
+    -fx-spacing: 8;
+    -fx-alignment: CENTER_LEFT;
+    -fx-padding: 6 8;
+    -fx-background-color: -color-bg-default;
+    -fx-border-color: -color-border-default;
+    -fx-border-radius: 7;
+    -fx-background-radius: 7;
+}
+
+.icon-button {
+    -fx-background-color: transparent;
+    -fx-padding: 6;
+}
+
+.icon-button:hover {
+    -fx-background-color: -color-neutral-muted;
+}
+
+.icon-button.danger {
+    -fx-text-fill: -color-danger-fg;
+}
+
+.icon-button.danger .ikonli-font-icon {
+    -fx-icon-color: -color-danger-fg;
+}
+
+.sync-status-pane .scroll-pane {
+    -fx-background-color: transparent;
+}
+
+.sync-status-pane .scroll-pane > .viewport,
+.sync-status-pane .scroll-pane > .viewport > .vbox {
+    -fx-background-color: transparent;
+}
+
+.sync-status-pane .sync-log-row {
+    -fx-padding: 3 6;
 }
 
 .ikonli-font-icon {

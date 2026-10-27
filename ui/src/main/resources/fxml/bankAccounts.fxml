@@ -9,29 +9,31 @@
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Separator?>
-<?import javafx.scene.control.SplitPane?>
 <?import javafx.geometry.Insets?>
+<?import org.kordamp.ikonli.javafx.FontIcon?>
 
 <BorderPane fx:id="rootPane" xmlns:fx="http://javafx.com/fxml"
-            fx:controller="org.fintrax.ui.controller.BankAccountsController">
+            fx:controller="org.fintrax.ui.controller.BankAccountsController" styleClass="view-root">
     <top>
-        <VBox spacing="5">
-            <padding>
-                <Insets top="20" right="20" bottom="10" left="20"/>
-            </padding>
+        <VBox styleClass="view-header">
             <HBox spacing="10" alignment="CENTER_LEFT">
-                <Label text="%view.bankAccounts" style="-fx-font-size: 24px; -fx-font-weight: bold;"/>
+                <Label text="%view.bankAccounts" styleClass="page-title"/>
                 <Region HBox.hgrow="ALWAYS"/>
                 <Button fx:id="addAccountButton" text="%button.addAccount" onAction="#onAddAccount"
-                        styleClass="accent-button"/>
-                <Button fx:id="syncAllButton" text="%button.syncAll" onAction="#onSyncAll"/>
+                        styleClass="accent-button">
+                    <graphic><FontIcon iconLiteral="fth-plus" iconSize="15"/></graphic>
+                </Button>
+                <Button fx:id="syncAllButton" text="%button.syncAll" onAction="#onSyncAll"
+                        styleClass="button-outlined">
+                    <graphic><FontIcon iconLiteral="fth-refresh-cw" iconSize="15"/></graphic>
+                </Button>
             </HBox>
-            <Label fx:id="subtitleLabel" text="%subtitle.accounts"/>
+            <Label fx:id="subtitleLabel" text="%subtitle.accounts" styleClass="view-subtitle"/>
         </VBox>
     </top>
     <center>
-        <ScrollPane fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED">
-            <FlowPane fx:id="accountsPane" hgap="15" vgap="15" prefWrapLength="900">
+        <ScrollPane fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED" styleClass="account-scroll">
+            <FlowPane fx:id="accountsPane" hgap="16" vgap="16" prefWrapLength="900" styleClass="account-grid">
                 <padding>
                     <Insets top="10" right="20" bottom="10" left="20"/>
                 </padding>
@@ -39,16 +41,17 @@
         </ScrollPane>
     </center>
     <bottom>
-        <VBox fx:id="syncStatusPane" spacing="5" styleClass="sync-status-pane">
+        <VBox fx:id="syncStatusPane" spacing="8" styleClass="sync-status-pane">
             <padding>
                 <Insets top="10" right="20" bottom="10" left="20"/>
             </padding>
             <HBox spacing="10" alignment="CENTER_LEFT">
-                <Label text="%label.syncStatus" style="-fx-font-weight: bold;"/>
+                <Label text="%label.syncStatus" styleClass="section-heading"/>
                 <Region HBox.hgrow="ALWAYS"/>
-                <Button text="%button.clearLog" onAction="#onClearSyncLog" style="-fx-font-size: 11px;"/>
+                <Button text="%button.clearLog" onAction="#onClearSyncLog" styleClass="button-outlined"/>
             </HBox>
-            <ScrollPane fx:id="syncLogScroll" fitToWidth="true" prefHeight="120" vbarPolicy="AS_NEEDED" hbarPolicy="NEVER">
+            <ScrollPane fx:id="syncLogScroll" fitToWidth="true" minHeight="40" prefHeight="64" maxHeight="64"
+                        vbarPolicy="AS_NEEDED" hbarPolicy="NEVER">
                 <VBox fx:id="syncLogContainer" spacing="3"/>
             </ScrollPane>
         </VBox>

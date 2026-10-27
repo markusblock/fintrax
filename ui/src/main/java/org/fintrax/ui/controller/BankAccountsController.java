@@ -11,6 +11,7 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 import lombok.extern.slf4j.Slf4j;
+import org.kordamp.ikonli.javafx.FontIcon;
 import org.fintrax.config.I18n;
 import org.fintrax.fintx.PinStorage;
 import org.fintrax.model.BankAccount;
@@ -22,6 +23,7 @@ import org.fintrax.service.LabelService;
 import org.fintrax.service.RuleService;
 import org.fintrax.service.SyncResult;
 import org.fintrax.service.SyncService;
+import org.fintrax.ui.FintraxUI;
 import org.fintrax.ui.ViewLoader;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
@@ -97,8 +99,7 @@ public class BankAccountsController {
 
         if (accounts.isEmpty()) {
             Label emptyLabel = new Label(I18n.get("message.noAccounts"));
-            emptyLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #888;");
-            emptyLabel.setPadding(new Insets(40));
+            emptyLabel.getStyleClass().add("empty-state");
             accountsPane.getChildren().add(emptyLabel);
             return;
         }
@@ -112,50 +113,52 @@ public class BankAccountsController {
     private VBox createAccountCard(BankAccount account) {
         VBox card = new VBox(8);
         card.getStyleClass().add("account-card");
-        card.setPrefWidth(280);
+        card.setPrefWidth(300);
         card.setPadding(new Insets(15));
 
         HBox header = new HBox(8);
         header.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
 
         Label bankNameLabel = new Label(account.getBankName() != null ? account.getBankName() : "Unknown Bank");
-        bankNameLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
+        bankNameLabel.getStyleClass().add("account-name");
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
         Label typeLabel = new Label(account.getAccountType() != null ? account.getAccountType().name() : "");
-        typeLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #888;");
+        typeLabel.getStyleClass().add("account-type");
 
         header.getChildren().addAll(bankNameLabel, spacer, typeLabel);
 
         Label holderLabel = new Label(account.getAccountHolder() != null ? account.getAccountHolder() : "");
-        holderLabel.setStyle("-fx-font-size: 12px;");
         holderLabel.getStyleClass().add("account-holder");
 
         String maskedIban = maskIban(account.getIban());
         Label ibanLabel = new Label(maskedIban);
-        ibanLabel.setStyle("-fx-font-size: 12px; -fx-font-family: monospace;");
+        ibanLabel.getStyleClass().add("account-iban");
 
         Label balanceLabel = new Label(formatBalance(account.getBalance()));
-        balanceLabel.setStyle("-fx-font-size: 20px; -fx-font-weight: bold;" +
-                (account.getBalance() != null && account.getBalance().signum() < 0 ? " -fx-text-fill: #d32f2f;" : " -fx-text-fill: #2e7d32;"));
+        balanceLabel.getStyleClass().add("account-balance");
+        balanceLabel.getStyleClass().add(account.getBalance() != null && account.getBalance().signum() < 0
+                ? "negative" : "positive");
 
         String lastSyncText = account.getLastSyncAt() != null
                 ? I18n.get("label.lastSync") + ": " + account.getLastSyncAt().format(DATE_FMT)
                 : I18n.get("label.neverSynced");
         Label lastSyncLabel = new Label(lastSyncText);
-        lastSyncLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #888;");
+        lastSyncLabel.getStyleClass().add("account-last-sync");
 
         HBox buttonBox = new HBox(8);
         buttonBox.setAlignment(javafx.geometry.Pos.CENTER_RIGHT);
 
         Button syncButton = new Button(I18n.get("button.sync"));
         syncButton.getStyleClass().add("sync-button");
+        syncButton.setGraphic(icon("fth-refresh-cw", 14));
         syncButton.setOnAction(e -> onSyncAccount(account.getId()));
 
         Button deleteButton = new Button(I18n.get("button.delete"));
         deleteButton.getStyleClass().add("delete-button");
+        deleteButton.setGraphic(icon("fth-trash-2", 14));
         deleteButton.setOnAction(e -> onDeleteAccount(account));
 
         buttonBox.getChildren().addAll(syncButton, deleteButton);
@@ -182,7 +185,9 @@ public class BankAccountsController {
             Stage dialog = new Stage();
             dialog.setTitle(I18n.get("dialog.addAccount.title"));
             dialog.initModality(Modality.WINDOW_MODAL);
-            dialog.setScene(new Scene(root, 450, 500));
+            Scene dialogScene = new Scene(root, 450, 500);
+            FintraxUI.configureScene(dialogScene);
+            dialog.setScene(dialogScene);
 
             Window ownerWindow = addAccountButton.getScene().getWindow();
             dialog.initOwner(ownerWindow);
@@ -266,8 +271,7 @@ public class BankAccountsController {
         dialog.setContentText(I18n.get("dialog.pin.prompt"));
         dialog.initModality(Modality.APPLICATION_MODAL);
 
-        DialogPane dialogPane = dialog.getDialogPane();
-        dialogPane.getStylesheets().addAll(rootPane.getScene().getStylesheets());
+        FintraxUI.configureDialog(dialog);
 
         Optional<String> result = dialog.showAndWait();
         return result.orElse(null);
@@ -278,7 +282,7 @@ public class BankAccountsController {
         alert.setTitle(I18n.get("dialog.deleteAccount.title"));
         alert.setHeaderText(I18n.get("dialog.deleteAccount.header"));
         alert.setContentText(I18n.get("dialog.deleteAccount.content", account.getBankName(), account.getIban()));
-        alert.getDialogPane().getStylesheets().addAll(rootPane.getScene().getStylesheets());
+        FintraxUI.configureDialog(alert);
 
         Optional<ButtonType> result = alert.showAndWait();
         if (result.isPresent() && result.get() == ButtonType.OK) {
@@ -303,7 +307,7 @@ public class BankAccountsController {
 
         if (syncLogContainer.getChildren().isEmpty()) {
             Label noLogs = new Label(I18n.get("message.noSyncLogs"));
-            noLogs.setStyle("-fx-text-fill: #888; -fx-font-size: 12px;");
+            noLogs.getStyleClass().addAll("empty-state", "compact");
             syncLogContainer.getChildren().add(noLogs);
         }
     }
@@ -314,14 +318,20 @@ public class BankAccountsController {
         row.setPadding(new Insets(3, 5, 3, 5));
 
         String statusIcon = switch (syncLog.getStatus()) {
-            case SUCCESS -> "\u2705";
-            case FAILED -> "\u274C";
-            case PARTIAL -> "\u26A0\uFE0F";
+            case SUCCESS -> "fth-check-circle";
+            case FAILED -> "fth-alert-circle";
+            case PARTIAL -> "fth-alert-triangle";
         };
 
-        Label statusLabel = new Label(statusIcon);
+        Label statusLabel = new Label();
+        statusLabel.setGraphic(icon(statusIcon, 16));
+        statusLabel.getStyleClass().add(switch (syncLog.getStatus()) {
+            case SUCCESS -> "status-success";
+            case FAILED -> "status-error";
+            case PARTIAL -> "status-warning";
+        });
         Label accountLabel = new Label(account.getBankName() != null ? account.getBankName() : account.getIban());
-        accountLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 12px;");
+        accountLabel.getStyleClass().add("sync-account-name");
 
         String message;
         if (syncLog.getStatus() == SyncStatus.FAILED) {
@@ -330,19 +340,20 @@ public class BankAccountsController {
             message = I18n.get("message.sync.success", syncLog.getNewCount(), syncLog.getSkippedCount());
         }
         Label messageLabel = new Label(message);
-        messageLabel.setStyle("-fx-font-size: 12px;");
+        messageLabel.getStyleClass().add("sync-message");
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
         String timeText = syncLog.getCompletedAt() != null ? syncLog.getCompletedAt().format(DATE_FMT) : "";
         Label timeLabel = new Label(timeText);
-        timeLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #888;");
+        timeLabel.getStyleClass().add("sync-time");
 
         row.getChildren().addAll(statusLabel, accountLabel, messageLabel, spacer, timeLabel);
 
+        row.getStyleClass().add("sync-log-row");
         if (syncLog.getStatus() == SyncStatus.FAILED) {
-            row.setStyle("-fx-background-color: #fff3f3;");
+            row.getStyleClass().add("failed");
         }
 
         return row;
@@ -379,6 +390,7 @@ public class BankAccountsController {
         String summary = I18n.get("message.sync.report.summary", newCount, skippedCount);
         report.setContentText(details.isEmpty() ? summary : summary + "\n" + String.join("\n", details));
         report.initOwner(rootPane.getScene().getWindow());
+        FintraxUI.configureDialog(report);
 
         ButtonType closeType = new ButtonType(I18n.get("button.close"), ButtonBar.ButtonData.CANCEL_CLOSE);
         if (newTransactionIds.isEmpty()) {
@@ -422,17 +434,22 @@ public class BankAccountsController {
     private void onClearSyncLog() {
         syncLogContainer.getChildren().clear();
         Label noLogs = new Label(I18n.get("message.noSyncLogs"));
-        noLogs.setStyle("-fx-text-fill: #888; -fx-font-size: 12px;");
+        noLogs.getStyleClass().addAll("empty-state", "compact");
         syncLogContainer.getChildren().add(noLogs);
+    }
+
+    private FontIcon icon(String literal, int size) {
+        FontIcon icon = new FontIcon();
+        icon.setIconLiteral(literal);
+        icon.setIconSize(size);
+        return icon;
     }
 
     private void showError(String message) {
         Alert alert = new Alert(Alert.AlertType.ERROR);
         alert.setTitle("Error");
         alert.setContentText(message);
-        if (rootPane.getScene() != null) {
-            alert.getDialogPane().getStylesheets().addAll(rootPane.getScene().getStylesheets());
-        }
+        FintraxUI.configureDialog(alert);
         alert.showAndWait();
     }
 

@@ -54,6 +54,7 @@ public class ActivityLogController {
     public void initialize() {
         log.info("ActivityLogController initialized");
 
+        logTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         timestampColumn.setCellValueFactory(cd -> new SimpleObjectProperty<>(cd.getValue().getTimestamp()));
         timestampColumn.setCellFactory(col -> new TableCell<>() {
             @Override

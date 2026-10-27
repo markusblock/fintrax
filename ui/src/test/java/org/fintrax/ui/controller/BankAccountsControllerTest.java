@@ -60,7 +60,8 @@ class BankAccountsControllerTest extends AbstractUITest {
         Parent root = applicationContext.getBean(ViewLoader.class).load("bankAccounts");
         controller = (BankAccountsController) root.getProperties().get(BankAccountsController.class.getName());
         Scene scene = new Scene(root, 1024, 768);
-        scene.getStylesheets().add(getClass().getResource("/css/fintrax.css").toExternalForm());
+        FintraxUI.configureScene(scene);
+        FintraxUI.applyTheme(scene, "light");
         stage.setScene(scene);
         stage.show();
     }

@@ -11,6 +11,7 @@ import org.fintrax.fintx.PinStorage;
 import org.fintrax.model.AccountType;
 import org.fintrax.model.BankAccount;
 import org.fintrax.service.AccountService;
+import org.fintrax.ui.FintraxUI;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
@@ -111,9 +112,7 @@ public class AddAccountDialogController {
         Alert alert = new Alert(Alert.AlertType.ERROR);
         alert.setTitle("Error");
         alert.setContentText(message);
-        if (saveButton.getScene() != null) {
-            alert.getDialogPane().getStylesheets().addAll(saveButton.getScene().getStylesheets());
-        }
+        FintraxUI.configureDialog(alert);
         alert.showAndWait();
     }
 }

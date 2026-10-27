@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.fintrax.config.I18n;
 import org.fintrax.model.Label;
 import org.fintrax.service.LabelService;
+import org.fintrax.ui.FintraxUI;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
@@ -57,6 +58,7 @@ public class LabelsController {
         log.info("LabelsController initialized");
 
         nameColumn.setCellValueFactory(cd -> new SimpleStringProperty(cd.getValue().getName()));
+        labelTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         colorColumn.setCellValueFactory(cd -> {
             String color = cd.getValue().getColor();
             return new SimpleStringProperty(color != null ? color : "");
@@ -148,6 +150,7 @@ public class LabelsController {
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION,
                 I18n.get("labels.delete.confirm"),
                 ButtonType.OK, ButtonType.CANCEL);
+        FintraxUI.configureDialog(alert);
         alert.initOwner(rootPane.getScene().getWindow());
 
         alert.showAndWait().ifPresent(btn -> {
@@ -176,6 +179,7 @@ public class LabelsController {
 
     private void showError(String message) {
         Alert alert = new Alert(Alert.AlertType.ERROR, message);
+        FintraxUI.configureDialog(alert);
         alert.setTitle("Error");
         alert.initOwner(rootPane.getScene().getWindow());
         alert.showAndWait();

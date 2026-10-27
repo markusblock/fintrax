@@ -18,6 +18,7 @@ import org.fintrax.config.I18n;
 import org.fintrax.model.*;
 import org.fintrax.service.*;
 import org.fintrax.store.StoreManager;
+import org.fintrax.ui.FintraxUI;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
@@ -364,6 +365,7 @@ public class TransactionsController {
         categoryCombo.setId("categorySearchCombo");
 
         Dialog<Category> dialog = new Dialog<>();
+        FintraxUI.configureDialog(dialog);
         dialog.setTitle(I18n.get("dialog.bulkCategory.title"));
         dialog.setHeaderText(I18n.get("dialog.bulkCategory.header", selected.size()));
         dialog.initOwner(rootPane.getScene().getWindow());
@@ -443,6 +445,7 @@ public class TransactionsController {
         labelCombo.setId("labelSearchCombo");
 
         Dialog<org.fintrax.model.Label> dialog = new Dialog<>();
+        FintraxUI.configureDialog(dialog);
         dialog.setTitle(I18n.get("dialog.bulkLabel.title"));
         String headerKey = adding ? "dialog.bulkLabelAdd.header" : "dialog.bulkLabelRemove.header";
         dialog.setHeaderText(I18n.get(headerKey, selected.size()));

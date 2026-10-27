@@ -8,6 +8,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import lombok.extern.slf4j.Slf4j;
+import org.kordamp.ikonli.javafx.FontIcon;
 import org.fintrax.config.I18n;
 import org.fintrax.ui.FintraxUI;
 import org.fintrax.fintx.PinStorage;
@@ -165,6 +166,7 @@ public class SettingsController {
         if (file == null) return;
 
         Dialog<Boolean> dialog = new Dialog<>();
+        FintraxUI.configureDialog(dialog);
         dialog.setTitle(I18n.get("settings.import.title"));
         dialog.setHeaderText(I18n.get("settings.import.title"));
 
@@ -177,6 +179,7 @@ public class SettingsController {
         rulesBox.setSelected(true);
 
         VBox content = new VBox(10, categoriesBox, rulesBox);
+        content.getStyleClass().add("dialog-content");
         dialog.getDialogPane().setContent(content);
 
         dialog.setResultConverter(buttonType -> buttonType == importButtonType);
@@ -193,6 +196,7 @@ public class SettingsController {
             } catch (Exception e) {
                 log.error("Import failed", e);
                 Alert alert = new Alert(Alert.AlertType.ERROR);
+                FintraxUI.configureDialog(alert);
                 alert.setTitle(I18n.get("settings.import.error", e.getMessage()));
                 alert.setHeaderText(I18n.get("settings.import.error", e.getMessage()));
                 alert.setContentText(e.getMessage());
@@ -203,6 +207,7 @@ public class SettingsController {
 
     void showImportSuccess(HibiscusXmlImporter.ImportResult importResult) {
         Alert report = new Alert(Alert.AlertType.INFORMATION);
+        FintraxUI.configureDialog(report);
         report.setTitle(I18n.get("settings.import.success"));
         report.setHeaderText(I18n.get("settings.import.success"));
         report.setContentText(I18n.get("settings.import.result", importResult.toString()));
@@ -226,6 +231,7 @@ public class SettingsController {
     private void onResetData() {
         if (syncService.isSyncing()) {
             Alert alert = new Alert(Alert.AlertType.INFORMATION);
+            FintraxUI.configureDialog(alert);
             alert.setTitle(I18n.get("settings.reset.busy"));
             alert.setHeaderText(I18n.get("settings.reset.busy"));
             alert.setContentText(I18n.get("settings.reset.busy.desc"));
@@ -234,6 +240,7 @@ public class SettingsController {
         }
 
         Dialog<Set<ResetGroup>> dialog = new Dialog<>();
+        FintraxUI.configureDialog(dialog);
         dialog.setTitle(I18n.get("settings.reset.title"));
         dialog.setHeaderText(I18n.get("settings.reset.header"));
 
@@ -243,10 +250,11 @@ public class SettingsController {
 
         Label warning = new Label(I18n.get("settings.reset.warning"));
         warning.setWrapText(true);
-        warning.setStyle("-fx-text-fill: #b71c1c; -fx-font-weight: bold;");
+        warning.getStyleClass().add("danger-copy");
 
         Map<ResetGroup, CheckBox> choices = new LinkedHashMap<>();
         VBox content = new VBox(10, warning);
+        content.getStyleClass().add("dialog-content");
         addResetChoice(content, choices, ResetGroup.ACCOUNTS_TRANSACTIONS_HISTORY,
                 "settings.reset.accounts");
         addResetChoice(content, choices, ResetGroup.CATEGORIES_RULES_LABELS,
@@ -258,7 +266,11 @@ public class SettingsController {
 
         HBox selectionButtons = new HBox(10);
         Button selectAll = new Button(I18n.get("button.selectAll"));
+        selectAll.setGraphic(icon("fth-check-square", 14));
+        selectAll.getStyleClass().add("button-outlined");
         Button clearAll = new Button(I18n.get("button.clearAll"));
+        clearAll.setGraphic(icon("fth-x-square", 14));
+        clearAll.getStyleClass().add("button-outlined");
         selectionButtons.getChildren().addAll(selectAll, clearAll);
         content.getChildren().add(selectionButtons);
         dialog.getDialogPane().setContent(content);
@@ -288,6 +300,7 @@ public class SettingsController {
             loadCredentials();
 
             Alert alert = new Alert(Alert.AlertType.INFORMATION);
+            FintraxUI.configureDialog(alert);
             alert.setTitle(I18n.get("settings.reset.success"));
             alert.setHeaderText(I18n.get("settings.reset.success"));
             alert.setContentText(I18n.get("settings.reset.result"));
@@ -295,6 +308,7 @@ public class SettingsController {
         } catch (Exception e) {
             log.error("Reset failed", e);
             Alert alert = new Alert(Alert.AlertType.ERROR);
+            FintraxUI.configureDialog(alert);
             alert.setTitle(I18n.get("settings.reset.error"));
             alert.setHeaderText(I18n.get("settings.reset.error"));
             alert.setContentText(e.getMessage());
@@ -308,6 +322,13 @@ public class SettingsController {
         checkBox.setWrapText(true);
         choices.put(group, checkBox);
         content.getChildren().add(checkBox);
+    }
+
+    private FontIcon icon(String literal, int size) {
+        FontIcon icon = new FontIcon();
+        icon.setIconLiteral(literal);
+        icon.setIconSize(size);
+        return icon;
     }
 
     public static class CredentialRow {

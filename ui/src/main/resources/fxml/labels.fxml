@@ -15,36 +15,36 @@
 <?import javafx.scene.control.Separator?>
 <?import javafx.scene.control.SplitPane?>
 <?import javafx.geometry.Insets?>
+<?import org.kordamp.ikonli.javafx.FontIcon?>
 
 <BorderPane fx:id="rootPane" xmlns:fx="http://javafx.com/fxml"
-            fx:controller="org.fintrax.ui.controller.LabelsController">
+            fx:controller="org.fintrax.ui.controller.LabelsController" styleClass="view-root">
     <top>
-        <VBox spacing="5">
-            <padding>
-                <Insets top="20" right="20" bottom="10" left="20"/>
-            </padding>
+        <VBox styleClass="view-header">
             <HBox spacing="10" alignment="CENTER_LEFT">
-                <Label text="%view.labels" style="-fx-font-size: 24px; -fx-font-weight: bold;"/>
+                <Label text="%view.labels" styleClass="page-title"/>
                 <Region HBox.hgrow="ALWAYS"/>
-                <Button fx:id="addButton" text="%button.addLabel" onAction="#onAdd" styleClass="accent-button"/>
+                <Button fx:id="addButton" text="%button.addLabel" onAction="#onAdd" styleClass="accent-button">
+                    <graphic><FontIcon iconLiteral="fth-plus" iconSize="15"/></graphic>
+                </Button>
             </HBox>
-            <Label text="%subtitle.labels"/>
+            <Label text="%subtitle.labels" styleClass="view-subtitle"/>
         </VBox>
     </top>
     <center>
-        <SplitPane dividerPositions="0.6">
-            <TableView fx:id="labelTable">
+        <SplitPane dividerPositions="0.58" styleClass="content-split-pane">
+            <TableView fx:id="labelTable" styleClass="dense">
                 <columns>
                     <TableColumn fx:id="nameColumn" text="%label.name" prefWidth="150"/>
                     <TableColumn fx:id="colorColumn" text="%label.color" prefWidth="120"/>
                     <TableColumn fx:id="commentColumn" text="%label.comment" prefWidth="200"/>
                 </columns>
             </TableView>
-            <VBox spacing="10">
+            <VBox spacing="12" styleClass="editor-panel label-editor-panel">
                 <padding>
                     <Insets top="15" right="20" bottom="15" left="20"/>
                 </padding>
-                <Label text="%detail.labelEditor" style="-fx-font-size: 16px; -fx-font-weight: bold;"/>
+                <Label text="%detail.labelEditor" styleClass="section-heading"/>
                 <Separator/>
                 <GridPane hgap="10" vgap="10">
                     <columnConstraints>
@@ -60,8 +60,12 @@
                 </GridPane>
                 <Region VBox.vgrow="ALWAYS"/>
                 <HBox spacing="10" alignment="CENTER_RIGHT">
-                    <Button fx:id="deleteButton" text="%button.delete" onAction="#onDelete" disable="true" styleClass="delete-button"/>
-                    <Button fx:id="saveButton" text="%button.save" onAction="#onSave" disable="true" styleClass="accent-button"/>
+                    <Button fx:id="deleteButton" text="%button.delete" onAction="#onDelete" disable="true" styleClass="delete-button">
+                        <graphic><FontIcon iconLiteral="fth-trash-2" iconSize="14"/></graphic>
+                    </Button>
+                    <Button fx:id="saveButton" text="%button.save" onAction="#onSave" disable="true" styleClass="accent-button">
+                        <graphic><FontIcon iconLiteral="fth-save" iconSize="14"/></graphic>
+                    </Button>
                 </HBox>
             </VBox>
         </SplitPane>
