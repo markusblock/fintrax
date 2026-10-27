@@ -8,10 +8,8 @@ import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
-import javafx.scene.control.cell.CheckBoxListCell;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
-import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.util.StringConverter;
 import lombok.extern.slf4j.Slf4j;
@@ -19,6 +17,7 @@ import org.fintrax.config.I18n;
 import org.fintrax.model.*;
 import org.fintrax.service.*;
 import org.fintrax.store.StoreManager;
+import org.fintrax.ui.control.SearchableListPicker;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
@@ -81,9 +80,9 @@ public class TransactionsController {
     @FXML
     private TextField payeeField;
     @FXML
-    private ComboBox<String> detailCategoryCombo;
+    private Button detailCategoryButton;
     @FXML
-    private HBox labelsContainer;
+    private Button detailLabelsButton;
     @FXML
     private TextArea noteArea;
     @FXML
@@ -99,7 +98,8 @@ public class TransactionsController {
     private final ObservableList<Transaction> tableData = FXCollections.observableArrayList();
     private boolean detailVisible = false;
     private boolean updatingDateFilters;
-    private Map<Long, CheckBox> labelCheckBoxes = new HashMap<>();
+    private Long detailCategoryId;
+    private Set<Long> detailLabelIds = new HashSet<>();
 
     public TransactionsController(AccountService accountService, TransactionService transactionService,
                                   CategoryService categoryService, LabelService labelService,
@@ -131,6 +131,8 @@ public class TransactionsController {
         transactionTable.getSelectionModel().getSelectedItems().addListener(
                 (javafx.collections.ListChangeListener<Transaction>) change -> updateDetailEditingState());
         updateDetailEditingState();
+        detailCategoryButton.setOnAction(event -> chooseDetailCategory());
+        detailLabelsButton.setOnAction(event -> chooseDetailLabels());
         Platform.runLater(rootPane::applyCss);
     }
 
@@ -196,7 +198,7 @@ public class TransactionsController {
                     .collect(Collectors.joining(", "));
             return new SimpleStringProperty(text);
         });
-        labelsColumn.setCellFactory(column -> createAssignmentCell(this::onBulkLabelAdd));
+        labelsColumn.setCellFactory(column -> createAssignmentCell(this::onSetLabels));
     }
 
     private TableCell<Transaction, String> createAssignmentCell(Runnable openAssignmentDialog) {
@@ -234,11 +236,6 @@ public class TransactionsController {
         }
         categoryFilter.getSelectionModel().selectFirst();
 
-        detailCategoryCombo.getItems().clear();
-        detailCategoryCombo.getItems().add("");
-        for (Category category : categoryService.getAllCategories()) {
-            detailCategoryCombo.getItems().add(category.getName());
-        }
     }
 
     private void setupDateFilters() {
@@ -417,33 +414,55 @@ public class TransactionsController {
 
     private void loadDetail(Transaction transaction) {
         payeeField.setText(transaction.getPayeeDisplay() != null ? transaction.getPayeeDisplay() : "");
-
-        if (transaction.getCategoryId() != null) {
-            categoryService.getCategory(transaction.getCategoryId())
-                    .ifPresent(c -> detailCategoryCombo.setValue(c.getName()));
-        } else {
-            detailCategoryCombo.setValue("");
-        }
-
+        detailCategoryId = transaction.getCategoryId();
+        detailLabelIds = transaction.getLabelIds() == null
+                ? new HashSet<>()
+                : new HashSet<>(transaction.getLabelIds());
+        updateDetailAssignmentButtons();
         noteArea.setText(transaction.getNote() != null ? transaction.getNote() : "");
-
-        loadLabelCheckBoxes(transaction);
     }
 
-    private void loadLabelCheckBoxes(Transaction transaction) {
-        labelsContainer.getChildren().clear();
-        labelCheckBoxes.clear();
+    private void updateDetailAssignmentButtons() {
+        String categoryName = detailCategoryId == null ? I18n.get("picker.category.clear")
+                : categoryService.getCategory(detailCategoryId).map(Category::getName)
+                .orElse(I18n.get("picker.category.clear"));
+        detailCategoryButton.setText(categoryName);
 
-        List<org.fintrax.model.Label> allLabels = labelService.getAllLabels();
-        Set<Long> transactionLabelIds = transaction.getLabelIds() != null ? transaction.getLabelIds() : Set.of();
+        String labelNames = detailLabelIds.stream()
+                .map(labelService::getLabel)
+                .flatMap(Optional::stream)
+                .map(org.fintrax.model.Label::getName)
+                .sorted(String.CASE_INSENSITIVE_ORDER)
+                .collect(Collectors.joining(", "));
+        detailLabelsButton.setText(labelNames.isEmpty() ? I18n.get("picker.labels.choose") : labelNames);
+    }
 
-        for (org.fintrax.model.Label label : allLabels) {
-            CheckBox cb = new CheckBox(label.getName());
-            cb.setSelected(transactionLabelIds.contains(label.getId()));
-            cb.setStyle(label.getColor() != null ? "-fx-text-fill: " + label.getColor() + ";" : "");
-            labelCheckBoxes.put(label.getId(), cb);
-            labelsContainer.getChildren().add(cb);
-        }
+    private void chooseDetailCategory() {
+        Category selectedCategory = detailCategoryId == null
+                ? null
+                : categoryService.getCategory(detailCategoryId).orElse(null);
+        SearchableListPicker.chooseOne(rootPane.getScene().getWindow(), I18n.get("picker.category.title"),
+                categoryService.getAllCategories(),
+                selectedCategory, Category::getName,
+                "picker.category.create", name -> categoryService.createCategory(name, null, null))
+                .ifPresent(choice -> {
+                    detailCategoryId = choice.isEmpty() ? null : choice.get(0).getId();
+                    updateDetailAssignmentButtons();
+                });
+    }
+
+    private void chooseDetailLabels() {
+        List<org.fintrax.model.Label> selectedLabels = labelService.getAllLabels().stream()
+                .filter(label -> detailLabelIds.contains(label.getId()))
+                .toList();
+        SearchableListPicker.chooseMany(rootPane.getScene().getWindow(), I18n.get("picker.labels.title"),
+                labelService.getAllLabels(), selectedLabels, org.fintrax.model.Label::getName,
+                "picker.labels.create", name -> labelService.createLabel(name, "#1976d2", null))
+                .ifPresent(labels -> {
+                    detailLabelIds = labels.stream().map(org.fintrax.model.Label::getId)
+                            .collect(Collectors.toCollection(HashSet::new));
+                    updateDetailAssignmentButtons();
+                });
     }
 
     @FXML
@@ -457,23 +476,8 @@ public class TransactionsController {
             transactionService.updatePayeeDisplay(selected.getId(), payee);
         }
 
-        String catName = detailCategoryCombo.getValue();
-        if (catName != null && !catName.isEmpty()) {
-            Long catId = categoryService.getAllCategories().stream()
-                    .filter(c -> c.getName().equals(catName))
-                    .map(Category::getId)
-                    .findFirst()
-                    .orElse(null);
-            transactionService.updateCategory(selected.getId(), catId);
-        } else {
-            transactionService.updateCategory(selected.getId(), null);
-        }
-
-        Set<Long> selectedLabelIds = labelCheckBoxes.entrySet().stream()
-                .filter(e -> e.getValue().isSelected())
-                .map(Map.Entry::getKey)
-                .collect(Collectors.toSet());
-        transactionService.updateLabels(selected.getId(), selectedLabelIds);
+        transactionService.updateCategory(selected.getId(), detailCategoryId);
+        transactionService.updateLabels(selected.getId(), detailLabelIds);
 
         String note = noteArea.getText().trim();
         transactionService.updateNote(selected.getId(), note.isEmpty() ? null : note);
@@ -489,14 +493,8 @@ public class TransactionsController {
     }
 
     @FXML
-    private void onBulkLabelAdd() {
-        transactionTableActions.addLabel(
-                transactionTable, rootPane, this::reloadTransactionsKeepingSelection);
-    }
-
-    @FXML
-    private void onBulkLabelRemove() {
-        transactionTableActions.removeLabel(
+    private void onSetLabels() {
+        transactionTableActions.setLabels(
                 transactionTable, rootPane, this::reloadTransactionsKeepingSelection);
     }
 
