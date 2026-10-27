@@ -544,14 +544,6 @@ public class TransactionsController {
                 columnMenuButton, COLUMN_CONFIG_KEY, settingsService, columnConfigurations());
     }
 
-    private TableColumn<?, ?> findColumn(String name) {
-        return columnConfigurations().stream()
-                .filter(config -> config.key().equals(name))
-                .map(TableColumnVisibilityMenu.Column::column)
-                .findFirst()
-                .orElse(null);
-    }
-
     private List<TableColumnVisibilityMenu.Column> columnConfigurations() {
         return List.of(
                 new TableColumnVisibilityMenu.Column("date", dateColumn),
