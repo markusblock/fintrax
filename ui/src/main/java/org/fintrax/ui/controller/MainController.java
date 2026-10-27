@@ -32,11 +32,9 @@ public class MainController {
     @FXML
     private Button transactionsButton;
     @FXML
-    private Button categoriesButton;
+    private Button classificationsButton;
     @FXML
     private Button rulesButton;
-    @FXML
-    private Button labelsButton;
     @FXML
     private Button activityLogButton;
     @FXML
@@ -61,9 +59,8 @@ public class MainController {
     public void refreshLocale() {
         bankAccountsButton.setText(I18n.get("view.bankAccounts"));
         transactionsButton.setText(I18n.get("view.transactions"));
-        categoriesButton.setText(I18n.get("view.categories"));
+        classificationsButton.setText(I18n.get("view.classifications"));
         rulesButton.setText(I18n.get("view.rules"));
-        labelsButton.setText(I18n.get("view.labels"));
         activityLogButton.setText(I18n.get("view.activityLog"));
         settingsButton.setText(I18n.get("view.settings"));
     }
@@ -89,18 +86,13 @@ public class MainController {
     }
 
     @FXML
-    private void onCategories() {
-        loadView("categories");
+    private void onClassifications() {
+        loadView("classifications");
     }
 
     @FXML
     private void onRules() {
         loadView("rules");
-    }
-
-    @FXML
-    private void onLabels() {
-        loadView("labels");
     }
 
     @FXML
@@ -130,17 +122,16 @@ public class MainController {
         Button activeButton = switch (viewName) {
             case "bankAccounts" -> bankAccountsButton;
             case "transactions" -> transactionsButton;
-            case "categories" -> categoriesButton;
+            case "classifications" -> classificationsButton;
             case "rules" -> rulesButton;
-            case "labels" -> labelsButton;
             case "activityLog" -> activityLogButton;
             case "settings" -> settingsButton;
             default -> null;
         };
 
         for (Button button : new Button[]{
-                bankAccountsButton, transactionsButton, categoriesButton, rulesButton,
-                labelsButton, activityLogButton, settingsButton}) {
+                bankAccountsButton, transactionsButton, classificationsButton, rulesButton,
+                activityLogButton, settingsButton}) {
             button.getStyleClass().remove("active");
         }
         if (activeButton != null) {

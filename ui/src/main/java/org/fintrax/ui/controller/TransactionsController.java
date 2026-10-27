@@ -1,6 +1,7 @@
 package org.fintrax.ui.controller;
 
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
@@ -8,7 +9,9 @@ import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import javafx.util.StringConverter;
@@ -17,6 +20,7 @@ import org.fintrax.config.I18n;
 import org.fintrax.model.*;
 import org.fintrax.service.*;
 import org.fintrax.store.StoreManager;
+import org.fintrax.ui.control.LabelChipFactory;
 import org.fintrax.ui.control.SearchableListPicker;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
@@ -198,7 +202,7 @@ public class TransactionsController {
                     .collect(Collectors.joining(", "));
             return new SimpleStringProperty(text);
         });
-        labelsColumn.setCellFactory(column -> createAssignmentCell(this::onSetLabels));
+        labelsColumn.setCellFactory(column -> createLabelChipCell(this::onSetLabels));
     }
 
     private TableCell<Transaction, String> createAssignmentCell(Runnable openAssignmentDialog) {
@@ -209,7 +213,39 @@ public class TransactionsController {
                 setText(empty ? null : item);
             }
         };
-        cell.setOnMouseClicked(event -> {
+        installAssignmentHandler(cell, openAssignmentDialog);
+        return cell;
+    }
+
+    private TableCell<Transaction, String> createLabelChipCell(Runnable openAssignmentDialog) {
+        TableCell<Transaction, String> cell = new TableCell<>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(null);
+                if (getGraphic() instanceof HBox previous) previous.prefWidthProperty().unbind();
+                Transaction transaction = getTableRow() == null ? null : getTableRow().getItem();
+                if (empty || transaction == null || transaction.getLabelIds() == null) {
+                    setGraphic(null);
+                    return;
+                }
+
+                List<org.fintrax.model.Label> labels = transaction.getLabelIds().stream()
+                        .map(labelService::getLabel)
+                        .flatMap(Optional::stream)
+                        .toList();
+                HBox chips = LabelChipFactory.createAll(labels);
+                chips.prefWidthProperty().bind(Bindings.max(0, labelsColumn.widthProperty().subtract(12)));
+                setGraphic(chips.getChildren().isEmpty() ? null : chips);
+            }
+        };
+        installAssignmentHandler(cell, openAssignmentDialog);
+        return cell;
+    }
+
+    private void installAssignmentHandler(TableCell<Transaction, String> cell,
+                                          Runnable openAssignmentDialog) {
+        cell.addEventFilter(MouseEvent.MOUSE_CLICKED, event -> {
             if (event.getClickCount() == 2 && !cell.isEmpty()) {
                 if (!transactionTable.getSelectionModel().isSelected(cell.getIndex())) {
                     transactionTable.getSelectionModel().clearAndSelect(cell.getIndex());
@@ -217,7 +253,6 @@ public class TransactionsController {
                 openAssignmentDialog.run();
             }
         });
-        return cell;
     }
 
     private void loadFilterOptions() {

@@ -30,14 +30,11 @@
             <Button fx:id="transactionsButton" onAction="#onTransactions" maxWidth="Infinity" styleClass="sidebar-button">
                 <graphic><FontIcon iconLiteral="fth-list" iconSize="16"/></graphic>
             </Button>
-            <Button fx:id="categoriesButton" onAction="#onCategories" maxWidth="Infinity" styleClass="sidebar-button">
+            <Button fx:id="classificationsButton" onAction="#onClassifications" maxWidth="Infinity" styleClass="sidebar-button">
                 <graphic><FontIcon iconLiteral="fth-folder" iconSize="16"/></graphic>
             </Button>
             <Button fx:id="rulesButton" onAction="#onRules" maxWidth="Infinity" styleClass="sidebar-button">
                 <graphic><FontIcon iconLiteral="fth-filter" iconSize="16"/></graphic>
-            </Button>
-            <Button fx:id="labelsButton" onAction="#onLabels" maxWidth="Infinity" styleClass="sidebar-button">
-                <graphic><FontIcon iconLiteral="fth-tag" iconSize="16"/></graphic>
             </Button>
             <Button fx:id="activityLogButton" onAction="#onActivityLog" maxWidth="Infinity" styleClass="sidebar-button">
                 <graphic><FontIcon iconLiteral="fth-activity" iconSize="16"/></graphic>

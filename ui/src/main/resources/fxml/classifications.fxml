@@ -10,28 +10,29 @@
 <?import javafx.geometry.Insets?>
 
 <BorderPane fx:id="rootPane" xmlns:fx="http://javafx.com/fxml"
-            fx:controller="org.fintrax.ui.controller.CategoriesController" styleClass="view-root">
+            fx:controller="org.fintrax.ui.controller.ClassificationsController" styleClass="view-root">
     <top>
         <VBox styleClass="view-header">
-            <Label text="%view.categories" styleClass="page-title"/>
-            <Label text="%subtitle.categories" styleClass="view-subtitle"/>
+            <Label text="%view.classifications" styleClass="page-title"/>
+            <Label text="%subtitle.classifications" styleClass="view-subtitle"/>
         </VBox>
     </top>
     <center>
         <SplitPane dividerPositions="0.32" styleClass="content-split-pane">
-            <TreeView fx:id="categoryTree" styleClass="category-tree"/>
+            <TreeView fx:id="classificationTree" styleClass="category-tree"/>
             <VBox fx:id="categoryTransactionsPanel" spacing="12" styleClass="content-panel">
                 <padding>
                     <Insets top="15" right="20" bottom="15" left="20"/>
                 </padding>
                 <Label text="%view.transactions" styleClass="section-heading"/>
-                <TableView fx:id="categoryTransactionsTable" styleClass="dense" VBox.vgrow="ALWAYS">
+                <TableView fx:id="classificationTransactionsTable" styleClass="dense" VBox.vgrow="ALWAYS">
                     <columns>
                         <TableColumn fx:id="transactionDateColumn" text="%col.date" minWidth="100" prefWidth="105" sortable="true"/>
                         <TableColumn fx:id="transactionPayeeColumn" text="%col.payee" minWidth="85" prefWidth="115" sortable="true"/>
                         <TableColumn fx:id="transactionPurposeColumn" text="%col.purpose" minWidth="95" prefWidth="135" sortable="true"/>
                         <TableColumn fx:id="transactionAmountColumn" text="%col.amount" minWidth="80" prefWidth="95" sortable="true"/>
                         <TableColumn fx:id="transactionCategoryColumn" text="%col.category" minWidth="95" prefWidth="115" sortable="true"/>
+                        <TableColumn fx:id="transactionLabelsColumn" text="%col.labels" minWidth="90" prefWidth="120" sortable="true"/>
                     </columns>
                 </TableView>
             </VBox>

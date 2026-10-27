@@ -138,7 +138,7 @@ public final class SearchableListPicker {
         ListView<T> optionsList = createList(options, displayText);
         Button createButton = createButton();
         Label errorLabel = createErrorLabel();
-        FlowPane selectedPane = new FlowPane(6, 6);
+        FlowPane selectedPane = new FlowPane(2, 2);
         selectedPane.setId("selectedLabelsPane");
         selectedPane.setPadding(new Insets(2, 0, 4, 0));
         List<T> selected = new ArrayList<>(initiallySelected);
@@ -166,8 +166,13 @@ public final class SearchableListPicker {
                     }
                     renderSelected(selectedPane, selected, displayText, optionsList);
                 });
-                setText(displayText.apply(item));
-                setGraphic(checkBox);
+                HBox option = new HBox(8, checkBox, labelDisplay(item, displayText));
+                option.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+                option.setOnMouseClicked(event -> {
+                    if (event.getTarget() != checkBox) checkBox.fire();
+                });
+                setText(null);
+                setGraphic(option);
             }
         });
         createButton.setOnAction(event -> {
@@ -276,11 +281,11 @@ public final class SearchableListPicker {
                                            Function<T, String> displayText, ListView<T> optionsList) {
         selectedPane.getChildren().clear();
         for (T item : List.copyOf(selected)) {
-            Label name = new Label(displayText.apply(item));
+            Node name = labelDisplay(item, displayText);
             Button remove = new Button("×");
             remove.setAccessibleText(I18n.get("picker.remove", displayText.apply(item)));
             remove.getStyleClass().add("selection-chip-remove");
-            HBox chip = new HBox(4, name, remove);
+            HBox chip = new HBox(1, name, remove);
             chip.getStyleClass().add("selection-chip");
             remove.setOnAction(event -> {
                 selected.remove(item);
@@ -289,6 +294,13 @@ public final class SearchableListPicker {
             selectedPane.getChildren().add(chip);
         }
         optionsList.refresh();
+    }
+
+    private static <T> Node labelDisplay(T item, Function<T, String> displayText) {
+        if (item instanceof org.fintrax.model.Label label) {
+            return LabelChipFactory.create(label);
+        }
+        return new Label(displayText.apply(item));
     }
 
     private static void showCreationError(Label errorLabel, RuntimeException exception) {
