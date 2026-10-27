@@ -37,6 +37,8 @@ public class TransactionsController {
     private static final double TABLE_DIVIDER_WITH_DETAILS = 0.7;
     private static final double TABLE_DIVIDER_WITHOUT_DETAILS = 1.0;
 
+    private record ColumnConfig(String key, TableColumn<?, ?> column) {}
+
     @FXML
     private BorderPane rootPane;
     @FXML
@@ -528,13 +530,7 @@ public class TransactionsController {
     }
 
     private void setupColumnMenu() {
-        addColumnMenuItem(dateColumn);
-        addColumnMenuItem(payeeColumn);
-        addColumnMenuItem(purposeColumn);
-        addColumnMenuItem(amountColumn);
-        addColumnMenuItem(balanceColumn);
-        addColumnMenuItem(categoryColumn);
-        addColumnMenuItem(labelsColumn);
+        columnConfigurations().forEach(config -> addColumnMenuItem(config.column()));
     }
 
     private void addColumnMenuItem(TableColumn<?, ?> column) {
@@ -550,32 +546,33 @@ public class TransactionsController {
     }
 
     private TableColumn<?, ?> findColumn(String name) {
-        return switch (name) {
-            case "date" -> dateColumn;
-            case "payee" -> payeeColumn;
-            case "purpose" -> purposeColumn;
-            case "amount" -> amountColumn;
-            case "balance" -> balanceColumn;
-            case "category" -> categoryColumn;
-            case "labels" -> labelsColumn;
-            default -> null;
-        };
+        return columnConfigurations().stream()
+                .filter(config -> config.key().equals(name))
+                .map(ColumnConfig::column)
+                .findFirst()
+                .orElse(null);
     }
 
     public void saveColumnConfig() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("date=").append(dateColumn.isVisible());
-        sb.append(",payee=").append(payeeColumn.isVisible());
-        sb.append(",purpose=").append(purposeColumn.isVisible());
-        sb.append(",amount=").append(amountColumn.isVisible());
-        sb.append(",balance=").append(balanceColumn.isVisible());
-        sb.append(",category=").append(categoryColumn.isVisible());
-        sb.append(",labels=").append(labelsColumn.isVisible());
+        String value = columnConfigurations().stream()
+                .map(config -> config.key() + "=" + config.column().isVisible())
+                .collect(Collectors.joining(","));
 
         AppSetting setting = storeManager.getRoot().getSettings().computeIfAbsent(
                 COLUMN_CONFIG_KEY, k -> AppSetting.builder().key(k).build());
-        setting.setValue(sb.toString());
+        setting.setValue(value);
         storeManager.store(setting);
         storeManager.store(storeManager.getRoot().getSettings());
+    }
+
+    private List<ColumnConfig> columnConfigurations() {
+        return List.of(
+                new ColumnConfig("date", dateColumn),
+                new ColumnConfig("payee", payeeColumn),
+                new ColumnConfig("purpose", purposeColumn),
+                new ColumnConfig("amount", amountColumn),
+                new ColumnConfig("balance", balanceColumn),
+                new ColumnConfig("category", categoryColumn),
+                new ColumnConfig("labels", labelsColumn));
     }
 }
