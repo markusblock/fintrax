@@ -2,6 +2,7 @@ package org.fintrax.ui;
 
 import javafx.application.Platform;
 import javafx.event.Event;
+import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
@@ -193,10 +194,38 @@ class TransactionsControllerTest extends AbstractUITest {
     @Test
     void labelsActionOpensSearchablePickerWithCurrentLabels() throws TimeoutException {
         TableView<Transaction> table = lookup("#transactionTable").query();
-        openPickerFromContextMenu(table, 0, 1);
+        int selectedIndex = indexOfTransactionWithLabels(table);
+        Transaction selected = table.getItems().get(selectedIndex);
+        org.fintrax.model.Label label = applicationContext.getBean(LabelService.class)
+                .getLabel(selected.getLabelIds().iterator().next()).orElseThrow();
+        openPickerFromContextMenu(table, selectedIndex, 1);
 
         assertNotNull(lookup("#pickerSearch").query());
-        assertTrue(lookup("#selectedLabelsPane").<FlowPane>query().getChildren().size() > 0);
+        FlowPane selectedPane = lookup("#selectedLabelsPane").query();
+        assertTrue(selectedPane.getChildren().size() > 0);
+        HBox selectedChip = (HBox) selectedPane.getChildren().getFirst();
+        javafx.scene.control.Label selectedLabelChip =
+                (javafx.scene.control.Label) selectedChip.getChildren().getFirst();
+        assertEquals(label.getName(), selectedLabelChip.getText());
+        assertEquals(new Insets(2, 7, 2, 7), selectedLabelChip.getPadding());
+        assertEquals(javafx.scene.paint.Color.web(label.getColor()),
+                selectedLabelChip.getBackground().getFills().getFirst().getFill());
+
+        interact(() -> lookup("#pickerSearch").<javafx.scene.control.TextField>query().setText(label.getName()));
+        javafx.scene.control.ListView<org.fintrax.model.Label> options = lookup("#pickerList").query();
+        WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS, () -> options.getItems().size() == 1);
+        javafx.scene.control.ListCell<org.fintrax.model.Label> optionCell = options.lookupAll(".list-cell").stream()
+                .filter(javafx.scene.control.ListCell.class::isInstance)
+                .map(node -> (javafx.scene.control.ListCell<org.fintrax.model.Label>) node)
+                .filter(cell -> !cell.isEmpty() && label.getId().equals(cell.getItem().getId()))
+                .findFirst()
+                .orElseThrow();
+        HBox optionContent = (HBox) optionCell.getGraphic();
+        javafx.scene.control.Label optionLabelChip =
+                (javafx.scene.control.Label) optionContent.getChildren().get(1);
+        assertEquals(label.getName(), optionLabelChip.getText());
+        assertEquals(javafx.scene.paint.Color.web(label.getColor()),
+                optionLabelChip.getBackground().getFills().getFirst().getFill());
         interact(lookup("#pickerCancel").<Button>query()::fire);
     }
 
@@ -396,7 +425,8 @@ class TransactionsControllerTest extends AbstractUITest {
         javafx.scene.control.ListView<Category> categoryList = lookup("#pickerList").query();
         Category currentCategory = applicationContext.getBean(CategoryService.class)
                 .getCategory(selected.getCategoryId()).orElseThrow();
-        clickOn("#pickerSearch").write(currentCategory.getName());
+        interact(() -> lookup("#pickerSearch").<javafx.scene.control.TextField>query()
+                .setText(currentCategory.getName()));
         WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS,
                 () -> categoryList.getItems().size() == 1);
         javafx.scene.control.ListCell<Category> selectedCell = categoryList.lookupAll(".list-cell").stream()
@@ -486,6 +516,14 @@ class TransactionsControllerTest extends AbstractUITest {
             if (table.getItems().get(index).getCategoryId() != null) return index;
         }
         throw new AssertionError("Expected transaction with category");
+    }
+
+    private int indexOfTransactionWithLabels(TableView<Transaction> table) {
+        for (int index = 0; index < table.getItems().size(); index++) {
+            Set<Long> labelIds = table.getItems().get(index).getLabelIds();
+            if (labelIds != null && !labelIds.isEmpty()) return index;
+        }
+        throw new AssertionError("Expected transaction with labels");
     }
 
     private void acceptBulkEditDialog() {

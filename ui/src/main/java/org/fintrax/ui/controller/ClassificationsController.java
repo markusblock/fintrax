@@ -9,6 +9,7 @@ import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
 import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.FlowPane;
@@ -209,7 +210,7 @@ public class ClassificationsController {
     }
 
     private void installAssignmentHandler(TableCell<Transaction, String> cell, Runnable openSelection) {
-        cell.setOnMouseClicked(event -> {
+        cell.addEventFilter(MouseEvent.MOUSE_CLICKED, event -> {
             if (event.getButton() != MouseButton.PRIMARY || event.getClickCount() != 2 || cell.isEmpty()) {
                 return;
             }

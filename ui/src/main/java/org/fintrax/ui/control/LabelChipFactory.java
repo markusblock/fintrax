@@ -32,9 +32,10 @@ public final class LabelChipFactory {
         Label chip = new Label(label.getName());
         chip.getStyleClass().add("label-chip");
         chip.setMouseTransparent(true);
+        chip.setPadding(new Insets(2, 7, 2, 7));
         chip.setTextFill(contrastingTextColor(color));
         chip.setBackground(new Background(new BackgroundFill(
-                color, new CornerRadii(9), new Insets(2, 7, 2, 7))));
+                color, new CornerRadii(9), Insets.EMPTY)));
         return chip;
     }
 

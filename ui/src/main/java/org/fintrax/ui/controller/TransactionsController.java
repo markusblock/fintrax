@@ -8,6 +8,7 @@ import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
@@ -241,7 +242,7 @@ public class TransactionsController {
 
     private void installAssignmentHandler(TableCell<Transaction, String> cell,
                                           Runnable openAssignmentDialog) {
-        cell.setOnMouseClicked(event -> {
+        cell.addEventFilter(MouseEvent.MOUSE_CLICKED, event -> {
             if (event.getClickCount() == 2 && !cell.isEmpty()) {
                 if (!transactionTable.getSelectionModel().isSelected(cell.getIndex())) {
                     transactionTable.getSelectionModel().clearAndSelect(cell.getIndex());
