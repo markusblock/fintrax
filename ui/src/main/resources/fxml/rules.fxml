@@ -31,9 +31,6 @@
                 <Button text="%button.moveDown" onAction="#onMoveDown" styleClass="button-outlined">
                     <graphic><FontIcon iconLiteral="fth-arrow-down" iconSize="14"/></graphic>
                 </Button>
-                <Button text="%button.toggle" onAction="#onToggleEnabled" styleClass="button-outlined">
-                    <graphic><FontIcon iconLiteral="fth-toggle-right" iconSize="14"/></graphic>
-                </Button>
                 <Button fx:id="applyAllButton" text="%button.applyAll" onAction="#onApplyAll" styleClass="button-outlined">
                     <graphic><FontIcon iconLiteral="fth-play" iconSize="14"/></graphic>
                 </Button>
