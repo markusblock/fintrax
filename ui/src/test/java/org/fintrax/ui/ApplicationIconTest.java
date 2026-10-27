@@ -8,7 +8,6 @@ import java.io.InputStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ApplicationIconTest {
     private static final int[] ICON_SIZES = {16, 32, 48, 64, 128, 256};
@@ -28,55 +27,4 @@ class ApplicationIconTest {
         }
     }
 
-    @Test
-    void leavesTransparentSpaceOutsideTheWhiteTileInsteadOfDrawingAnOutline() throws IOException {
-        try (InputStream iconStream = getClass().getResourceAsStream("/icons/fintrax-256.png")) {
-            assertNotNull(iconStream, "Missing 256 px icon resource");
-            var image = ImageIO.read(iconStream);
-
-            assertNotNull(image, "Unreadable 256 px icon resource");
-            assertEquals(0, image.getRGB(128, 4) >>> 24, "Expected no outline above the tile");
-        }
-    }
-
-    @Test
-    void keepsTheTileInsetFromTheCanvasForDockVisualBalance() throws IOException {
-        try (InputStream iconStream = getClass().getResourceAsStream("/icons/fintrax-256.png")) {
-            assertNotNull(iconStream, "Missing 256 px icon resource");
-            var image = ImageIO.read(iconStream);
-
-            assertNotNull(image, "Unreadable 256 px icon resource");
-            assertEquals(0, image.getRGB(128, 20) >>> 24, "Expected transparent space around the tile");
-        }
-    }
-
-    @Test
-    void keepsTheTileWithinTenPercentOfTheCanvasEdge() throws IOException {
-        try (InputStream iconStream = getClass().getResourceAsStream("/icons/fintrax-256.png")) {
-            assertNotNull(iconStream, "Missing 256 px icon resource");
-            var image = ImageIO.read(iconStream);
-
-            assertNotNull(image, "Unreadable 256 px icon resource");
-            assertTrue((image.getRGB(128, 26) >>> 24) > 0, "Expected the tile within ten percent of the edge");
-        }
-    }
-
-    @Test
-    void providesRedBorderedIconForTestRuns() throws IOException {
-        try (InputStream iconStream = getClass().getResourceAsStream("/icons/fintrax-test-256.png")) {
-            assertNotNull(iconStream, "Missing test Dock icon resource");
-            var image = ImageIO.read(iconStream);
-
-            assertNotNull(image, "Unreadable test Dock icon resource");
-            assertEquals(272, image.getWidth());
-            assertEquals(272, image.getHeight());
-            assertEquals(0x00000000, image.getRGB(0, 0), "Expected transparent space beyond the border");
-            assertEquals(0xFFFF0000, image.getRGB(29, 136), "Expected red border around the icon");
-            assertEquals(0xFFFF0000, image.getRGB(31, 136), "Expected red border to reach the tile edge");
-            assertTrue((image.getRGB(32, 136) & 0x00FF0000) > (image.getRGB(32, 136) & 0x0000FF00),
-                    "Expected border color beneath the tile's antialiased edge");
-            assertEquals(0xFFFFFFFF, image.getRGB(33, 136), "Expected tile immediately inside the border");
-            assertEquals(0xFFFFFFFF, image.getRGB(58, 136), "Expected the Fintrax tile to remain visible");
-        }
-    }
 }

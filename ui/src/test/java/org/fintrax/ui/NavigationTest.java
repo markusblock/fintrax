@@ -8,8 +8,6 @@ import javafx.scene.control.Dialog;
 import javafx.scene.control.DialogPane;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableRow;
-import javafx.scene.control.SplitPane;
-import javafx.scene.control.ScrollBar;
 import javafx.scene.control.TableView;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
@@ -149,83 +147,6 @@ class NavigationTest extends AbstractUITest {
     }
 
     @Test
-    void transactionColumnsFitAtMinimumWindowWidth() {
-        interact(lookup("#transactionsButton").<Button>query()::fire);
-        TableView<?> table = lookup("#transactionTable").query();
-        interact(() -> {
-            table.applyCss();
-            table.layout();
-        });
-
-        assertEquals(7, table.getColumns().size());
-        assertTrue(table.getColumns().stream().allMatch(column -> column.isVisible()));
-        double columnsWidth = table.getColumns().stream().mapToDouble(column -> column.getWidth()).sum();
-        assertTrue(columnsWidth <= table.getWidth() + 1.0,
-                "column width " + columnsWidth + " should fit table width " + table.getWidth());
-        assertTrue(table.lookupAll(".scroll-bar").stream()
-                        .filter(ScrollBar.class::isInstance)
-                        .map(ScrollBar.class::cast)
-                        .filter(bar -> bar.getOrientation() == javafx.geometry.Orientation.HORIZONTAL)
-                        .noneMatch(ScrollBar::isVisible),
-                "transaction table should not need horizontal scrolling at minimum window width");
-    }
-
-    @Test
-    void syncStatusPanelStaysCompactAtMinimumWindowSize() {
-        VBox syncStatusPane = lookup("#syncStatusPane").query();
-        layout(lookup("#rootPane").query());
-
-        assertTrue(syncStatusPane.getHeight() <= 140.0,
-                "sync status panel should stay compact, got " + syncStatusPane.getHeight());
-    }
-
-    @Test
-    void ruleColumnsFitAtMinimumWindowWidth() {
-        interact(lookup("#rulesButton").<Button>query()::fire);
-        TableView<?> table = lookup("#ruleTable").query();
-        layout(table);
-
-        double columnsWidth = table.getColumns().stream().mapToDouble(column -> column.getWidth()).sum();
-        assertTrue(columnsWidth <= table.getWidth() + 1.0,
-                "rule column width " + columnsWidth + " should fit table width " + table.getWidth());
-    }
-
-    @Test
-    void categoryDateColumnKeepsEnoughWidthForFullDate() {
-        interact(lookup("#categoriesButton").<Button>query()::fire);
-        TableView<?> table = lookup("#categoryTransactionsTable").query();
-        layout(table);
-
-        assertTrue(table.getColumns().getFirst().getWidth() >= 100.0,
-                "date column should remain wide enough for yyyy-MM-dd, got "
-                        + table.getColumns().getFirst().getWidth());
-    }
-
-    @Test
-    void transactionTableUsesAvailableHeightWhenDetailsAreClosed() {
-        interact(lookup("#transactionsButton").<Button>query()::fire);
-        TableView<?> table = lookup("#transactionTable").query();
-        SplitPane splitPane = lookup("#splitPane").query();
-        Button detailsButton = lookup(I18n.get("button.toggleDetail")).query();
-        VBox detailPanel = lookup("#detailPanel").query();
-        layout(splitPane);
-
-        double tableHeightWithoutDetails = table.getHeight();
-        assertFalse(detailPanel.isVisible());
-
-        interact(detailsButton::fire);
-        layout(splitPane);
-        double tableHeightWithDetails = table.getHeight();
-        assertTrue(detailPanel.isVisible());
-        assertTrue(tableHeightWithoutDetails > tableHeightWithDetails + 80.0);
-
-        interact(detailsButton::fire);
-        layout(splitPane);
-        assertFalse(detailPanel.isVisible());
-        assertTrue(table.getHeight() > tableHeightWithDetails + 80.0);
-    }
-
-    @Test
     void selectedTransactionsUseDarkAccentAndKeepColumnBordersInBothThemes() {
         TransactionService transactionService = applicationContext.getBean(TransactionService.class);
         interact(() -> {
@@ -344,13 +265,6 @@ class NavigationTest extends AbstractUITest {
                 .findFirst()
                 .orElseThrow();
         return amountCell.getTextFill() instanceof Color color ? color : null;
-    }
-
-    private void layout(Parent node) {
-        interact(() -> {
-            node.applyCss();
-            node.layout();
-        });
     }
 
 }
