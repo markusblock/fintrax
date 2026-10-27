@@ -405,13 +405,6 @@ public class RulesController {
         });
     }
 
-    @FXML
-    private void onToggleEnabled() {
-        Rule selected = ruleTable.getSelectionModel().getSelectedItem();
-        if (selected == null) return;
-        toggleRule(selected);
-    }
-
     private void toggleRule(Rule rule) {
         Long ruleId = rule.getId();
         editingNew = false;

@@ -113,6 +113,14 @@ class RulesControllerTest extends AbstractUITest {
     }
 
     @Test
+    void rulesToolbarShowsActionsWithoutToggleButton() {
+        assertEquals(List.of(I18n.get("button.addRule"), I18n.get("button.moveUp"),
+                        I18n.get("button.moveDown"), I18n.get("button.applyAll")),
+                lookup(".view-header .button").queryAll().stream()
+                        .map(node -> ((Button) node).getText()).toList());
+    }
+
+    @Test
     void rulesTableShowsPriorityNameDisabledStyleAndPerRuleCommands() {
         TableView<Rule> ruleTable = lookup("#ruleTable").query();
 
