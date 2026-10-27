@@ -237,7 +237,7 @@ class NavigationTest extends AbstractUITest {
             transactionService.createTransaction(Transaction.builder()
                     .originalPayee("Border sample two")
                     .bookingDate(LocalDate.of(2026, 10, 20))
-                    .amount(new BigDecimal("-20.00"))
+                    .amount(new BigDecimal("20.00"))
                     .build());
         });
         interact(lookup("#transactionsButton").<Button>query()::fire);
@@ -257,8 +257,14 @@ class NavigationTest extends AbstractUITest {
                 table.getScene().getRoot().applyCss();
                 table.getScene().getRoot().layout();
                 stripedSelectionColors[colorIndex / 2] = rowBackground(table, 1);
+                assertEquals(Color.WHITE, amountCellTextColor(table, 1, "amount-positive"),
+                        "positive amount text should be white in selected rows");
                 table.getSelectionModel().clearSelection();
                 table.getSelectionModel().select(0);
+                table.getScene().getRoot().applyCss();
+                table.getScene().getRoot().layout();
+                assertEquals(Color.WHITE, amountCellTextColor(table, 0, "amount-negative"),
+                        "negative amount text should be white in selected rows");
                 borderColors[colorIndex] = rightBorderColor(table, 0);
                 borderColors[colorIndex + 1] = rightBorderColor(table, 1);
             });
@@ -322,6 +328,22 @@ class NavigationTest extends AbstractUITest {
                 .findFirst()
                 .orElseThrow();
         return (Color) row.getBackground().getFills().getLast().getFill();
+    }
+
+    private Color amountCellTextColor(TableView<?> table, int rowIndex, String amountStyleClass) {
+        TableRow<?> row = table.lookupAll(".table-row-cell").stream()
+                .filter(TableRow.class::isInstance)
+                .map(node -> (TableRow<?>) node)
+                .filter(candidate -> !candidate.isEmpty() && candidate.getIndex() == rowIndex)
+                .findFirst()
+                .orElseThrow();
+        TableCell<?, ?> amountCell = row.lookupAll(".table-cell").stream()
+                .filter(TableCell.class::isInstance)
+                .map(node -> (TableCell<?, ?>) node)
+                .filter(cell -> cell.getStyleClass().contains(amountStyleClass))
+                .findFirst()
+                .orElseThrow();
+        return amountCell.getTextFill() instanceof Color color ? color : null;
     }
 
     private void layout(Parent node) {

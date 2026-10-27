@@ -305,6 +305,10 @@
     -fx-background-color: -color-cell-border, -color-cell-bg-selected;
 }
 
+.table-view .table-row-cell:filled:selected .table-cell {
+    -fx-text-fill: white;
+}
+
 .theme-dark .table-view {
     -fx-table-cell-border-color: #252a30;
     -fx-table-header-border-color: #252a30;
