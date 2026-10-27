@@ -203,7 +203,10 @@ class TransactionsControllerTest extends AbstractUITest {
         assertNotNull(lookup("#pickerSearch").query());
         FlowPane selectedPane = lookup("#selectedLabelsPane").query();
         assertTrue(selectedPane.getChildren().size() > 0);
+        assertEquals(3, selectedPane.getHgap());
+        assertEquals(3, selectedPane.getVgap());
         HBox selectedChip = (HBox) selectedPane.getChildren().getFirst();
+        assertEquals(2, selectedChip.getSpacing());
         javafx.scene.control.Label selectedLabelChip =
                 (javafx.scene.control.Label) selectedChip.getChildren().getFirst();
         assertEquals(label.getName(), selectedLabelChip.getText());
