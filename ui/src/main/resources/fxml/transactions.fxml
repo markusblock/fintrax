@@ -62,7 +62,7 @@
                     <Region HBox.hgrow="ALWAYS"/>
                     <Button text="%button.close" onAction="#onToggleDetail" styleClass="button-outlined"/>
                 </HBox>
-                <GridPane hgap="10" vgap="10">
+                <GridPane fx:id="detailForm" hgap="10" vgap="10">
                     <columnConstraints>
                         <ColumnConstraints minWidth="100" prefWidth="120" halignment="RIGHT"/>
                         <ColumnConstraints hgrow="ALWAYS" fillWidth="true"/>
@@ -77,7 +77,8 @@
                     <TextArea fx:id="noteArea" prefRowCount="3" wrapText="true" GridPane.rowIndex="3" GridPane.columnIndex="1"/>
                 </GridPane>
                 <HBox spacing="10" alignment="CENTER_RIGHT">
-                    <Button text="%button.save" onAction="#onSaveDetail" styleClass="accent-button">
+                    <Button fx:id="detailSaveButton" text="%button.save" onAction="#onSaveDetail"
+                            styleClass="accent-button">
                         <graphic><FontIcon iconLiteral="fth-save" iconSize="15"/></graphic>
                     </Button>
                 </HBox>

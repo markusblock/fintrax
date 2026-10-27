@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -167,7 +168,11 @@ public class TransactionService {
         for (Long id : transactionIds) {
             Transaction transaction = store.getTransaction(id);
             if (transaction != null) {
-                transaction.getLabelIds().add(labelId);
+                Set<Long> labelIds = transaction.getLabelIds() == null
+                        ? new HashSet<>()
+                        : new HashSet<>(transaction.getLabelIds());
+                labelIds.add(labelId);
+                transaction.setLabelIds(labelIds);
                 transaction.setUpdatedAt(LocalDateTime.now());
                 store.store(transaction);
             }
@@ -179,7 +184,11 @@ public class TransactionService {
         for (Long id : transactionIds) {
             Transaction transaction = store.getTransaction(id);
             if (transaction != null) {
-                transaction.getLabelIds().remove(labelId);
+                Set<Long> labelIds = transaction.getLabelIds() == null
+                        ? new HashSet<>()
+                        : new HashSet<>(transaction.getLabelIds());
+                labelIds.remove(labelId);
+                transaction.setLabelIds(labelIds);
                 transaction.setUpdatedAt(LocalDateTime.now());
                 store.store(transaction);
             }

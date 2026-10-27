@@ -377,6 +377,10 @@
     -fx-background-color: -color-bg-default;
 }
 
+.transactions-view .table-view {
+    -fx-fixed-cell-size: 2.4em;
+}
+
 .transactions-header {
     -fx-padding: 22 24 16 24;
     -fx-spacing: 14;

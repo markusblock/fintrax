@@ -1,5 +1,6 @@
 package org.fintrax.ui;
 
+import javafx.application.Platform;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
@@ -20,13 +21,17 @@ import org.fintrax.service.CategoryService;
 import org.fintrax.service.LabelService;
 import org.fintrax.service.TransactionService;
 import org.junit.jupiter.api.Test;
+import org.testfx.util.WaitForAsyncUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -93,6 +98,70 @@ class TransactionsControllerTest extends AbstractUITest {
     }
 
     @Test
+    void bulkCategoryEditKeepsAllSelectedTransactionsSelected() throws TimeoutException {
+        TableView<Transaction> table = lookup("#transactionTable").query();
+        interact(() -> {
+            table.getSelectionModel().clearSelection();
+            table.getSelectionModel().select(0);
+            table.getSelectionModel().select(1);
+        });
+        List<Long> selectedIds = table.getSelectionModel().getSelectedItems().stream()
+                .map(Transaction::getId)
+                .toList();
+
+        rightClickOn(cellForRow(table, 0));
+        assertEquals(List.of(0, 1), table.getSelectionModel().getSelectedIndices().stream().sorted().toList());
+        Platform.runLater(() -> rowFor(table, 0).getContextMenu().getItems().get(0).fire());
+        WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS,
+                () -> lookup(I18n.get("dialog.bulkCategory.header", 2)).tryQuery().isPresent());
+        assertNotNull(lookup(I18n.get("dialog.bulkCategory.header", 2)).query());
+        acceptBulkEditDialog();
+
+        assertEquals(selectedIds, table.getSelectionModel().getSelectedItems().stream()
+                .map(Transaction::getId)
+                .toList());
+    }
+
+    @Test
+    void bulkLabelEditKeepsAllSelectedTransactionsSelected() throws TimeoutException {
+        TableView<Transaction> table = lookup("#transactionTable").query();
+        interact(() -> {
+            table.getSelectionModel().clearSelection();
+            table.getSelectionModel().select(0);
+            table.getSelectionModel().select(1);
+        });
+        List<Long> selectedIds = table.getSelectionModel().getSelectedItems().stream()
+                .map(Transaction::getId)
+                .toList();
+
+        rightClickOn(cellForRow(table, 0));
+        Platform.runLater(() -> rowFor(table, 0).getContextMenu().getItems().get(1).fire());
+        WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS,
+                () -> lookup(I18n.get("dialog.bulkLabelAdd.header", 2)).tryQuery().isPresent());
+        acceptBulkEditDialog();
+
+        assertEquals(selectedIds, table.getSelectionModel().getSelectedItems().stream()
+                .map(Transaction::getId)
+                .toList());
+    }
+
+    @Test
+    void detailSaveIsDisabledWhenMultipleTransactionsAreSelected() {
+        TableView<Transaction> table = lookup("#transactionTable").query();
+        Button saveButton = lookup("#detailSaveButton").query();
+
+        interact(() -> {
+            table.getSelectionModel().clearSelection();
+            table.getSelectionModel().select(0);
+        });
+        assertFalse(saveButton.isDisabled());
+
+        interact(() -> table.getSelectionModel().select(1));
+
+        assertTrue(saveButton.isDisabled());
+    }
+
+    @Test
     void rightClickingSelectedRowKeepsMultipleSelection() {
         TableView<Transaction> table = lookup("#transactionTable").query();
         interact(() -> {
@@ -144,6 +213,15 @@ class TransactionsControllerTest extends AbstractUITest {
                 .filter(cell -> !cell.isEmpty() && cell.getTableColumn() == column)
                 .findFirst()
                 .orElseThrow();
+    }
+
+    private void acceptBulkEditDialog() {
+        interact(() -> lookup(".dialog-pane .button").queryAll().stream()
+                .map(Button.class::cast)
+                .filter(button -> "OK".equals(button.getText()))
+                .findFirst()
+                .orElseThrow()
+                .fire());
     }
 
     private Node cellForRow(TableView<Transaction> table, int rowIndex) {

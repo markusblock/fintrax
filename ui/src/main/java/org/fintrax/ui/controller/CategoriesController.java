@@ -54,6 +54,7 @@ public class CategoriesController {
     private TableColumn<Transaction, String> transactionCategoryColumn;
 
     private final CategoryService categoryService;
+    private final TransactionTableActions transactionTableActions;
     private final Map<Long, TreeItem<String>> itemByCategoryId = new HashMap<>();
     private final ObservableList<Transaction> categoryTransactions = FXCollections.observableArrayList();
     private final ContextMenu categoryContextMenu = new ContextMenu();
@@ -61,8 +62,10 @@ public class CategoriesController {
     private final MenuItem editNodeMenuItem = new MenuItem();
     private final MenuItem deleteNodeMenuItem = new MenuItem();
 
-    public CategoriesController(CategoryService categoryService) {
+    public CategoriesController(CategoryService categoryService,
+                                TransactionTableActions transactionTableActions) {
         this.categoryService = categoryService;
+        this.transactionTableActions = transactionTableActions;
     }
 
     @FXML
@@ -73,6 +76,8 @@ public class CategoriesController {
         categoryTree.setCellFactory(this::createCategoryCell);
         setupTransactionTable();
         categoryTransactionsTable.setItems(categoryTransactions);
+        transactionTableActions.installContextMenu(
+                categoryTransactionsTable, rootPane, this::reloadCategoryTransactionsKeepingSelection);
         categoryTree.getSelectionModel().selectedItemProperty().addListener((obs, oldItem, newItem) -> {
             Long categoryId = newItem == null ? null : findCategoryIdByItem(newItem);
             loadCategoryTransactions(categoryId);
@@ -136,6 +141,22 @@ public class CategoriesController {
         categoryTransactions.setAll(categoryService.getTransactionsInCategoryAndDescendants(categoryId));
         if (!categoryTransactionsTable.getSortOrder().isEmpty()) {
             categoryTransactionsTable.sort();
+        }
+    }
+
+    private void reloadCategoryTransactionsKeepingSelection() {
+        Set<Long> selectedIds = categoryTransactionsTable.getSelectionModel().getSelectedItems().stream()
+                .map(Transaction::getId)
+                .collect(Collectors.toSet());
+        TreeItem<String> selectedItem = categoryTree.getSelectionModel().getSelectedItem();
+        Long categoryId = selectedItem == null ? null : findCategoryIdByItem(selectedItem);
+
+        loadCategoryTransactions(categoryId);
+
+        for (int index = 0; index < categoryTransactions.size(); index++) {
+            if (selectedIds.contains(categoryTransactions.get(index).getId())) {
+                categoryTransactionsTable.getSelectionModel().select(index);
+            }
         }
     }
 
