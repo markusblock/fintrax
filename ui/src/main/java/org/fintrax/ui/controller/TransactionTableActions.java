@@ -1,25 +1,27 @@
 package org.fintrax.ui.controller;
 
-import javafx.application.Platform;
-import javafx.collections.FXCollections;
 import javafx.scene.Node;
-import javafx.scene.control.*;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.SelectionMode;
+import javafx.scene.control.TableRow;
+import javafx.scene.control.TableView;
 import javafx.scene.input.MouseButton;
-import javafx.scene.layout.VBox;
-import org.controlsfx.control.SearchableComboBox;
 import org.fintrax.config.I18n;
 import org.fintrax.model.Category;
 import org.fintrax.model.Transaction;
 import org.fintrax.service.CategoryService;
 import org.fintrax.service.LabelService;
 import org.fintrax.service.TransactionService;
-import org.fintrax.ui.FintraxUI;
+import org.fintrax.ui.control.SearchableListPicker;
 import org.kordamp.ikonli.javafx.FontIcon;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
-import java.util.function.Function;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Component
 public class TransactionTableActions {
@@ -40,15 +42,11 @@ public class TransactionTableActions {
         setCategoryItem.setGraphic(icon("fth-tag", 14));
         setCategoryItem.setOnAction(event -> setCategory(table, owner, afterEdit));
 
-        MenuItem addLabelItem = new MenuItem(I18n.get("contextMenu.addLabel"));
-        addLabelItem.setGraphic(icon("fth-plus", 14));
-        addLabelItem.setOnAction(event -> addLabel(table, owner, afterEdit));
+        MenuItem setLabelsItem = new MenuItem(I18n.get("contextMenu.setLabels"));
+        setLabelsItem.setGraphic(icon("fth-plus", 14));
+        setLabelsItem.setOnAction(event -> setLabels(table, owner, afterEdit));
 
-        MenuItem removeLabelItem = new MenuItem(I18n.get("contextMenu.removeLabel"));
-        removeLabelItem.setGraphic(icon("fth-minus", 14));
-        removeLabelItem.setOnAction(event -> removeLabel(table, owner, afterEdit));
-
-        ContextMenu contextMenu = new ContextMenu(setCategoryItem, addLabelItem, removeLabelItem);
+        ContextMenu contextMenu = new ContextMenu(setCategoryItem, setLabelsItem);
         table.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
         table.setRowFactory(view -> new TableRow<>() {
             {
@@ -72,115 +70,57 @@ public class TransactionTableActions {
         List<Transaction> selected = selectedTransactions(table);
         if (selected.isEmpty()) return;
 
-        SearchableComboBox<Category> categoryCombo = createSearchableComboBox(
-                categoryService.getAllCategories(), Category::getName);
-        categoryCombo.setId("categorySearchCombo");
-
-        Dialog<Category> dialog = new Dialog<>();
-        FintraxUI.configureDialog(dialog);
-        dialog.setTitle(I18n.get("dialog.bulkCategory.title"));
-        dialog.setHeaderText(I18n.get("dialog.bulkCategory.header", selected.size()));
-        dialog.initOwner(owner.getScene().getWindow());
-
-        DialogPane dialogPane = dialog.getDialogPane();
-        VBox content = new VBox(8, new Label(I18n.get("dialog.bulkCategory.prompt")), categoryCombo);
-        content.setMinWidth(320);
-        dialogPane.setContent(content);
-        ButtonType applyType = ButtonType.OK;
-        dialogPane.getButtonTypes().setAll(applyType, ButtonType.CANCEL);
-        Button applyButton = (Button) dialogPane.lookupButton(applyType);
-        ((Button) dialogPane.lookupButton(ButtonType.CANCEL)).setId("cancelCategoryButton");
-        applyButton.setDisable(categoryCombo.getValue() == null);
-        categoryCombo.valueProperty().addListener((observable, oldValue, newValue) ->
-                applyButton.setDisable(newValue == null));
-        dialog.setResultConverter(buttonType -> buttonType == applyType ? categoryCombo.getValue() : null);
-        dialog.setOnShown(event -> Platform.runLater(categoryCombo::show));
-
-        dialog.showAndWait().ifPresent(category -> {
-            transactionService.bulkUpdateCategory(
-                    selected.stream().map(Transaction::getId).toList(), category.getId());
-            afterEdit.run();
-        });
+        String title = I18n.get("dialog.bulkCategory.header", selected.size());
+        Long selectedCategoryId = selected.get(0).getCategoryId();
+        boolean sameCategory = selected.stream()
+                .allMatch(transaction -> java.util.Objects.equals(selectedCategoryId, transaction.getCategoryId()));
+        Category initiallySelected = sameCategory && selectedCategoryId != null
+                ? categoryService.getCategory(selectedCategoryId).orElse(null)
+                : null;
+        SearchableListPicker.chooseOne(owner.getScene().getWindow(), title,
+                categoryService.getAllCategories(), initiallySelected,
+                Category::getName,
+                "picker.category.create", name -> categoryService.createCategory(name, null, null))
+                .ifPresent(choice -> {
+                    Long categoryId = choice.isEmpty() ? null : choice.get(0).getId();
+                    transactionService.bulkUpdateCategory(
+                            selected.stream().map(Transaction::getId).toList(), categoryId);
+                    afterEdit.run();
+                });
     }
 
-    public void addLabel(TableView<Transaction> table, Node owner, Runnable afterEdit) {
-        showLabelDialog(table, owner, afterEdit, true);
-    }
-
-    public void removeLabel(TableView<Transaction> table, Node owner, Runnable afterEdit) {
-        showLabelDialog(table, owner, afterEdit, false);
-    }
-
-    private void showLabelDialog(TableView<Transaction> table, Node owner, Runnable afterEdit, boolean adding) {
+    public void setLabels(TableView<Transaction> table, Node owner, Runnable afterEdit) {
         List<Transaction> selected = selectedTransactions(table);
         if (selected.isEmpty()) return;
 
-        SearchableComboBox<org.fintrax.model.Label> labelCombo = createSearchableComboBox(
-                labelService.getAllLabels(), org.fintrax.model.Label::getName);
-        labelCombo.setId("labelSearchCombo");
-
-        Dialog<org.fintrax.model.Label> dialog = new Dialog<>();
-        FintraxUI.configureDialog(dialog);
-        dialog.setTitle(I18n.get("dialog.bulkLabel.title"));
-        String headerKey = adding ? "dialog.bulkLabelAdd.header" : "dialog.bulkLabelRemove.header";
-        dialog.setHeaderText(I18n.get(headerKey, selected.size()));
-        dialog.initOwner(owner.getScene().getWindow());
-
-        DialogPane dialogPane = dialog.getDialogPane();
-        VBox content = new VBox(8, new Label(I18n.get("dialog.bulkLabel.prompt")), labelCombo);
-        content.setMinWidth(320);
-        dialogPane.setContent(content);
-        ButtonType applyType = ButtonType.OK;
-        dialogPane.getButtonTypes().setAll(applyType, ButtonType.CANCEL);
-        Button applyButton = (Button) dialogPane.lookupButton(applyType);
-        ((Button) dialogPane.lookupButton(ButtonType.CANCEL)).setId("cancelLabelButton");
-        applyButton.setDisable(labelCombo.getValue() == null);
-        labelCombo.valueProperty().addListener((observable, oldValue, newValue) ->
-                applyButton.setDisable(newValue == null));
-        dialog.setResultConverter(buttonType -> buttonType == applyType ? labelCombo.getValue() : null);
-        dialog.setOnShown(event -> Platform.runLater(labelCombo::show));
-
-        dialog.showAndWait().ifPresent(label -> {
-            List<Long> transactionIds = selected.stream().map(Transaction::getId).toList();
-            if (adding) {
-                transactionService.bulkAddLabel(transactionIds, label.getId());
-            } else {
-                transactionService.bulkRemoveLabel(transactionIds, label.getId());
-            }
-            afterEdit.run();
-        });
-    }
-
-    private <T> SearchableComboBox<T> createSearchableComboBox(List<T> items, Function<T, String> displayText) {
-        SearchableComboBox<T> combo = new SearchableComboBox<>(FXCollections.observableArrayList(items));
-        combo.setConverter(new javafx.util.StringConverter<>() {
-            @Override
-            public String toString(T item) {
-                return item == null ? "" : displayText.apply(item);
-            }
-
-            @Override
-            public T fromString(String value) {
-                return combo.getItems().stream()
-                        .filter(item -> displayText.apply(item).equals(value))
-                        .findFirst()
-                        .orElse(null);
-            }
-        });
-        combo.setCellFactory(list -> createSearchableCell(displayText));
-        combo.setButtonCell(createSearchableCell(displayText));
-        combo.getSelectionModel().selectFirst();
-        return combo;
-    }
-
-    private <T> ListCell<T> createSearchableCell(Function<T, String> displayText) {
-        return new ListCell<>() {
-            @Override
-            protected void updateItem(T item, boolean empty) {
-                super.updateItem(item, empty);
-                setText(empty || item == null ? null : displayText.apply(item));
-            }
-        };
+        Set<Long> originalIds = selected.stream()
+                .filter(transaction -> transaction.getLabelIds() != null)
+                .flatMap(transaction -> transaction.getLabelIds().stream())
+                .collect(Collectors.toCollection(HashSet::new));
+        List<org.fintrax.model.Label> originalLabels = labelService.getAllLabels().stream()
+                .filter(label -> originalIds.contains(label.getId()))
+                .toList();
+        SearchableListPicker.chooseMany(owner.getScene().getWindow(),
+                I18n.get("dialog.bulkLabel.header", selected.size()),
+                labelService.getAllLabels(), originalLabels, org.fintrax.model.Label::getName,
+                "picker.labels.create", name -> labelService.createLabel(name, "#1976d2", null))
+                .ifPresent(chosenLabels -> {
+                    Set<Long> chosenIds = chosenLabels.stream()
+                            .map(org.fintrax.model.Label::getId)
+                            .collect(Collectors.toSet());
+                    List<Long> transactionIds = selected.stream().map(Transaction::getId).toList();
+                    for (Long labelId : chosenIds) {
+                        if (!originalIds.contains(labelId)) {
+                            transactionService.bulkAddLabel(transactionIds, labelId);
+                        }
+                    }
+                    for (Long labelId : originalIds) {
+                        if (!chosenIds.contains(labelId)) {
+                            transactionService.bulkRemoveLabel(transactionIds, labelId);
+                        }
+                    }
+                    afterEdit.run();
+                });
     }
 
     private List<Transaction> selectedTransactions(TableView<Transaction> table) {

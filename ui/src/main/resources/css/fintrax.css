@@ -430,6 +430,37 @@
     -fx-border-width: 1 0 0 0;
 }
 
+.assignment-picker-button {
+    -fx-alignment: CENTER_LEFT;
+}
+
+.searchable-picker-dialog .list-view {
+    -fx-fixed-cell-size: 2.6em;
+}
+
+.searchable-picker-dialog .list-cell {
+    -fx-padding: 4 8;
+}
+
+.searchable-picker-dialog .error-message {
+    -fx-text-fill: -color-danger-fg;
+}
+
+.selection-chip {
+    -fx-alignment: CENTER_LEFT;
+    -fx-padding: 2 4 2 8;
+    -fx-background-color: -fx-control-inner-background;
+    -fx-background-radius: 14;
+    -fx-border-color: -fx-box-border;
+    -fx-border-radius: 14;
+}
+
+.selection-chip .button {
+    -fx-padding: 0 4;
+    -fx-background-color: transparent;
+    -fx-font-weight: bold;
+}
+
 .dialog-content {
     -fx-background-color: -color-bg-default;
     -fx-spacing: 14;

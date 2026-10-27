@@ -11,7 +11,7 @@
             <HBox spacing="10" alignment="CENTER_LEFT">
                 <Label text="%view.transactions" styleClass="page-title"/>
                 <Region HBox.hgrow="ALWAYS"/>
-                <Button text="%button.toggleDetail" onAction="#onToggleDetail" styleClass="button-outlined">
+                <Button fx:id="detailToggleButton" text="%button.toggleDetail" onAction="#onToggleDetail" styleClass="button-outlined">
                     <graphic><FontIcon iconLiteral="fth-eye" iconSize="15"/></graphic>
                 </Button>
             </HBox>
@@ -77,9 +77,11 @@
                     <Label text="%detail.payee" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
                     <TextField fx:id="payeeField" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
                     <Label text="%detail.category" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
-                    <ComboBox fx:id="detailCategoryCombo" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
+                    <Button fx:id="detailCategoryButton" maxWidth="Infinity" styleClass="button-outlined,assignment-picker-button"
+                            GridPane.rowIndex="1" GridPane.columnIndex="1"/>
                     <Label text="%detail.labels" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
-                    <HBox fx:id="labelsContainer" spacing="5" GridPane.rowIndex="2" GridPane.columnIndex="1"/>
+                    <Button fx:id="detailLabelsButton" maxWidth="Infinity" styleClass="button-outlined,assignment-picker-button"
+                            GridPane.rowIndex="2" GridPane.columnIndex="1"/>
                     <Label text="%detail.note" GridPane.rowIndex="3" GridPane.columnIndex="0"/>
                     <TextArea fx:id="noteArea" prefRowCount="3" wrapText="true" GridPane.rowIndex="3" GridPane.columnIndex="1"/>
                 </GridPane>

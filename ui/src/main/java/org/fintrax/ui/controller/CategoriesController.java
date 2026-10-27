@@ -124,6 +124,26 @@ public class CategoriesController {
             return new SimpleStringProperty(categoryId == null ? "" : categoryService.getCategory(categoryId)
                     .map(Category::getName).orElse(""));
         });
+        transactionCategoryColumn.setCellFactory(column -> {
+            TableCell<Transaction, String> cell = new TableCell<>() {
+                @Override
+                protected void updateItem(String item, boolean empty) {
+                    super.updateItem(item, empty);
+                    setText(empty ? null : item);
+                }
+            };
+            cell.setOnMouseClicked(event -> {
+                if (event.getButton() != MouseButton.PRIMARY || event.getClickCount() != 2 || cell.isEmpty()) {
+                    return;
+                }
+                if (!categoryTransactionsTable.getSelectionModel().isSelected(cell.getIndex())) {
+                    categoryTransactionsTable.getSelectionModel().clearAndSelect(cell.getIndex());
+                }
+                transactionTableActions.setCategory(categoryTransactionsTable, rootPane,
+                        this::reloadCategoryTransactionsKeepingSelection);
+            });
+            return cell;
+        });
 
         transactionDateColumn.setSortable(true);
         transactionPayeeColumn.setSortable(true);
