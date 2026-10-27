@@ -10,15 +10,14 @@ import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.CheckBoxListCell;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
-import org.controlsfx.control.SearchableComboBox;
 import lombok.extern.slf4j.Slf4j;
 import org.fintrax.config.I18n;
 import org.fintrax.model.*;
 import org.fintrax.service.*;
 import org.fintrax.store.StoreManager;
-import org.fintrax.ui.FintraxUI;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
@@ -26,7 +25,6 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -71,6 +69,8 @@ public class TransactionsController {
     @FXML
     private VBox detailPanel;
     @FXML
+    private GridPane detailForm;
+    @FXML
     private TextField payeeField;
     @FXML
     private ComboBox<String> detailCategoryCombo;
@@ -78,12 +78,15 @@ public class TransactionsController {
     private HBox labelsContainer;
     @FXML
     private TextArea noteArea;
+    @FXML
+    private Button detailSaveButton;
 
     private final AccountService accountService;
     private final TransactionService transactionService;
     private final CategoryService categoryService;
     private final LabelService labelService;
     private final StoreManager storeManager;
+    private final TransactionTableActions transactionTableActions;
 
     private final ObservableList<Transaction> tableData = FXCollections.observableArrayList();
     private boolean detailVisible = false;
@@ -91,18 +94,20 @@ public class TransactionsController {
 
     public TransactionsController(AccountService accountService, TransactionService transactionService,
                                   CategoryService categoryService, LabelService labelService,
-                                  StoreManager storeManager) {
+                                  StoreManager storeManager, TransactionTableActions transactionTableActions) {
         this.accountService = accountService;
         this.transactionService = transactionService;
         this.categoryService = categoryService;
         this.labelService = labelService;
         this.storeManager = storeManager;
+        this.transactionTableActions = transactionTableActions;
     }
 
     @FXML
     public void initialize() {
         log.info("TransactionsController initialized");
-        setupTransactionContextMenu();
+        transactionTableActions.installContextMenu(
+                transactionTable, rootPane, this::reloadTransactionsKeepingSelection);
         setupTableColumns();
         loadFilterOptions();
         loadTransactions();
@@ -113,26 +118,10 @@ public class TransactionsController {
                 loadDetail(newVal);
             }
         });
-
-    }
-
-    private void setupTransactionContextMenu() {
-        MenuItem setCategoryItem = new MenuItem(I18n.get("contextMenu.setCategory"));
-        setCategoryItem.setOnAction(event -> onBulkCategory());
-        MenuItem addLabelItem = new MenuItem(I18n.get("contextMenu.addLabel"));
-        addLabelItem.setOnAction(event -> onBulkLabelAdd());
-        MenuItem removeLabelItem = new MenuItem(I18n.get("contextMenu.removeLabel"));
-        removeLabelItem.setOnAction(event -> onBulkLabelRemove());
-        ContextMenu contextMenu = new ContextMenu(setCategoryItem, addLabelItem, removeLabelItem);
-
-        transactionTable.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
-        transactionTable.setRowFactory(table -> new TableRow<>() {
-            @Override
-            protected void updateItem(Transaction item, boolean empty) {
-                super.updateItem(item, empty);
-                setContextMenu(empty ? null : contextMenu);
-            }
-        });
+        transactionTable.getSelectionModel().getSelectedItems().addListener(
+                (javafx.collections.ListChangeListener<Transaction>) change -> updateDetailEditingState());
+        updateDetailEditingState();
+        Platform.runLater(rootPane::applyCss);
     }
 
     private void setupTableColumns() {
@@ -258,6 +247,26 @@ public class TransactionsController {
         transactionTable.setItems(tableData);
     }
 
+    private void reloadTransactionsKeepingSelection() {
+        Set<Long> selectedIds = getSelectedTransactions().stream()
+                .map(Transaction::getId)
+                .collect(Collectors.toSet());
+
+        loadTransactions();
+
+        for (int index = 0; index < tableData.size(); index++) {
+            if (selectedIds.contains(tableData.get(index).getId())) {
+                transactionTable.getSelectionModel().select(index);
+            }
+        }
+    }
+
+    private void updateDetailEditingState() {
+        boolean singleTransactionSelected = getSelectedTransactions().size() == 1;
+        detailForm.setDisable(!singleTransactionSelected);
+        detailSaveButton.setDisable(!singleTransactionSelected);
+    }
+
     private Long getSelectedAccountId() {
         int idx = accountFilter.getSelectionModel().getSelectedIndex();
         if (idx <= 0) return null;
@@ -334,6 +343,7 @@ public class TransactionsController {
 
     @FXML
     private void onSaveDetail() {
+        if (getSelectedTransactions().size() != 1) return;
         Transaction selected = transactionTable.getSelectionModel().getSelectedItem();
         if (selected == null) return;
 
@@ -369,124 +379,20 @@ public class TransactionsController {
 
     @FXML
     private void onBulkCategory() {
-        List<Transaction> selected = getSelectedTransactions();
-        if (selected.isEmpty()) return;
-
-        SearchableComboBox<Category> categoryCombo = createSearchableComboBox(
-                categoryService.getAllCategories(), Category::getName);
-        categoryCombo.setId("categorySearchCombo");
-
-        Dialog<Category> dialog = new Dialog<>();
-        FintraxUI.configureDialog(dialog);
-        dialog.setTitle(I18n.get("dialog.bulkCategory.title"));
-        dialog.setHeaderText(I18n.get("dialog.bulkCategory.header", selected.size()));
-        dialog.initOwner(rootPane.getScene().getWindow());
-        DialogPane dialogPane = dialog.getDialogPane();
-        VBox content = new VBox(8,
-                new javafx.scene.control.Label(I18n.get("dialog.bulkCategory.prompt")), categoryCombo);
-        content.setMinWidth(320);
-        dialogPane.setContent(content);
-        ButtonType setCategoryType = ButtonType.OK;
-        dialogPane.getButtonTypes().setAll(setCategoryType, ButtonType.CANCEL);
-        Button setCategoryButton = (Button) dialogPane.lookupButton(setCategoryType);
-        ((Button) dialogPane.lookupButton(ButtonType.CANCEL)).setId("cancelCategoryButton");
-        setCategoryButton.setDisable(categoryCombo.getValue() == null);
-        categoryCombo.valueProperty().addListener((observable, oldValue, newValue) ->
-                setCategoryButton.setDisable(newValue == null));
-        dialog.setResultConverter(buttonType -> buttonType == setCategoryType ? categoryCombo.getValue() : null);
-        dialog.setOnShown(event -> Platform.runLater(categoryCombo::show));
-
-        dialog.showAndWait().ifPresent(category -> {
-            transactionService.bulkUpdateCategory(
-                    selected.stream().map(Transaction::getId).toList(), category.getId());
-            loadTransactions();
-        });
-    }
-
-    private <T> SearchableComboBox<T> createSearchableComboBox(List<T> items, Function<T, String> displayText) {
-        SearchableComboBox<T> combo = new SearchableComboBox<>(FXCollections.observableArrayList(items));
-        combo.setConverter(new javafx.util.StringConverter<>() {
-            @Override
-            public String toString(T item) {
-                return item == null ? "" : displayText.apply(item);
-            }
-
-            @Override
-            public T fromString(String value) {
-                return combo.getItems().stream()
-                        .filter(item -> displayText.apply(item).equals(value))
-                        .findFirst()
-                        .orElse(null);
-            }
-        });
-        combo.setCellFactory(list -> createSearchableCell(displayText));
-        combo.setButtonCell(createSearchableCell(displayText));
-        combo.getSelectionModel().selectFirst();
-        return combo;
-    }
-
-    private <T> ListCell<T> createSearchableCell(Function<T, String> displayText) {
-        return new ListCell<>() {
-            @Override
-            protected void updateItem(T item, boolean empty) {
-                super.updateItem(item, empty);
-                setText(empty || item == null ? null : displayText.apply(item));
-            }
-        };
+        transactionTableActions.setCategory(
+                transactionTable, rootPane, this::reloadTransactionsKeepingSelection);
     }
 
     @FXML
     private void onBulkLabelAdd() {
-        List<Transaction> selected = getSelectedTransactions();
-        if (selected.isEmpty()) return;
-
-        showBulkLabelDialog(selected, true);
+        transactionTableActions.addLabel(
+                transactionTable, rootPane, this::reloadTransactionsKeepingSelection);
     }
 
     @FXML
     private void onBulkLabelRemove() {
-        List<Transaction> selected = getSelectedTransactions();
-        if (selected.isEmpty()) return;
-
-        showBulkLabelDialog(selected, false);
-    }
-
-    private void showBulkLabelDialog(List<Transaction> selected, boolean adding) {
-        SearchableComboBox<org.fintrax.model.Label> labelCombo = createSearchableComboBox(
-                labelService.getAllLabels(), org.fintrax.model.Label::getName);
-        labelCombo.setId("labelSearchCombo");
-
-        Dialog<org.fintrax.model.Label> dialog = new Dialog<>();
-        FintraxUI.configureDialog(dialog);
-        dialog.setTitle(I18n.get("dialog.bulkLabel.title"));
-        String headerKey = adding ? "dialog.bulkLabelAdd.header" : "dialog.bulkLabelRemove.header";
-        dialog.setHeaderText(I18n.get(headerKey, selected.size()));
-        dialog.initOwner(rootPane.getScene().getWindow());
-
-        DialogPane dialogPane = dialog.getDialogPane();
-        VBox content = new VBox(8,
-                new javafx.scene.control.Label(I18n.get("dialog.bulkLabel.prompt")), labelCombo);
-        content.setMinWidth(320);
-        dialogPane.setContent(content);
-        ButtonType applyType = ButtonType.OK;
-        dialogPane.getButtonTypes().setAll(applyType, ButtonType.CANCEL);
-        Button applyButton = (Button) dialogPane.lookupButton(applyType);
-        ((Button) dialogPane.lookupButton(ButtonType.CANCEL)).setId("cancelLabelButton");
-        applyButton.setDisable(labelCombo.getValue() == null);
-        labelCombo.valueProperty().addListener((observable, oldValue, newValue) ->
-                applyButton.setDisable(newValue == null));
-        dialog.setResultConverter(buttonType -> buttonType == applyType ? labelCombo.getValue() : null);
-        dialog.setOnShown(event -> Platform.runLater(labelCombo::show));
-
-        dialog.showAndWait().ifPresent(label -> {
-            List<Long> transactionIds = selected.stream().map(Transaction::getId).toList();
-            if (adding) {
-                transactionService.bulkAddLabel(transactionIds, label.getId());
-            } else {
-                transactionService.bulkRemoveLabel(transactionIds, label.getId());
-            }
-            loadTransactions();
-        });
+        transactionTableActions.removeLabel(
+                transactionTable, rootPane, this::reloadTransactionsKeepingSelection);
     }
 
     private List<Transaction> getSelectedTransactions() {

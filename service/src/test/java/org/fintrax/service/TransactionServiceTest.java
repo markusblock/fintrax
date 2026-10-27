@@ -11,7 +11,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -158,9 +157,9 @@ class TransactionServiceTest {
     @Test
     void bulkAddLabelAddsLabelToEachTransaction() {
         Transaction tx1 = transactionService.createTransaction(Transaction.builder()
-                .originalPayee("A").amount(BigDecimal.ONE).labelIds(new HashSet<>(Set.of(1L))).build());
+                .originalPayee("A").amount(BigDecimal.ONE).labelIds(Set.of(1L)).build());
         Transaction tx2 = transactionService.createTransaction(Transaction.builder()
-                .originalPayee("B").amount(BigDecimal.ONE).labelIds(new HashSet<>()).build());
+                .originalPayee("B").amount(BigDecimal.ONE).labelIds(Set.of()).build());
 
         transactionService.bulkAddLabel(List.of(tx1.getId(), tx2.getId()), 2L);
 
@@ -171,7 +170,7 @@ class TransactionServiceTest {
     @Test
     void bulkRemoveLabelRemovesOnlyRequestedLabel() {
         Transaction tx = transactionService.createTransaction(Transaction.builder()
-                .originalPayee("A").amount(BigDecimal.ONE).labelIds(new HashSet<>(Set.of(1L, 2L))).build());
+                .originalPayee("A").amount(BigDecimal.ONE).labelIds(Set.of(1L, 2L)).build());
 
         transactionService.bulkRemoveLabel(List.of(tx.getId()), 1L);
 
