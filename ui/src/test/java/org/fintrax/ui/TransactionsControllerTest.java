@@ -26,8 +26,8 @@ import org.fintrax.model.Category;
 import org.fintrax.model.Transaction;
 import org.fintrax.service.CategoryService;
 import org.fintrax.service.LabelService;
+import org.fintrax.service.SettingsService;
 import org.fintrax.service.TransactionService;
-import org.fintrax.store.StoreManager;
 import org.junit.jupiter.api.Test;
 import org.testfx.util.WaitForAsyncUtils;
 
@@ -195,8 +195,8 @@ class TransactionsControllerTest extends AbstractUITest {
 
             assertFalse(table.getColumns().get(2).isVisible());
             assertFalse(purposeItem.isSelected());
-            assertTrue(applicationContext.getBean(StoreManager.class).getRoot().getSettings()
-                    .get("transaction.columns").getValue().contains("purpose=false"));
+            assertTrue(applicationContext.getBean(SettingsService.class)
+                    .getSettingValue("transaction.columns").contains("purpose=false"));
         } finally {
             interact(() -> purposeItem.setSelected(true));
         }

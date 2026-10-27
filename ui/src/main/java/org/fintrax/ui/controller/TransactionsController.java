@@ -16,7 +16,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.fintrax.config.I18n;
 import org.fintrax.model.*;
 import org.fintrax.service.*;
-import org.fintrax.store.StoreManager;
 import org.fintrax.ui.control.SearchableListPicker;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
@@ -96,7 +95,7 @@ public class TransactionsController {
     private final TransactionService transactionService;
     private final CategoryService categoryService;
     private final LabelService labelService;
-    private final StoreManager storeManager;
+    private final SettingsService settingsService;
     private final TransactionTableActions transactionTableActions;
 
     private final ObservableList<Transaction> tableData = FXCollections.observableArrayList();
@@ -107,12 +106,12 @@ public class TransactionsController {
 
     public TransactionsController(AccountService accountService, TransactionService transactionService,
                                   CategoryService categoryService, LabelService labelService,
-                                  StoreManager storeManager, TransactionTableActions transactionTableActions) {
+                                  SettingsService settingsService, TransactionTableActions transactionTableActions) {
         this.accountService = accountService;
         this.transactionService = transactionService;
         this.categoryService = categoryService;
         this.labelService = labelService;
-        this.storeManager = storeManager;
+        this.settingsService = settingsService;
         this.transactionTableActions = transactionTableActions;
     }
 
@@ -508,11 +507,11 @@ public class TransactionsController {
     }
 
     private void restoreColumnConfig() {
-        AppSetting setting = storeManager.getRoot().getSettings().get(COLUMN_CONFIG_KEY);
-        if (setting == null || setting.getValue() == null) return;
+        String value = settingsService.getSettingValue(COLUMN_CONFIG_KEY);
+        if (value == null) return;
 
         try {
-            String[] parts = setting.getValue().split(",");
+            String[] parts = value.split(",");
             for (String part : parts) {
                 String[] kv = part.split("=");
                 if (kv.length == 2) {
@@ -558,11 +557,7 @@ public class TransactionsController {
                 .map(config -> config.key() + "=" + config.column().isVisible())
                 .collect(Collectors.joining(","));
 
-        AppSetting setting = storeManager.getRoot().getSettings().computeIfAbsent(
-                COLUMN_CONFIG_KEY, k -> AppSetting.builder().key(k).build());
-        setting.setValue(value);
-        storeManager.store(setting);
-        storeManager.store(storeManager.getRoot().getSettings());
+        settingsService.saveSettingValue(COLUMN_CONFIG_KEY, value);
     }
 
     private List<ColumnConfig> columnConfigurations() {
