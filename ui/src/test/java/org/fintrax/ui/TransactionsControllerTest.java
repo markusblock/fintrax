@@ -6,6 +6,8 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ContextMenu;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.DatePicker;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.TableCell;
@@ -25,6 +27,8 @@ import org.testfx.util.WaitForAsyncUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.FormatStyle;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -60,6 +64,76 @@ class TransactionsControllerTest extends AbstractUITest {
         Parent root = applicationContext.getBean(ViewLoader.class).load("transactions");
         stage.setScene(new Scene(root, 1024, 768));
         stage.show();
+    }
+
+    @Test
+    void datePresetFillsCalendarPeriodBounds() {
+        ComboBox<?> presets = lookup("#datePresetFilter").query();
+        DatePicker fromDate = lookup("#fromDateFilter").query();
+        DatePicker toDate = lookup("#toDateFilter").query();
+        LocalDate today = LocalDate.now();
+
+        interact(() -> presets.getSelectionModel().select(3));
+
+        assertEquals(LocalDate.of(today.getYear() - 1, 1, 1), fromDate.getValue());
+        assertEquals(LocalDate.of(today.getYear() - 1, 12, 31), toDate.getValue());
+    }
+
+    @Test
+    void applyingTypedDateRangeFiltersTransactions() {
+        LocalDate matchingDate = LocalDate.of(2024, 2, 10);
+        Transaction matching = applicationContext.getBean(TransactionService.class).createTransaction(
+                Transaction.builder().originalPayee("date-filter-match-" + System.nanoTime())
+                        .bookingDate(matchingDate).amount(BigDecimal.ONE).build());
+        Transaction outsideRange = applicationContext.getBean(TransactionService.class).createTransaction(
+                Transaction.builder().originalPayee("date-filter-outside-" + System.nanoTime())
+                        .bookingDate(matchingDate.plusDays(1)).amount(BigDecimal.ONE).build());
+        DatePicker fromDate = lookup("#fromDateFilter").query();
+        DatePicker toDate = lookup("#toDateFilter").query();
+        TableView<Transaction> table = lookup("#transactionTable").query();
+        DateTimeFormatter formatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT)
+                .withLocale(I18n.getCurrentLocale());
+
+        interact(() -> {
+            fromDate.getEditor().setText(formatter.format(matchingDate));
+            toDate.getEditor().setText(formatter.format(matchingDate));
+            lookup("#applyFiltersButton").<Button>query().fire();
+        });
+
+        assertTrue(table.getItems().stream().anyMatch(tx -> tx.getId().equals(matching.getId())));
+        assertFalse(table.getItems().stream().anyMatch(tx -> tx.getId().equals(outsideRange.getId())));
+    }
+
+    @Test
+    void invalidDateBlocksFilteringAndMarksDateField() {
+        DatePicker fromDate = lookup("#fromDateFilter").query();
+        TableView<Transaction> table = lookup("#transactionTable").query();
+        List<Long> visibleIds = table.getItems().stream().map(Transaction::getId).toList();
+
+        interact(() -> {
+            fromDate.getEditor().setText("not a date");
+            lookup("#applyFiltersButton").<Button>query().fire();
+        });
+
+        assertEquals(visibleIds, table.getItems().stream().map(Transaction::getId).toList());
+        assertTrue(fromDate.getEditor().getStyleClass().contains("invalid-date"));
+    }
+
+    @Test
+    void reversedDateRangeMarksBothDateFieldsAndBlocksFiltering() {
+        DatePicker fromDate = lookup("#fromDateFilter").query();
+        DatePicker toDate = lookup("#toDateFilter").query();
+        DateTimeFormatter formatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT)
+                .withLocale(I18n.getCurrentLocale());
+
+        interact(() -> {
+            fromDate.getEditor().setText(formatter.format(LocalDate.of(2024, 3, 2)));
+            toDate.getEditor().setText(formatter.format(LocalDate.of(2024, 3, 1)));
+            lookup("#applyFiltersButton").<Button>query().fire();
+        });
+
+        assertTrue(fromDate.getEditor().getStyleClass().contains("invalid-date"));
+        assertTrue(toDate.getEditor().getStyleClass().contains("invalid-date"));
     }
 
     @Test

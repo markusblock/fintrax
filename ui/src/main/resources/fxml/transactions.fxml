@@ -27,15 +27,22 @@
                 <ComboBox fx:id="categoryFilter" promptText="%filter.category" accessibleText="%filter.category"
                           maxWidth="Infinity" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
                 <TextField fx:id="searchField" promptText="%filter.search" accessibleText="%filter.search"
-                           maxWidth="Infinity" GridPane.rowIndex="0" GridPane.columnIndex="2"/>
-                <TextField fx:id="minAmountField" promptText="%filter.minAmount" accessibleText="%filter.minAmount"
-                           maxWidth="Infinity" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
-                <TextField fx:id="maxAmountField" promptText="%filter.maxAmount" accessibleText="%filter.maxAmount"
-                           maxWidth="Infinity" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
-                <Button text="%button.search" onAction="#onApplyFilters" styleClass="accent-button"
-                        GridPane.rowIndex="1" GridPane.columnIndex="3">
+                           maxWidth="Infinity" GridPane.rowIndex="0" GridPane.columnIndex="2"
+                           GridPane.columnSpan="2"/>
+                <DatePicker fx:id="fromDateFilter" promptText="%filter.fromDate" accessibleText="%filter.fromDate"
+                            maxWidth="Infinity" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
+                <DatePicker fx:id="toDateFilter" promptText="%filter.toDate" accessibleText="%filter.toDate"
+                            maxWidth="Infinity" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
+                <ComboBox fx:id="datePresetFilter" accessibleText="%filter.datePreset"
+                          maxWidth="Infinity" GridPane.rowIndex="1" GridPane.columnIndex="2"/>
+                <Button fx:id="applyFiltersButton" text="%button.search" onAction="#onApplyFilters"
+                        styleClass="accent-button" GridPane.rowIndex="1" GridPane.columnIndex="3">
                     <graphic><FontIcon iconLiteral="fth-search" iconSize="15"/></graphic>
                 </Button>
+                <TextField fx:id="minAmountField" promptText="%filter.minAmount" accessibleText="%filter.minAmount"
+                           maxWidth="Infinity" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
+                <TextField fx:id="maxAmountField" promptText="%filter.maxAmount" accessibleText="%filter.maxAmount"
+                           maxWidth="Infinity" GridPane.rowIndex="2" GridPane.columnIndex="1"/>
             </GridPane>
         </VBox>
     </top>

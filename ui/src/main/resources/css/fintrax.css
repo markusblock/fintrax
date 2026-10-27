@@ -413,8 +413,15 @@
 }
 
 .filter-panel .text-field,
-.filter-panel .combo-box {
+.filter-panel .combo-box,
+.filter-panel .date-picker {
     -fx-pref-height: 36px;
+}
+
+.filter-panel .text-field.invalid-date {
+    -fx-border-color: -color-danger-fg;
+    -fx-border-width: 1;
+    -fx-border-radius: 4;
 }
 
 .transaction-detail-panel {

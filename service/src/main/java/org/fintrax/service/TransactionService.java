@@ -70,8 +70,10 @@ public class TransactionService {
                                                  String searchText) {
         return store.getRoot().getTransactions().stream()
                 .filter(t -> accountId == null || t.getAccountId().equals(accountId))
-                .filter(t -> fromDate == null || !t.getBookingDate().isBefore(fromDate))
-                .filter(t -> toDate == null || !t.getBookingDate().isAfter(toDate))
+                .filter(t -> fromDate == null || (t.getBookingDate() != null &&
+                        !t.getBookingDate().isBefore(fromDate)))
+                .filter(t -> toDate == null || (t.getBookingDate() != null &&
+                        !t.getBookingDate().isAfter(toDate)))
                 .filter(t -> categoryId == null || categoryId.equals(t.getCategoryId()))
                 .filter(t -> labelIds == null || labelIds.isEmpty() ||
                         t.getLabelIds().containsAll(labelIds))
