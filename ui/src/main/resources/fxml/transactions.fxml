@@ -37,20 +37,6 @@
                     <graphic><FontIcon iconLiteral="fth-search" iconSize="15"/></graphic>
                 </Button>
             </GridPane>
-            <HBox styleClass="bulk-toolbar">
-                <Button fx:id="bulkCategoryButton" text="%button.bulkCategory" onAction="#onBulkCategory"
-                        disable="true" styleClass="button-outlined">
-                    <graphic><FontIcon iconLiteral="fth-tag" iconSize="14"/></graphic>
-                </Button>
-                <Button fx:id="bulkLabelAddButton" text="%button.bulkLabelAdd" onAction="#onBulkLabelAdd"
-                        disable="true" styleClass="button-outlined">
-                    <graphic><FontIcon iconLiteral="fth-plus" iconSize="14"/></graphic>
-                </Button>
-                <Button fx:id="bulkLabelRemoveButton" text="%button.bulkLabelRemove" onAction="#onBulkLabelRemove"
-                        disable="true" styleClass="button-outlined">
-                    <graphic><FontIcon iconLiteral="fth-minus" iconSize="14"/></graphic>
-                </Button>
-            </HBox>
         </VBox>
     </top>
     <center>

@@ -51,12 +51,6 @@ public class TransactionsController {
     @FXML
     private TextField maxAmountField;
     @FXML
-    private Button bulkCategoryButton;
-    @FXML
-    private Button bulkLabelAddButton;
-    @FXML
-    private Button bulkLabelRemoveButton;
-    @FXML
     private SplitPane splitPane;
     @FXML
     private TableView<Transaction> transactionTable;
@@ -108,6 +102,7 @@ public class TransactionsController {
     @FXML
     public void initialize() {
         log.info("TransactionsController initialized");
+        setupTransactionContextMenu();
         setupTableColumns();
         loadFilterOptions();
         loadTransactions();
@@ -119,8 +114,25 @@ public class TransactionsController {
             }
         });
 
-        transactionTable.getSelectionModel().getSelectedIndices().addListener(
-                (javafx.collections.ListChangeListener<Integer>) c -> updateBulkButtons());
+    }
+
+    private void setupTransactionContextMenu() {
+        MenuItem setCategoryItem = new MenuItem(I18n.get("contextMenu.setCategory"));
+        setCategoryItem.setOnAction(event -> onBulkCategory());
+        MenuItem addLabelItem = new MenuItem(I18n.get("contextMenu.addLabel"));
+        addLabelItem.setOnAction(event -> onBulkLabelAdd());
+        MenuItem removeLabelItem = new MenuItem(I18n.get("contextMenu.removeLabel"));
+        removeLabelItem.setOnAction(event -> onBulkLabelRemove());
+        ContextMenu contextMenu = new ContextMenu(setCategoryItem, addLabelItem, removeLabelItem);
+
+        transactionTable.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
+        transactionTable.setRowFactory(table -> new TableRow<>() {
+            @Override
+            protected void updateItem(Transaction item, boolean empty) {
+                super.updateItem(item, empty);
+                setContextMenu(empty ? null : contextMenu);
+            }
+        });
     }
 
     private void setupTableColumns() {
@@ -479,13 +491,6 @@ public class TransactionsController {
 
     private List<Transaction> getSelectedTransactions() {
         return new ArrayList<>(transactionTable.getSelectionModel().getSelectedItems());
-    }
-
-    private void updateBulkButtons() {
-        int count = transactionTable.getSelectionModel().getSelectedItems().size();
-        bulkCategoryButton.setDisable(count == 0);
-        bulkLabelAddButton.setDisable(count == 0);
-        bulkLabelRemoveButton.setDisable(count == 0);
     }
 
     private void restoreColumnConfig() {

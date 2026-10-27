@@ -4,9 +4,14 @@ import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.SelectionMode;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
+import javafx.scene.input.KeyCode;
 import javafx.stage.Stage;
 import org.fintrax.config.I18n;
 import org.fintrax.model.Category;
@@ -18,10 +23,10 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -39,6 +44,13 @@ class TransactionsControllerTest extends AbstractUITest {
                 .bookingDate(LocalDate.now())
                 .amount(BigDecimal.ONE)
                 .build());
+        for (int i = 0; i < 2; i++) {
+            applicationContext.getBean(TransactionService.class).createTransaction(Transaction.builder()
+                    .originalPayee("Context menu test " + i + " " + System.nanoTime())
+                    .bookingDate(LocalDate.now().minusDays(i + 1))
+                    .amount(BigDecimal.valueOf(i + 2))
+                    .build());
+        }
 
         Parent root = applicationContext.getBean(ViewLoader.class).load("transactions");
         stage.setScene(new Scene(root, 1024, 768));
@@ -74,17 +86,55 @@ class TransactionsControllerTest extends AbstractUITest {
     }
 
     @Test
-    void labelRemovalDialogAlsoOffersSearchableDropdown() {
+    void transactionTableAllowsMultipleSelection() {
         TableView<Transaction> table = lookup("#transactionTable").query();
-        interact(() -> table.getSelectionModel().select(0));
-        Button removeButton = lookup("#bulkLabelRemoveButton").query();
-        assertEquals(1, table.getSelectionModel().getSelectedItems().size());
-        assertFalse(removeButton.isDisabled());
-        clickOn(removeButton);
 
-        assertNotNull(lookup(I18n.get("dialog.bulkLabelRemove.header", 1)).query());
-        assertTrue(lookup("#search").query().isFocused());
-        interact(lookup("#cancelLabelButton").<Button>query()::fire);
+        assertEquals(SelectionMode.MULTIPLE, table.getSelectionModel().getSelectionMode());
+    }
+
+    @Test
+    void rightClickingSelectedRowKeepsMultipleSelection() {
+        TableView<Transaction> table = lookup("#transactionTable").query();
+        interact(() -> {
+            table.getSelectionModel().clearSelection();
+            table.getSelectionModel().select(0);
+            table.getSelectionModel().select(1);
+        });
+
+        rightClickOn(cellForRow(table, 0));
+
+        assertEquals(List.of(0, 1), table.getSelectionModel().getSelectedIndices().stream().sorted().toList());
+        press(KeyCode.ESCAPE);
+    }
+
+    @Test
+    void rightClickingUnselectedRowSelectsOnlyThatRow() {
+        TableView<Transaction> table = lookup("#transactionTable").query();
+        interact(() -> {
+            table.getSelectionModel().clearSelection();
+            table.getSelectionModel().select(0);
+            table.getSelectionModel().select(1);
+        });
+
+        rightClickOn(cellForRow(table, 2));
+
+        assertEquals(List.of(2), table.getSelectionModel().getSelectedIndices().stream().sorted().toList());
+        press(KeyCode.ESCAPE);
+    }
+
+    @Test
+    void transactionRowContextMenuContainsCategoryAndLabelActions() {
+        TableView<Transaction> table = lookup("#transactionTable").query();
+        TableRow<Transaction> row = rowFor(table, 0);
+        ContextMenu contextMenu = row.getContextMenu();
+
+        assertNotNull(contextMenu);
+        assertEquals(List.of(
+                        I18n.get("contextMenu.setCategory"),
+                        I18n.get("contextMenu.addLabel"),
+                        I18n.get("contextMenu.removeLabel")),
+                contextMenu.getItems().stream().map(MenuItem::getText).toList());
+        assertTrue(contextMenu.getItems().stream().allMatch(item -> item.getOnAction() != null));
     }
 
     private Node cellFor(TableView<Transaction> table, TableColumn<?, ?> column) {
@@ -92,6 +142,24 @@ class TransactionsControllerTest extends AbstractUITest {
                 .filter(node -> node instanceof TableCell<?, ?>)
                 .map(node -> (TableCell<?, ?>) node)
                 .filter(cell -> !cell.isEmpty() && cell.getTableColumn() == column)
+                .findFirst()
+                .orElseThrow();
+    }
+
+    private Node cellForRow(TableView<Transaction> table, int rowIndex) {
+        return table.lookupAll(".table-cell").stream()
+                .filter(node -> node instanceof TableCell<?, ?>)
+                .map(node -> (TableCell<?, ?>) node)
+                .filter(cell -> !cell.isEmpty() && cell.getIndex() == rowIndex)
+                .findFirst()
+                .orElseThrow();
+    }
+
+    @SuppressWarnings("unchecked")
+    private TableRow<Transaction> rowFor(TableView<Transaction> table, int rowIndex) {
+        return table.lookupAll(".table-row-cell").stream()
+                .filter(node -> node instanceof TableRow<?> row && row.getIndex() == rowIndex)
+                .map(node -> (TableRow<Transaction>) node)
                 .findFirst()
                 .orElseThrow();
     }

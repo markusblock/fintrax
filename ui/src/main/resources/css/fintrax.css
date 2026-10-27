@@ -413,12 +413,6 @@
     -fx-pref-height: 36px;
 }
 
-.bulk-toolbar {
-    -fx-spacing: 8;
-    -fx-padding: 0 24 12 24;
-    -fx-alignment: CENTER_LEFT;
-}
-
 .transaction-detail-panel {
     -fx-background-color: -color-bg-subtle;
     -fx-border-color: -color-border-default;
