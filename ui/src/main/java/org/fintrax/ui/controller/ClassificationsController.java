@@ -10,7 +10,11 @@ import javafx.geometry.Insets;
 import javafx.scene.control.*;
 import javafx.scene.input.MouseButton;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.Background;
+import javafx.scene.layout.BackgroundFill;
 import javafx.scene.layout.ColumnConstraints;
+import javafx.scene.layout.CornerRadii;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
@@ -155,7 +159,7 @@ public class ClassificationsController {
                     .collect(Collectors.joining(", "));
             return new SimpleStringProperty(text);
         });
-        transactionLabelsColumn.setCellFactory(column -> createAssignmentCell(() ->
+        transactionLabelsColumn.setCellFactory(column -> createLabelChipCell(() ->
                 transactionTableActions.setLabels(classificationTransactionsTable, rootPane,
                         this::reloadSelectedTransactionsKeepingSelection)));
 
@@ -175,6 +179,61 @@ public class ClassificationsController {
                 setText(empty ? null : item);
             }
         };
+        installAssignmentHandler(cell, openSelection);
+        return cell;
+    }
+
+    private TableCell<Transaction, String> createLabelChipCell(Runnable openSelection) {
+        TableCell<Transaction, String> cell = new TableCell<>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(null);
+                if (empty || getTableRow() == null || getTableRow().getItem() == null) {
+                    setGraphic(null);
+                    return;
+                }
+
+                Set<Long> labelIds = getTableRow().getItem().getLabelIds();
+                FlowPane chips = new FlowPane(4, 2);
+                chips.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+                if (labelIds != null) {
+                    labelIds.stream()
+                            .map(labelService::getLabel)
+                            .flatMap(Optional::stream)
+                            .map(ClassificationsController.this::createLabelChip)
+                            .forEach(chips.getChildren()::add);
+                }
+                setGraphic(chips.getChildren().isEmpty() ? null : chips);
+            }
+        };
+        installAssignmentHandler(cell, openSelection);
+        return cell;
+    }
+
+    private javafx.scene.control.Label createLabelChip(org.fintrax.model.Label label) {
+        Color color = parseLabelColor(label.getColor());
+        javafx.scene.control.Label chip = new javafx.scene.control.Label(label.getName());
+        chip.setTextFill(contrastingTextColor(color));
+        chip.setBackground(new Background(new BackgroundFill(
+                color, new CornerRadii(9), new Insets(2, 7, 2, 7))));
+        return chip;
+    }
+
+    private Color contrastingTextColor(Color background) {
+        double luminance = 0.2126 * linearize(background.getRed())
+                + 0.7152 * linearize(background.getGreen())
+                + 0.0722 * linearize(background.getBlue());
+        return luminance > 0.179 ? Color.BLACK : Color.WHITE;
+    }
+
+    private double linearize(double colorChannel) {
+        return colorChannel <= 0.04045
+                ? colorChannel / 12.92
+                : Math.pow((colorChannel + 0.055) / 1.055, 2.4);
+    }
+
+    private void installAssignmentHandler(TableCell<Transaction, String> cell, Runnable openSelection) {
         cell.setOnMouseClicked(event -> {
             if (event.getButton() != MouseButton.PRIMARY || event.getClickCount() != 2 || cell.isEmpty()) {
                 return;
@@ -184,7 +243,6 @@ public class ClassificationsController {
             }
             openSelection.run();
         });
-        return cell;
     }
 
     private void loadCategoryTransactions(Long categoryId) {

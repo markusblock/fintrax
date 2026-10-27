@@ -207,6 +207,18 @@ class ClassificationsControllerTest extends AbstractUITest {
                 .findFirst()
                 .orElseThrow();
         assertEquals(label.getName(), labelsColumn.getCellObservableValue(matching).getValue());
+        TableCell<?, ?> labelsCell = table.lookupAll(".table-cell").stream()
+                .filter(TableCell.class::isInstance)
+                .map(node -> (TableCell<?, ?>) node)
+                .filter(cell -> !cell.isEmpty() && cell.getTableColumn() == labelsColumn)
+                .findFirst()
+                .orElseThrow();
+        assertTrue(labelsCell.getGraphic() instanceof FlowPane);
+        FlowPane labelChips = (FlowPane) labelsCell.getGraphic();
+        javafx.scene.control.Label chip = (javafx.scene.control.Label) labelChips.getChildren().getFirst();
+        assertEquals(label.getName(), chip.getText());
+        assertEquals(javafx.scene.paint.Color.web(label.getColor()),
+                chip.getBackground().getFills().getFirst().getFill());
     }
 
     @Test
