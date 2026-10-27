@@ -258,6 +258,7 @@ public class ClassificationsController {
                 setText(empty ? null : value);
             }
         };
+        cell.setContextMenu(classificationContextMenu);
 
         cell.setOnMouseClicked(event -> {
             if (cell.isEmpty()) return;
@@ -282,10 +283,9 @@ public class ClassificationsController {
             Long categoryId = findCategoryIdByItem(item);
             Long labelId = findLabelIdByItem(item);
             boolean isCategoriesRoot = item == categoriesRoot;
-            boolean isLabelsRoot = item == labelsRoot;
             addCategoryMenuItem.setDisable(!(isCategoriesRoot
                     || categoryId != null && calculateDepth(categoryId) < 5));
-            addLabelMenuItem.setDisable(!isLabelsRoot);
+            addLabelMenuItem.setDisable(false);
             editNodeMenuItem.setDisable(categoryId == null && labelId == null);
             deleteNodeMenuItem.setDisable(categoryId == null && labelId == null);
             classificationContextMenu.show(cell, event.getScreenX(), event.getScreenY());

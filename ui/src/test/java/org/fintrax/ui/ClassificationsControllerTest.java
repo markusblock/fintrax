@@ -37,6 +37,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -239,6 +240,42 @@ class ClassificationsControllerTest extends AbstractUITest {
         assertEquals("Renamed label", saved.getName());
         assertEquals("Updated comment", saved.getComment());
         assertEquals("#FF0000", saved.getColor());
+    }
+
+    @Test
+    void addLabelContextMenuAddsLabelUnderAllLabels() throws Exception {
+        Category category = categoryService().createCategory("Context menu category " + System.nanoTime(), null, null);
+        reloadClassificationsView();
+        TreeView<String> tree = lookup("#classificationTree").query();
+        TreeItem<String> categoryItem = categoryTreeItem(tree, category.getName());
+        TreeCell<?> categoryCell = tree.lookupAll(".tree-cell").stream()
+                .filter(TreeCell.class::isInstance)
+                .map(node -> (TreeCell<?>) node)
+                .filter(cell -> !cell.isEmpty() && cell.getTreeItem() == categoryItem)
+                .findFirst()
+                .orElseThrow();
+
+        rightClickOn(categoryCell);
+        ContextMenu contextMenu = categoryCell.getContextMenu();
+        assertNotNull(contextMenu);
+        MenuItem addLabelItem = contextMenu.getItems().stream()
+                .filter(item -> "addLabelMenuItem".equals(item.getId()))
+                .findFirst()
+                .orElseThrow();
+        assertFalse(addLabelItem.isDisable());
+        interact(addLabelItem::fire);
+        WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS,
+                () -> lookup("#labelNameField").tryQuery().isPresent());
+        String labelName = "Added from tree " + System.nanoTime();
+        interact(() -> {
+            lookup("#labelNameField").<TextField>query().setText(labelName);
+            lookup("#labelSaveButton").<Button>query().fire();
+        });
+        WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS,
+                () -> labelService().getAllLabels().stream().anyMatch(label -> labelName.equals(label.getName())));
+
+        TreeItem<String> labelsRoot = treeItem(tree.getRoot(), I18n.get("classifications.labelsRoot"));
+        assertTrue(labelsRoot.getChildren().stream().anyMatch(item -> labelName.equals(item.getValue())));
     }
 
     private TreeItem<String> treeItem(TreeItem<String> parent, String value) {
