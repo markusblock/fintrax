@@ -89,6 +89,21 @@ class TransactionServiceTest {
     }
 
     @Test
+    void dateRangeExcludesTransactionsWithoutBookingDate() {
+        transactionService.createTransaction(Transaction.builder()
+                .originalPayee("dated").amount(BigDecimal.ONE)
+                .bookingDate(LocalDate.of(2024, 1, 15)).build());
+        transactionService.createTransaction(Transaction.builder()
+                .originalPayee("undated").amount(BigDecimal.ONE).build());
+
+        List<Transaction> filtered = transactionService.filterTransactions(
+                null, LocalDate.of(2024, 1, 1), LocalDate.of(2024, 2, 1),
+                null, null, null, null, null);
+
+        assertEquals(List.of("dated"), filtered.stream().map(Transaction::getOriginalPayee).toList());
+    }
+
+    @Test
     void testFilterBySearchText() {
         BankAccount account = accountService.createAccount(
                 "DE89370400440532013000", null, "Bank", "User", AccountType.GIRO, null);

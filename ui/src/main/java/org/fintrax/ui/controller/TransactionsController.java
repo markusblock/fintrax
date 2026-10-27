@@ -13,6 +13,7 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import javafx.util.StringConverter;
 import lombok.extern.slf4j.Slf4j;
 import org.fintrax.config.I18n;
 import org.fintrax.model.*;
@@ -24,6 +25,7 @@ import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -48,6 +50,12 @@ public class TransactionsController {
     private TextField minAmountField;
     @FXML
     private TextField maxAmountField;
+    @FXML
+    private ComboBox<TransactionDateFilters.Preset> datePresetFilter;
+    @FXML
+    private DatePicker fromDateFilter;
+    @FXML
+    private DatePicker toDateFilter;
     @FXML
     private SplitPane splitPane;
     @FXML
@@ -90,6 +98,7 @@ public class TransactionsController {
 
     private final ObservableList<Transaction> tableData = FXCollections.observableArrayList();
     private boolean detailVisible = false;
+    private boolean updatingDateFilters;
     private Map<Long, CheckBox> labelCheckBoxes = new HashMap<>();
 
     public TransactionsController(AccountService accountService, TransactionService transactionService,
@@ -109,6 +118,7 @@ public class TransactionsController {
         transactionTableActions.installContextMenu(
                 transactionTable, rootPane, this::reloadTransactionsKeepingSelection);
         setupTableColumns();
+        setupDateFilters();
         loadFilterOptions();
         loadTransactions();
         restoreColumnConfig();
@@ -231,7 +241,102 @@ public class TransactionsController {
         }
     }
 
+    private void setupDateFilters() {
+        Locale locale = I18n.getCurrentLocale();
+        datePresetFilter.getItems().setAll(TransactionDateFilters.Preset.values());
+        datePresetFilter.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(TransactionDateFilters.Preset preset) {
+                return preset == null ? "" : I18n.get("filter.datePreset." + preset.name());
+            }
+
+            @Override
+            public TransactionDateFilters.Preset fromString(String text) {
+                return Arrays.stream(TransactionDateFilters.Preset.values())
+                        .filter(preset -> toString(preset).equals(text))
+                        .findFirst()
+                        .orElse(null);
+            }
+        });
+
+        DateTimeFormatter formatter = TransactionDateFilters.formatter(locale);
+        StringConverter<LocalDate> dateConverter = new StringConverter<>() {
+            @Override
+            public String toString(LocalDate date) {
+                return date == null ? "" : formatter.format(date);
+            }
+
+            @Override
+            public LocalDate fromString(String text) {
+                return TransactionDateFilters.parseDate(text, locale);
+            }
+        };
+        fromDateFilter.setConverter(dateConverter);
+        toDateFilter.setConverter(dateConverter);
+        datePresetFilter.setValue(TransactionDateFilters.Preset.ALL_TIME);
+
+        datePresetFilter.valueProperty().addListener((observable, oldPreset, preset) -> {
+            if (preset == null || preset == TransactionDateFilters.Preset.CUSTOM) return;
+            TransactionDateFilters.Range range = TransactionDateFilters.rangeFor(
+                    preset, LocalDate.now(), locale);
+            updatingDateFilters = true;
+            fromDateFilter.setValue(range.fromDate());
+            toDateFilter.setValue(range.toDate());
+            updatingDateFilters = false;
+            setDateFieldInvalid(fromDateFilter, false);
+            setDateFieldInvalid(toDateFilter, false);
+        });
+
+        fromDateFilter.getEditor().textProperty().addListener((observable, oldText, newText) ->
+                onDateTextChanged());
+        toDateFilter.getEditor().textProperty().addListener((observable, oldText, newText) ->
+                onDateTextChanged());
+    }
+
+    private void onDateTextChanged() {
+        setDateFieldInvalid(fromDateFilter, false);
+        setDateFieldInvalid(toDateFilter, false);
+        if (!updatingDateFilters) {
+            datePresetFilter.setValue(TransactionDateFilters.Preset.CUSTOM);
+        }
+    }
+
+    private void setDateFieldInvalid(DatePicker datePicker, boolean invalid) {
+        if (invalid) {
+            if (!datePicker.getEditor().getStyleClass().contains("invalid-date")) {
+                datePicker.getEditor().getStyleClass().add("invalid-date");
+            }
+        } else {
+            datePicker.getEditor().getStyleClass().remove("invalid-date");
+        }
+    }
+
     private void loadTransactions() {
+        LocalDate fromDate;
+        LocalDate toDate;
+        try {
+            fromDate = TransactionDateFilters.parseDate(
+                    fromDateFilter.getEditor().getText(), I18n.getCurrentLocale());
+        } catch (DateTimeParseException e) {
+            setDateFieldInvalid(fromDateFilter, true);
+            return;
+        }
+        try {
+            toDate = TransactionDateFilters.parseDate(
+                    toDateFilter.getEditor().getText(), I18n.getCurrentLocale());
+        } catch (DateTimeParseException e) {
+            setDateFieldInvalid(toDateFilter, true);
+            return;
+        }
+
+        if (fromDate != null && toDate != null && fromDate.isAfter(toDate)) {
+            setDateFieldInvalid(fromDateFilter, true);
+            setDateFieldInvalid(toDateFilter, true);
+            return;
+        }
+        setDateFieldInvalid(fromDateFilter, false);
+        setDateFieldInvalid(toDateFilter, false);
+
         Long accountId = getSelectedAccountId();
         Long categoryId = getSelectedCategoryId();
         BigDecimal minAmount = parseAmount(minAmountField.getText());
@@ -240,7 +345,7 @@ public class TransactionsController {
         Set<Long> labelIds = null;
 
         List<Transaction> filtered = transactionService.filterTransactions(
-                accountId, null, null, categoryId, labelIds, minAmount, maxAmount,
+                accountId, fromDate, toDate, categoryId, labelIds, minAmount, maxAmount,
                 search.isEmpty() ? null : search);
 
         tableData.setAll(filtered);
