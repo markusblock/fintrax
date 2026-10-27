@@ -8,8 +8,8 @@ import static org.junit.jupiter.api.Assertions.assertNotSame;
 
 class ViewLoaderTest extends AbstractUITest {
     private static final String[] SUPPORTED_VIEWS = {
-            "main", "bankAccounts", "transactions", "categories", "rules",
-            "labels", "activityLog", "settings", "addAccountDialog"
+            "main", "bankAccounts", "transactions", "classifications", "rules",
+            "activityLog", "settings", "addAccountDialog"
     };
 
     @Test
