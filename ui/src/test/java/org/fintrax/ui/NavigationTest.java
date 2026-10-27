@@ -262,7 +262,7 @@ class NavigationTest extends AbstractUITest {
                 borderColors[colorIndex] = rightBorderColor(table, 0);
                 borderColors[colorIndex + 1] = rightBorderColor(table, 1);
             });
-            Color expectedSelectionColor = themeIndex == 0 ? Color.web("#033d8b") : Color.web("#0d419d");
+            Color expectedSelectionColor = themeIndex == 0 ? Color.web("#0969da") : Color.web("#1f6feb");
             assertEquals(expectedSelectionColor, stripedSelectionColors[themeIndex],
                     "striped selected row should use a dark accent fill in " + theme + " theme");
             assertEquals(borderColors[themeIndex * 2 + 1], borderColors[themeIndex * 2],

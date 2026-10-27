@@ -295,8 +295,8 @@
 
 .table-view {
     -fx-background-color: -color-bg-default;
-    -color-cell-bg-selected: -color-accent-7;
-    -color-cell-bg-selected-focused: -color-accent-7;
+    -color-cell-bg-selected: -color-accent-emphasis;
+    -color-cell-bg-selected-focused: -color-accent-emphasis;
     -color-cell-fg-selected: white;
     -color-cell-fg-selected-focused: white;
 }
