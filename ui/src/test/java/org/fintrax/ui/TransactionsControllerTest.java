@@ -186,7 +186,7 @@ class TransactionsControllerTest extends AbstractUITest {
                         "col.balance", "col.category", "col.labels").stream().map(I18n::get).toList(),
                 columnMenu.getItems().stream().map(MenuItem::getText).toList());
         assertTrue(columnMenu.getItems().stream()
-                .map(item -> (CheckMenuItem) item)
+                .map(CheckMenuItem.class::cast)
                 .allMatch(CheckMenuItem::isSelected));
 
         CheckMenuItem purposeItem = (CheckMenuItem) columnMenu.getItems().get(2);
