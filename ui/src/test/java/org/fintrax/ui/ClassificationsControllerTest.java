@@ -5,7 +5,9 @@ import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ContextMenu;
+import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.TableCell;
@@ -26,6 +28,7 @@ import org.fintrax.model.Label;
 import org.fintrax.model.Transaction;
 import org.fintrax.service.CategoryService;
 import org.fintrax.service.LabelService;
+import org.fintrax.service.SettingsService;
 import org.fintrax.service.TransactionService;
 import org.fintrax.ui.control.LabelChipFactory;
 import org.junit.jupiter.api.Test;
@@ -40,6 +43,7 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ClassificationsControllerTest extends AbstractUITest {
@@ -112,6 +116,32 @@ class ClassificationsControllerTest extends AbstractUITest {
         assertEquals(selectedIds, table.getSelectionModel().getSelectedItems().stream()
                 .map(Transaction::getId)
                 .toList());
+    }
+
+    @Test
+    void classificationTransactionColumnsCanBeShownAndHidden() {
+        MenuButton columnMenu = lookup("#columnMenuButton").query();
+        TableView<Transaction> table = lookup("#classificationTransactionsTable").query();
+
+        assertSame(columnMenu, table.getColumns().getLast().getGraphic());
+        assertEquals(List.of("col.date", "col.payee", "col.purpose", "col.amount",
+                        "col.category", "col.labels").stream().map(I18n::get).toList(),
+                columnMenu.getItems().stream().map(MenuItem::getText).toList());
+        assertTrue(columnMenu.getItems().stream()
+                .map(CheckMenuItem.class::cast)
+                .allMatch(CheckMenuItem::isSelected));
+
+        CheckMenuItem purposeItem = (CheckMenuItem) columnMenu.getItems().get(2);
+        try {
+            interact(() -> purposeItem.setSelected(false));
+
+            assertFalse(table.getColumns().get(2).isVisible());
+            assertFalse(purposeItem.isSelected());
+            assertTrue(applicationContext.getBean(SettingsService.class)
+                    .getSettingValue("classification.transaction.columns").contains("purpose=false"));
+        } finally {
+            interact(() -> purposeItem.setSelected(true));
+        }
     }
 
     @Test

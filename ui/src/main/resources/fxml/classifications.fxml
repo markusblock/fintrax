@@ -8,6 +8,7 @@
 <?import javafx.scene.control.TreeView?>
 <?import javafx.scene.control.SplitPane?>
 <?import javafx.geometry.Insets?>
+<?import javafx.scene.control.MenuButton?>
 
 <BorderPane fx:id="rootPane" xmlns:fx="http://javafx.com/fxml"
             fx:controller="org.fintrax.ui.controller.ClassificationsController" styleClass="view-root">
@@ -33,6 +34,13 @@
                         <TableColumn fx:id="transactionAmountColumn" text="%col.amount" minWidth="80" prefWidth="95" sortable="true"/>
                         <TableColumn fx:id="transactionCategoryColumn" text="%col.category" minWidth="95" prefWidth="115" sortable="true"/>
                         <TableColumn fx:id="transactionLabelsColumn" text="%col.labels" minWidth="90" prefWidth="120" sortable="true"/>
+                        <TableColumn minWidth="34" prefWidth="34" maxWidth="34"
+                                     resizable="false" sortable="false" reorderable="false">
+                            <graphic>
+                                <MenuButton fx:id="columnMenuButton" accessibleText="%button.columns"
+                                            styleClass="column-menu-button"/>
+                            </graphic>
+                        </TableColumn>
                     </columns>
                 </TableView>
             </VBox>

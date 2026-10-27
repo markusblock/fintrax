@@ -21,6 +21,7 @@ import org.fintrax.model.*;
 import org.fintrax.service.*;
 import org.fintrax.ui.control.LabelChipFactory;
 import org.fintrax.ui.control.SearchableListPicker;
+import org.fintrax.ui.control.TableColumnVisibilityMenu;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
@@ -39,8 +40,6 @@ public class TransactionsController {
     private static final String COLUMN_CONFIG_KEY = "transaction.columns";
     private static final double TABLE_DIVIDER_WITH_DETAILS = 0.7;
     private static final double TABLE_DIVIDER_WITHOUT_DETAILS = 1.0;
-
-    private record ColumnConfig(String key, TableColumn<?, ?> column) {}
 
     @FXML
     private BorderPane rootPane;
@@ -128,7 +127,6 @@ public class TransactionsController {
         setupDateFilters();
         loadFilterOptions();
         loadTransactions();
-        restoreColumnConfig();
         setupColumnMenu();
 
         transactionTable.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
@@ -541,68 +539,27 @@ public class TransactionsController {
         return new ArrayList<>(transactionTable.getSelectionModel().getSelectedItems());
     }
 
-    private void restoreColumnConfig() {
-        String value = settingsService.getSettingValue(COLUMN_CONFIG_KEY);
-        if (value == null) return;
-
-        try {
-            String[] parts = value.split(",");
-            for (String part : parts) {
-                String[] kv = part.split("=");
-                if (kv.length == 2) {
-                    String colName = kv[0];
-                    boolean visible = Boolean.parseBoolean(kv[1]);
-                    TableColumn<?, ?> col = findColumn(colName);
-                    if (col != null) {
-                        col.setVisible(visible);
-                    }
-                }
-            }
-        } catch (Exception e) {
-            log.warn("Failed to restore column config", e);
-        }
-    }
-
     private void setupColumnMenu() {
-        columnConfigurations().forEach(config -> addColumnMenuItem(config.column()));
-    }
-
-    private void addColumnMenuItem(TableColumn<?, ?> column) {
-        CheckMenuItem menuItem = new CheckMenuItem(column.getText());
-        menuItem.setSelected(column.isVisible());
-        menuItem.selectedProperty().addListener((observable, wasVisible, isVisible) ->
-                column.setVisible(isVisible));
-        column.visibleProperty().addListener((observable, wasVisible, isVisible) -> {
-            menuItem.setSelected(isVisible);
-            saveColumnConfig();
-        });
-        columnMenuButton.getItems().add(menuItem);
+        TableColumnVisibilityMenu.install(
+                columnMenuButton, COLUMN_CONFIG_KEY, settingsService, columnConfigurations());
     }
 
     private TableColumn<?, ?> findColumn(String name) {
         return columnConfigurations().stream()
                 .filter(config -> config.key().equals(name))
-                .map(ColumnConfig::column)
+                .map(TableColumnVisibilityMenu.Column::column)
                 .findFirst()
                 .orElse(null);
     }
 
-    public void saveColumnConfig() {
-        String value = columnConfigurations().stream()
-                .map(config -> config.key() + "=" + config.column().isVisible())
-                .collect(Collectors.joining(","));
-
-        settingsService.saveSettingValue(COLUMN_CONFIG_KEY, value);
-    }
-
-    private List<ColumnConfig> columnConfigurations() {
+    private List<TableColumnVisibilityMenu.Column> columnConfigurations() {
         return List.of(
-                new ColumnConfig("date", dateColumn),
-                new ColumnConfig("payee", payeeColumn),
-                new ColumnConfig("purpose", purposeColumn),
-                new ColumnConfig("amount", amountColumn),
-                new ColumnConfig("balance", balanceColumn),
-                new ColumnConfig("category", categoryColumn),
-                new ColumnConfig("labels", labelsColumn));
+                new TableColumnVisibilityMenu.Column("date", dateColumn),
+                new TableColumnVisibilityMenu.Column("payee", payeeColumn),
+                new TableColumnVisibilityMenu.Column("purpose", purposeColumn),
+                new TableColumnVisibilityMenu.Column("amount", amountColumn),
+                new TableColumnVisibilityMenu.Column("balance", balanceColumn),
+                new TableColumnVisibilityMenu.Column("category", categoryColumn),
+                new TableColumnVisibilityMenu.Column("labels", labelsColumn));
     }
 }
