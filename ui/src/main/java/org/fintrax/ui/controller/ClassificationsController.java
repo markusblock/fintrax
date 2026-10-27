@@ -13,6 +13,7 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
 import javafx.stage.Modality;
 import lombok.extern.slf4j.Slf4j;
 import org.kordamp.ikonli.javafx.FontIcon;
@@ -20,6 +21,7 @@ import org.fintrax.config.I18n;
 import org.fintrax.model.Category;
 import org.fintrax.model.Transaction;
 import org.fintrax.service.CategoryService;
+import org.fintrax.service.LabelService;
 import org.fintrax.ui.FintraxUI;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
@@ -33,15 +35,15 @@ import java.util.stream.Collectors;
 @Slf4j
 @Component
 @Scope("prototype")
-public class CategoriesController {
+public class ClassificationsController {
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     @FXML
     private BorderPane rootPane;
     @FXML
-    private TreeView<String> categoryTree;
+    private TreeView<String> classificationTree;
     @FXML
-    private TableView<Transaction> categoryTransactionsTable;
+    private TableView<Transaction> classificationTransactionsTable;
     @FXML
     private TableColumn<Transaction, LocalDate> transactionDateColumn;
     @FXML
@@ -52,40 +54,56 @@ public class CategoriesController {
     private TableColumn<Transaction, BigDecimal> transactionAmountColumn;
     @FXML
     private TableColumn<Transaction, String> transactionCategoryColumn;
+    @FXML
+    private TableColumn<Transaction, String> transactionLabelsColumn;
 
     private final CategoryService categoryService;
+    private final LabelService labelService;
     private final TransactionTableActions transactionTableActions;
-    private final Map<Long, TreeItem<String>> itemByCategoryId = new HashMap<>();
-    private final ObservableList<Transaction> categoryTransactions = FXCollections.observableArrayList();
-    private final ContextMenu categoryContextMenu = new ContextMenu();
+    private final Map<Long, TreeItem<String>> categoryItemsById = new HashMap<>();
+    private final Map<Long, TreeItem<String>> labelItemsById = new HashMap<>();
+    private final ObservableList<Transaction> displayedTransactions = FXCollections.observableArrayList();
+    private final ContextMenu classificationContextMenu = new ContextMenu();
     private final MenuItem addCategoryMenuItem = new MenuItem();
+    private final MenuItem addLabelMenuItem = new MenuItem();
     private final MenuItem editNodeMenuItem = new MenuItem();
     private final MenuItem deleteNodeMenuItem = new MenuItem();
+    private TreeItem<String> categoriesRoot;
+    private TreeItem<String> labelsRoot;
 
-    public CategoriesController(CategoryService categoryService,
-                                TransactionTableActions transactionTableActions) {
+    public ClassificationsController(CategoryService categoryService,
+                                 LabelService labelService,
+                                 TransactionTableActions transactionTableActions) {
         this.categoryService = categoryService;
+        this.labelService = labelService;
         this.transactionTableActions = transactionTableActions;
     }
 
     @FXML
     public void initialize() {
-        log.info("CategoriesController initialized");
+        log.info("ClassificationsController initialized");
         loadTree();
         configureContextMenu();
-        categoryTree.setCellFactory(this::createCategoryCell);
+        classificationTree.setCellFactory(this::createClassificationCell);
         setupTransactionTable();
-        categoryTransactionsTable.setItems(categoryTransactions);
+        classificationTransactionsTable.setItems(displayedTransactions);
         transactionTableActions.installContextMenu(
-                categoryTransactionsTable, rootPane, this::reloadCategoryTransactionsKeepingSelection);
-        categoryTree.getSelectionModel().selectedItemProperty().addListener((obs, oldItem, newItem) -> {
+                classificationTransactionsTable, rootPane, this::reloadSelectedTransactionsKeepingSelection);
+        classificationTree.getSelectionModel().selectedItemProperty().addListener((obs, oldItem, newItem) -> {
             Long categoryId = newItem == null ? null : findCategoryIdByItem(newItem);
-            loadCategoryTransactions(categoryId);
+            Long labelId = newItem == null ? null : findLabelIdByItem(newItem);
+            if (categoryId != null) {
+                loadCategoryTransactions(categoryId);
+            } else if (labelId != null) {
+                loadLabelTransactions(labelId);
+            } else {
+                displayedTransactions.clear();
+            }
         });
     }
 
     private void setupTransactionTable() {
-        categoryTransactionsTable.setColumnResizePolicy(
+        classificationTransactionsTable.setColumnResizePolicy(
                 TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         transactionDateColumn.setCellValueFactory(cell ->
                 new SimpleObjectProperty<>(cell.getValue().getBookingDate()));
@@ -124,58 +142,85 @@ public class CategoriesController {
             return new SimpleStringProperty(categoryId == null ? "" : categoryService.getCategory(categoryId)
                     .map(Category::getName).orElse(""));
         });
-        transactionCategoryColumn.setCellFactory(column -> {
-            TableCell<Transaction, String> cell = new TableCell<>() {
-                @Override
-                protected void updateItem(String item, boolean empty) {
-                    super.updateItem(item, empty);
-                    setText(empty ? null : item);
-                }
-            };
-            cell.setOnMouseClicked(event -> {
-                if (event.getButton() != MouseButton.PRIMARY || event.getClickCount() != 2 || cell.isEmpty()) {
-                    return;
-                }
-                if (!categoryTransactionsTable.getSelectionModel().isSelected(cell.getIndex())) {
-                    categoryTransactionsTable.getSelectionModel().clearAndSelect(cell.getIndex());
-                }
-                transactionTableActions.setCategory(categoryTransactionsTable, rootPane,
-                        this::reloadCategoryTransactionsKeepingSelection);
-            });
-            return cell;
+        transactionCategoryColumn.setCellFactory(column -> createAssignmentCell(() ->
+                transactionTableActions.setCategory(classificationTransactionsTable, rootPane,
+                        this::reloadSelectedTransactionsKeepingSelection)));
+
+        transactionLabelsColumn.setCellValueFactory(cell -> {
+            Set<Long> labelIds = cell.getValue().getLabelIds();
+            if (labelIds == null || labelIds.isEmpty()) return new SimpleStringProperty("");
+            String text = labelIds.stream()
+                    .map(id -> labelService.getLabel(id).map(org.fintrax.model.Label::getName).orElse(""))
+                    .filter(name -> !name.isEmpty())
+                    .collect(Collectors.joining(", "));
+            return new SimpleStringProperty(text);
         });
+        transactionLabelsColumn.setCellFactory(column -> createAssignmentCell(() ->
+                transactionTableActions.setLabels(classificationTransactionsTable, rootPane,
+                        this::reloadSelectedTransactionsKeepingSelection)));
 
         transactionDateColumn.setSortable(true);
         transactionPayeeColumn.setSortable(true);
         transactionPurposeColumn.setSortable(true);
         transactionAmountColumn.setSortable(true);
         transactionCategoryColumn.setSortable(true);
+        transactionLabelsColumn.setSortable(true);
+    }
+
+    private TableCell<Transaction, String> createAssignmentCell(Runnable openSelection) {
+        TableCell<Transaction, String> cell = new TableCell<>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty ? null : item);
+            }
+        };
+        cell.setOnMouseClicked(event -> {
+            if (event.getButton() != MouseButton.PRIMARY || event.getClickCount() != 2 || cell.isEmpty()) {
+                return;
+            }
+            if (!classificationTransactionsTable.getSelectionModel().isSelected(cell.getIndex())) {
+                classificationTransactionsTable.getSelectionModel().clearAndSelect(cell.getIndex());
+            }
+            openSelection.run();
+        });
+        return cell;
     }
 
     private void loadCategoryTransactions(Long categoryId) {
-        if (categoryId == null) {
-            categoryTransactions.clear();
-            return;
-        }
+        displayedTransactions.setAll(categoryService.getTransactionsInCategoryAndDescendants(categoryId));
+        sortTransactionsIfNeeded();
+    }
 
-        categoryTransactions.setAll(categoryService.getTransactionsInCategoryAndDescendants(categoryId));
-        if (!categoryTransactionsTable.getSortOrder().isEmpty()) {
-            categoryTransactionsTable.sort();
+    private void loadLabelTransactions(Long labelId) {
+        displayedTransactions.setAll(labelService.getTransactionsWithLabel(labelId));
+        sortTransactionsIfNeeded();
+    }
+
+    private void sortTransactionsIfNeeded() {
+        if (!classificationTransactionsTable.getSortOrder().isEmpty()) {
+            classificationTransactionsTable.sort();
         }
     }
 
-    private void reloadCategoryTransactionsKeepingSelection() {
-        Set<Long> selectedIds = categoryTransactionsTable.getSelectionModel().getSelectedItems().stream()
+    private void reloadSelectedTransactionsKeepingSelection() {
+        Set<Long> selectedIds = classificationTransactionsTable.getSelectionModel().getSelectedItems().stream()
                 .map(Transaction::getId)
                 .collect(Collectors.toSet());
-        TreeItem<String> selectedItem = categoryTree.getSelectionModel().getSelectedItem();
+        TreeItem<String> selectedItem = classificationTree.getSelectionModel().getSelectedItem();
         Long categoryId = selectedItem == null ? null : findCategoryIdByItem(selectedItem);
+        Long labelId = selectedItem == null ? null : findLabelIdByItem(selectedItem);
+        if (categoryId != null) {
+            loadCategoryTransactions(categoryId);
+        } else if (labelId != null) {
+            loadLabelTransactions(labelId);
+        } else {
+            displayedTransactions.clear();
+        }
 
-        loadCategoryTransactions(categoryId);
-
-        for (int index = 0; index < categoryTransactions.size(); index++) {
-            if (selectedIds.contains(categoryTransactions.get(index).getId())) {
-                categoryTransactionsTable.getSelectionModel().select(index);
+        for (int index = 0; index < displayedTransactions.size(); index++) {
+            if (selectedIds.contains(displayedTransactions.get(index).getId())) {
+                classificationTransactionsTable.getSelectionModel().select(index);
             }
         }
     }
@@ -186,20 +231,26 @@ public class CategoriesController {
         addCategoryMenuItem.setId("addCategoryMenuItem");
         addCategoryMenuItem.setOnAction(event -> onAddCategory());
 
+        addLabelMenuItem.setText(I18n.get("button.addLabel"));
+        addLabelMenuItem.setGraphic(icon("fth-plus", 14));
+        addLabelMenuItem.setId("addLabelMenuItem");
+        addLabelMenuItem.setOnAction(event -> showLabelEditor(null));
+
         editNodeMenuItem.setText(I18n.get("categories.editNode"));
         editNodeMenuItem.setGraphic(icon("fth-edit-2", 14));
         editNodeMenuItem.setId("editNodeMenuItem");
-        editNodeMenuItem.setOnAction(event -> openSelectedCategoryEditor());
+        editNodeMenuItem.setOnAction(event -> openSelectedNodeEditor());
 
         deleteNodeMenuItem.setText(I18n.get("categories.deleteNode"));
         deleteNodeMenuItem.setGraphic(icon("fth-trash-2", 14));
         deleteNodeMenuItem.setId("deleteNodeMenuItem");
-        deleteNodeMenuItem.setOnAction(event -> deleteSelectedCategory());
+        deleteNodeMenuItem.setOnAction(event -> deleteSelectedNode());
 
-        categoryContextMenu.getItems().setAll(addCategoryMenuItem, editNodeMenuItem, deleteNodeMenuItem);
+        classificationContextMenu.getItems().setAll(
+                addCategoryMenuItem, addLabelMenuItem, editNodeMenuItem, deleteNodeMenuItem);
     }
 
-    private TreeCell<String> createCategoryCell(TreeView<String> treeView) {
+    private TreeCell<String> createClassificationCell(TreeView<String> treeView) {
         TreeCell<String> cell = new TreeCell<>() {
             @Override
             protected void updateItem(String value, boolean empty) {
@@ -212,11 +263,13 @@ public class CategoriesController {
             if (cell.isEmpty()) return;
 
             TreeItem<String> item = cell.getTreeItem();
-            categoryTree.getSelectionModel().select(item);
+            classificationTree.getSelectionModel().select(item);
             if (event.getButton() == MouseButton.PRIMARY && event.getClickCount() == 2) {
                 Long categoryId = findCategoryIdByItem(item);
                 if (categoryId != null) {
                     showCategoryEditor(categoryId, null);
+                } else if (findLabelIdByItem(item) != null) {
+                    labelService.getLabel(findLabelIdByItem(item)).ifPresent(this::showLabelEditor);
                 }
             }
         });
@@ -225,37 +278,55 @@ public class CategoriesController {
             if (cell.isEmpty()) return;
 
             TreeItem<String> item = cell.getTreeItem();
-            categoryTree.getSelectionModel().select(item);
+            classificationTree.getSelectionModel().select(item);
             Long categoryId = findCategoryIdByItem(item);
-            addCategoryMenuItem.setDisable(categoryId != null && calculateDepth(categoryId) >= 5);
-            editNodeMenuItem.setDisable(categoryId == null);
-            deleteNodeMenuItem.setDisable(categoryId == null);
-            categoryContextMenu.show(cell, event.getScreenX(), event.getScreenY());
+            Long labelId = findLabelIdByItem(item);
+            boolean isCategoriesRoot = item == categoriesRoot;
+            boolean isLabelsRoot = item == labelsRoot;
+            addCategoryMenuItem.setDisable(!(isCategoriesRoot
+                    || categoryId != null && calculateDepth(categoryId) < 5));
+            addLabelMenuItem.setDisable(!isLabelsRoot);
+            editNodeMenuItem.setDisable(categoryId == null && labelId == null);
+            deleteNodeMenuItem.setDisable(categoryId == null && labelId == null);
+            classificationContextMenu.show(cell, event.getScreenX(), event.getScreenY());
             event.consume();
         });
         return cell;
     }
 
     private void loadTree() {
-        itemByCategoryId.clear();
+        categoryItemsById.clear();
+        labelItemsById.clear();
+        displayedTransactions.clear();
 
-        TreeItem<String> root = new TreeItem<>(I18n.get("categories.root"));
+        TreeItem<String> root = new TreeItem<>("");
         root.setExpanded(true);
+        categoriesRoot = new TreeItem<>(I18n.get("classifications.categoriesRoot"));
+        categoriesRoot.setExpanded(true);
+        labelsRoot = new TreeItem<>(I18n.get("classifications.labelsRoot"));
+        labelsRoot.setExpanded(true);
+        root.getChildren().addAll(categoriesRoot, labelsRoot);
 
         List<Category> allCategories = categoryService.getAllCategories();
         Map<Long, List<Category>> childrenMap = allCategories.stream()
                 .collect(Collectors.groupingBy(c -> c.getParentId() != null ? c.getParentId() : -1L));
 
-        buildTree(root, childrenMap.getOrDefault(-1L, List.of()), childrenMap);
+        buildTree(categoriesRoot, childrenMap.getOrDefault(-1L, List.of()), childrenMap);
+        for (org.fintrax.model.Label label : labelService.getAllLabels()) {
+            TreeItem<String> item = new TreeItem<>(label.getName());
+            labelsRoot.getChildren().add(item);
+            labelItemsById.put(label.getId(), item);
+        }
 
-        categoryTree.setRoot(root);
+        classificationTree.setShowRoot(false);
+        classificationTree.setRoot(root);
     }
 
     private void buildTree(TreeItem<String> parent, List<Category> children, Map<Long, List<Category>> childrenMap) {
         for (Category cat : children) {
             TreeItem<String> item = new TreeItem<>(cat.getName());
             parent.getChildren().add(item);
-            itemByCategoryId.put(cat.getId(), item);
+            categoryItemsById.put(cat.getId(), item);
 
             List<Category> subChildren = childrenMap.getOrDefault(cat.getId(), List.of());
             if (!subChildren.isEmpty()) {
@@ -265,7 +336,14 @@ public class CategoriesController {
     }
 
     private Long findCategoryIdByItem(TreeItem<String> item) {
-        for (Map.Entry<Long, TreeItem<String>> entry : itemByCategoryId.entrySet()) {
+        for (Map.Entry<Long, TreeItem<String>> entry : categoryItemsById.entrySet()) {
+            if (entry.getValue() == item) return entry.getKey();
+        }
+        return null;
+    }
+
+    private Long findLabelIdByItem(TreeItem<String> item) {
+        for (Map.Entry<Long, TreeItem<String>> entry : labelItemsById.entrySet()) {
             if (entry.getValue() == item) return entry.getKey();
         }
         return null;
@@ -284,7 +362,7 @@ public class CategoriesController {
     }
 
     private void onAddCategory() {
-        TreeItem<String> selectedItem = categoryTree.getSelectionModel().getSelectedItem();
+        TreeItem<String> selectedItem = classificationTree.getSelectionModel().getSelectedItem();
         if (selectedItem == null) return;
 
         Long parentId = findCategoryIdByItem(selectedItem);
@@ -296,19 +374,29 @@ public class CategoriesController {
         showCategoryEditor(null, parentId);
     }
 
-    private void openSelectedCategoryEditor() {
-        TreeItem<String> selectedItem = categoryTree.getSelectionModel().getSelectedItem();
+    private void openSelectedNodeEditor() {
+        TreeItem<String> selectedItem = classificationTree.getSelectionModel().getSelectedItem();
         Long categoryId = selectedItem == null ? null : findCategoryIdByItem(selectedItem);
         if (categoryId != null) {
             showCategoryEditor(categoryId, null);
+            return;
+        }
+        Long labelId = selectedItem == null ? null : findLabelIdByItem(selectedItem);
+        if (labelId != null) {
+            labelService.getLabel(labelId).ifPresent(this::showLabelEditor);
         }
     }
 
-    private void deleteSelectedCategory() {
-        TreeItem<String> selectedItem = categoryTree.getSelectionModel().getSelectedItem();
+    private void deleteSelectedNode() {
+        TreeItem<String> selectedItem = classificationTree.getSelectionModel().getSelectedItem();
         Long categoryId = selectedItem == null ? null : findCategoryIdByItem(selectedItem);
         if (categoryId != null) {
             confirmDeleteCategory(categoryId);
+            return;
+        }
+        Long labelId = selectedItem == null ? null : findLabelIdByItem(selectedItem);
+        if (labelId != null) {
+            confirmDeleteLabel(labelId);
         }
     }
 
@@ -395,7 +483,7 @@ public class CategoriesController {
     }
 
     private void expandPathToCategory(Long categoryId) {
-        TreeItem<String> item = itemByCategoryId.get(categoryId);
+        TreeItem<String> item = categoryItemsById.get(categoryId);
         while (item != null) {
             item.setExpanded(true);
             item = item.getParent();
@@ -439,6 +527,109 @@ public class CategoriesController {
             if (alert.getResult() == ButtonType.OK) {
                 categoryService.deleteCategory(categoryId, null,
                         finalMoveChildrenCheckBox == null || finalMoveChildrenCheckBox.isSelected());
+                loadTree();
+            }
+        });
+        alert.show();
+    }
+
+    private void showLabelEditor(org.fintrax.model.Label label) {
+        Dialog<ButtonType> dialog = new Dialog<>();
+        FintraxUI.configureDialog(dialog);
+        dialog.setTitle(I18n.get("labels.editor.title"));
+        dialog.initOwner(rootPane.getScene().getWindow());
+        dialog.initModality(Modality.WINDOW_MODAL);
+
+        TextField nameField = new TextField(label == null ? "" : nullToEmpty(label.getName()));
+        nameField.setId("labelNameField");
+        ColorPicker colorPicker = new ColorPicker();
+        colorPicker.setId("labelColorPicker");
+        colorPicker.setValue(label == null ? Color.web("#1976d2") : parseLabelColor(label.getColor()));
+        TextField commentField = new TextField(label == null ? "" : nullToEmpty(label.getComment()));
+        commentField.setId("labelCommentField");
+        Label errorLabel = new Label();
+        errorLabel.setId("labelErrorLabel");
+
+        GridPane fields = new GridPane();
+        fields.setHgap(10);
+        fields.setVgap(10);
+        fields.getColumnConstraints().addAll(new ColumnConstraints(90), new ColumnConstraints());
+        fields.add(new Label(I18n.get("label.name")), 0, 0);
+        fields.add(nameField, 1, 0);
+        fields.add(new Label(I18n.get("label.color")), 0, 1);
+        fields.add(colorPicker, 1, 1);
+        fields.add(new Label(I18n.get("label.comment")), 0, 2);
+        fields.add(commentField, 1, 2);
+
+        VBox content = new VBox(10, fields, errorLabel);
+        content.getStyleClass().add("dialog-content");
+        content.setPadding(new Insets(5, 0, 0, 0));
+        content.setMinWidth(360);
+
+        ButtonType saveType = new ButtonType(I18n.get("button.save"), ButtonBar.ButtonData.OK_DONE);
+        ButtonType cancelType = new ButtonType(I18n.get("button.cancel"), ButtonBar.ButtonData.CANCEL_CLOSE);
+        DialogPane dialogPane = dialog.getDialogPane();
+        dialogPane.setContent(content);
+        dialogPane.getButtonTypes().setAll(saveType, cancelType);
+        Button saveButton = (Button) dialogPane.lookupButton(saveType);
+        saveButton.setId("labelSaveButton");
+        saveButton.addEventFilter(ActionEvent.ACTION, event -> {
+            if (nameField.getText().isBlank()) {
+                errorLabel.setText(I18n.get("labels.name.required"));
+                event.consume();
+            }
+        });
+        ((Button) dialogPane.lookupButton(cancelType)).setId("labelCancelButton");
+
+        dialog.setResultConverter(buttonType -> buttonType);
+        dialog.setOnHidden(event -> {
+            if (dialog.getResult() != saveType) return;
+            String name = nameField.getText().trim();
+            String color = colorToHex(colorPicker.getValue());
+            String comment = commentField.getText().trim();
+            try {
+                if (label == null) {
+                    labelService.createLabel(name, color, emptyToNull(comment));
+                } else {
+                    labelService.updateLabel(label.getId(), name, color, emptyToNull(comment));
+                }
+                loadTree();
+            } catch (IllegalArgumentException exception) {
+                showError(exception.getMessage());
+            }
+        });
+        dialog.setOnShown(event -> nameField.requestFocus());
+        dialog.show();
+    }
+
+    private Color parseLabelColor(String color) {
+        if (color == null || color.isBlank()) return Color.web("#1976d2");
+        try {
+            return Color.web(color);
+        } catch (IllegalArgumentException exception) {
+            return Color.BLACK;
+        }
+    }
+
+    private String colorToHex(Color color) {
+        return String.format("#%02X%02X%02X",
+                (int) (color.getRed() * 255),
+                (int) (color.getGreen() * 255),
+                (int) (color.getBlue() * 255));
+    }
+
+    private void confirmDeleteLabel(Long labelId) {
+        org.fintrax.model.Label label = labelService.getLabel(labelId).orElse(null);
+        if (label == null) return;
+
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION,
+                I18n.get("labels.delete.confirm"), ButtonType.OK, ButtonType.CANCEL);
+        FintraxUI.configureDialog(alert);
+        alert.setTitle(I18n.get("labels.delete.title"));
+        alert.initOwner(rootPane.getScene().getWindow());
+        alert.setOnHidden(event -> {
+            if (alert.getResult() == ButtonType.OK) {
+                labelService.deleteLabel(labelId);
                 loadTree();
             }
         });

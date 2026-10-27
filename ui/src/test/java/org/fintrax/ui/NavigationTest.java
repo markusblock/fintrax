@@ -54,9 +54,8 @@ class NavigationTest extends AbstractUITest {
         Map<String, String> navigationTargets = Map.of(
                 "#bankAccountsButton", "org.fintrax.ui.controller.BankAccountsController",
                 "#transactionsButton", "org.fintrax.ui.controller.TransactionsController",
-                "#categoriesButton", "org.fintrax.ui.controller.CategoriesController",
+                "#classificationsButton", "org.fintrax.ui.controller.ClassificationsController",
                 "#rulesButton", "org.fintrax.ui.controller.RulesController",
-                "#labelsButton", "org.fintrax.ui.controller.LabelsController",
                 "#activityLogButton", "org.fintrax.ui.controller.ActivityLogController",
                 "#settingsButton", "org.fintrax.ui.controller.SettingsController");
         for (Map.Entry<String, String> target : navigationTargets.entrySet()) {
@@ -133,9 +132,8 @@ class NavigationTest extends AbstractUITest {
         Map<String, String> navigationLabels = Map.of(
                 "#bankAccountsButton", "view.bankAccounts",
                 "#transactionsButton", "view.transactions",
-                "#categoriesButton", "view.categories",
+                "#classificationsButton", "view.classifications",
                 "#rulesButton", "view.rules",
-                "#labelsButton", "view.labels",
                 "#activityLogButton", "view.activityLog",
                 "#settingsButton", "view.settings");
 
