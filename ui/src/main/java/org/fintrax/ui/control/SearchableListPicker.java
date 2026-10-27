@@ -138,7 +138,7 @@ public final class SearchableListPicker {
         ListView<T> optionsList = createList(options, displayText);
         Button createButton = createButton();
         Label errorLabel = createErrorLabel();
-        FlowPane selectedPane = new FlowPane(3, 3);
+        FlowPane selectedPane = new FlowPane(2, 2);
         selectedPane.setId("selectedLabelsPane");
         selectedPane.setPadding(new Insets(2, 0, 4, 0));
         List<T> selected = new ArrayList<>(initiallySelected);
@@ -285,7 +285,7 @@ public final class SearchableListPicker {
             Button remove = new Button("×");
             remove.setAccessibleText(I18n.get("picker.remove", displayText.apply(item)));
             remove.getStyleClass().add("selection-chip-remove");
-            HBox chip = new HBox(2, name, remove);
+            HBox chip = new HBox(1, name, remove);
             chip.getStyleClass().add("selection-chip");
             remove.setOnAction(event -> {
                 selected.remove(item);
