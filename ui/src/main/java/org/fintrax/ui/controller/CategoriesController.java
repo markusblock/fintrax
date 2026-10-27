@@ -15,10 +15,12 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import lombok.extern.slf4j.Slf4j;
+import org.kordamp.ikonli.javafx.FontIcon;
 import org.fintrax.config.I18n;
 import org.fintrax.model.Category;
 import org.fintrax.model.Transaction;
 import org.fintrax.service.CategoryService;
+import org.fintrax.ui.FintraxUI;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
@@ -78,6 +80,8 @@ public class CategoriesController {
     }
 
     private void setupTransactionTable() {
+        categoryTransactionsTable.setColumnResizePolicy(
+                TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         transactionDateColumn.setCellValueFactory(cell ->
                 new SimpleObjectProperty<>(cell.getValue().getBookingDate()));
         transactionDateColumn.setCellFactory(column -> new TableCell<>() {
@@ -100,7 +104,13 @@ public class CategoriesController {
             @Override
             protected void updateItem(BigDecimal item, boolean empty) {
                 super.updateItem(item, empty);
-                setText(empty || item == null ? null : String.format("%,.2f EUR", item.doubleValue()));
+                getStyleClass().removeAll("amount-positive", "amount-negative");
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(String.format("%,.2f EUR", item.doubleValue()));
+                    getStyleClass().add(item.signum() < 0 ? "amount-negative" : "amount-positive");
+                }
             }
         });
 
@@ -131,14 +141,17 @@ public class CategoriesController {
 
     private void configureContextMenu() {
         addCategoryMenuItem.setText(I18n.get("button.addCategory"));
+        addCategoryMenuItem.setGraphic(icon("fth-plus", 14));
         addCategoryMenuItem.setId("addCategoryMenuItem");
         addCategoryMenuItem.setOnAction(event -> onAddCategory());
 
         editNodeMenuItem.setText(I18n.get("categories.editNode"));
+        editNodeMenuItem.setGraphic(icon("fth-edit-2", 14));
         editNodeMenuItem.setId("editNodeMenuItem");
         editNodeMenuItem.setOnAction(event -> openSelectedCategoryEditor());
 
         deleteNodeMenuItem.setText(I18n.get("categories.deleteNode"));
+        deleteNodeMenuItem.setGraphic(icon("fth-trash-2", 14));
         deleteNodeMenuItem.setId("deleteNodeMenuItem");
         deleteNodeMenuItem.setOnAction(event -> deleteSelectedCategory());
 
@@ -265,6 +278,7 @@ public class CategoriesController {
         if (categoryId != null && category == null) return;
 
         Dialog<ButtonType> dialog = new Dialog<>();
+        FintraxUI.configureDialog(dialog);
         dialog.setTitle(I18n.get("categories.editor.title"));
         dialog.initOwner(rootPane.getScene().getWindow());
         dialog.initModality(Modality.WINDOW_MODAL);
@@ -286,6 +300,7 @@ public class CategoriesController {
         fields.add(commentField, 1, 1);
 
         VBox content = new VBox(10, fields, errorLabel);
+        content.getStyleClass().add("dialog-content");
         content.setPadding(new Insets(5, 0, 0, 0));
         content.setMinWidth(360);
 
@@ -355,12 +370,14 @@ public class CategoriesController {
                 ? I18n.get("categories.delete.confirm", category.getName())
                 : I18n.get("categories.delete.withChildren", category.getName());
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION, null, ButtonType.OK, ButtonType.CANCEL);
+        FintraxUI.configureDialog(alert);
         alert.setTitle(I18n.get("categories.delete.title"));
         alert.initOwner(rootPane.getScene().getWindow());
 
         Label messageLabel = new Label(message);
         messageLabel.setWrapText(true);
         VBox content = new VBox(10, messageLabel);
+        content.getStyleClass().add("dialog-content");
         CheckBox moveChildrenCheckBox = null;
         if (!children.isEmpty()) {
             String targetName = category.getParentId() == null
@@ -389,8 +406,16 @@ public class CategoriesController {
 
     private void showError(String message) {
         Alert alert = new Alert(Alert.AlertType.ERROR, message);
+        FintraxUI.configureDialog(alert);
         alert.setTitle("Error");
         alert.initOwner(rootPane.getScene().getWindow());
         alert.showAndWait();
+    }
+
+    private FontIcon icon(String literal, int size) {
+        FontIcon icon = new FontIcon();
+        icon.setIconLiteral(literal);
+        icon.setIconSize(size);
+        return icon;
     }
 }

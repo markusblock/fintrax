@@ -59,13 +59,13 @@ public class MainController {
     }
 
     public void refreshLocale() {
-        bankAccountsButton.setText("🏦 " + I18n.get("view.bankAccounts"));
-        transactionsButton.setText("💰 " + I18n.get("view.transactions"));
-        categoriesButton.setText("📁 " + I18n.get("view.categories"));
-        rulesButton.setText("⚙️ " + I18n.get("view.rules"));
-        labelsButton.setText("🏷️ " + I18n.get("view.labels"));
-        activityLogButton.setText("📋 " + I18n.get("view.activityLog"));
-        settingsButton.setText("⚙️ " + I18n.get("view.settings"));
+        bankAccountsButton.setText(I18n.get("view.bankAccounts"));
+        transactionsButton.setText(I18n.get("view.transactions"));
+        categoriesButton.setText(I18n.get("view.categories"));
+        rulesButton.setText(I18n.get("view.rules"));
+        labelsButton.setText(I18n.get("view.labels"));
+        activityLogButton.setText(I18n.get("view.activityLog"));
+        settingsButton.setText(I18n.get("view.settings"));
     }
 
     @FXML
@@ -118,11 +118,34 @@ public class MainController {
             Node view = viewLoader.load(viewName);
             contentArea.getChildren().clear();
             contentArea.getChildren().add(view);
+            updateActiveNavigation(viewName);
             log.info("Loaded view: {}", viewName);
         } catch (Exception e) {
             log.error("Failed to load view: {}", viewName, e);
         }
         currentView = viewName;
+    }
+
+    private void updateActiveNavigation(String viewName) {
+        Button activeButton = switch (viewName) {
+            case "bankAccounts" -> bankAccountsButton;
+            case "transactions" -> transactionsButton;
+            case "categories" -> categoriesButton;
+            case "rules" -> rulesButton;
+            case "labels" -> labelsButton;
+            case "activityLog" -> activityLogButton;
+            case "settings" -> settingsButton;
+            default -> null;
+        };
+
+        for (Button button : new Button[]{
+                bankAccountsButton, transactionsButton, categoriesButton, rulesButton,
+                labelsButton, activityLogButton, settingsButton}) {
+            button.getStyleClass().remove("active");
+        }
+        if (activeButton != null) {
+            activeButton.getStyleClass().add("active");
+        }
     }
 
     public void reloadCurrentView() {

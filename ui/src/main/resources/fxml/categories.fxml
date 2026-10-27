@@ -10,31 +10,28 @@
 <?import javafx.geometry.Insets?>
 
 <BorderPane fx:id="rootPane" xmlns:fx="http://javafx.com/fxml"
-            fx:controller="org.fintrax.ui.controller.CategoriesController">
+            fx:controller="org.fintrax.ui.controller.CategoriesController" styleClass="view-root">
     <top>
-        <VBox spacing="5">
-            <padding>
-                <Insets top="20" right="20" bottom="10" left="20"/>
-            </padding>
-            <Label text="%view.categories" style="-fx-font-size: 24px; -fx-font-weight: bold;"/>
-            <Label text="%subtitle.categories"/>
+        <VBox styleClass="view-header">
+            <Label text="%view.categories" styleClass="page-title"/>
+            <Label text="%subtitle.categories" styleClass="view-subtitle"/>
         </VBox>
     </top>
     <center>
-        <SplitPane dividerPositions="0.5">
-            <TreeView fx:id="categoryTree"/>
-            <VBox fx:id="categoryTransactionsPanel" spacing="8">
+        <SplitPane dividerPositions="0.32" styleClass="content-split-pane">
+            <TreeView fx:id="categoryTree" styleClass="category-tree"/>
+            <VBox fx:id="categoryTransactionsPanel" spacing="12" styleClass="content-panel">
                 <padding>
                     <Insets top="15" right="20" bottom="15" left="20"/>
                 </padding>
-                <Label text="%view.transactions" style="-fx-font-size: 16px; -fx-font-weight: bold;"/>
-                <TableView fx:id="categoryTransactionsTable" VBox.vgrow="ALWAYS">
+                <Label text="%view.transactions" styleClass="section-heading"/>
+                <TableView fx:id="categoryTransactionsTable" styleClass="dense" VBox.vgrow="ALWAYS">
                     <columns>
-                        <TableColumn fx:id="transactionDateColumn" text="%col.date" prefWidth="90" sortable="true"/>
-                        <TableColumn fx:id="transactionPayeeColumn" text="%col.payee" prefWidth="130" sortable="true"/>
-                        <TableColumn fx:id="transactionPurposeColumn" text="%col.purpose" prefWidth="160" sortable="true"/>
-                        <TableColumn fx:id="transactionAmountColumn" text="%col.amount" prefWidth="100" sortable="true"/>
-                        <TableColumn fx:id="transactionCategoryColumn" text="%col.category" prefWidth="130" sortable="true"/>
+                        <TableColumn fx:id="transactionDateColumn" text="%col.date" minWidth="100" prefWidth="105" sortable="true"/>
+                        <TableColumn fx:id="transactionPayeeColumn" text="%col.payee" minWidth="85" prefWidth="115" sortable="true"/>
+                        <TableColumn fx:id="transactionPurposeColumn" text="%col.purpose" minWidth="95" prefWidth="135" sortable="true"/>
+                        <TableColumn fx:id="transactionAmountColumn" text="%col.amount" minWidth="80" prefWidth="95" sortable="true"/>
+                        <TableColumn fx:id="transactionCategoryColumn" text="%col.category" minWidth="95" prefWidth="115" sortable="true"/>
                     </columns>
                 </TableView>
             </VBox>

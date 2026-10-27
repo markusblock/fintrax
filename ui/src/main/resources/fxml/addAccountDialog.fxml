@@ -12,16 +12,17 @@
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Separator?>
 <?import javafx.geometry.Insets?>
+<?import org.kordamp.ikonli.javafx.FontIcon?>
 
 <VBox xmlns:fx="http://javafx.com/fxml"
       fx:controller="org.fintrax.ui.controller.AddAccountDialogController"
-      spacing="15" style="-fx-background-color: white;">
+      styleClass="dialog-content">
     <padding>
         <Insets top="20" right="20" bottom="20" left="20"/>
     </padding>
 
-    <Label text="%dialog.addAccount.title" style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
-    <Label text="%dialog.addAccount.subtitle" style="-fx-font-size: 12px; -fx-text-fill: #666;"/>
+    <Label text="%dialog.addAccount.title" styleClass="dialog-title"/>
+    <Label text="%dialog.addAccount.subtitle" styleClass="dialog-subtitle" wrapText="true"/>
 
     <Separator/>
 
@@ -63,7 +64,9 @@
 
     <HBox spacing="10" alignment="CENTER_RIGHT">
         <Region HBox.hgrow="ALWAYS"/>
-        <Button text="%button.cancel" onAction="#onCancel"/>
-        <Button fx:id="saveButton" text="%button.save" onAction="#onSave" styleClass="accent-button"/>
+        <Button text="%button.cancel" onAction="#onCancel" styleClass="button-outlined"/>
+        <Button fx:id="saveButton" text="%button.save" onAction="#onSave" styleClass="accent-button">
+            <graphic><FontIcon iconLiteral="fth-save" iconSize="14"/></graphic>
+        </Button>
     </HBox>
 </VBox>

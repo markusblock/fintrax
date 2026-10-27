@@ -18,6 +18,7 @@ import org.fintrax.config.I18n;
 import org.fintrax.model.*;
 import org.fintrax.service.*;
 import org.fintrax.store.StoreManager;
+import org.fintrax.ui.FintraxUI;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
@@ -34,6 +35,8 @@ import java.util.stream.Collectors;
 public class TransactionsController {
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     private static final String COLUMN_CONFIG_KEY = "transaction.columns";
+    private static final double TABLE_DIVIDER_WITH_DETAILS = 0.7;
+    private static final double TABLE_DIVIDER_WITHOUT_DETAILS = 1.0;
 
     @FXML
     private BorderPane rootPane;
@@ -121,6 +124,7 @@ public class TransactionsController {
     }
 
     private void setupTableColumns() {
+        transactionTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         dateColumn.setCellValueFactory(cd -> new SimpleObjectProperty<>(cd.getValue().getBookingDate()));
         dateColumn.setCellFactory(col -> new TableCell<>() {
             @Override
@@ -280,6 +284,9 @@ public class TransactionsController {
         detailVisible = !detailVisible;
         detailPanel.setVisible(detailVisible);
         detailPanel.setManaged(detailVisible);
+        splitPane.setDividerPosition(0, detailVisible
+                ? TABLE_DIVIDER_WITH_DETAILS
+                : TABLE_DIVIDER_WITHOUT_DETAILS);
     }
 
     private void loadDetail(Transaction transaction) {
@@ -358,6 +365,7 @@ public class TransactionsController {
         categoryCombo.setId("categorySearchCombo");
 
         Dialog<Category> dialog = new Dialog<>();
+        FintraxUI.configureDialog(dialog);
         dialog.setTitle(I18n.get("dialog.bulkCategory.title"));
         dialog.setHeaderText(I18n.get("dialog.bulkCategory.header", selected.size()));
         dialog.initOwner(rootPane.getScene().getWindow());
@@ -437,6 +445,7 @@ public class TransactionsController {
         labelCombo.setId("labelSearchCombo");
 
         Dialog<org.fintrax.model.Label> dialog = new Dialog<>();
+        FintraxUI.configureDialog(dialog);
         dialog.setTitle(I18n.get("dialog.bulkLabel.title"));
         String headerKey = adding ? "dialog.bulkLabelAdd.header" : "dialog.bulkLabelRemove.header";
         dialog.setHeaderText(I18n.get(headerKey, selected.size()));

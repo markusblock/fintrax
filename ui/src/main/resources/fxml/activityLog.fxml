@@ -11,30 +11,28 @@
 <?import javafx.scene.control.TableColumn?>
 <?import javafx.scene.control.ComboBox?>
 <?import javafx.scene.control.Button?>
-<?import javafx.scene.control.Separator?>
 <?import javafx.geometry.Insets?>
+<?import org.kordamp.ikonli.javafx.FontIcon?>
 
 <BorderPane fx:id="rootPane" xmlns:fx="http://javafx.com/fxml"
-            fx:controller="org.fintrax.ui.controller.ActivityLogController">
+            fx:controller="org.fintrax.ui.controller.ActivityLogController" styleClass="view-root">
     <top>
-        <VBox spacing="5">
-            <padding>
-                <Insets top="20" right="20" bottom="10" left="20"/>
-            </padding>
+        <VBox styleClass="view-header">
             <HBox spacing="10" alignment="CENTER_LEFT">
-                <Label text="%view.activityLog" style="-fx-font-size: 24px; -fx-font-weight: bold;"/>
+                <Label text="%view.activityLog" styleClass="page-title"/>
                 <Region HBox.hgrow="ALWAYS"/>
             </HBox>
-            <Separator/>
-            <HBox spacing="10" alignment="CENTER_LEFT">
-                <ComboBox fx:id="actionFilter" promptText="%filter.action"/>
-                <ComboBox fx:id="entityTypeFilter" promptText="%filter.entityType"/>
-                <Button text="%button.filter" onAction="#onApplyFilters" styleClass="accent-button"/>
+            <HBox spacing="10" alignment="CENTER_LEFT" styleClass="filter-panel">
+                <ComboBox fx:id="actionFilter" promptText="%filter.action" accessibleText="%filter.action"/>
+                <ComboBox fx:id="entityTypeFilter" promptText="%filter.entityType" accessibleText="%filter.entityType"/>
+                <Button text="%button.filter" onAction="#onApplyFilters" styleClass="accent-button">
+                    <graphic><FontIcon iconLiteral="fth-filter" iconSize="15"/></graphic>
+                </Button>
             </HBox>
         </VBox>
     </top>
     <center>
-        <TableView fx:id="logTable">
+        <TableView fx:id="logTable" styleClass="dense">
             <columns>
                 <TableColumn fx:id="timestampColumn" text="%col.timestamp" prefWidth="160"/>
                 <TableColumn fx:id="actionColumn" text="%col.action" prefWidth="80"/>

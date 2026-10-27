@@ -10,6 +10,7 @@ import javafx.stage.Stage;
 import org.fintrax.service.SettingsService;
 import org.fintrax.service.hibiscus.HibiscusXmlImporter;
 import org.fintrax.ui.AbstractUITest;
+import org.fintrax.ui.FintraxUI;
 import org.fintrax.ui.ViewLoader;
 import org.junit.jupiter.api.Test;
 import org.testfx.util.WaitForAsyncUtils;
@@ -24,7 +25,10 @@ class SettingsControllerTest extends AbstractUITest {
     public void start(Stage stage) throws Exception {
         Parent root = applicationContext.getBean(ViewLoader.class).load("settings");
         settingsController = (SettingsController) root.getProperties().get(SettingsController.class.getName());
-        stage.setScene(new Scene(root, 1024, 768));
+        Scene scene = new Scene(root, 1024, 768);
+        FintraxUI.configureScene(scene);
+        FintraxUI.applyTheme(scene, "light");
+        stage.setScene(scene);
         stage.show();
     }
 

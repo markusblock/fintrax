@@ -6,6 +6,7 @@ import javafx.collections.ObservableList;
 import javafx.scene.control.*;
 import javafx.scene.layout.VBox;
 import javafx.stage.Window;
+import org.kordamp.ikonli.javafx.FontIcon;
 import org.fintrax.config.I18n;
 import org.fintrax.model.BankAccount;
 import org.fintrax.model.Category;
@@ -15,6 +16,7 @@ import org.fintrax.service.LabelService;
 import org.fintrax.service.RuleApplicationPreview;
 import org.fintrax.service.RuleService;
 import org.fintrax.service.TransactionRulePreview;
+import org.fintrax.ui.FintraxUI;
 
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -48,6 +50,7 @@ final class RuleReviewDialog {
 
     void show() {
         Dialog<ButtonType> dialog = new Dialog<>();
+        FintraxUI.configureDialog(dialog);
         dialog.setTitle(I18n.get("rules.review.title"));
         dialog.setHeaderText(I18n.get(selectedRuleOnly
                 ? "rules.review.single.header" : "rules.review.header"));
@@ -59,6 +62,7 @@ final class RuleReviewDialog {
 
         TableView<TransactionRulePreview> table = new TableView<>();
         table.setId("ruleReviewTable");
+        table.getStyleClass().add("dense");
         table.getColumns().setAll(List.of(
                 column("rules.review.date", row -> row.bookingDate() == null
                         ? "—" : row.bookingDate().format(DATE_FORMAT), 100),
@@ -76,10 +80,13 @@ final class RuleReviewDialog {
 
         Label summary = new Label();
         summary.setId("ruleReviewSummary");
+        summary.getStyleClass().add("secondary-text");
         Label multipleMatchWarning = new Label();
         multipleMatchWarning.setId("ruleReviewMultipleMatchWarning");
+        multipleMatchWarning.getStyleClass().add("warning-copy");
         Label emptyResult = new Label(I18n.get("rules.review.empty"));
         emptyResult.setId("ruleReviewEmptyResult");
+        emptyResult.getStyleClass().add("empty-state");
         emptyResult.setVisible(false);
         emptyResult.setManaged(false);
 
@@ -88,6 +95,8 @@ final class RuleReviewDialog {
         dialog.getDialogPane().getButtonTypes().setAll(applyButtonType, cancelButtonType);
         Button applyButton = (Button) dialog.getDialogPane().lookupButton(applyButtonType);
         applyButton.setId("applyReviewedRulesButton");
+        applyButton.setGraphic(icon("fth-check", 14));
+        applyButton.getStyleClass().add("accent-button");
         ((Button) dialog.getDialogPane().lookupButton(cancelButtonType)).setId("cancelRuleReviewButton");
 
         ObservableList<TransactionRulePreview> rows = FXCollections.observableArrayList();
@@ -118,6 +127,7 @@ final class RuleReviewDialog {
         refreshPreview.run();
 
         VBox content = new VBox(10, onlyFillMissing, summary, multipleMatchWarning, emptyResult, table);
+        content.getStyleClass().add("dialog-content");
         content.setMinWidth(1100);
         content.setPrefHeight(420);
         dialog.getDialogPane().setContent(content);
@@ -180,5 +190,12 @@ final class RuleReviewDialog {
 
     private String display(String value) {
         return value == null || value.isBlank() ? "—" : value;
+    }
+
+    private FontIcon icon(String literal, int size) {
+        FontIcon icon = new FontIcon();
+        icon.setIconLiteral(literal);
+        icon.setIconSize(size);
+        return icon;
     }
 }

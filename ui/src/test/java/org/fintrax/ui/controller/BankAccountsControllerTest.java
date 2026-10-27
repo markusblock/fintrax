@@ -18,6 +18,7 @@ import org.fintrax.service.SyncResult;
 import org.fintrax.service.TransactionRulePreview;
 import org.fintrax.service.TransactionService;
 import org.fintrax.ui.AbstractUITest;
+import org.fintrax.ui.FintraxUI;
 import org.fintrax.ui.ViewLoader;
 import org.junit.jupiter.api.Test;
 import org.testfx.util.WaitForAsyncUtils;
@@ -59,7 +60,8 @@ class BankAccountsControllerTest extends AbstractUITest {
         Parent root = applicationContext.getBean(ViewLoader.class).load("bankAccounts");
         controller = (BankAccountsController) root.getProperties().get(BankAccountsController.class.getName());
         Scene scene = new Scene(root, 1024, 768);
-        scene.getStylesheets().add(getClass().getResource("/css/fintrax.css").toExternalForm());
+        FintraxUI.configureScene(scene);
+        FintraxUI.applyTheme(scene, "light");
         stage.setScene(scene);
         stage.show();
     }
@@ -68,14 +70,14 @@ class BankAccountsControllerTest extends AbstractUITest {
     void accountCardsUseDarkThemeSurfaceAndSecondaryTextColors() {
         interact(() -> {
             VBox card = lookup(".account-card").query();
-            card.getScene().getStylesheets().add(getClass().getResource("/css/dark.css").toExternalForm());
+            FintraxUI.applyTheme(card.getScene(), "dark");
             card.getScene().getRoot().applyCss();
 
             BackgroundFill cardFill = card.getBackground().getFills().get(0);
-            assertEquals(Color.web("#303030"), cardFill.getFill());
+            assertEquals(Color.web("#0d1117"), cardFill.getFill());
 
             Label holderLabel = lookup(".account-holder").query();
-            assertEquals(Color.web("#b0b0b0"), holderLabel.getTextFill());
+            assertEquals(Color.web("#8b949e"), holderLabel.getTextFill());
         });
     }
 
