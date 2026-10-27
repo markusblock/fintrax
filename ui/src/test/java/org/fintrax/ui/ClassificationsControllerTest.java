@@ -27,6 +27,7 @@ import org.fintrax.model.Transaction;
 import org.fintrax.service.CategoryService;
 import org.fintrax.service.LabelService;
 import org.fintrax.service.TransactionService;
+import org.fintrax.ui.control.LabelChipFactory;
 import org.junit.jupiter.api.Test;
 import org.testfx.util.WaitForAsyncUtils;
 
@@ -213,8 +214,8 @@ class ClassificationsControllerTest extends AbstractUITest {
                 .filter(cell -> !cell.isEmpty() && cell.getTableColumn() == labelsColumn)
                 .findFirst()
                 .orElseThrow();
-        assertTrue(labelsCell.getGraphic() instanceof FlowPane);
-        FlowPane labelChips = (FlowPane) labelsCell.getGraphic();
+        assertTrue(labelsCell.getGraphic() instanceof HBox);
+        HBox labelChips = (HBox) labelsCell.getGraphic();
         javafx.scene.control.Label chip = (javafx.scene.control.Label) labelChips.getChildren().getFirst();
         assertEquals(label.getName(), chip.getText());
         assertEquals(javafx.scene.paint.Color.web(label.getColor()),
@@ -293,6 +294,38 @@ class ClassificationsControllerTest extends AbstractUITest {
 
         TreeItem<String> labelsRoot = treeItem(tree.getRoot(), I18n.get("classifications.labelsRoot"));
         assertTrue(labelsRoot.getChildren().stream().anyMatch(item -> labelName.equals(item.getValue())));
+    }
+
+    @Test
+    void labelChipStripShowsEllipsisWhenColumnIsTooNarrow() {
+        List<Label> labels = List.of(
+                labelService().createLabel("Long travel label one", "#1976d2", null),
+                labelService().createLabel("Long travel label two", "#cc4400", null),
+                labelService().createLabel("Long travel label three", "#669900", null));
+        HBox chips = LabelChipFactory.createAll(labels);
+
+        interact(() -> {
+            new Scene(chips, 100, 30);
+            chips.applyCss();
+            chips.resize(100, 30);
+            chips.requestLayout();
+            chips.layout();
+        });
+
+        long visibleLabelCount = chips.getChildren().stream()
+                .filter(javafx.scene.control.Label.class::isInstance)
+                .map(javafx.scene.control.Label.class::cast)
+                .filter(javafx.scene.control.Label::isVisible)
+                .filter(chip -> !"…".equals(chip.getText()))
+                .count();
+        assertTrue(visibleLabelCount < labels.size(),
+                "visible labels=" + visibleLabelCount + ", strip width=" + chips.getWidth()
+                        + ", child widths=" + chips.getChildren().stream()
+                        .map(node -> node.prefWidth(-1)).toList());
+        assertTrue(chips.getChildren().stream()
+                .filter(javafx.scene.control.Label.class::isInstance)
+                .map(javafx.scene.control.Label.class::cast)
+                .anyMatch(chip -> "…".equals(chip.getText()) && chip.isVisible()));
     }
 
     private TreeItem<String> treeItem(TreeItem<String> parent, String value) {

@@ -96,9 +96,9 @@ class TransactionsControllerTest extends AbstractUITest {
                 .findFirst()
                 .orElseThrow();
 
-        assertTrue(labelsCell.getGraphic() instanceof FlowPane);
+        assertTrue(labelsCell.getGraphic() instanceof HBox);
         javafx.scene.control.Label chip = (javafx.scene.control.Label)
-                ((FlowPane) labelsCell.getGraphic()).getChildren().getFirst();
+                ((HBox) labelsCell.getGraphic()).getChildren().getFirst();
         assertEquals(label.getName(), chip.getText());
         assertEquals(javafx.scene.paint.Color.web(label.getColor()),
                 chip.getBackground().getFills().getFirst().getFill());
@@ -378,9 +378,12 @@ class TransactionsControllerTest extends AbstractUITest {
         String name = "Picker label " + System.nanoTime();
 
         openPickerFromContextMenu(table, 0, 1);
-        clickOn("#pickerSearch").write(name);
-        clickOn("#pickerCreateButton");
-        clickOn("#pickerSave");
+        interact(() -> lookup("#pickerSearch").<javafx.scene.control.TextField>query().setText(name));
+        WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS,
+                () -> lookup("#pickerCreateButton").tryQuery().isPresent()
+                        && lookup("#pickerCreateButton").<Button>query().isVisible());
+        interact(lookup("#pickerCreateButton").<Button>query()::fire);
+        interact(lookup("#pickerSave").<Button>query()::fire);
         WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS, () ->
                 applicationContext.getBean(LabelService.class).getAllLabels().stream()
                         .anyMatch(label -> label.getName().equals(name)));

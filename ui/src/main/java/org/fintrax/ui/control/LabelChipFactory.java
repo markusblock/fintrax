@@ -6,10 +6,11 @@ import javafx.scene.control.Label;
 import javafx.scene.layout.Background;
 import javafx.scene.layout.BackgroundFill;
 import javafx.scene.layout.CornerRadii;
-import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.paint.Color;
 
 import java.util.Collection;
+import java.util.List;
 
 /** Creates consistently styled chips for transaction labels. */
 public final class LabelChipFactory {
@@ -18,12 +19,10 @@ public final class LabelChipFactory {
     private LabelChipFactory() {
     }
 
-    /** Creates a wrapping group of chips for the supplied labels. */
-    public static FlowPane createAll(Collection<org.fintrax.model.Label> labels) {
-        FlowPane chips = new FlowPane(4, 2);
-        chips.setAlignment(Pos.CENTER_LEFT);
-        labels.stream().map(LabelChipFactory::create).forEach(chips.getChildren()::add);
-        return chips;
+    /** Creates a horizontal row of chips, with an ellipsis when available width is limited. */
+    public static HBox createAll(Collection<org.fintrax.model.Label> labels) {
+        List<Label> chips = labels.stream().map(LabelChipFactory::create).toList();
+        return new LabelChipStrip(chips);
     }
 
     /** Creates one chip using the label's configured color. */
@@ -59,5 +58,64 @@ public final class LabelChipFactory {
         return colorChannel <= 0.04045
                 ? colorChannel / 12.92
                 : Math.pow((colorChannel + 0.055) / 1.055, 2.4);
+    }
+
+    private static final class LabelChipStrip extends HBox {
+        private final List<Label> chips;
+        private final Label overflow = new Label("…");
+
+        private LabelChipStrip(List<Label> chips) {
+            super(4);
+            this.chips = chips;
+            setAlignment(Pos.CENTER_LEFT);
+            setMinWidth(0);
+            setMaxWidth(Double.MAX_VALUE);
+            getChildren().setAll(chips);
+            overflow.setPadding(new Insets(2, 3, 2, 3));
+            overflow.setMouseTransparent(true);
+            overflow.getStyleClass().add("label-chip-overflow");
+            overflow.setVisible(false);
+            overflow.setManaged(false);
+            getChildren().add(overflow);
+        }
+
+        @Override
+        protected void layoutChildren() {
+            updateVisibleChips();
+            super.layoutChildren();
+        }
+
+        private void updateVisibleChips() {
+            double contentWidth = Math.max(0, getWidth() - snappedLeftInset() - snappedRightInset());
+            double totalWidth = chips.stream().mapToDouble(chip -> chip.prefWidth(-1)).sum()
+                    + Math.max(0, chips.size() - 1) * getSpacing();
+            if (totalWidth <= contentWidth) {
+                setVisibleChips(chips.size());
+                overflow.setManaged(false);
+                overflow.setVisible(false);
+                return;
+            }
+
+            double budget = contentWidth - overflow.prefWidth(-1) - (chips.isEmpty() ? 0 : getSpacing());
+            double usedWidth = 0;
+            int visibleCount = 0;
+            for (Label chip : chips) {
+                double nextWidth = usedWidth + (visibleCount == 0 ? 0 : getSpacing()) + chip.prefWidth(-1);
+                if (nextWidth > budget) break;
+                usedWidth = nextWidth;
+                visibleCount++;
+            }
+            setVisibleChips(visibleCount);
+            overflow.setManaged(true);
+            overflow.setVisible(true);
+        }
+
+        private void setVisibleChips(int visibleCount) {
+            for (int index = 0; index < chips.size(); index++) {
+                boolean visible = index < visibleCount;
+                chips.get(index).setManaged(visible);
+                chips.get(index).setVisible(visible);
+            }
+        }
     }
 }

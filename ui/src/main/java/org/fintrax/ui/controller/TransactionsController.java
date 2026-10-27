@@ -1,6 +1,7 @@
 package org.fintrax.ui.controller;
 
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
@@ -10,7 +11,7 @@ import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import javafx.util.StringConverter;
@@ -222,6 +223,7 @@ public class TransactionsController {
             protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
                 setText(null);
+                if (getGraphic() instanceof HBox previous) previous.prefWidthProperty().unbind();
                 Transaction transaction = getTableRow() == null ? null : getTableRow().getItem();
                 if (empty || transaction == null || transaction.getLabelIds() == null) {
                     setGraphic(null);
@@ -232,7 +234,8 @@ public class TransactionsController {
                         .map(labelService::getLabel)
                         .flatMap(Optional::stream)
                         .toList();
-                FlowPane chips = LabelChipFactory.createAll(labels);
+                HBox chips = LabelChipFactory.createAll(labels);
+                chips.prefWidthProperty().bind(Bindings.max(0, labelsColumn.widthProperty().subtract(12)));
                 setGraphic(chips.getChildren().isEmpty() ? null : chips);
             }
         };

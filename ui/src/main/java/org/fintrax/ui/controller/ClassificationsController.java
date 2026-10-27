@@ -2,6 +2,7 @@ package org.fintrax.ui.controller;
 
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.binding.Bindings;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
@@ -12,8 +13,8 @@ import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.ColumnConstraints;
-import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.stage.Modality;
@@ -188,6 +189,7 @@ public class ClassificationsController {
             protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
                 setText(null);
+                if (getGraphic() instanceof HBox previous) previous.prefWidthProperty().unbind();
                 if (empty || getTableRow() == null || getTableRow().getItem() == null) {
                     setGraphic(null);
                     return;
@@ -201,7 +203,9 @@ public class ClassificationsController {
                             .flatMap(Optional::stream)
                             .toList();
                 }
-                FlowPane chips = LabelChipFactory.createAll(labels);
+                HBox chips = LabelChipFactory.createAll(labels);
+                chips.prefWidthProperty().bind(Bindings.max(0,
+                        transactionLabelsColumn.widthProperty().subtract(12)));
                 setGraphic(chips.getChildren().isEmpty() ? null : chips);
             }
         };
