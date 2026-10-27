@@ -46,6 +46,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TransactionsControllerTest extends AbstractUITest {
@@ -247,6 +248,7 @@ class TransactionsControllerTest extends AbstractUITest {
         MenuButton columnMenu = lookup("#columnMenuButton").query();
         TableView<Transaction> table = lookup("#transactionTable").query();
 
+        assertSame(columnMenu, table.getColumns().getLast().getGraphic());
         assertEquals(List.of("col.date", "col.payee", "col.purpose", "col.amount",
                         "col.balance", "col.category", "col.labels").stream().map(I18n::get).toList(),
                 columnMenu.getItems().stream().map(MenuItem::getText).toList());

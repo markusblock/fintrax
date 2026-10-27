@@ -381,8 +381,19 @@
     -fx-fixed-cell-size: 2.4em;
 }
 
-.transaction-table-toolbar {
-    -fx-padding: 0 12 6 0;
+.transactions-view .column-menu-button {
+    -fx-padding: 3;
+    -fx-min-width: 24;
+    -fx-pref-width: 24;
+    -fx-max-width: 24;
+    -fx-min-height: 24;
+    -fx-pref-height: 24;
+    -fx-max-height: 24;
+}
+
+.transactions-view .column-menu-button:hover {
+    -fx-background-color: -color-neutral-muted;
+    -fx-background-radius: 4;
 }
 
 .transactions-header {
