@@ -8,6 +8,8 @@ import javafx.scene.layout.BackgroundFill;
 import javafx.scene.layout.CornerRadii;
 import javafx.scene.layout.HBox;
 import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
 
 import java.util.Collection;
 import java.util.List;
@@ -62,7 +64,7 @@ public final class LabelChipFactory {
 
     private static final class LabelChipStrip extends HBox {
         private final List<Label> chips;
-        private final Label overflow = new Label("…");
+        private final Label overflow = new Label("...");
 
         private LabelChipStrip(List<Label> chips) {
             super(4);
@@ -71,6 +73,8 @@ public final class LabelChipFactory {
             setMinWidth(0);
             setMaxWidth(Double.MAX_VALUE);
             getChildren().setAll(chips);
+            overflow.setFont(Font.font(overflow.getFont().getFamily(), FontWeight.BOLD,
+                    overflow.getFont().getSize() + 4));
             overflow.setPadding(new Insets(2, 3, 2, 3));
             overflow.setMouseTransparent(true);
             overflow.getStyleClass().add("label-chip-overflow");

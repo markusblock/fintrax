@@ -316,8 +316,16 @@ class ClassificationsControllerTest extends AbstractUITest {
                 .filter(javafx.scene.control.Label.class::isInstance)
                 .map(javafx.scene.control.Label.class::cast)
                 .filter(javafx.scene.control.Label::isVisible)
-                .filter(chip -> !"…".equals(chip.getText()))
+                .filter(chip -> !"...".equals(chip.getText()))
                 .count();
+        double chipFontSize = chips.getChildren().stream()
+                .filter(javafx.scene.control.Label.class::isInstance)
+                .map(javafx.scene.control.Label.class::cast)
+                .filter(chip -> !"...".equals(chip.getText()))
+                .findFirst()
+                .orElseThrow()
+                .getFont()
+                .getSize();
         assertTrue(visibleLabelCount < labels.size(),
                 "visible labels=" + visibleLabelCount + ", strip width=" + chips.getWidth()
                         + ", child widths=" + chips.getChildren().stream()
@@ -325,7 +333,8 @@ class ClassificationsControllerTest extends AbstractUITest {
         assertTrue(chips.getChildren().stream()
                 .filter(javafx.scene.control.Label.class::isInstance)
                 .map(javafx.scene.control.Label.class::cast)
-                .anyMatch(chip -> "…".equals(chip.getText()) && chip.isVisible()));
+                .anyMatch(chip -> "...".equals(chip.getText()) && chip.isVisible()
+                        && chip.getFont().getSize() > chipFontSize));
     }
 
     private TreeItem<String> treeItem(TreeItem<String> parent, String value) {
