@@ -387,13 +387,13 @@ class TransactionsControllerTest extends AbstractUITest {
         String name = "Picker category " + System.nanoTime();
 
         openPickerFromContextMenu(table, 0, 0);
-        clickOn("#pickerSearch").write(name);
+        interact(() -> lookup("#pickerSearch").<javafx.scene.control.TextField>query().setText(name));
         WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS,
                 () -> lookup("#pickerCreateButton").tryQuery().isPresent()
                         && lookup("#pickerCreateButton").<Button>query().isVisible());
         assertTrue(lookup("#pickerCreateButton").<Button>query().isVisible());
-        clickOn("#pickerCreateButton");
-        clickOn("#pickerSave");
+        interact(lookup("#pickerCreateButton").<Button>query()::fire);
+        interact(lookup("#pickerSave").<Button>query()::fire);
         WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS, () ->
                 applicationContext.getBean(CategoryService.class).getAllCategories().stream()
                         .anyMatch(category -> category.getName().equals(name)));
