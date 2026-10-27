@@ -9,6 +9,7 @@ import javafx.fxml.FXML;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import javafx.util.StringConverter;
@@ -17,6 +18,7 @@ import org.fintrax.config.I18n;
 import org.fintrax.model.*;
 import org.fintrax.service.*;
 import org.fintrax.store.StoreManager;
+import org.fintrax.ui.control.LabelChipFactory;
 import org.fintrax.ui.control.SearchableListPicker;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
@@ -198,7 +200,7 @@ public class TransactionsController {
                     .collect(Collectors.joining(", "));
             return new SimpleStringProperty(text);
         });
-        labelsColumn.setCellFactory(column -> createAssignmentCell(this::onSetLabels));
+        labelsColumn.setCellFactory(column -> createLabelChipCell(this::onSetLabels));
     }
 
     private TableCell<Transaction, String> createAssignmentCell(Runnable openAssignmentDialog) {
@@ -209,6 +211,36 @@ public class TransactionsController {
                 setText(empty ? null : item);
             }
         };
+        installAssignmentHandler(cell, openAssignmentDialog);
+        return cell;
+    }
+
+    private TableCell<Transaction, String> createLabelChipCell(Runnable openAssignmentDialog) {
+        TableCell<Transaction, String> cell = new TableCell<>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(null);
+                Transaction transaction = getTableRow() == null ? null : getTableRow().getItem();
+                if (empty || transaction == null || transaction.getLabelIds() == null) {
+                    setGraphic(null);
+                    return;
+                }
+
+                List<org.fintrax.model.Label> labels = transaction.getLabelIds().stream()
+                        .map(labelService::getLabel)
+                        .flatMap(Optional::stream)
+                        .toList();
+                FlowPane chips = LabelChipFactory.createAll(labels);
+                setGraphic(chips.getChildren().isEmpty() ? null : chips);
+            }
+        };
+        installAssignmentHandler(cell, openAssignmentDialog);
+        return cell;
+    }
+
+    private void installAssignmentHandler(TableCell<Transaction, String> cell,
+                                          Runnable openAssignmentDialog) {
         cell.setOnMouseClicked(event -> {
             if (event.getClickCount() == 2 && !cell.isEmpty()) {
                 if (!transactionTable.getSelectionModel().isSelected(cell.getIndex())) {
@@ -217,7 +249,6 @@ public class TransactionsController {
                 openAssignmentDialog.run();
             }
         });
-        return cell;
     }
 
     private void loadFilterOptions() {

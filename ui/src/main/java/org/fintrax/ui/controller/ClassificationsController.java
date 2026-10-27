@@ -10,10 +10,7 @@ import javafx.geometry.Insets;
 import javafx.scene.control.*;
 import javafx.scene.input.MouseButton;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.Background;
-import javafx.scene.layout.BackgroundFill;
 import javafx.scene.layout.ColumnConstraints;
-import javafx.scene.layout.CornerRadii;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
@@ -27,6 +24,7 @@ import org.fintrax.model.Transaction;
 import org.fintrax.service.CategoryService;
 import org.fintrax.service.LabelService;
 import org.fintrax.ui.FintraxUI;
+import org.fintrax.ui.control.LabelChipFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
@@ -195,42 +193,19 @@ public class ClassificationsController {
                 }
 
                 Set<Long> labelIds = getTableRow().getItem().getLabelIds();
-                FlowPane chips = new FlowPane(4, 2);
-                chips.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+                List<org.fintrax.model.Label> labels = List.of();
                 if (labelIds != null) {
-                    labelIds.stream()
+                    labels = labelIds.stream()
                             .map(labelService::getLabel)
                             .flatMap(Optional::stream)
-                            .map(ClassificationsController.this::createLabelChip)
-                            .forEach(chips.getChildren()::add);
+                            .toList();
                 }
+                FlowPane chips = LabelChipFactory.createAll(labels);
                 setGraphic(chips.getChildren().isEmpty() ? null : chips);
             }
         };
         installAssignmentHandler(cell, openSelection);
         return cell;
-    }
-
-    private javafx.scene.control.Label createLabelChip(org.fintrax.model.Label label) {
-        Color color = parseLabelColor(label.getColor());
-        javafx.scene.control.Label chip = new javafx.scene.control.Label(label.getName());
-        chip.setTextFill(contrastingTextColor(color));
-        chip.setBackground(new Background(new BackgroundFill(
-                color, new CornerRadii(9), new Insets(2, 7, 2, 7))));
-        return chip;
-    }
-
-    private Color contrastingTextColor(Color background) {
-        double luminance = 0.2126 * linearize(background.getRed())
-                + 0.7152 * linearize(background.getGreen())
-                + 0.0722 * linearize(background.getBlue());
-        return luminance > 0.179 ? Color.BLACK : Color.WHITE;
-    }
-
-    private double linearize(double colorChannel) {
-        return colorChannel <= 0.04045
-                ? colorChannel / 12.92
-                : Math.pow((colorChannel + 0.055) / 1.055, 2.4);
     }
 
     private void installAssignmentHandler(TableCell<Transaction, String> cell, Runnable openSelection) {
@@ -313,7 +288,17 @@ public class ClassificationsController {
             @Override
             protected void updateItem(String value, boolean empty) {
                 super.updateItem(value, empty);
+                setGraphic(null);
                 setText(empty ? null : value);
+                if (!empty) {
+                    Long labelId = findLabelIdByItem(getTreeItem());
+                    if (labelId != null) {
+                        labelService.getLabel(labelId).ifPresent(label -> {
+                            setText(null);
+                            setGraphic(LabelChipFactory.create(label));
+                        });
+                    }
+                }
             }
         };
         cell.setContextMenu(classificationContextMenu);

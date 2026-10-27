@@ -12,6 +12,7 @@ import javafx.scene.control.DatePicker;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.TableCell;
+import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.scene.input.KeyCode;
@@ -49,7 +50,7 @@ class TransactionsControllerTest extends AbstractUITest {
         Category category = applicationContext.getBean(CategoryService.class)
                 .createCategory("Cell category " + System.nanoTime(), null, null);
         org.fintrax.model.Label label = applicationContext.getBean(LabelService.class)
-                .createLabel("Cell label " + System.nanoTime(), null, null);
+                .createLabel("Cell label " + System.nanoTime(), "#3B82F6", null);
         applicationContext.getBean(TransactionService.class).createTransaction(Transaction.builder()
                 .originalPayee("Cell popup test")
                 .categoryId(category.getId())
@@ -68,6 +69,38 @@ class TransactionsControllerTest extends AbstractUITest {
         Parent root = applicationContext.getBean(ViewLoader.class).load("transactions");
         stage.setScene(new Scene(root, 1024, 768));
         stage.show();
+    }
+
+    @Test
+    void transactionLabelsShowAsColoredChips() {
+        TableView<Transaction> table = lookup("#transactionTable").query();
+        Transaction transaction = table.getItems().stream()
+                .filter(item -> item.getLabelIds() != null && !item.getLabelIds().isEmpty())
+                .findFirst()
+                .orElseThrow();
+        Long labelId = transaction.getLabelIds().iterator().next();
+        org.fintrax.model.Label label = applicationContext.getBean(LabelService.class)
+                .getLabel(labelId).orElseThrow();
+        TableColumn<?, ?> labelsColumn = table.getColumns().stream()
+                .filter(column -> I18n.get("col.labels").equals(column.getText()))
+                .findFirst()
+                .orElseThrow();
+        TableCell<?, ?> labelsCell = table.lookupAll(".table-cell").stream()
+                .filter(TableCell.class::isInstance)
+                .map(node -> (TableCell<?, ?>) node)
+                .filter(cell -> !cell.isEmpty() && cell.getTableColumn() == labelsColumn
+                        && cell.getTableRow() != null
+                        && cell.getTableRow().getItem() instanceof Transaction rowTransaction
+                        && transaction.getId().equals(rowTransaction.getId()))
+                .findFirst()
+                .orElseThrow();
+
+        assertTrue(labelsCell.getGraphic() instanceof FlowPane);
+        javafx.scene.control.Label chip = (javafx.scene.control.Label)
+                ((FlowPane) labelsCell.getGraphic()).getChildren().getFirst();
+        assertEquals(label.getName(), chip.getText());
+        assertEquals(javafx.scene.paint.Color.web(label.getColor()),
+                chip.getBackground().getFills().getFirst().getFill());
     }
 
     @Test
@@ -192,7 +225,9 @@ class TransactionsControllerTest extends AbstractUITest {
         WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS,
                 () -> lookup("#pickerSearch").tryQuery().isPresent());
         assertNotNull(lookup("#pickerSearch").query());
-        clickOn("#pickerList .list-cell");
+        javafx.scene.control.ListView<Category> categoryList = lookup("#pickerList").query();
+        WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS, () -> !categoryList.getItems().isEmpty());
+        interact(() -> categoryList.getSelectionModel().select(0));
         acceptBulkEditDialog();
 
         assertEquals(selectedIds, table.getSelectionModel().getSelectedItems().stream()

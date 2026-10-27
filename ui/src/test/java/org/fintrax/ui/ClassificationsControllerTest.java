@@ -228,12 +228,17 @@ class ClassificationsControllerTest extends AbstractUITest {
         TreeView<String> tree = lookup("#classificationTree").query();
         TreeItem<String> labelsRoot = treeItem(tree.getRoot(), I18n.get("classifications.labelsRoot"));
         TreeItem<String> labelItem = treeItem(labelsRoot, label.getName());
-        Node labelCell = tree.lookupAll(".tree-cell").stream()
+        TreeCell<?> labelCell = tree.lookupAll(".tree-cell").stream()
                 .filter(TreeCell.class::isInstance)
                 .map(node -> (TreeCell<?>) node)
                 .filter(cell -> !cell.isEmpty() && cell.getTreeItem() == labelItem)
                 .findFirst()
                 .orElseThrow();
+        assertTrue(labelCell.getGraphic() instanceof javafx.scene.control.Label);
+        javafx.scene.control.Label labelChip = (javafx.scene.control.Label) labelCell.getGraphic();
+        assertEquals(label.getName(), labelChip.getText());
+        assertEquals(javafx.scene.paint.Color.web(label.getColor()),
+                labelChip.getBackground().getFills().getFirst().getFill());
 
         doubleClickOn(labelCell);
         WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS,
