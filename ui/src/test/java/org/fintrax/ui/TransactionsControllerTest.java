@@ -18,6 +18,7 @@ import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
+import javafx.scene.control.TextField;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.FlowPane;
@@ -139,7 +140,6 @@ class TransactionsControllerTest extends AbstractUITest {
         interact(() -> {
             fromDate.getEditor().setText(formatter.format(matchingDate));
             toDate.getEditor().setText(formatter.format(matchingDate));
-            lookup("#applyFiltersButton").<Button>query().fire();
         });
 
         assertTrue(table.getItems().stream().anyMatch(tx -> tx.getId().equals(matching.getId())));
@@ -154,7 +154,6 @@ class TransactionsControllerTest extends AbstractUITest {
 
         interact(() -> {
             fromDate.getEditor().setText("not a date");
-            lookup("#applyFiltersButton").<Button>query().fire();
         });
 
         assertEquals(visibleIds, table.getItems().stream().map(Transaction::getId).toList());
@@ -171,11 +170,52 @@ class TransactionsControllerTest extends AbstractUITest {
         interact(() -> {
             fromDate.getEditor().setText(formatter.format(LocalDate.of(2024, 3, 2)));
             toDate.getEditor().setText(formatter.format(LocalDate.of(2024, 3, 1)));
-            lookup("#applyFiltersButton").<Button>query().fire();
         });
 
         assertTrue(fromDate.getEditor().getStyleClass().contains("invalid-date"));
         assertTrue(toDate.getEditor().getStyleClass().contains("invalid-date"));
+    }
+
+    @Test
+    void changingFiltersImmediatelyUpdatesTransactionsAndClearResetsEveryFilter() {
+        TableView<Transaction> table = lookup("#transactionTable").query();
+        ComboBox<String> categoryFilter = lookup("#categoryFilter").query();
+        TextField searchField = lookup("#searchField").query();
+        TextField minAmountField = lookup("#minAmountField").query();
+        String categoryName = categoryFilter.getItems().get(1);
+        Long categoryId = applicationContext.getBean(CategoryService.class).getAllCategories().stream()
+                .filter(category -> category.getName().equals(categoryName))
+                .map(Category::getId).findFirst().orElseThrow();
+        Transaction matching = table.getItems().stream()
+                .filter(transaction -> categoryId.equals(transaction.getCategoryId()))
+                .findFirst().orElseThrow();
+
+        interact(() -> categoryFilter.getSelectionModel().select(categoryName));
+        assertEquals(List.of(matching.getId()), table.getItems().stream().map(Transaction::getId).toList());
+
+        interact(() -> searchField.setText("does-not-match"));
+        assertTrue(table.getItems().isEmpty());
+
+        interact(() -> {
+            searchField.setText("");
+            minAmountField.setText("999");
+            lookup("#maxAmountField").<TextField>query().setText("0");
+            lookup("#datePresetFilter").<ComboBox<?>>query().getSelectionModel().select(6);
+        });
+        assertTrue(table.getItems().isEmpty());
+
+        interact(lookup("#clearFiltersButton").<Button>query()::fire);
+
+        assertTrue(table.getItems().stream().anyMatch(tx -> tx.getId().equals(matching.getId())));
+        assertEquals(0, categoryFilter.getSelectionModel().getSelectedIndex());
+        assertEquals("", searchField.getText());
+        assertEquals("", minAmountField.getText());
+        assertEquals("", lookup("#maxAmountField").<TextField>query().getText());
+        assertEquals(0, lookup("#datePresetFilter").<ComboBox<?>>query().getSelectionModel().getSelectedIndex());
+        assertNull(lookup("#fromDateFilter").<DatePicker>query().getValue());
+        assertNull(lookup("#toDateFilter").<DatePicker>query().getValue());
+        assertTrue(lookup("#applyFiltersButton").tryQuery().isEmpty());
+        assertTrue(lookup("#clearFiltersButton").tryQuery().isPresent());
     }
 
     @Test

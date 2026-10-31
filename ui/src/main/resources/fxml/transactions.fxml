@@ -35,9 +35,9 @@
                             maxWidth="Infinity" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
                 <ComboBox fx:id="datePresetFilter" accessibleText="%filter.datePreset"
                           maxWidth="Infinity" GridPane.rowIndex="1" GridPane.columnIndex="2"/>
-                <Button fx:id="applyFiltersButton" text="%button.search" onAction="#onApplyFilters"
-                        styleClass="accent-button" GridPane.rowIndex="1" GridPane.columnIndex="3">
-                    <graphic><FontIcon iconLiteral="fth-search" iconSize="15"/></graphic>
+                <Button fx:id="clearFiltersButton" text="%button.clearFilters" onAction="#onClearFilters"
+                        styleClass="button-outlined" GridPane.rowIndex="1" GridPane.columnIndex="3">
+                    <graphic><FontIcon iconLiteral="fth-x" iconSize="15"/></graphic>
                 </Button>
                 <TextField fx:id="minAmountField" promptText="%filter.minAmount" accessibleText="%filter.minAmount"
                            maxWidth="Infinity" GridPane.rowIndex="2" GridPane.columnIndex="0"/>

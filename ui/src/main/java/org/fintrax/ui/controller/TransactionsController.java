@@ -104,6 +104,7 @@ public class TransactionsController {
     private final ObservableList<Transaction> tableData = FXCollections.observableArrayList();
     private boolean detailVisible = false;
     private boolean updatingDateFilters;
+    private boolean updatingFilters;
     private Long detailCategoryId;
     private Set<Long> detailLabelIds = new HashSet<>();
 
@@ -128,6 +129,7 @@ public class TransactionsController {
         loadFilterOptions();
         loadTransactions();
         setupColumnMenu();
+        setupFilterListeners();
 
         transactionTable.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
             if (newVal != null) {
@@ -327,6 +329,27 @@ public class TransactionsController {
                 onDateTextChanged());
     }
 
+    private void setupFilterListeners() {
+        accountFilter.valueProperty().addListener((observable, oldValue, newValue) -> applyChangedFilters());
+        categoryFilter.valueProperty().addListener((observable, oldValue, newValue) -> applyChangedFilters());
+        searchField.textProperty().addListener((observable, oldValue, newValue) -> applyChangedFilters());
+        minAmountField.textProperty().addListener((observable, oldValue, newValue) -> applyChangedFilters());
+        maxAmountField.textProperty().addListener((observable, oldValue, newValue) -> applyChangedFilters());
+        datePresetFilter.valueProperty().addListener((observable, oldValue, newValue) -> applyChangedFilters());
+        fromDateFilter.valueProperty().addListener((observable, oldValue, newValue) -> applyChangedFilters());
+        toDateFilter.valueProperty().addListener((observable, oldValue, newValue) -> applyChangedFilters());
+        fromDateFilter.getEditor().textProperty().addListener(
+                (observable, oldValue, newValue) -> applyChangedFilters());
+        toDateFilter.getEditor().textProperty().addListener(
+                (observable, oldValue, newValue) -> applyChangedFilters());
+    }
+
+    private void applyChangedFilters() {
+        if (!updatingFilters && !updatingDateFilters) {
+            loadTransactions();
+        }
+    }
+
     private void onDateTextChanged() {
         setDateFieldInvalid(fromDateFilter, false);
         setDateFieldInvalid(toDateFilter, false);
@@ -435,7 +458,26 @@ public class TransactionsController {
     }
 
     @FXML
-    private void onApplyFilters() {
+    private void onClearFilters() {
+        updatingFilters = true;
+        try {
+            accountFilter.getSelectionModel().selectFirst();
+            categoryFilter.getSelectionModel().selectFirst();
+            searchField.clear();
+            minAmountField.clear();
+            maxAmountField.clear();
+            datePresetFilter.setValue(TransactionDateFilters.Preset.ALL_TIME);
+            updatingDateFilters = true;
+            fromDateFilter.setValue(null);
+            toDateFilter.setValue(null);
+            fromDateFilter.getEditor().clear();
+            toDateFilter.getEditor().clear();
+            setDateFieldInvalid(fromDateFilter, false);
+            setDateFieldInvalid(toDateFilter, false);
+        } finally {
+            updatingDateFilters = false;
+            updatingFilters = false;
+        }
         loadTransactions();
     }
 
