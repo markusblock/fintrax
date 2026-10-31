@@ -21,6 +21,7 @@ import org.fintrax.service.AccountService;
 import org.fintrax.service.CategoryService;
 import org.fintrax.service.LabelService;
 import org.fintrax.service.RuleService;
+import org.fintrax.service.SettingsService;
 import org.fintrax.service.SyncResult;
 import org.fintrax.service.SyncService;
 import org.fintrax.ui.FintraxUI;
@@ -64,6 +65,7 @@ public class BankAccountsController {
     private final AccountService accountService;
     private final SyncService syncService;
     private final RuleService ruleService;
+    private final SettingsService settingsService;
     private final CategoryService categoryService;
     private final LabelService labelService;
     private final PinStorage pinStorage;
@@ -76,12 +78,14 @@ public class BankAccountsController {
 
     public BankAccountsController(AccountService accountService, SyncService syncService,
                                   PinStorage pinStorage, ViewLoader viewLoader, RuleService ruleService,
-                                  CategoryService categoryService, LabelService labelService) {
+                                  CategoryService categoryService, LabelService labelService,
+                                  SettingsService settingsService) {
         this.accountService = accountService;
         this.syncService = syncService;
         this.pinStorage = pinStorage;
         this.viewLoader = viewLoader;
         this.ruleService = ruleService;
+        this.settingsService = settingsService;
         this.categoryService = categoryService;
         this.labelService = labelService;
     }
@@ -405,7 +409,7 @@ public class BankAccountsController {
             report.showAndWait().ifPresent(button -> {
                 if (button == applyRulesType) {
                     new RuleReviewDialog(rootPane.getScene().getWindow(), ruleService, accountService,
-                            categoryService, labelService,
+                            categoryService, labelService, settingsService,
                             onlyFillMissing -> ruleService.previewRulesForTransactions(
                                     newTransactionIds, onlyFillMissing), false).show();
                 }

@@ -22,6 +22,7 @@ import org.fintrax.service.SyncService;
 import org.fintrax.service.SettingsService;
 import org.fintrax.service.hibiscus.HibiscusXmlImporter;
 import org.fintrax.store.ResetGroup;
+import org.fintrax.ui.control.TableColumnVisibilityMenu;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
@@ -38,6 +39,8 @@ import java.util.stream.Collectors;
 @Component
 @Scope("prototype")
 public class SettingsController {
+    private static final String CREDENTIAL_COLUMN_CONFIG_KEY = "settings.credentials.columns";
+
     @FXML
     private BorderPane rootPane;
     @FXML
@@ -48,6 +51,8 @@ public class SettingsController {
     private Label dataDirLabel;
     @FXML
     private TableView<CredentialRow> credentialTable;
+    @FXML
+    private MenuButton columnMenuButton;
     @FXML
     private TableColumn<CredentialRow, String> accountColumn;
     @FXML
@@ -103,7 +108,15 @@ public class SettingsController {
 
         dataDirLabel.setText(storagePath.toString());
 
+        setupColumnMenu();
         loadCredentials();
+    }
+
+    private void setupColumnMenu() {
+        TableColumnVisibilityMenu.install(credentialTable, columnMenuButton,
+                CREDENTIAL_COLUMN_CONFIG_KEY, settingsService,
+                List.of(new TableColumnVisibilityMenu.Column("account", accountColumn),
+                        new TableColumnVisibilityMenu.Column("status", statusColumn)));
     }
 
     private void loadCredentials() {
@@ -222,7 +235,8 @@ public class SettingsController {
         report.showAndWait().ifPresent(button -> {
             if (button == applyRulesType) {
                 new RuleReviewDialog(rootPane.getScene().getWindow(), ruleService, accountService,
-                        categoryService, labelService, ruleService::previewAllRules, false).show();
+                        categoryService, labelService, settingsService,
+                        ruleService::previewAllRules, false).show();
             }
         });
     }

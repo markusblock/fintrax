@@ -15,6 +15,7 @@ import org.fintrax.config.I18n;
 import org.fintrax.model.*;
 import org.fintrax.service.*;
 import org.fintrax.ui.FintraxUI;
+import org.fintrax.ui.control.TableColumnVisibilityMenu;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
@@ -27,11 +28,14 @@ import java.util.stream.Collectors;
 @Scope("prototype")
 public class RulesController {
     private static final String DISABLED_RULE_ROW_CLASS = "disabled-rule-row";
+    private static final String COLUMN_CONFIG_KEY = "rules.columns";
 
     @FXML
     private BorderPane rootPane;
     @FXML
     private TableView<Rule> ruleTable;
+    @FXML
+    private MenuButton columnMenuButton;
     @FXML
     private TableColumn<Rule, Number> ruleNumberColumn;
     @FXML
@@ -57,6 +61,7 @@ public class RulesController {
     private final AccountService accountService;
     private final CategoryService categoryService;
     private final LabelService labelService;
+    private final SettingsService settingsService;
 
     private final ObservableList<Rule> ruleData = FXCollections.observableArrayList();
     private Long editingRuleId;
@@ -65,11 +70,13 @@ public class RulesController {
     private final List<ActionRow> actionRows = new ArrayList<>();
 
     public RulesController(RuleService ruleService, AccountService accountService,
-                           CategoryService categoryService, LabelService labelService) {
+                           CategoryService categoryService, LabelService labelService,
+                           SettingsService settingsService) {
         this.ruleService = ruleService;
         this.accountService = accountService;
         this.categoryService = categoryService;
         this.labelService = labelService;
+        this.settingsService = settingsService;
     }
 
     @FXML
@@ -82,6 +89,7 @@ public class RulesController {
         ruleTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         ruleNumberColumn.setSortable(false);
         ruleNameColumn.setSortable(false);
+        setupColumnMenu();
         ruleTable.setRowFactory(table -> new TableRow<>() {
             @Override
             protected void updateItem(Rule item, boolean empty) {
@@ -107,6 +115,12 @@ public class RulesController {
         });
     }
 
+    private void setupColumnMenu() {
+        TableColumnVisibilityMenu.install(ruleTable, columnMenuButton, COLUMN_CONFIG_KEY, settingsService,
+                List.of(new TableColumnVisibilityMenu.Column("number", ruleNumberColumn),
+                        new TableColumnVisibilityMenu.Column("name", ruleNameColumn)));
+    }
+
     private void loadRules() {
         ruleData.setAll(ruleService.getAllRules());
         ruleTable.setItems(ruleData);
@@ -117,7 +131,7 @@ public class RulesController {
         applyRule.setGraphic(icon("fth-play", 14));
         applyRule.setDisable(!rule.isEnabled());
         applyRule.setOnAction(event -> new RuleReviewDialog(rootPane.getScene().getWindow(), ruleService,
-                accountService, categoryService, labelService,
+                accountService, categoryService, labelService, settingsService,
                 onlyFillMissing -> ruleService.previewSingleRule(rule.getId(), onlyFillMissing), true).show());
 
         int ruleIndex = indexOfRule(rule.getId());
@@ -448,7 +462,8 @@ public class RulesController {
     @FXML
     private void onApplyAll() {
         new RuleReviewDialog(rootPane.getScene().getWindow(), ruleService, accountService,
-                categoryService, labelService, ruleService::previewAllRules, false).show();
+                categoryService, labelService, settingsService,
+                ruleService::previewAllRules, false).show();
     }
 
     private void clearEditor() {

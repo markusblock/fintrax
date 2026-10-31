@@ -4,7 +4,9 @@ import javafx.scene.Scene;
 import javafx.scene.Parent;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
+import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ContextMenu;
+import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
@@ -15,6 +17,7 @@ import org.fintrax.service.AccountService;
 import org.fintrax.service.CategoryService;
 import org.fintrax.service.LabelService;
 import org.fintrax.service.RuleService;
+import org.fintrax.service.SettingsService;
 import org.fintrax.service.TransactionService;
 import org.fintrax.service.TransactionRulePreview;
 import org.junit.jupiter.api.Test;
@@ -78,9 +81,33 @@ class RulesControllerTest extends AbstractUITest {
         CheckBox onlyFillMissing = lookup("#onlyFillMissingRules").query();
         assertTrue(onlyFillMissing.isSelected());
         TableView<TransactionRulePreview> reviewTable = lookup("#ruleReviewTable").query();
+        MenuButton reviewColumnMenu = lookup("#ruleReviewColumnMenuButton").query();
+        assertSame(reviewColumnMenu, reviewTable.getColumns().getLast().getGraphic());
+        assertEquals(8, reviewColumnMenu.getItems().size());
         TransactionRulePreview initialRow = rowFor(reviewTable, transaction.getId());
         assertEquals(currentCategory.getId(), initialRow.proposedCategoryId());
         assertTrue(initialRow.proposedLabelIds().contains(proposedLabelId));
+
+        var originalReviewColumnOrder = List.copyOf(reviewTable.getColumns());
+        CheckMenuItem noteItem = (CheckMenuItem) reviewColumnMenu.getItems().get(6);
+        try {
+            interact(() -> noteItem.setSelected(false));
+            assertFalse(reviewTable.getColumns().get(6).isVisible());
+            assertTrue(applicationContext.getBean(SettingsService.class)
+                    .getSettingValue("rules.review.columns").contains("note=false"));
+            interact(() -> {
+                var dateColumn = reviewTable.getColumns().remove(0);
+                reviewTable.getColumns().add(1, dateColumn);
+            });
+            assertEquals("payee,date,amount,account,category,labels,note,matchedRules",
+                    applicationContext.getBean(SettingsService.class)
+                            .getSettingValue("rules.review.columns.order"));
+        } finally {
+            interact(() -> {
+                noteItem.setSelected(true);
+                reviewTable.getColumns().setAll(originalReviewColumnOrder);
+            });
+        }
 
         clickOn(onlyFillMissing);
         assertFalse(onlyFillMissing.isSelected());
@@ -123,9 +150,11 @@ class RulesControllerTest extends AbstractUITest {
     @Test
     void rulesTableShowsPriorityNameDisabledStyleAndPerRuleCommands() {
         TableView<Rule> ruleTable = lookup("#ruleTable").query();
+        MenuButton columnMenu = lookup("#columnMenuButton").query();
 
         assertEquals(List.of(I18n.get("rules.column.number"), I18n.get("label.ruleName")),
-                ruleTable.getColumns().stream().map(column -> column.getText()).toList());
+                ruleTable.getColumns().stream().limit(2).map(column -> column.getText()).toList());
+        assertSame(columnMenu, ruleTable.getColumns().getLast().getGraphic());
 
         TableRow<?> enabledRow = rowForRule(ruleTable, ruleName);
         TableRow<?> disabledRow = rowForRule(ruleTable, disabledRuleName);
@@ -160,6 +189,33 @@ class RulesControllerTest extends AbstractUITest {
         interact(() -> menuItem(reorderedDisabledMenu, I18n.get("rules.enable")).fire());
         assertTrue(ruleService.getRule(disabledRule.getId()).orElseThrow().isEnabled());
         assertEquals("", rowForRule(ruleTable, disabledRuleName).getStyle());
+    }
+
+    @Test
+    void ruleColumnMenuPersistsVisibilityAndOrder() {
+        TableView<Rule> ruleTable = lookup("#ruleTable").query();
+        MenuButton columnMenu = lookup("#columnMenuButton").query();
+        var originalColumnOrder = List.copyOf(ruleTable.getColumns());
+        CheckMenuItem nameItem = (CheckMenuItem) columnMenu.getItems().get(1);
+
+        try {
+            interact(() -> nameItem.setSelected(false));
+            assertFalse(ruleTable.getColumns().get(1).isVisible());
+            assertTrue(applicationContext.getBean(SettingsService.class)
+                    .getSettingValue("rules.columns").contains("name=false"));
+
+            interact(() -> {
+                var numberColumn = ruleTable.getColumns().remove(0);
+                ruleTable.getColumns().add(1, numberColumn);
+            });
+            assertEquals("name,number", applicationContext.getBean(SettingsService.class)
+                    .getSettingValue("rules.columns.order"));
+        } finally {
+            interact(() -> {
+                nameItem.setSelected(true);
+                ruleTable.getColumns().setAll(originalColumnOrder);
+            });
+        }
     }
 
     private TransactionRulePreview rowFor(TableView<TransactionRulePreview> table, Long transactionId) {
