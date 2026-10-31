@@ -11,6 +11,7 @@ import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 public final class TableColumnVisibilityMenu {
@@ -72,7 +73,7 @@ public final class TableColumnVisibilityMenu {
                         .map(Column::key)
                         .findFirst()
                         .orElse(null))
-                .filter(key -> key != null)
+                .filter(Objects::nonNull)
                 .collect(Collectors.joining(","));
         settingsService.saveSettingValue(settingKey + ".order", value);
     }
