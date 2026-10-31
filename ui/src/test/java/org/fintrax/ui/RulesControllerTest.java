@@ -84,7 +84,8 @@ class RulesControllerTest extends AbstractUITest {
         TableView<TransactionRulePreview> reviewTable = lookup("#ruleReviewTable").query();
         MenuButton reviewColumnMenu = lookup("#ruleReviewColumnMenuButton").query();
         assertSame(reviewColumnMenu, reviewTable.getColumns().getLast().getGraphic());
-        assertEquals(8, reviewColumnMenu.getItems().size());
+        assertEquals(10, reviewColumnMenu.getItems().size());
+        assertEquals(I18n.get("button.columns.reset"), reviewColumnMenu.getItems().getLast().getText());
         TransactionRulePreview initialRow = rowFor(reviewTable, transaction.getId());
         assertEquals(currentCategory.getId(), initialRow.proposedCategoryId());
         assertTrue(initialRow.proposedLabelIds().contains(proposedLabelId));
@@ -156,6 +157,7 @@ class RulesControllerTest extends AbstractUITest {
         assertEquals(List.of(I18n.get("rules.column.number"), I18n.get("label.ruleName")),
                 ruleTable.getColumns().stream().limit(2).map(TableColumnBase::getText).toList());
         assertSame(columnMenu, ruleTable.getColumns().getLast().getGraphic());
+        assertEquals(I18n.get("button.columns.reset"), columnMenu.getItems().getLast().getText());
 
         TableRow<?> enabledRow = rowForRule(ruleTable, ruleName);
         TableRow<?> disabledRow = rowForRule(ruleTable, disabledRuleName);

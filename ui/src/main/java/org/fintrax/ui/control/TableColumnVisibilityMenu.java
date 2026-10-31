@@ -2,8 +2,11 @@ package org.fintrax.ui.control;
 
 import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.MenuButton;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
+import org.fintrax.config.I18n;
 import org.fintrax.service.SettingsService;
 
 import java.util.Comparator;
@@ -26,6 +29,10 @@ public final class TableColumnVisibilityMenu {
         menuButton.getItems().setAll(columns.stream()
                 .map(config -> createMenuItem(config, settingKey, settingsService, columns))
                 .toList());
+        menuButton.getItems().add(new SeparatorMenuItem());
+        MenuItem resetItem = new MenuItem(I18n.get("button.columns.reset"));
+        resetItem.setOnAction(event -> resetToDefaults(table, settingKey, settingsService, columns));
+        menuButton.getItems().add(resetItem);
         table.getColumns().addListener((javafx.collections.ListChangeListener<TableColumn<S, ?>>) change ->
                 saveColumnOrder(table, settingKey, settingsService, columns));
     }
@@ -50,8 +57,13 @@ public final class TableColumnVisibilityMenu {
         String value = settingsService.getSettingValue(settingKey + ".order");
         if (value == null || value.isBlank()) return;
 
+        applyColumnOrder(table, columns, List.of(value.split(",")));
+    }
+
+    private static <S> void applyColumnOrder(TableView<S> table, List<Column> columns,
+                                             List<String> orderedKeys) {
         Map<String, Integer> orderByKey = new HashMap<>();
-        for (String key : value.split(",")) {
+        for (String key : orderedKeys) {
             if (columns.stream().anyMatch(column -> column.key().equals(key))) {
                 orderByKey.putIfAbsent(key, orderByKey.size());
             }
@@ -63,6 +75,14 @@ public final class TableColumnVisibilityMenu {
         int afterConfiguredColumns = orderByColumn.size();
         table.getColumns().sort(Comparator.comparingInt(
                 column -> orderByColumn.getOrDefault(column, afterConfiguredColumns)));
+    }
+
+    private static <S> void resetToDefaults(TableView<S> table, String settingKey,
+                                            SettingsService settingsService, List<Column> columns) {
+        columns.forEach(config -> config.column().setVisible(true));
+        applyColumnOrder(table, columns, columns.stream().map(Column::key).toList());
+        saveColumnVisibility(settingKey, settingsService, columns);
+        saveColumnOrder(table, settingKey, settingsService, columns);
     }
 
     private static <S> void saveColumnOrder(TableView<S> table, String settingKey,
@@ -87,10 +107,15 @@ public final class TableColumnVisibilityMenu {
                 column.setVisible(isVisible));
         column.visibleProperty().addListener((observable, wasVisible, isVisible) -> {
             menuItem.setSelected(isVisible);
-            settingsService.saveSettingValue(settingKey, columns.stream()
-                    .map(item -> item.key() + "=" + item.column().isVisible())
-                    .collect(Collectors.joining(",")));
+            saveColumnVisibility(settingKey, settingsService, columns);
         });
         return menuItem;
+    }
+
+    private static void saveColumnVisibility(String settingKey, SettingsService settingsService,
+                                             List<Column> columns) {
+        settingsService.saveSettingValue(settingKey, columns.stream()
+                .map(item -> item.key() + "=" + item.column().isVisible())
+                .collect(Collectors.joining(",")));
     }
 }

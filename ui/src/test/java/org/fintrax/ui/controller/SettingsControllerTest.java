@@ -78,7 +78,9 @@ class SettingsControllerTest extends AbstractUITest {
         assertSame(columnMenu, table.getColumns().getLast().getGraphic());
         assertEquals(List.of("settings.credential.account", "settings.credential.status")
                         .stream().map(I18n::get).toList(),
-                columnMenu.getItems().stream().map(MenuItem::getText).toList());
+                columnMenu.getItems().stream().filter(CheckMenuItem.class::isInstance)
+                        .map(MenuItem::getText).toList());
+        assertEquals(I18n.get("button.columns.reset"), columnMenu.getItems().getLast().getText());
 
         var originalColumnOrder = List.copyOf(table.getColumns());
         CheckMenuItem statusItem = (CheckMenuItem) columnMenu.getItems().get(1);

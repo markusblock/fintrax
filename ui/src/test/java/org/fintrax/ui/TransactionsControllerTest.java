@@ -249,12 +249,15 @@ class TransactionsControllerTest extends AbstractUITest {
         TableView<Transaction> table = lookup("#transactionTable").query();
 
         assertSame(columnMenu, table.getColumns().getLast().getGraphic());
+        List<CheckMenuItem> columnItems = columnMenu.getItems().stream()
+                .filter(CheckMenuItem.class::isInstance)
+                .map(CheckMenuItem.class::cast)
+                .toList();
         assertEquals(List.of("col.date", "col.payee", "col.purpose", "col.amount",
                         "col.balance", "col.category", "col.labels").stream().map(I18n::get).toList(),
-                columnMenu.getItems().stream().map(MenuItem::getText).toList());
-        assertTrue(columnMenu.getItems().stream()
-                .map(CheckMenuItem.class::cast)
-                .allMatch(CheckMenuItem::isSelected));
+                columnItems.stream().map(MenuItem::getText).toList());
+        assertTrue(columnItems.stream().allMatch(CheckMenuItem::isSelected));
+        assertEquals(I18n.get("button.columns.reset"), columnMenu.getItems().getLast().getText());
 
         var initialColumnOrder = List.copyOf(table.getColumns());
         Stage stage = (Stage) table.getScene().getWindow();
@@ -283,6 +286,16 @@ class TransactionsControllerTest extends AbstractUITest {
                             "col.balance", "col.category", "col.labels").stream().map(I18n::get).toList(),
                     restoredTable.getColumns().stream().limit(7).map(TableColumn::getText).toList());
             assertFalse(restoredTable.getColumns().get(2).isVisible());
+
+            MenuButton restoredMenu = lookup("#columnMenuButton").query();
+            interact(restoredMenu.getItems().getLast()::fire);
+            assertTrue(restoredTable.getColumns().stream().limit(7)
+                    .allMatch(TableColumn::isVisible));
+            assertEquals("date=true,payee=true,purpose=true,amount=true,balance=true,category=true,labels=true",
+                    applicationContext.getBean(SettingsService.class).getSettingValue("transaction.columns"));
+            assertEquals("date,payee,purpose,amount,balance,category,labels",
+                    applicationContext.getBean(SettingsService.class)
+                            .getSettingValue("transaction.columns.order"));
         } finally {
             interact(() -> {
                 purposeItem.setSelected(true);
