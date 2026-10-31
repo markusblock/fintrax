@@ -189,8 +189,7 @@ class TransactionsControllerTest extends AbstractUITest {
         assertTrue(lookup("#pickerClearSelection").tryQuery().isEmpty());
         assertEquals(selected.getCategoryId(), lookup("#pickerList").<javafx.scene.control.ListView<Category>>query()
                 .getSelectionModel().getSelectedItem().getId());
-        clickOn("#pickerSearch");
-        press(KeyCode.ENTER);
+        fireEnterOnPicker();
         WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS,
                 () -> lookup("#pickerSearch").tryQuery().isEmpty());
     }
