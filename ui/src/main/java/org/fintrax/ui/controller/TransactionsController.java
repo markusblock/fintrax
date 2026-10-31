@@ -541,7 +541,7 @@ public class TransactionsController {
 
     private void setupColumnMenu() {
         TableColumnVisibilityMenu.install(
-                columnMenuButton, COLUMN_CONFIG_KEY, settingsService, columnConfigurations());
+                transactionTable, columnMenuButton, COLUMN_CONFIG_KEY, settingsService, columnConfigurations());
     }
 
     private List<TableColumnVisibilityMenu.Column> columnConfigurations() {

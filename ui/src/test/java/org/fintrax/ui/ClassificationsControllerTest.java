@@ -119,7 +119,7 @@ class ClassificationsControllerTest extends AbstractUITest {
     }
 
     @Test
-    void classificationTransactionColumnsCanBeShownAndHidden() {
+    void classificationTransactionColumnsCanBeShownAndHidden() throws Exception {
         MenuButton columnMenu = lookup("#columnMenuButton").query();
         TableView<Transaction> table = lookup("#classificationTransactionsTable").query();
 
@@ -131,6 +131,9 @@ class ClassificationsControllerTest extends AbstractUITest {
                 .map(CheckMenuItem.class::cast)
                 .allMatch(CheckMenuItem::isSelected));
 
+        var initialColumnOrder = List.copyOf(table.getColumns());
+        Stage stage = (Stage) table.getScene().getWindow();
+        Parent originalRoot = table.getScene().getRoot();
         CheckMenuItem purposeItem = (CheckMenuItem) columnMenu.getItems().get(2);
         try {
             interact(() -> purposeItem.setSelected(false));
@@ -139,8 +142,28 @@ class ClassificationsControllerTest extends AbstractUITest {
             assertFalse(purposeItem.isSelected());
             assertTrue(applicationContext.getBean(SettingsService.class)
                     .getSettingValue("classification.transaction.columns").contains("purpose=false"));
+
+            interact(() -> {
+                var dateColumn = table.getColumns().remove(0);
+                table.getColumns().add(1, dateColumn);
+            });
+            assertEquals("payee,date,purpose,amount,category,labels",
+                    applicationContext.getBean(SettingsService.class)
+                            .getSettingValue("classification.transaction.columns.order"));
+
+            Parent restoredView = applicationContext.getBean(ViewLoader.class).load("classifications");
+            interact(() -> stage.getScene().setRoot(restoredView));
+            TableView<?> restoredTable = lookup("#classificationTransactionsTable").query();
+            assertEquals(List.of("col.payee", "col.date", "col.purpose", "col.amount",
+                            "col.category", "col.labels").stream().map(I18n::get).toList(),
+                    restoredTable.getColumns().stream().limit(6).map(TableColumn::getText).toList());
+            assertFalse(restoredTable.getColumns().get(2).isVisible());
         } finally {
-            interact(() -> purposeItem.setSelected(true));
+            interact(() -> {
+                purposeItem.setSelected(true);
+                table.getColumns().setAll(initialColumnOrder);
+                stage.getScene().setRoot(originalRoot);
+            });
         }
     }
 

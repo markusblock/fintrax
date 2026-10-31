@@ -116,7 +116,8 @@ public class ClassificationsController {
     }
 
     private void setupColumnMenu() {
-        TableColumnVisibilityMenu.install(columnMenuButton, COLUMN_CONFIG_KEY, settingsService, List.of(
+        TableColumnVisibilityMenu.install(classificationTransactionsTable, columnMenuButton,
+                COLUMN_CONFIG_KEY, settingsService, List.of(
                 new TableColumnVisibilityMenu.Column("date", transactionDateColumn),
                 new TableColumnVisibilityMenu.Column("payee", transactionPayeeColumn),
                 new TableColumnVisibilityMenu.Column("purpose", transactionPurposeColumn),
