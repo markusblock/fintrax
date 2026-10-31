@@ -15,7 +15,6 @@ import org.fintrax.config.I18n;
 import org.fintrax.model.*;
 import org.fintrax.service.*;
 import org.fintrax.ui.FintraxUI;
-import org.fintrax.ui.control.TableColumnVisibilityMenu;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
@@ -28,14 +27,11 @@ import java.util.stream.Collectors;
 @Scope("prototype")
 public class RulesController {
     private static final String DISABLED_RULE_ROW_CLASS = "disabled-rule-row";
-    private static final String COLUMN_CONFIG_KEY = "rules.columns";
 
     @FXML
     private BorderPane rootPane;
     @FXML
     private TableView<Rule> ruleTable;
-    @FXML
-    private MenuButton columnMenuButton;
     @FXML
     private TableColumn<Rule, Number> ruleNumberColumn;
     @FXML
@@ -89,7 +85,6 @@ public class RulesController {
         ruleTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         ruleNumberColumn.setSortable(false);
         ruleNameColumn.setSortable(false);
-        setupColumnMenu();
         ruleTable.setRowFactory(table -> new TableRow<>() {
             @Override
             protected void updateItem(Rule item, boolean empty) {
@@ -113,12 +108,6 @@ public class RulesController {
                 loadRuleEditor(newVal);
             }
         });
-    }
-
-    private void setupColumnMenu() {
-        TableColumnVisibilityMenu.install(ruleTable, columnMenuButton, COLUMN_CONFIG_KEY, settingsService,
-                List.of(new TableColumnVisibilityMenu.Column("number", ruleNumberColumn),
-                        new TableColumnVisibilityMenu.Column("name", ruleNameColumn)));
     }
 
     private void loadRules() {

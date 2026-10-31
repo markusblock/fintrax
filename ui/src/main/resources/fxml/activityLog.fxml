@@ -40,7 +40,7 @@
                 <TableColumn fx:id="entityTypeColumn" text="%col.entityType" prefWidth="100"/>
                 <TableColumn fx:id="entityIdColumn" text="%col.entityId" prefWidth="60"/>
                 <TableColumn fx:id="descriptionColumn" text="%col.description" prefWidth="400"/>
-                <TableColumn minWidth="34" prefWidth="34" maxWidth="34"
+                <TableColumn minWidth="17" prefWidth="17" maxWidth="17"
                              resizable="false" sortable="false" reorderable="false">
                     <graphic>
                         <MenuButton fx:id="columnMenuButton" accessibleText="%button.columns"

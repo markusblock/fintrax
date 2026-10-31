@@ -90,9 +90,9 @@ final class RuleReviewDialog {
         columnMenuButton.setAccessibleText(I18n.get("button.columns"));
         columnMenuButton.getStyleClass().add("column-menu-button");
         TableColumn<TransactionRulePreview, String> menuColumn = new TableColumn<>();
-        menuColumn.setMinWidth(34);
-        menuColumn.setPrefWidth(34);
-        menuColumn.setMaxWidth(34);
+        menuColumn.setMinWidth(17);
+        menuColumn.setPrefWidth(17);
+        menuColumn.setMaxWidth(17);
         menuColumn.setResizable(false);
         menuColumn.setSortable(false);
         menuColumn.setReorderable(false);

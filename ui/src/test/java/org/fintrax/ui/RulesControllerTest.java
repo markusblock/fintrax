@@ -152,12 +152,9 @@ class RulesControllerTest extends AbstractUITest {
     @Test
     void rulesTableShowsPriorityNameDisabledStyleAndPerRuleCommands() {
         TableView<Rule> ruleTable = lookup("#ruleTable").query();
-        MenuButton columnMenu = lookup("#columnMenuButton").query();
 
         assertEquals(List.of(I18n.get("rules.column.number"), I18n.get("label.ruleName")),
-                ruleTable.getColumns().stream().limit(2).map(TableColumnBase::getText).toList());
-        assertSame(columnMenu, ruleTable.getColumns().getLast().getGraphic());
-        assertEquals(I18n.get("button.columns.reset"), columnMenu.getItems().getLast().getText());
+                ruleTable.getColumns().stream().map(TableColumnBase::getText).toList());
 
         TableRow<?> enabledRow = rowForRule(ruleTable, ruleName);
         TableRow<?> disabledRow = rowForRule(ruleTable, disabledRuleName);
@@ -192,33 +189,6 @@ class RulesControllerTest extends AbstractUITest {
         interact(() -> menuItem(reorderedDisabledMenu, I18n.get("rules.enable")).fire());
         assertTrue(ruleService.getRule(disabledRule.getId()).orElseThrow().isEnabled());
         assertEquals("", rowForRule(ruleTable, disabledRuleName).getStyle());
-    }
-
-    @Test
-    void ruleColumnMenuPersistsVisibilityAndOrder() {
-        TableView<Rule> ruleTable = lookup("#ruleTable").query();
-        MenuButton columnMenu = lookup("#columnMenuButton").query();
-        var originalColumnOrder = List.copyOf(ruleTable.getColumns());
-        CheckMenuItem nameItem = (CheckMenuItem) columnMenu.getItems().get(1);
-
-        try {
-            interact(() -> nameItem.setSelected(false));
-            assertFalse(ruleTable.getColumns().get(1).isVisible());
-            assertTrue(applicationContext.getBean(SettingsService.class)
-                    .getSettingValue("rules.columns").contains("name=false"));
-
-            interact(() -> {
-                var numberColumn = ruleTable.getColumns().remove(0);
-                ruleTable.getColumns().add(1, numberColumn);
-            });
-            assertEquals("name,number", applicationContext.getBean(SettingsService.class)
-                    .getSettingValue("rules.columns.order"));
-        } finally {
-            interact(() -> {
-                nameItem.setSelected(true);
-                ruleTable.getColumns().setAll(originalColumnOrder);
-            });
-        }
     }
 
     private TransactionRulePreview rowFor(TableView<TransactionRulePreview> table, Long transactionId) {

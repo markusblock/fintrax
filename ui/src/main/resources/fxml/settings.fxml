@@ -9,7 +9,6 @@
 <?import javafx.scene.control.ComboBox?>
 <?import javafx.scene.control.TableView?>
 <?import javafx.scene.control.TableColumn?>
-<?import javafx.scene.control.MenuButton?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.ScrollPane?>
 <?import javafx.geometry.Insets?>
@@ -68,13 +67,6 @@
                     <columns>
                         <TableColumn fx:id="accountColumn" text="%settings.credential.account" prefWidth="250"/>
                         <TableColumn fx:id="statusColumn" text="%settings.credential.status" prefWidth="150"/>
-                        <TableColumn minWidth="34" prefWidth="34" maxWidth="34"
-                                     resizable="false" sortable="false" reorderable="false">
-                            <graphic>
-                                <MenuButton fx:id="columnMenuButton" accessibleText="%button.columns"
-                                            styleClass="column-menu-button"/>
-                            </graphic>
-                        </TableColumn>
                     </columns>
                 </TableView>
                 <HBox spacing="10" alignment="CENTER_RIGHT">

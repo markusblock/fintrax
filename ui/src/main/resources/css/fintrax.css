@@ -384,9 +384,9 @@
 .column-menu-button {
     -fx-padding: 0;
     -fx-alignment: CENTER;
-    -fx-min-width: 34;
-    -fx-pref-width: 34;
-    -fx-max-width: 34;
+    -fx-min-width: 17;
+    -fx-pref-width: 17;
+    -fx-max-width: 17;
     -fx-min-height: 24;
     -fx-pref-height: 24;
     -fx-max-height: 24;
@@ -403,9 +403,9 @@
 
 .column-menu-button > .arrow-button {
     -fx-padding: 0;
-    -fx-min-width: 34;
-    -fx-pref-width: 34;
-    -fx-max-width: 34;
+    -fx-min-width: 17;
+    -fx-pref-width: 17;
+    -fx-max-width: 17;
     -fx-min-height: 24;
     -fx-pref-height: 24;
     -fx-max-height: 24;
