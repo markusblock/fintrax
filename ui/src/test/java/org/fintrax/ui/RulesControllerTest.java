@@ -155,6 +155,9 @@ class RulesControllerTest extends AbstractUITest {
 
         assertEquals(List.of(I18n.get("rules.column.number"), I18n.get("label.ruleName")),
                 ruleTable.getColumns().stream().map(TableColumnBase::getText).toList());
+        assertEquals(56, ruleTable.getColumns().getFirst().getMinWidth());
+        assertEquals(56, ruleTable.getColumns().getFirst().getPrefWidth());
+        assertEquals(56, ruleTable.getColumns().getFirst().getMaxWidth());
 
         TableRow<?> enabledRow = rowForRule(ruleTable, ruleName);
         TableRow<?> disabledRow = rowForRule(ruleTable, disabledRuleName);
