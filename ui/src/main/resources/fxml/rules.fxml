@@ -42,7 +42,9 @@
         <SplitPane dividerPositions="0.34" styleClass="content-split-pane">
             <TableView fx:id="ruleTable" styleClass="dense" VBox.vgrow="ALWAYS">
                 <columns>
-                    <TableColumn fx:id="ruleNumberColumn" text="%rules.column.number" prefWidth="44" sortable="false"/>
+                    <TableColumn fx:id="ruleNumberColumn" text="%rules.column.number"
+                                 minWidth="56" prefWidth="56" maxWidth="56"
+                                 resizable="false" sortable="false"/>
                     <TableColumn fx:id="ruleNameColumn" text="%label.ruleName" prefWidth="170" sortable="false"/>
                 </columns>
             </TableView>

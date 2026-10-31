@@ -57,6 +57,7 @@ public class RulesController {
     private final AccountService accountService;
     private final CategoryService categoryService;
     private final LabelService labelService;
+    private final SettingsService settingsService;
 
     private final ObservableList<Rule> ruleData = FXCollections.observableArrayList();
     private Long editingRuleId;
@@ -65,11 +66,13 @@ public class RulesController {
     private final List<ActionRow> actionRows = new ArrayList<>();
 
     public RulesController(RuleService ruleService, AccountService accountService,
-                           CategoryService categoryService, LabelService labelService) {
+                           CategoryService categoryService, LabelService labelService,
+                           SettingsService settingsService) {
         this.ruleService = ruleService;
         this.accountService = accountService;
         this.categoryService = categoryService;
         this.labelService = labelService;
+        this.settingsService = settingsService;
     }
 
     @FXML
@@ -116,8 +119,9 @@ public class RulesController {
         MenuItem applyRule = new MenuItem(I18n.get("rules.applySelected"));
         applyRule.setGraphic(icon("fth-play", 14));
         applyRule.setDisable(!rule.isEnabled());
-        applyRule.setOnAction(event -> new RuleReviewDialog(rootPane.getScene().getWindow(), ruleService,
-                accountService, categoryService, labelService,
+        applyRule.setOnAction(event -> new RuleReviewDialog(rootPane.getScene().getWindow(),
+                new RuleReviewDialog.Services(ruleService, accountService, categoryService, labelService,
+                        settingsService),
                 onlyFillMissing -> ruleService.previewSingleRule(rule.getId(), onlyFillMissing), true).show());
 
         int ruleIndex = indexOfRule(rule.getId());
@@ -447,8 +451,10 @@ public class RulesController {
 
     @FXML
     private void onApplyAll() {
-        new RuleReviewDialog(rootPane.getScene().getWindow(), ruleService, accountService,
-                categoryService, labelService, ruleService::previewAllRules, false).show();
+        new RuleReviewDialog(rootPane.getScene().getWindow(),
+                new RuleReviewDialog.Services(ruleService, accountService, categoryService, labelService,
+                        settingsService),
+                ruleService::previewAllRules, false).show();
     }
 
     private void clearEditor() {

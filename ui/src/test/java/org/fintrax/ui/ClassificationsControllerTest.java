@@ -5,7 +5,9 @@ import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ContextMenu;
+import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.TableCell;
@@ -26,6 +28,7 @@ import org.fintrax.model.Label;
 import org.fintrax.model.Transaction;
 import org.fintrax.service.CategoryService;
 import org.fintrax.service.LabelService;
+import org.fintrax.service.SettingsService;
 import org.fintrax.service.TransactionService;
 import org.fintrax.ui.control.LabelChipFactory;
 import org.junit.jupiter.api.Test;
@@ -40,6 +43,7 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ClassificationsControllerTest extends AbstractUITest {
@@ -112,6 +116,76 @@ class ClassificationsControllerTest extends AbstractUITest {
         assertEquals(selectedIds, table.getSelectionModel().getSelectedItems().stream()
                 .map(Transaction::getId)
                 .toList());
+    }
+
+    @Test
+    void classificationTransactionColumnsCanBeShownAndHidden() throws Exception {
+        MenuButton columnMenu = lookup("#columnMenuButton").query();
+        TableView<Transaction> table = lookup("#classificationTransactionsTable").query();
+        WaitForAsyncUtils.waitForFxEvents();
+
+        assertSame(columnMenu, table.getColumns().getLast().getGraphic());
+        double totalVisibleColumnWidth = table.getColumns().stream()
+                .filter(TableColumn::isVisible)
+                .mapToDouble(TableColumn::getWidth)
+                .sum();
+        assertTrue(totalVisibleColumnWidth <= table.getWidth() + 1,
+                "all transaction columns should fit in table before window resize");
+        List<CheckMenuItem> columnItems = columnMenu.getItems().stream()
+                .filter(CheckMenuItem.class::isInstance)
+                .map(CheckMenuItem.class::cast)
+                .toList();
+        assertEquals(List.of("col.date", "col.payee", "col.purpose", "col.amount",
+                        "col.category", "col.labels").stream().map(I18n::get).toList(),
+                columnItems.stream().map(MenuItem::getText).toList());
+        assertTrue(columnItems.stream().allMatch(CheckMenuItem::isSelected));
+        assertEquals(I18n.get("button.columns.reset"), columnMenu.getItems().getLast().getText());
+
+        var initialColumnOrder = List.copyOf(table.getColumns());
+        Stage stage = (Stage) table.getScene().getWindow();
+        Parent originalRoot = table.getScene().getRoot();
+        CheckMenuItem purposeItem = (CheckMenuItem) columnMenu.getItems().get(2);
+        try {
+            interact(() -> purposeItem.setSelected(false));
+
+            assertFalse(table.getColumns().get(2).isVisible());
+            assertFalse(purposeItem.isSelected());
+            assertTrue(applicationContext.getBean(SettingsService.class)
+                    .getSettingValue("classification.transaction.columns").contains("purpose=false"));
+
+            interact(() -> {
+                var dateColumn = table.getColumns().remove(0);
+                table.getColumns().add(1, dateColumn);
+            });
+            assertEquals("payee,date,purpose,amount,category,labels",
+                    applicationContext.getBean(SettingsService.class)
+                            .getSettingValue("classification.transaction.columns.order"));
+
+            Parent restoredView = applicationContext.getBean(ViewLoader.class).load("classifications");
+            interact(() -> stage.getScene().setRoot(restoredView));
+            TableView<?> restoredTable = lookup("#classificationTransactionsTable").query();
+            assertEquals(List.of("col.payee", "col.date", "col.purpose", "col.amount",
+                            "col.category", "col.labels").stream().map(I18n::get).toList(),
+                    restoredTable.getColumns().stream().limit(6).map(TableColumn::getText).toList());
+            assertFalse(restoredTable.getColumns().get(2).isVisible());
+
+            MenuButton restoredMenu = lookup("#columnMenuButton").query();
+            interact(restoredMenu.getItems().getLast()::fire);
+            assertTrue(restoredTable.getColumns().stream().limit(6)
+                    .allMatch(TableColumn::isVisible));
+            assertEquals("date=true,payee=true,purpose=true,amount=true,category=true,labels=true",
+                    applicationContext.getBean(SettingsService.class)
+                            .getSettingValue("classification.transaction.columns"));
+            assertEquals("date,payee,purpose,amount,category,labels",
+                    applicationContext.getBean(SettingsService.class)
+                            .getSettingValue("classification.transaction.columns.order"));
+        } finally {
+            interact(() -> {
+                purposeItem.setSelected(true);
+                table.getColumns().setAll(initialColumnOrder);
+                stage.getScene().setRoot(originalRoot);
+            });
+        }
     }
 
     @Test

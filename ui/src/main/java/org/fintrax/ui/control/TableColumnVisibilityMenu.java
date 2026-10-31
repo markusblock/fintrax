@@ -1,0 +1,122 @@
+package org.fintrax.ui.control;
+
+import javafx.scene.control.CheckMenuItem;
+import javafx.scene.control.MenuButton;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.SeparatorMenuItem;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
+import org.fintrax.config.I18n;
+import org.fintrax.service.SettingsService;
+
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.IdentityHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
+
+public final class TableColumnVisibilityMenu {
+    private TableColumnVisibilityMenu() {}
+
+    public record Column(String key, TableColumn<?, ?> column) {}
+
+    public static <S> void install(TableView<S> table, MenuButton menuButton, String settingKey,
+                               SettingsService settingsService, List<Column> columns) {
+        restoreColumnVisibility(settingKey, settingsService, columns);
+        restoreColumnOrder(table, settingKey, settingsService, columns);
+        menuButton.getItems().setAll(columns.stream()
+                .map(config -> createMenuItem(config, settingKey, settingsService, columns))
+                .toList());
+        menuButton.getItems().add(new SeparatorMenuItem());
+        MenuItem resetItem = new MenuItem(I18n.get("button.columns.reset"));
+        resetItem.setOnAction(event -> resetToDefaults(table, settingKey, settingsService, columns));
+        menuButton.getItems().add(resetItem);
+        table.getColumns().addListener((javafx.collections.ListChangeListener<TableColumn<S, ?>>) change ->
+                saveColumnOrder(table, settingKey, settingsService, columns));
+    }
+
+    private static void restoreColumnVisibility(String settingKey, SettingsService settingsService,
+                                                List<Column> columns) {
+        String value = settingsService.getSettingValue(settingKey);
+        if (value == null) return;
+
+        for (String part : value.split(",")) {
+            String[] entry = part.split("=", 2);
+            if (entry.length != 2) continue;
+            columns.stream()
+                    .filter(config -> config.key().equals(entry[0]))
+                    .findFirst()
+                    .ifPresent(config -> config.column().setVisible(Boolean.parseBoolean(entry[1])));
+        }
+    }
+
+    private static <S> void restoreColumnOrder(TableView<S> table, String settingKey,
+                                               SettingsService settingsService, List<Column> columns) {
+        String value = settingsService.getSettingValue(settingKey + ".order");
+        if (value == null || value.isBlank()) return;
+
+        applyColumnOrder(table, columns, List.of(value.split(",")));
+    }
+
+    private static <S> void applyColumnOrder(TableView<S> table, List<Column> columns,
+                                             List<String> orderedKeys) {
+        Map<String, Integer> orderByKey = new HashMap<>();
+        for (String key : orderedKeys) {
+            if (columns.stream().anyMatch(column -> column.key().equals(key))) {
+                orderByKey.putIfAbsent(key, orderByKey.size());
+            }
+        }
+        columns.forEach(column -> orderByKey.putIfAbsent(column.key(), orderByKey.size()));
+
+        Map<TableColumn<?, ?>, Integer> orderByColumn = new IdentityHashMap<>();
+        columns.forEach(column -> orderByColumn.put(column.column(), orderByKey.get(column.key())));
+        int afterConfiguredColumns = orderByColumn.size();
+        table.getColumns().sort(Comparator.comparingInt(
+                column -> orderByColumn.getOrDefault(column, afterConfiguredColumns)));
+    }
+
+    private static <S> void resetToDefaults(TableView<S> table, String settingKey,
+                                            SettingsService settingsService, List<Column> columns) {
+        columns.forEach(config -> config.column().setVisible(true));
+        applyColumnOrder(table, columns, columns.stream().map(Column::key).toList());
+        table.getSortOrder().clear();
+        saveColumnVisibility(settingKey, settingsService, columns);
+        saveColumnOrder(table, settingKey, settingsService, columns);
+    }
+
+    private static <S> void saveColumnOrder(TableView<S> table, String settingKey,
+                                            SettingsService settingsService, List<Column> columns) {
+        String value = table.getColumns().stream()
+                .map(tableColumn -> columns.stream()
+                        .filter(config -> config.column() == tableColumn)
+                        .map(Column::key)
+                        .findFirst()
+                        .orElse(null))
+                .filter(Objects::nonNull)
+                .collect(Collectors.joining(","));
+        settingsService.saveSettingValue(settingKey + ".order", value);
+    }
+
+    private static CheckMenuItem createMenuItem(Column config, String settingKey,
+                                               SettingsService settingsService, List<Column> columns) {
+        TableColumn<?, ?> column = config.column();
+        CheckMenuItem menuItem = new CheckMenuItem(column.getText());
+        menuItem.setSelected(column.isVisible());
+        menuItem.selectedProperty().addListener((observable, wasVisible, isVisible) ->
+                column.setVisible(isVisible));
+        column.visibleProperty().addListener((observable, wasVisible, isVisible) -> {
+            menuItem.setSelected(isVisible);
+            saveColumnVisibility(settingKey, settingsService, columns);
+        });
+        return menuItem;
+    }
+
+    private static void saveColumnVisibility(String settingKey, SettingsService settingsService,
+                                             List<Column> columns) {
+        settingsService.saveSettingValue(settingKey, columns.stream()
+                .map(item -> item.key() + "=" + item.column().isVisible())
+                .collect(Collectors.joining(",")));
+    }
+}

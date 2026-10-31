@@ -7,9 +7,11 @@ import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
+import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.TableCell;
@@ -26,6 +28,7 @@ import org.fintrax.model.Category;
 import org.fintrax.model.Transaction;
 import org.fintrax.service.CategoryService;
 import org.fintrax.service.LabelService;
+import org.fintrax.service.SettingsService;
 import org.fintrax.service.TransactionService;
 import org.junit.jupiter.api.Test;
 import org.testfx.util.WaitForAsyncUtils;
@@ -43,6 +46,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TransactionsControllerTest extends AbstractUITest {
@@ -185,8 +189,7 @@ class TransactionsControllerTest extends AbstractUITest {
         assertTrue(lookup("#pickerClearSelection").tryQuery().isEmpty());
         assertEquals(selected.getCategoryId(), lookup("#pickerList").<javafx.scene.control.ListView<Category>>query()
                 .getSelectionModel().getSelectedItem().getId());
-        clickOn("#pickerSearch");
-        press(KeyCode.ENTER);
+        fireEnterOnPicker();
         WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS,
                 () -> lookup("#pickerSearch").tryQuery().isEmpty());
     }
@@ -237,6 +240,71 @@ class TransactionsControllerTest extends AbstractUITest {
         TableView<Transaction> table = lookup("#transactionTable").query();
 
         assertEquals(SelectionMode.MULTIPLE, table.getSelectionModel().getSelectionMode());
+    }
+
+    @Test
+    void columnMenuReflectsVisibilityAndPersistsChanges() throws Exception {
+        MenuButton columnMenu = lookup("#columnMenuButton").query();
+        TableView<Transaction> table = lookup("#transactionTable").query();
+
+        assertSame(columnMenu, table.getColumns().getLast().getGraphic());
+        List<CheckMenuItem> columnItems = columnMenu.getItems().stream()
+                .filter(CheckMenuItem.class::isInstance)
+                .map(CheckMenuItem.class::cast)
+                .toList();
+        assertEquals(List.of("col.date", "col.payee", "col.purpose", "col.amount",
+                        "col.balance", "col.category", "col.labels").stream().map(I18n::get).toList(),
+                columnItems.stream().map(MenuItem::getText).toList());
+        assertTrue(columnItems.stream().allMatch(CheckMenuItem::isSelected));
+        assertEquals(I18n.get("button.columns.reset"), columnMenu.getItems().getLast().getText());
+
+        var initialColumnOrder = List.copyOf(table.getColumns());
+        Stage stage = (Stage) table.getScene().getWindow();
+        Parent originalRoot = table.getScene().getRoot();
+        CheckMenuItem purposeItem = (CheckMenuItem) columnMenu.getItems().get(2);
+        try {
+            interact(() -> purposeItem.setSelected(false));
+
+            assertFalse(table.getColumns().get(2).isVisible());
+            assertFalse(purposeItem.isSelected());
+            assertTrue(applicationContext.getBean(SettingsService.class)
+                    .getSettingValue("transaction.columns").contains("purpose=false"));
+
+            interact(() -> {
+                var dateColumn = table.getColumns().remove(0);
+                table.getColumns().add(1, dateColumn);
+            });
+            assertEquals("payee,date,purpose,amount,balance,category,labels",
+                    applicationContext.getBean(SettingsService.class)
+                            .getSettingValue("transaction.columns.order"));
+
+            Parent restoredView = applicationContext.getBean(ViewLoader.class).load("transactions");
+            interact(() -> stage.getScene().setRoot(restoredView));
+            TableView<Transaction> restoredTable = lookup("#transactionTable").query();
+            assertEquals(List.of("col.payee", "col.date", "col.purpose", "col.amount",
+                            "col.balance", "col.category", "col.labels").stream().map(I18n::get).toList(),
+                    restoredTable.getColumns().stream().limit(7).map(TableColumn::getText).toList());
+            assertFalse(restoredTable.getColumns().get(2).isVisible());
+
+            MenuButton restoredMenu = lookup("#columnMenuButton").query();
+            interact(() -> restoredTable.getSortOrder().add(restoredTable.getColumns().get(1)));
+            assertFalse(restoredTable.getSortOrder().isEmpty());
+            interact(restoredMenu.getItems().getLast()::fire);
+            assertTrue(restoredTable.getColumns().stream().limit(7)
+                    .allMatch(TableColumn::isVisible));
+            assertTrue(restoredTable.getSortOrder().isEmpty());
+            assertEquals("date=true,payee=true,purpose=true,amount=true,balance=true,category=true,labels=true",
+                    applicationContext.getBean(SettingsService.class).getSettingValue("transaction.columns"));
+            assertEquals("date,payee,purpose,amount,balance,category,labels",
+                    applicationContext.getBean(SettingsService.class)
+                            .getSettingValue("transaction.columns.order"));
+        } finally {
+            interact(() -> {
+                purposeItem.setSelected(true);
+                table.getColumns().setAll(initialColumnOrder);
+                stage.getScene().setRoot(originalRoot);
+            });
+        }
     }
 
     @Test
@@ -357,13 +425,13 @@ class TransactionsControllerTest extends AbstractUITest {
         String name = "Picker category " + System.nanoTime();
 
         openPickerFromContextMenu(table, 0, 0);
-        clickOn("#pickerSearch").write(name);
+        interact(() -> lookup("#pickerSearch").<javafx.scene.control.TextField>query().setText(name));
         WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS,
                 () -> lookup("#pickerCreateButton").tryQuery().isPresent()
                         && lookup("#pickerCreateButton").<Button>query().isVisible());
         assertTrue(lookup("#pickerCreateButton").<Button>query().isVisible());
-        clickOn("#pickerCreateButton");
-        clickOn("#pickerSave");
+        interact(lookup("#pickerCreateButton").<Button>query()::fire);
+        interact(lookup("#pickerSave").<Button>query()::fire);
         WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS, () ->
                 applicationContext.getBean(CategoryService.class).getAllCategories().stream()
                         .anyMatch(category -> category.getName().equals(name)));

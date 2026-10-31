@@ -48,6 +48,7 @@ class SettingsServiceTest {
     void savedPreferencesSurviveStoreRestart() {
         settings.saveLanguage("de");
         settings.saveTheme("dark");
+        settings.saveSettingValue("transaction.columns", "purpose=false");
         storeManager.shutdown();
 
         storeManager = new StoreManager(tempDir);
@@ -55,6 +56,7 @@ class SettingsServiceTest {
 
         assertEquals("de", settings.getLanguage());
         assertEquals("dark", settings.getTheme());
+        assertEquals("purpose=false", settings.getSettingValue("transaction.columns"));
     }
 
     @Test

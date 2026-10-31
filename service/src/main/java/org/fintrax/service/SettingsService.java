@@ -20,12 +20,12 @@ public class SettingsService {
     }
 
     public String getLanguage() {
-        String value = getValue(LANGUAGE_KEY);
+        String value = getSettingValue(LANGUAGE_KEY);
         return isSupportedLanguage(value) ? value : DEFAULT_LANGUAGE;
     }
 
     public String getTheme() {
-        String value = getValue(THEME_KEY);
+        String value = getSettingValue(THEME_KEY);
         return isSupportedTheme(value) ? value : DEFAULT_THEME;
     }
 
@@ -33,26 +33,26 @@ public class SettingsService {
         if (!isSupportedLanguage(language)) {
             throw new IllegalArgumentException("Unsupported language: " + language);
         }
-        save(LANGUAGE_KEY, language);
+        saveSettingValue(LANGUAGE_KEY, language);
     }
 
     public void saveTheme(String theme) {
         if (!isSupportedTheme(theme)) {
             throw new IllegalArgumentException("Unsupported theme: " + theme);
         }
-        save(THEME_KEY, theme);
+        saveSettingValue(THEME_KEY, theme);
     }
 
     public Locale getLocale() {
         return Locale.forLanguageTag(getLanguage());
     }
 
-    private String getValue(String key) {
+    public String getSettingValue(String key) {
         AppSetting setting = storeManager.getRoot().getSettings().get(key);
         return setting == null ? null : setting.getValue();
     }
 
-    private void save(String key, String value) {
+    public void saveSettingValue(String key, String value) {
         AppSetting setting = storeManager.getRoot().getSettings().computeIfAbsent(
                 key, ignored -> AppSetting.builder().key(key).build());
         setting.setValue(value);
