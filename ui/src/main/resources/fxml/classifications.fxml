@@ -19,7 +19,7 @@
         </VBox>
     </top>
     <center>
-        <SplitPane dividerPositions="0.32" styleClass="content-split-pane">
+        <SplitPane dividerPositions="0.22" styleClass="content-split-pane">
             <TreeView fx:id="classificationTree" styleClass="category-tree"/>
             <VBox fx:id="categoryTransactionsPanel" spacing="12" styleClass="content-panel">
                 <padding>

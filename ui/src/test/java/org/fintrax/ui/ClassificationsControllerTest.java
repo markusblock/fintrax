@@ -122,8 +122,15 @@ class ClassificationsControllerTest extends AbstractUITest {
     void classificationTransactionColumnsCanBeShownAndHidden() throws Exception {
         MenuButton columnMenu = lookup("#columnMenuButton").query();
         TableView<Transaction> table = lookup("#classificationTransactionsTable").query();
+        WaitForAsyncUtils.waitForFxEvents();
 
         assertSame(columnMenu, table.getColumns().getLast().getGraphic());
+        double totalVisibleColumnWidth = table.getColumns().stream()
+                .filter(TableColumn::isVisible)
+                .mapToDouble(TableColumn::getWidth)
+                .sum();
+        assertTrue(totalVisibleColumnWidth <= table.getWidth() + 1,
+                "all transaction columns should fit in table before window resize");
         List<CheckMenuItem> columnItems = columnMenu.getItems().stream()
                 .filter(CheckMenuItem.class::isInstance)
                 .map(CheckMenuItem.class::cast)
