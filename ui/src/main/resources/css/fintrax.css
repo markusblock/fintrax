@@ -382,13 +382,36 @@
 }
 
 .column-menu-button {
-    -fx-padding: 3;
-    -fx-min-width: 24;
-    -fx-pref-width: 24;
-    -fx-max-width: 24;
+    -fx-padding: 0;
+    -fx-alignment: CENTER;
+    -fx-min-width: 34;
+    -fx-pref-width: 34;
+    -fx-max-width: 34;
     -fx-min-height: 24;
     -fx-pref-height: 24;
     -fx-max-height: 24;
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+.column-menu-button > .label {
+    -fx-padding: 0;
+    -fx-min-width: 0;
+    -fx-pref-width: 0;
+    -fx-max-width: 0;
+}
+
+.column-menu-button > .arrow-button {
+    -fx-padding: 0;
+    -fx-min-width: 34;
+    -fx-pref-width: 34;
+    -fx-max-width: 34;
+    -fx-min-height: 24;
+    -fx-pref-height: 24;
+    -fx-max-height: 24;
+    -fx-alignment: CENTER;
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
 }
 
 .column-menu-button:hover {
