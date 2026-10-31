@@ -10,7 +10,9 @@ import javafx.scene.layout.BorderPane;
 import lombok.extern.slf4j.Slf4j;
 import org.fintrax.config.I18n;
 import org.fintrax.model.*;
+import org.fintrax.service.SettingsService;
 import org.fintrax.store.StoreManager;
+import org.fintrax.ui.control.TableColumnVisibilityMenu;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
@@ -23,11 +25,14 @@ import java.util.List;
 @Scope("prototype")
 public class ActivityLogController {
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static final String COLUMN_CONFIG_KEY = "activity.log.columns";
 
     @FXML
     private BorderPane rootPane;
     @FXML
     private TableView<ActivityLog> logTable;
+    @FXML
+    private MenuButton columnMenuButton;
     @FXML
     private TableColumn<ActivityLog, LocalDateTime> timestampColumn;
     @FXML
@@ -44,10 +49,12 @@ public class ActivityLogController {
     private ComboBox<String> entityTypeFilter;
 
     private final StoreManager storeManager;
+    private final SettingsService settingsService;
     private final ObservableList<ActivityLog> tableData = FXCollections.observableArrayList();
 
-    public ActivityLogController(StoreManager storeManager) {
+    public ActivityLogController(StoreManager storeManager, SettingsService settingsService) {
         this.storeManager = storeManager;
+        this.settingsService = settingsService;
     }
 
     @FXML
@@ -73,6 +80,7 @@ public class ActivityLogController {
         descriptionColumn.setCellValueFactory(cd -> new SimpleStringProperty(
                 cd.getValue().getDescription() != null ? cd.getValue().getDescription() : ""));
 
+        setupColumnMenu();
         logTable.setItems(tableData);
 
         actionFilter.getItems().add(I18n.get("activity.allActions"));
@@ -88,6 +96,15 @@ public class ActivityLogController {
         entityTypeFilter.getSelectionModel().selectFirst();
 
         loadLogs();
+    }
+
+    private void setupColumnMenu() {
+        TableColumnVisibilityMenu.install(logTable, columnMenuButton, COLUMN_CONFIG_KEY, settingsService,
+                List.of(new TableColumnVisibilityMenu.Column("timestamp", timestampColumn),
+                        new TableColumnVisibilityMenu.Column("action", actionColumn),
+                        new TableColumnVisibilityMenu.Column("entityType", entityTypeColumn),
+                        new TableColumnVisibilityMenu.Column("entityId", entityIdColumn),
+                        new TableColumnVisibilityMenu.Column("description", descriptionColumn)));
     }
 
     @FXML

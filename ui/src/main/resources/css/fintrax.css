@@ -381,6 +381,44 @@
     -fx-fixed-cell-size: 2.4em;
 }
 
+.column-menu-button {
+    -fx-padding: 0;
+    -fx-alignment: CENTER;
+    -fx-min-width: 17;
+    -fx-pref-width: 17;
+    -fx-max-width: 17;
+    -fx-min-height: 24;
+    -fx-pref-height: 24;
+    -fx-max-height: 24;
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+.column-menu-button > .label {
+    -fx-padding: 0;
+    -fx-min-width: 0;
+    -fx-pref-width: 0;
+    -fx-max-width: 0;
+}
+
+.column-menu-button > .arrow-button {
+    -fx-padding: 0;
+    -fx-min-width: 17;
+    -fx-pref-width: 17;
+    -fx-max-width: 17;
+    -fx-min-height: 24;
+    -fx-pref-height: 24;
+    -fx-max-height: 24;
+    -fx-alignment: CENTER;
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+}
+
+.column-menu-button:hover {
+    -fx-background-color: -color-neutral-muted;
+    -fx-background-radius: 4;
+}
+
 .transactions-header {
     -fx-padding: 22 24 16 24;
     -fx-spacing: 14;

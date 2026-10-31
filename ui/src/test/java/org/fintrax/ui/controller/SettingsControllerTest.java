@@ -60,4 +60,5 @@ class SettingsControllerTest extends AbstractUITest {
 
         assertEquals("dark", applicationContext.getBean(SettingsService.class).getTheme());
     }
+
 }

@@ -25,8 +25,10 @@ import org.fintrax.model.Category;
 import org.fintrax.model.Transaction;
 import org.fintrax.service.CategoryService;
 import org.fintrax.service.LabelService;
+import org.fintrax.service.SettingsService;
 import org.fintrax.ui.FintraxUI;
 import org.fintrax.ui.control.LabelChipFactory;
+import org.fintrax.ui.control.TableColumnVisibilityMenu;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
@@ -41,6 +43,7 @@ import java.util.stream.Collectors;
 @Scope("prototype")
 public class ClassificationsController {
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    private static final String COLUMN_CONFIG_KEY = "classification.transaction.columns";
 
     @FXML
     private BorderPane rootPane;
@@ -48,6 +51,8 @@ public class ClassificationsController {
     private TreeView<String> classificationTree;
     @FXML
     private TableView<Transaction> classificationTransactionsTable;
+    @FXML
+    private MenuButton columnMenuButton;
     @FXML
     private TableColumn<Transaction, LocalDate> transactionDateColumn;
     @FXML
@@ -63,6 +68,7 @@ public class ClassificationsController {
 
     private final CategoryService categoryService;
     private final LabelService labelService;
+    private final SettingsService settingsService;
     private final TransactionTableActions transactionTableActions;
     private final Map<Long, TreeItem<String>> categoryItemsById = new HashMap<>();
     private final Map<Long, TreeItem<String>> labelItemsById = new HashMap<>();
@@ -77,9 +83,11 @@ public class ClassificationsController {
 
     public ClassificationsController(CategoryService categoryService,
                                  LabelService labelService,
+                                 SettingsService settingsService,
                                  TransactionTableActions transactionTableActions) {
         this.categoryService = categoryService;
         this.labelService = labelService;
+        this.settingsService = settingsService;
         this.transactionTableActions = transactionTableActions;
     }
 
@@ -90,6 +98,7 @@ public class ClassificationsController {
         configureContextMenu();
         classificationTree.setCellFactory(this::createClassificationCell);
         setupTransactionTable();
+        setupColumnMenu();
         classificationTransactionsTable.setItems(displayedTransactions);
         transactionTableActions.installContextMenu(
                 classificationTransactionsTable, rootPane, this::reloadSelectedTransactionsKeepingSelection);
@@ -104,6 +113,17 @@ public class ClassificationsController {
                 displayedTransactions.clear();
             }
         });
+    }
+
+    private void setupColumnMenu() {
+        TableColumnVisibilityMenu.install(classificationTransactionsTable, columnMenuButton,
+                COLUMN_CONFIG_KEY, settingsService, List.of(
+                new TableColumnVisibilityMenu.Column("date", transactionDateColumn),
+                new TableColumnVisibilityMenu.Column("payee", transactionPayeeColumn),
+                new TableColumnVisibilityMenu.Column("purpose", transactionPurposeColumn),
+                new TableColumnVisibilityMenu.Column("amount", transactionAmountColumn),
+                new TableColumnVisibilityMenu.Column("category", transactionCategoryColumn),
+                new TableColumnVisibilityMenu.Column("labels", transactionLabelsColumn)));
     }
 
     private void setupTransactionTable() {

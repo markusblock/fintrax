@@ -19,9 +19,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.fintrax.config.I18n;
 import org.fintrax.model.*;
 import org.fintrax.service.*;
-import org.fintrax.store.StoreManager;
 import org.fintrax.ui.control.LabelChipFactory;
 import org.fintrax.ui.control.SearchableListPicker;
+import org.fintrax.ui.control.TableColumnVisibilityMenu;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
@@ -64,6 +64,8 @@ public class TransactionsController {
     @FXML
     private TableView<Transaction> transactionTable;
     @FXML
+    private MenuButton columnMenuButton;
+    @FXML
     private TableColumn<Transaction, LocalDate> dateColumn;
     @FXML
     private TableColumn<Transaction, String> payeeColumn;
@@ -96,7 +98,7 @@ public class TransactionsController {
     private final TransactionService transactionService;
     private final CategoryService categoryService;
     private final LabelService labelService;
-    private final StoreManager storeManager;
+    private final SettingsService settingsService;
     private final TransactionTableActions transactionTableActions;
 
     private final ObservableList<Transaction> tableData = FXCollections.observableArrayList();
@@ -107,12 +109,12 @@ public class TransactionsController {
 
     public TransactionsController(AccountService accountService, TransactionService transactionService,
                                   CategoryService categoryService, LabelService labelService,
-                                  StoreManager storeManager, TransactionTableActions transactionTableActions) {
+                                  SettingsService settingsService, TransactionTableActions transactionTableActions) {
         this.accountService = accountService;
         this.transactionService = transactionService;
         this.categoryService = categoryService;
         this.labelService = labelService;
-        this.storeManager = storeManager;
+        this.settingsService = settingsService;
         this.transactionTableActions = transactionTableActions;
     }
 
@@ -125,7 +127,7 @@ public class TransactionsController {
         setupDateFilters();
         loadFilterOptions();
         loadTransactions();
-        restoreColumnConfig();
+        setupColumnMenu();
 
         transactionTable.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
             if (newVal != null) {
@@ -537,54 +539,19 @@ public class TransactionsController {
         return new ArrayList<>(transactionTable.getSelectionModel().getSelectedItems());
     }
 
-    private void restoreColumnConfig() {
-        AppSetting setting = storeManager.getRoot().getSettings().get(COLUMN_CONFIG_KEY);
-        if (setting == null || setting.getValue() == null) return;
-
-        try {
-            String[] parts = setting.getValue().split(",");
-            for (String part : parts) {
-                String[] kv = part.split("=");
-                if (kv.length == 2) {
-                    String colName = kv[0];
-                    boolean visible = Boolean.parseBoolean(kv[1]);
-                    TableColumn<?, ?> col = findColumn(colName);
-                    if (col != null) {
-                        col.setVisible(visible);
-                    }
-                }
-            }
-        } catch (Exception e) {
-            log.warn("Failed to restore column config", e);
-        }
+    private void setupColumnMenu() {
+        TableColumnVisibilityMenu.install(
+                transactionTable, columnMenuButton, COLUMN_CONFIG_KEY, settingsService, columnConfigurations());
     }
 
-    private TableColumn<?, ?> findColumn(String name) {
-        return switch (name) {
-            case "date" -> dateColumn;
-            case "payee" -> payeeColumn;
-            case "purpose" -> purposeColumn;
-            case "amount" -> amountColumn;
-            case "balance" -> balanceColumn;
-            case "category" -> categoryColumn;
-            case "labels" -> labelsColumn;
-            default -> null;
-        };
-    }
-
-    public void saveColumnConfig() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("date=").append(dateColumn.isVisible());
-        sb.append(",payee=").append(payeeColumn.isVisible());
-        sb.append(",purpose=").append(purposeColumn.isVisible());
-        sb.append(",amount=").append(amountColumn.isVisible());
-        sb.append(",balance=").append(balanceColumn.isVisible());
-        sb.append(",category=").append(categoryColumn.isVisible());
-        sb.append(",labels=").append(labelsColumn.isVisible());
-
-        AppSetting setting = storeManager.getRoot().getSettings().computeIfAbsent(
-                COLUMN_CONFIG_KEY, k -> AppSetting.builder().key(k).build());
-        setting.setValue(sb.toString());
-        storeManager.store(setting);
+    private List<TableColumnVisibilityMenu.Column> columnConfigurations() {
+        return List.of(
+                new TableColumnVisibilityMenu.Column("date", dateColumn),
+                new TableColumnVisibilityMenu.Column("payee", payeeColumn),
+                new TableColumnVisibilityMenu.Column("purpose", purposeColumn),
+                new TableColumnVisibilityMenu.Column("amount", amountColumn),
+                new TableColumnVisibilityMenu.Column("balance", balanceColumn),
+                new TableColumnVisibilityMenu.Column("category", categoryColumn),
+                new TableColumnVisibilityMenu.Column("labels", labelsColumn));
     }
 }

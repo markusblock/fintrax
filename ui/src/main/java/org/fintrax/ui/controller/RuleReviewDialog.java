@@ -15,8 +15,10 @@ import org.fintrax.service.CategoryService;
 import org.fintrax.service.LabelService;
 import org.fintrax.service.RuleApplicationPreview;
 import org.fintrax.service.RuleService;
+import org.fintrax.service.SettingsService;
 import org.fintrax.service.TransactionRulePreview;
 import org.fintrax.ui.FintraxUI;
+import org.fintrax.ui.control.TableColumnVisibilityMenu;
 
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -28,22 +30,26 @@ import java.util.stream.Collectors;
 final class RuleReviewDialog {
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ISO_LOCAL_DATE;
 
+    record Services(RuleService ruleService, AccountService accountService, CategoryService categoryService,
+                    LabelService labelService, SettingsService settingsService) {}
+
     private final Window owner;
     private final RuleService ruleService;
     private final AccountService accountService;
     private final CategoryService categoryService;
     private final LabelService labelService;
+    private final SettingsService settingsService;
     private final Function<Boolean, RuleApplicationPreview> previewProvider;
     private final boolean selectedRuleOnly;
 
-    RuleReviewDialog(Window owner, RuleService ruleService, AccountService accountService,
-                     CategoryService categoryService, LabelService labelService,
+    RuleReviewDialog(Window owner, Services services,
                      Function<Boolean, RuleApplicationPreview> previewProvider, boolean selectedRuleOnly) {
         this.owner = owner;
-        this.ruleService = ruleService;
-        this.accountService = accountService;
-        this.categoryService = categoryService;
-        this.labelService = labelService;
+        this.ruleService = services.ruleService();
+        this.accountService = services.accountService();
+        this.categoryService = services.categoryService();
+        this.labelService = services.labelService();
+        this.settingsService = services.settingsService();
         this.previewProvider = previewProvider;
         this.selectedRuleOnly = selectedRuleOnly;
     }
@@ -63,7 +69,7 @@ final class RuleReviewDialog {
         TableView<TransactionRulePreview> table = new TableView<>();
         table.setId("ruleReviewTable");
         table.getStyleClass().add("dense");
-        table.getColumns().setAll(List.of(
+        List<TableColumn<TransactionRulePreview, String>> columns = List.of(
                 column("rules.review.date", row -> row.bookingDate() == null
                         ? "—" : row.bookingDate().format(DATE_FORMAT), 100),
                 column("rules.review.payee", TransactionRulePreview::payee, 180),
@@ -76,7 +82,31 @@ final class RuleReviewDialog {
                         labels(row.proposedLabelIds())), 220),
                 column("rules.review.note", row -> change(display(row.currentNote()),
                         display(row.proposedNote())), 220),
-                column("rules.review.matchedRules", this::matchedRules, 200)));
+                column("rules.review.matchedRules", this::matchedRules, 200));
+        table.getColumns().setAll(columns);
+
+        MenuButton columnMenuButton = new MenuButton();
+        columnMenuButton.setId("ruleReviewColumnMenuButton");
+        columnMenuButton.setAccessibleText(I18n.get("button.columns"));
+        columnMenuButton.getStyleClass().add("column-menu-button");
+        TableColumn<TransactionRulePreview, String> menuColumn = new TableColumn<>();
+        menuColumn.setMinWidth(17);
+        menuColumn.setPrefWidth(17);
+        menuColumn.setMaxWidth(17);
+        menuColumn.setResizable(false);
+        menuColumn.setSortable(false);
+        menuColumn.setReorderable(false);
+        menuColumn.setGraphic(columnMenuButton);
+        table.getColumns().add(menuColumn);
+        TableColumnVisibilityMenu.install(table, columnMenuButton, "rules.review.columns", settingsService,
+                List.of(new TableColumnVisibilityMenu.Column("date", columns.get(0)),
+                        new TableColumnVisibilityMenu.Column("payee", columns.get(1)),
+                        new TableColumnVisibilityMenu.Column("amount", columns.get(2)),
+                        new TableColumnVisibilityMenu.Column("account", columns.get(3)),
+                        new TableColumnVisibilityMenu.Column("category", columns.get(4)),
+                        new TableColumnVisibilityMenu.Column("labels", columns.get(5)),
+                        new TableColumnVisibilityMenu.Column("note", columns.get(6)),
+                        new TableColumnVisibilityMenu.Column("matchedRules", columns.get(7))));
 
         Label summary = new Label();
         summary.setId("ruleReviewSummary");
