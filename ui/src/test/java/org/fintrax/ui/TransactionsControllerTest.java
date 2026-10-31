@@ -281,16 +281,19 @@ class TransactionsControllerTest extends AbstractUITest {
 
             Parent restoredView = applicationContext.getBean(ViewLoader.class).load("transactions");
             interact(() -> stage.getScene().setRoot(restoredView));
-            TableView<?> restoredTable = lookup("#transactionTable").query();
+            TableView<Transaction> restoredTable = lookup("#transactionTable").query();
             assertEquals(List.of("col.payee", "col.date", "col.purpose", "col.amount",
                             "col.balance", "col.category", "col.labels").stream().map(I18n::get).toList(),
                     restoredTable.getColumns().stream().limit(7).map(TableColumn::getText).toList());
             assertFalse(restoredTable.getColumns().get(2).isVisible());
 
             MenuButton restoredMenu = lookup("#columnMenuButton").query();
+            interact(() -> restoredTable.getSortOrder().add(restoredTable.getColumns().get(1)));
+            assertFalse(restoredTable.getSortOrder().isEmpty());
             interact(restoredMenu.getItems().getLast()::fire);
             assertTrue(restoredTable.getColumns().stream().limit(7)
                     .allMatch(TableColumn::isVisible));
+            assertTrue(restoredTable.getSortOrder().isEmpty());
             assertEquals("date=true,payee=true,purpose=true,amount=true,balance=true,category=true,labels=true",
                     applicationContext.getBean(SettingsService.class).getSettingValue("transaction.columns"));
             assertEquals("date,payee,purpose,amount,balance,category,labels",

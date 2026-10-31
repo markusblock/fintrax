@@ -81,6 +81,7 @@ public final class TableColumnVisibilityMenu {
                                             SettingsService settingsService, List<Column> columns) {
         columns.forEach(config -> config.column().setVisible(true));
         applyColumnOrder(table, columns, columns.stream().map(Column::key).toList());
+        table.getSortOrder().clear();
         saveColumnVisibility(settingKey, settingsService, columns);
         saveColumnOrder(table, settingKey, settingsService, columns);
     }
