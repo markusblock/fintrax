@@ -130,8 +130,9 @@ public class RulesController {
         MenuItem applyRule = new MenuItem(I18n.get("rules.applySelected"));
         applyRule.setGraphic(icon("fth-play", 14));
         applyRule.setDisable(!rule.isEnabled());
-        applyRule.setOnAction(event -> new RuleReviewDialog(rootPane.getScene().getWindow(), ruleService,
-                accountService, categoryService, labelService, settingsService,
+        applyRule.setOnAction(event -> new RuleReviewDialog(rootPane.getScene().getWindow(),
+                new RuleReviewDialog.Services(ruleService, accountService, categoryService, labelService,
+                        settingsService),
                 onlyFillMissing -> ruleService.previewSingleRule(rule.getId(), onlyFillMissing), true).show());
 
         int ruleIndex = indexOfRule(rule.getId());
@@ -461,8 +462,9 @@ public class RulesController {
 
     @FXML
     private void onApplyAll() {
-        new RuleReviewDialog(rootPane.getScene().getWindow(), ruleService, accountService,
-                categoryService, labelService, settingsService,
+        new RuleReviewDialog(rootPane.getScene().getWindow(),
+                new RuleReviewDialog.Services(ruleService, accountService, categoryService, labelService,
+                        settingsService),
                 ruleService::previewAllRules, false).show();
     }
 

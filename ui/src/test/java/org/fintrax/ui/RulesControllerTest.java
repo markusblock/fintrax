@@ -8,6 +8,7 @@ import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.TableColumnBase;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.stage.Stage;
@@ -153,7 +154,7 @@ class RulesControllerTest extends AbstractUITest {
         MenuButton columnMenu = lookup("#columnMenuButton").query();
 
         assertEquals(List.of(I18n.get("rules.column.number"), I18n.get("label.ruleName")),
-                ruleTable.getColumns().stream().limit(2).map(column -> column.getText()).toList());
+                ruleTable.getColumns().stream().limit(2).map(TableColumnBase::getText).toList());
         assertSame(columnMenu, ruleTable.getColumns().getLast().getGraphic());
 
         TableRow<?> enabledRow = rowForRule(ruleTable, ruleName);

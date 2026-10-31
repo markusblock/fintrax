@@ -30,6 +30,9 @@ import java.util.stream.Collectors;
 final class RuleReviewDialog {
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ISO_LOCAL_DATE;
 
+    record Services(RuleService ruleService, AccountService accountService, CategoryService categoryService,
+                    LabelService labelService, SettingsService settingsService) {}
+
     private final Window owner;
     private final RuleService ruleService;
     private final AccountService accountService;
@@ -39,16 +42,14 @@ final class RuleReviewDialog {
     private final Function<Boolean, RuleApplicationPreview> previewProvider;
     private final boolean selectedRuleOnly;
 
-    RuleReviewDialog(Window owner, RuleService ruleService, AccountService accountService,
-                     CategoryService categoryService, LabelService labelService,
-                     SettingsService settingsService,
+    RuleReviewDialog(Window owner, Services services,
                      Function<Boolean, RuleApplicationPreview> previewProvider, boolean selectedRuleOnly) {
         this.owner = owner;
-        this.ruleService = ruleService;
-        this.accountService = accountService;
-        this.categoryService = categoryService;
-        this.labelService = labelService;
-        this.settingsService = settingsService;
+        this.ruleService = services.ruleService();
+        this.accountService = services.accountService();
+        this.categoryService = services.categoryService();
+        this.labelService = services.labelService();
+        this.settingsService = services.settingsService();
         this.previewProvider = previewProvider;
         this.selectedRuleOnly = selectedRuleOnly;
     }

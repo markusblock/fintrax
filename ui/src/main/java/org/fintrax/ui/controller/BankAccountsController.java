@@ -408,8 +408,9 @@ public class BankAccountsController {
             ((Button) report.getDialogPane().lookupButton(closeType)).setId("syncReportCloseButton");
             report.showAndWait().ifPresent(button -> {
                 if (button == applyRulesType) {
-                    new RuleReviewDialog(rootPane.getScene().getWindow(), ruleService, accountService,
-                            categoryService, labelService, settingsService,
+                    new RuleReviewDialog(rootPane.getScene().getWindow(),
+                            new RuleReviewDialog.Services(ruleService, accountService, categoryService, labelService,
+                                    settingsService),
                             onlyFillMissing -> ruleService.previewRulesForTransactions(
                                     newTransactionIds, onlyFillMissing), false).show();
                 }
