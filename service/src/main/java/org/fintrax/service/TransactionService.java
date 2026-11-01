@@ -65,14 +65,6 @@ public class TransactionService {
         return List.copyOf(store.getRoot().getTransactions());
     }
 
-    public List<Transaction> filterTransactions(Long accountId, LocalDate fromDate, LocalDate toDate,
-                                                 Long categoryId, Set<Long> labelIds,
-                                                 BigDecimal minAmount, BigDecimal maxAmount,
-                                                 String searchText) {
-        return filterTransactions(new TransactionFilter(accountId, fromDate, toDate, categoryId,
-                labelIds, minAmount, maxAmount, searchText));
-    }
-
     public List<Transaction> filterTransactions(TransactionFilter filter) {
         return filterTransactions(store.getRoot().getTransactions(), filter);
     }
