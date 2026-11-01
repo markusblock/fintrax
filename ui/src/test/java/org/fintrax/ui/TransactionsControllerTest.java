@@ -388,9 +388,15 @@ class TransactionsControllerTest extends AbstractUITest {
                 .toList();
 
         rightClickOn(cellForRow(table, 0));
-        Platform.runLater(() -> rowFor(table, 0).getContextMenu().getItems().get(1).fire());
+        assertEquals(List.of(0, 1), table.getSelectionModel().getSelectedIndices().stream().sorted().toList());
+        MenuItem setLabelsItem = rowFor(table, 0).getContextMenu().getItems().stream()
+                .filter(item -> I18n.get("contextMenu.setLabels").equals(item.getText()))
+                .findFirst()
+                .orElseThrow();
+        Platform.runLater(setLabelsItem::fire);
         WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS,
-                () -> lookup("#pickerSearch").tryQuery().isPresent());
+                () -> lookup("#selectedLabelsPane").tryQuery().isPresent());
+        assertNotNull(lookup("#pickerSearch").query());
         acceptBulkEditDialog();
 
         assertEquals(selectedIds, table.getSelectionModel().getSelectedItems().stream()
