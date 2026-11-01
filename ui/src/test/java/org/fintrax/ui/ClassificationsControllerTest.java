@@ -59,9 +59,26 @@ class ClassificationsControllerTest extends AbstractUITest {
     }
 
     @Test
-    void transactionFiltersRemainExpandedInClassificationsView() {
+    void transactionFiltersStartCollapsedInClassificationsView() {
+        assertFalse(lookup("#additionalFilters").query().isVisible());
+        assertTrue(lookup("#toggleAdditionalFiltersButton").query().isVisible());
+        assertTrue(lookup("#searchField").query().isVisible());
+        assertTrue(lookup("#datePresetFilter").query().isVisible());
+    }
+
+    @Test
+    void classificationTransactionFiltersCanBeExpandedAndCollapsedWithSummary() {
+        Button toggleButton = lookup("#toggleAdditionalFiltersButton").query();
+
+        interact(toggleButton::fire);
         assertTrue(lookup("#additionalFilters").query().isVisible());
-        assertFalse(lookup("#toggleAdditionalFiltersButton").query().isVisible());
+        interact(() -> lookup("#minAmountField").<TextField>query().setText("25.00"));
+        interact(toggleButton::fire);
+
+        assertFalse(lookup("#additionalFilters").query().isVisible());
+        TextField summary = lookup("#collapsedFilterSummary").query();
+        assertTrue(summary.isVisible());
+        assertEquals(I18n.get("filter.summary.item", I18n.get("filter.minAmount"), "25.00"), summary.getText());
     }
 
     @Test
