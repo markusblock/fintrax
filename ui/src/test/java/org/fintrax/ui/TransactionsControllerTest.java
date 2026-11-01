@@ -51,15 +51,18 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TransactionsControllerTest extends AbstractUITest {
+    private Category testCategory;
+    private Transaction testCategoryTransaction;
+
     @Override
     public void start(Stage stage) throws Exception {
-        Category category = applicationContext.getBean(CategoryService.class)
+        testCategory = applicationContext.getBean(CategoryService.class)
                 .createCategory("Cell category " + System.nanoTime(), null, null);
         org.fintrax.model.Label label = applicationContext.getBean(LabelService.class)
                 .createLabel("Cell label " + System.nanoTime(), "#3B82F6", null);
-        applicationContext.getBean(TransactionService.class).createTransaction(Transaction.builder()
+        testCategoryTransaction = applicationContext.getBean(TransactionService.class).createTransaction(Transaction.builder()
                 .originalPayee("Cell popup test")
-                .categoryId(category.getId())
+                .categoryId(testCategory.getId())
                 .labelIds(Set.of(label.getId()))
                 .bookingDate(LocalDate.now())
                 .amount(BigDecimal.ONE)
@@ -162,6 +165,28 @@ class TransactionsControllerTest extends AbstractUITest {
     }
 
     @Test
+    void transactionDateColumnUsesCurrentLocaleShortDateFormat() {
+        TableView<Transaction> table = lookup("#transactionTable").query();
+        TableColumn<?, ?> dateColumn = table.getColumns().stream()
+                .filter(column -> I18n.get("col.date").equals(column.getText()))
+                .findFirst()
+                .orElseThrow();
+        Transaction transaction = table.getItems().get(0);
+        TableCell<?, ?> dateCell = table.lookupAll(".table-cell").stream()
+                .filter(TableCell.class::isInstance)
+                .map(node -> (TableCell<?, ?>) node)
+                .filter(cell -> !cell.isEmpty() && cell.getTableColumn() == dateColumn
+                        && cell.getTableRow() != null && cell.getTableRow().getItem() == transaction)
+                .findFirst()
+                .orElseThrow();
+        String expectedDate = DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT)
+                .withLocale(I18n.getCurrentLocale())
+                .format(transaction.getBookingDate());
+
+        assertEquals(expectedDate, dateCell.getText());
+    }
+
+    @Test
     void applyingTypedDateRangeFiltersTransactions() {
         LocalDate matchingDate = LocalDate.of(2024, 2, 10);
         Transaction matching = applicationContext.getBean(TransactionService.class).createTransaction(
@@ -222,12 +247,10 @@ class TransactionsControllerTest extends AbstractUITest {
         TextField searchField = lookup("#searchField").query();
         TextField minAmountField = lookup("#minAmountField").query();
         interact(lookup("#toggleAdditionalFiltersButton").<Button>query()::fire);
-        String categoryName = categoryFilter.getItems().get(1);
-        Long categoryId = applicationContext.getBean(CategoryService.class).getAllCategories().stream()
-                .filter(category -> category.getName().equals(categoryName))
-                .map(Category::getId).findFirst().orElseThrow();
+        String categoryName = testCategory.getName();
+        Long categoryId = testCategory.getId();
         Transaction matching = table.getItems().stream()
-                .filter(transaction -> categoryId.equals(transaction.getCategoryId()))
+                .filter(transaction -> testCategoryTransaction.getId().equals(transaction.getId()))
                 .findFirst().orElseThrow();
 
         interact(() -> categoryFilter.getSelectionModel().select(categoryName));

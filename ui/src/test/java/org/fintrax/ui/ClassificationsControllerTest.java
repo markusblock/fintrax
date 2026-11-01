@@ -38,6 +38,8 @@ import org.testfx.util.WaitForAsyncUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.FormatStyle;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -85,6 +87,37 @@ class ClassificationsControllerTest extends AbstractUITest {
         interact(() -> tree.getSelectionModel().select(
                 treeItem(tree.getRoot(), I18n.get("classifications.categoriesRoot"))));
         assertTrue(table.getItems().isEmpty());
+    }
+
+    @Test
+    void classificationTransactionDateColumnUsesCurrentLocaleShortDateFormat() throws Exception {
+        Category category = categoryService().createCategory("Localized date " + System.nanoTime(), null, null);
+        Transaction transaction = createTransaction(category.getId(), "Localized date transaction", "20",
+                LocalDate.of(2025, 2, 1));
+
+        reloadClassificationsView();
+        TreeView<String> tree = lookup("#classificationTree").query();
+        TableView<Transaction> table = lookup("#classificationTransactionsTable").query();
+        interact(() -> tree.getSelectionModel().select(categoryTreeItem(tree, category.getName())));
+        WaitForAsyncUtils.waitForFxEvents();
+
+        TableColumn<?, ?> dateColumn = table.getColumns().stream()
+                .filter(column -> I18n.get("col.date").equals(column.getText()))
+                .findFirst()
+                .orElseThrow();
+        TableCell<?, ?> dateCell = table.lookupAll(".table-cell").stream()
+                .filter(TableCell.class::isInstance)
+                .map(node -> (TableCell<?, ?>) node)
+                .filter(cell -> !cell.isEmpty() && cell.getTableColumn() == dateColumn
+                        && cell.getTableRow() != null && cell.getTableRow().getItem() instanceof Transaction row
+                        && transaction.getId().equals(row.getId()))
+                .findFirst()
+                .orElseThrow();
+        String expectedDate = DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT)
+                .withLocale(I18n.getCurrentLocale())
+                .format(transaction.getBookingDate());
+
+        assertEquals(expectedDate, dateCell.getText());
     }
 
     @Test
