@@ -31,6 +31,7 @@ import org.fintrax.service.CategoryService;
 import org.fintrax.service.LabelService;
 import org.fintrax.service.SettingsService;
 import org.fintrax.service.TransactionService;
+import org.kordamp.ikonli.javafx.FontIcon;
 import org.junit.jupiter.api.Test;
 import org.testfx.util.WaitForAsyncUtils;
 
@@ -128,7 +129,16 @@ class TransactionsControllerTest extends AbstractUITest {
     @Test
     void additionalFiltersStartCollapsedWhileSearchAndDateFiltersRemainVisible() {
         assertFalse(lookup("#additionalFilters").query().isVisible());
-        assertTrue(lookup("#toggleAdditionalFiltersButton").query().isVisible());
+        Button resetButton = lookup("#clearFiltersButton").query();
+        Button toggleButton = lookup("#toggleAdditionalFiltersButton").query();
+        assertTrue(toggleButton.isVisible());
+        assertEquals("", resetButton.getText());
+        assertEquals("", toggleButton.getText());
+        assertEquals(I18n.get("button.clearFilters"), resetButton.getAccessibleText());
+        assertEquals(I18n.get("button.showAdditionalFilters"), toggleButton.getAccessibleText());
+        assertSame(resetButton.getParent(), toggleButton.getParent());
+        assertEquals("fth-rotate-ccw", ((FontIcon) resetButton.getGraphic()).getIconLiteral());
+        assertEquals("fth-chevron-down", ((FontIcon) toggleButton.getGraphic()).getIconLiteral());
         assertTrue(lookup("#searchField").query().isVisible());
         assertTrue(lookup("#datePresetFilter").query().isVisible());
         assertTrue(lookup("#fromDateFilter").query().isVisible());
@@ -144,6 +154,7 @@ class TransactionsControllerTest extends AbstractUITest {
         String categoryName = categoryFilter.getItems().get(1);
 
         interact(toggleFiltersButton::fire);
+        assertEquals("fth-chevron-up", ((FontIcon) toggleFiltersButton.getGraphic()).getIconLiteral());
         assertTrue(lookup("#additionalFilters").query().isVisible());
         interact(() -> {
             categoryFilter.getSelectionModel().select(categoryName);

@@ -5,9 +5,11 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.TextField;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.util.StringConverter;
+import org.kordamp.ikonli.javafx.FontIcon;
 import org.fintrax.config.I18n;
 import org.fintrax.model.BankAccount;
 import org.fintrax.model.Category;
@@ -51,9 +53,13 @@ public class TransactionFilterPanelController {
     @FXML
     private DatePicker toDateFilter;
     @FXML
-    private HBox filterToggleRow;
+    private HBox collapsedFilterSummaryRow;
     @FXML
     private Button toggleAdditionalFiltersButton;
+    @FXML
+    private FontIcon toggleAdditionalFiltersIcon;
+    @FXML
+    private Tooltip toggleAdditionalFiltersTooltip;
     @FXML
     private TextField collapsedFilterSummary;
     @FXML
@@ -249,14 +255,15 @@ public class TransactionFilterPanelController {
         boolean expanded = !collapsible || additionalFiltersExpanded;
         additionalFilters.setVisible(expanded);
         additionalFilters.setManaged(expanded);
-        filterToggleRow.setVisible(collapsible);
-        filterToggleRow.setManaged(collapsible);
+        toggleAdditionalFiltersButton.setVisible(collapsible);
+        toggleAdditionalFiltersButton.setManaged(collapsible);
 
         String toggleText = I18n.get(expanded
                 ? "button.hideAdditionalFilters"
                 : "button.showAdditionalFilters");
-        toggleAdditionalFiltersButton.setText(toggleText);
         toggleAdditionalFiltersButton.setAccessibleText(toggleText);
+        toggleAdditionalFiltersTooltip.setText(toggleText);
+        toggleAdditionalFiltersIcon.setIconLiteral(expanded ? "fth-chevron-up" : "fth-chevron-down");
         updateCollapsedFilterSummary();
     }
 
@@ -274,6 +281,8 @@ public class TransactionFilterPanelController {
         String summary = String.join(FILTER_SUMMARY_SEPARATOR, activeFilters);
         collapsedFilterSummary.setText(summary);
         boolean showSummary = collapsible && !additionalFiltersExpanded && !summary.isEmpty();
+        collapsedFilterSummaryRow.setVisible(showSummary);
+        collapsedFilterSummaryRow.setManaged(showSummary);
         collapsedFilterSummary.setVisible(showSummary);
         collapsedFilterSummary.setManaged(showSummary);
     }

@@ -61,7 +61,7 @@ class ClassificationsControllerTest extends AbstractUITest {
     @Test
     void transactionFiltersRemainExpandedInClassificationsView() {
         assertTrue(lookup("#additionalFilters").query().isVisible());
-        assertFalse(lookup("#filterToggleRow").query().isVisible());
+        assertFalse(lookup("#toggleAdditionalFiltersButton").query().isVisible());
     }
 
     @Test
