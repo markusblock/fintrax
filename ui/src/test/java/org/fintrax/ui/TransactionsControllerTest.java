@@ -32,6 +32,7 @@ import org.fintrax.service.CategoryService;
 import org.fintrax.service.LabelService;
 import org.fintrax.service.SettingsService;
 import org.fintrax.service.TransactionService;
+import org.kordamp.ikonli.javafx.FontIcon;
 import org.junit.jupiter.api.Test;
 import org.testfx.util.WaitForAsyncUtils;
 
@@ -52,15 +53,18 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TransactionsControllerTest extends AbstractUITest {
+    private Category testCategory;
+    private Transaction testCategoryTransaction;
+
     @Override
     public void start(Stage stage) throws Exception {
-        Category category = applicationContext.getBean(CategoryService.class)
+        testCategory = applicationContext.getBean(CategoryService.class)
                 .createCategory("Cell category " + System.nanoTime(), null, null);
         org.fintrax.model.Label label = applicationContext.getBean(LabelService.class)
                 .createLabel("Cell label " + System.nanoTime(), "#3B82F6", null);
-        applicationContext.getBean(TransactionService.class).createTransaction(Transaction.builder()
+        testCategoryTransaction = applicationContext.getBean(TransactionService.class).createTransaction(Transaction.builder()
                 .originalPayee("Cell popup test")
-                .categoryId(category.getId())
+                .categoryId(testCategory.getId())
                 .labelIds(Set.of(label.getId()))
                 .bookingDate(LocalDate.now())
                 .amount(BigDecimal.ONE)
@@ -121,6 +125,55 @@ class TransactionsControllerTest extends AbstractUITest {
 
         assertEquals(LocalDate.of(today.getYear() - 1, 1, 1), fromDate.getValue());
         assertEquals(LocalDate.of(today.getYear() - 1, 12, 31), toDate.getValue());
+    }
+
+    @Test
+    void additionalFiltersStartCollapsedWhileSearchAndDateFiltersRemainVisible() {
+        assertFalse(lookup("#additionalFilters").query().isVisible());
+        Button resetButton = lookup("#clearFiltersButton").query();
+        Button toggleButton = lookup("#toggleAdditionalFiltersButton").query();
+        assertTrue(toggleButton.isVisible());
+        assertEquals("", resetButton.getText());
+        assertEquals("", toggleButton.getText());
+        assertEquals(I18n.get("button.clearFilters"), resetButton.getAccessibleText());
+        assertEquals(I18n.get("button.showAdditionalFilters"), toggleButton.getAccessibleText());
+        assertSame(resetButton.getParent(), toggleButton.getParent());
+        assertEquals("fth-rotate-ccw", ((FontIcon) resetButton.getGraphic()).getIconLiteral());
+        assertEquals("fth-chevron-down", ((FontIcon) toggleButton.getGraphic()).getIconLiteral());
+        assertTrue(lookup("#searchField").query().isVisible());
+        assertTrue(lookup("#datePresetFilter").query().isVisible());
+        assertTrue(lookup("#fromDateFilter").query().isVisible());
+        assertTrue(lookup("#toDateFilter").query().isVisible());
+        assertTrue(lookup("#clearFiltersButton").query().isVisible());
+        assertFalse(lookup("#collapsedFilterSummary").query().isVisible());
+    }
+
+    @Test
+    void collapsedSummaryListsConfiguredAdditionalFiltersAndFiltersCanBeExpanded() {
+        Button toggleFiltersButton = lookup("#toggleAdditionalFiltersButton").query();
+        ComboBox<String> categoryFilter = lookup("#categoryFilter").query();
+        String categoryName = categoryFilter.getItems().get(1);
+
+        interact(toggleFiltersButton::fire);
+        assertEquals("fth-chevron-up", ((FontIcon) toggleFiltersButton.getGraphic()).getIconLiteral());
+        assertTrue(lookup("#additionalFilters").query().isVisible());
+        interact(() -> {
+            categoryFilter.getSelectionModel().select(categoryName);
+            lookup("#minAmountField").<TextField>query().setText("25.00");
+        });
+        interact(toggleFiltersButton::fire);
+
+        TextField summary = lookup("#collapsedFilterSummary").query();
+        assertFalse(summary.isEditable());
+        assertTrue(summary.isVisible());
+        assertEquals(I18n.get("filter.summary.item", I18n.get("filter.category"), categoryName)
+                        + " · "
+                        + I18n.get("filter.summary.item", I18n.get("filter.minAmount"), "25.00"),
+                summary.getText());
+
+        interact(toggleFiltersButton::fire);
+        assertTrue(lookup("#additionalFilters").query().isVisible());
+        assertFalse(summary.isVisible());
     }
 
     @Test
@@ -228,12 +281,10 @@ class TransactionsControllerTest extends AbstractUITest {
         ComboBox<String> categoryFilter = lookup("#categoryFilter").query();
         TextField searchField = lookup("#searchField").query();
         TextField minAmountField = lookup("#minAmountField").query();
-        String categoryName = categoryFilter.getItems().get(1);
-        Long categoryId = applicationContext.getBean(CategoryService.class).getAllCategories().stream()
-                .filter(category -> category.getName().equals(categoryName))
-                .map(Category::getId).findFirst().orElseThrow();
+        interact(lookup("#toggleAdditionalFiltersButton").<Button>query()::fire);
+        String categoryName = testCategory.getName();
         Transaction matching = table.getItems().stream()
-                .filter(transaction -> categoryId.equals(transaction.getCategoryId()))
+                .filter(transaction -> testCategoryTransaction.getId().equals(transaction.getId()))
                 .findFirst().orElseThrow();
 
         interact(() -> categoryFilter.getSelectionModel().select(categoryName));
@@ -250,6 +301,8 @@ class TransactionsControllerTest extends AbstractUITest {
         });
         assertTrue(table.getItems().isEmpty());
 
+        interact(lookup("#toggleAdditionalFiltersButton").<Button>query()::fire);
+        assertTrue(lookup("#collapsedFilterSummary").query().isVisible());
         interact(lookup("#clearFiltersButton").<Button>query()::fire);
 
         assertTrue(table.getItems().stream().anyMatch(tx -> tx.getId().equals(matching.getId())));
@@ -260,6 +313,9 @@ class TransactionsControllerTest extends AbstractUITest {
         assertEquals(0, lookup("#datePresetFilter").<ComboBox<?>>query().getSelectionModel().getSelectedIndex());
         assertNull(lookup("#fromDateFilter").<DatePicker>query().getValue());
         assertNull(lookup("#toDateFilter").<DatePicker>query().getValue());
+        assertEquals("", lookup("#collapsedFilterSummary").<TextField>query().getText());
+        assertFalse(lookup("#additionalFilters").query().isVisible());
+        assertFalse(lookup("#collapsedFilterSummary").query().isVisible());
         assertTrue(lookup("#applyFiltersButton").tryQuery().isEmpty());
         assertTrue(lookup("#clearFiltersButton").tryQuery().isPresent());
     }

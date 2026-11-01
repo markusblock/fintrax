@@ -106,6 +106,7 @@ public class TransactionsController {
         transactionTableActions.installContextMenu(
                 transactionTable, rootPane, this::reloadTransactionsKeepingSelection);
         setupTableColumns();
+        transactionFilterPanelController.setCollapsible(true);
         transactionFilterPanelController.setOnFiltersChanged(this::loadTransactions);
         loadTransactions();
         setupColumnMenu();

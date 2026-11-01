@@ -59,6 +59,12 @@ class ClassificationsControllerTest extends AbstractUITest {
     }
 
     @Test
+    void transactionFiltersRemainExpandedInClassificationsView() {
+        assertTrue(lookup("#additionalFilters").query().isVisible());
+        assertFalse(lookup("#toggleAdditionalFiltersButton").query().isVisible());
+    }
+
+    @Test
     void selectingCategoryShowsTransactionsFromItsSubtree() throws Exception {
         Category category = categoryService().createCategory("Transactions " + System.nanoTime(), null, null);
         Category childCategory = categoryService().createCategory("Child " + System.nanoTime(), category.getId(), null);
