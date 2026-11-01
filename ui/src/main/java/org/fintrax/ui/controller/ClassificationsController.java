@@ -55,6 +55,8 @@ public class ClassificationsController {
     @FXML
     private TableView<Transaction> classificationTransactionsTable;
     @FXML
+    private Label classificationTransactionsTotalAmount;
+    @FXML
     private MenuButton columnMenuButton;
     @FXML
     private TableColumn<Transaction, LocalDate> transactionDateColumn;
@@ -108,6 +110,9 @@ public class ClassificationsController {
         setupTransactionTable();
         setupColumnMenu();
         classificationTransactionsTable.setItems(displayedTransactions);
+        displayedTransactions.addListener((javafx.collections.ListChangeListener<Transaction>) change ->
+                updateTransactionTotal());
+        updateTransactionTotal();
         transactionTableActions.installContextMenu(
                 classificationTransactionsTable, rootPane, this::reloadSelectedTransactionsKeepingSelection);
         transactionFilterPanelController.setOnFiltersChanged(this::reloadSelectedTransactionsKeepingSelection);
@@ -158,7 +163,7 @@ public class ClassificationsController {
                 if (empty || item == null) {
                     setText(null);
                 } else {
-                    setText(String.format("%,.2f EUR", item.doubleValue()));
+                    setText(formatAmount(item));
                     getStyleClass().add(item.signum() < 0 ? "amount-negative" : "amount-positive");
                 }
             }
@@ -192,6 +197,21 @@ public class ClassificationsController {
         transactionAmountColumn.setSortable(true);
         transactionCategoryColumn.setSortable(true);
         transactionLabelsColumn.setSortable(true);
+    }
+
+    private void updateTransactionTotal() {
+        BigDecimal total = displayedTransactions.stream()
+                .map(Transaction::getAmount)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        classificationTransactionsTotalAmount.setText(formatAmount(total));
+        classificationTransactionsTotalAmount.getStyleClass().removeAll("amount-positive", "amount-negative");
+        classificationTransactionsTotalAmount.getStyleClass()
+                .add(total.signum() < 0 ? "amount-negative" : "amount-positive");
+    }
+
+    private String formatAmount(BigDecimal amount) {
+        return String.format("%,.2f EUR", amount);
     }
 
     private TableCell<Transaction, String> createAssignmentCell(Runnable openSelection) {

@@ -159,6 +159,26 @@ class ClassificationsControllerTest extends AbstractUITest {
     }
 
     @Test
+    void classificationTransactionFooterShowsSumOfFilteredAmounts() throws Exception {
+        Category category = categoryService().createCategory("Amount total " + System.nanoTime(), null, null);
+        Category otherCategory = categoryService().createCategory("Other total " + System.nanoTime(), null, null);
+        createTransaction(category.getId(), "Income", "25", LocalDate.of(2025, 2, 1));
+        createTransaction(category.getId(), "Expense", "-8", LocalDate.of(2025, 2, 2));
+        createTransaction(otherCategory.getId(), "Unrelated", "100", LocalDate.of(2025, 2, 3));
+
+        reloadClassificationsView();
+        TreeView<String> tree = lookup("#classificationTree").query();
+        interact(() -> tree.getSelectionModel().select(categoryTreeItem(tree, category.getName())));
+        javafx.scene.control.Label total = lookup("#classificationTransactionsTotalAmount").query();
+
+        assertEquals(String.format("%,.2f EUR", new BigDecimal("17")), total.getText());
+
+        interact(() -> lookup("#searchField").<TextField>query().setText("Expense"));
+
+        assertEquals(String.format("%,.2f EUR", new BigDecimal("-8")), total.getText());
+    }
+
+    @Test
     void transactionFiltersNarrowSelectedLabelTransactions() throws Exception {
         Label label = labelService().createLabel("Filtered label " + System.nanoTime(), "#1976d2", null);
         Label otherLabel = labelService().createLabel("Other filtered label " + System.nanoTime(), "#cc4400", null);
