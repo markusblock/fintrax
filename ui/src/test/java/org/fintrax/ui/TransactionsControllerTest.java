@@ -123,6 +123,28 @@ class TransactionsControllerTest extends AbstractUITest {
     }
 
     @Test
+    void transactionDateColumnUsesCurrentLocaleShortDateFormat() {
+        TableView<Transaction> table = lookup("#transactionTable").query();
+        TableColumn<?, ?> dateColumn = table.getColumns().stream()
+                .filter(column -> I18n.get("col.date").equals(column.getText()))
+                .findFirst()
+                .orElseThrow();
+        Transaction transaction = table.getItems().get(0);
+        TableCell<?, ?> dateCell = table.lookupAll(".table-cell").stream()
+                .filter(TableCell.class::isInstance)
+                .map(node -> (TableCell<?, ?>) node)
+                .filter(cell -> !cell.isEmpty() && cell.getTableColumn() == dateColumn
+                        && cell.getTableRow() != null && cell.getTableRow().getItem() == transaction)
+                .findFirst()
+                .orElseThrow();
+        String expectedDate = DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT)
+                .withLocale(I18n.getCurrentLocale())
+                .format(transaction.getBookingDate());
+
+        assertEquals(expectedDate, dateCell.getText());
+    }
+
+    @Test
     void applyingTypedDateRangeFiltersTransactions() {
         LocalDate matchingDate = LocalDate.of(2024, 2, 10);
         Transaction matching = applicationContext.getBean(TransactionService.class).createTransaction(

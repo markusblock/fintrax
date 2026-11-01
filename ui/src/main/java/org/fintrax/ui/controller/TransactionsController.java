@@ -27,6 +27,7 @@ import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.time.format.FormatStyle;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -34,7 +35,6 @@ import java.util.stream.Collectors;
 @Component
 @Scope("prototype")
 public class TransactionsController {
-    private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     private static final String COLUMN_CONFIG_KEY = "transaction.columns";
     private static final double TABLE_DIVIDER_WITH_DETAILS = 0.7;
     private static final double TABLE_DIVIDER_WITHOUT_DETAILS = 1.0;
@@ -125,11 +125,13 @@ public class TransactionsController {
     private void setupTableColumns() {
         transactionTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         dateColumn.setCellValueFactory(cd -> new SimpleObjectProperty<>(cd.getValue().getBookingDate()));
+        DateTimeFormatter dateFormatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT)
+                .withLocale(I18n.getCurrentLocale());
         dateColumn.setCellFactory(col -> new TableCell<>() {
             @Override
             protected void updateItem(LocalDate item, boolean empty) {
                 super.updateItem(item, empty);
-                setText(empty || item == null ? null : item.format(DATE_FMT));
+                setText(empty || item == null ? null : item.format(dateFormatter));
             }
         });
 

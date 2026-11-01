@@ -37,6 +37,7 @@ import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.time.format.FormatStyle;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -44,7 +45,6 @@ import java.util.stream.Collectors;
 @Component
 @Scope("prototype")
 public class ClassificationsController {
-    private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     private static final String COLUMN_CONFIG_KEY = "classification.transaction.columns";
 
     @FXML
@@ -131,11 +131,13 @@ public class ClassificationsController {
                 TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         transactionDateColumn.setCellValueFactory(cell ->
                 new SimpleObjectProperty<>(cell.getValue().getBookingDate()));
+        DateTimeFormatter dateFormatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT)
+                .withLocale(I18n.getCurrentLocale());
         transactionDateColumn.setCellFactory(column -> new TableCell<>() {
             @Override
             protected void updateItem(LocalDate item, boolean empty) {
                 super.updateItem(item, empty);
-                setText(empty || item == null ? null : item.format(DATE_FORMAT));
+                setText(empty || item == null ? null : item.format(dateFormatter));
             }
         });
 
