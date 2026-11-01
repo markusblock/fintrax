@@ -30,6 +30,7 @@ import org.fintrax.service.TransactionFilter;
 import org.fintrax.service.TransactionService;
 import org.fintrax.ui.FintraxUI;
 import org.fintrax.ui.control.LabelChipFactory;
+import org.fintrax.ui.control.SingleLineText;
 import org.fintrax.ui.control.TableColumnVisibilityMenu;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
@@ -145,7 +146,7 @@ public class ClassificationsController {
                 Objects.toString(cell.getValue().getPayeeDisplay() != null
                         ? cell.getValue().getPayeeDisplay() : cell.getValue().getOriginalPayee(), "")));
         transactionPurposeColumn.setCellValueFactory(cell ->
-                new SimpleStringProperty(Objects.toString(cell.getValue().getPurpose(), "")));
+                new SimpleStringProperty(SingleLineText.normalize(cell.getValue().getPurpose())));
 
         transactionAmountColumn.setCellValueFactory(cell ->
                 new SimpleObjectProperty<>(cell.getValue().getAmount()));

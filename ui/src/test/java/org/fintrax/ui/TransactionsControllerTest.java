@@ -13,6 +13,7 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.OverrunStyle;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
@@ -195,6 +196,29 @@ class TransactionsControllerTest extends AbstractUITest {
                 .format(transaction.getBookingDate());
 
         assertEquals(expectedDate, dateCell.getText());
+    }
+
+    @Test
+    void transactionTableKeepsDateColumnFixedAndCellsSingleLineWithEllipsis() {
+        TableView<Transaction> table = lookup("#transactionTable").query();
+        TableColumn<?, ?> dateColumn = table.getColumns().stream()
+                .filter(column -> I18n.get("col.date").equals(column.getText()))
+                .findFirst()
+                .orElseThrow();
+
+        assertEquals(115, dateColumn.getMinWidth());
+        assertEquals(115, dateColumn.getPrefWidth());
+        assertEquals(115, dateColumn.getMaxWidth());
+        assertFalse(dateColumn.isResizable());
+
+        var visibleCells = table.lookupAll(".table-cell").stream()
+                .filter(TableCell.class::isInstance)
+                .map(node -> (TableCell<?, ?>) node)
+                .filter(cell -> !cell.isEmpty())
+                .toList();
+        assertFalse(visibleCells.isEmpty());
+        assertTrue(visibleCells.stream().allMatch(cell ->
+                cell.getTextOverrun() == OverrunStyle.ELLIPSIS && !cell.isWrapText()));
     }
 
     @Test

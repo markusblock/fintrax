@@ -301,6 +301,11 @@
     -color-cell-fg-selected-focused: white;
 }
 
+.table-view .table-cell {
+    -fx-text-overrun: ellipsis;
+    -fx-wrap-text: false;
+}
+
 .table-view .table-row-cell:filled:selected {
     -fx-background-color: -color-cell-border, -color-cell-bg-selected;
 }
