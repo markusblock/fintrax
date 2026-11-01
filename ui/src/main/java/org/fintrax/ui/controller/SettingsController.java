@@ -1,5 +1,6 @@
 package org.fintrax.ui.controller;
 
+import javafx.beans.property.SimpleStringProperty;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.layout.BorderPane;
@@ -32,6 +33,7 @@ import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -105,6 +107,10 @@ public class SettingsController {
 
         dataDirLabel.setText(storagePath.toString());
 
+        accountColumn.setCellValueFactory(cell -> new SimpleStringProperty(
+                Objects.toString(cell.getValue().getAccountName(), "")));
+        statusColumn.setCellValueFactory(cell -> new SimpleStringProperty(
+                Objects.toString(cell.getValue().getStatus(), "")));
         loadCredentials();
         TableSortOrderPersistence.install(credentialTable, "settings.credentials.sort", settingsService,
                 List.of(new TableColumnConfig("account", accountColumn),

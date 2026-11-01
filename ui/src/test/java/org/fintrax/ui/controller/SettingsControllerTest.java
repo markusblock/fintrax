@@ -67,10 +67,13 @@ class SettingsControllerTest extends AbstractUITest {
     void credentialTableSortOrderSurvivesViewReload() throws Exception {
         TableView<SettingsController.CredentialRow> table = lookup("#credentialTable").query();
         interact(() -> {
-            table.getColumns().get(1).setSortType(TableColumn.SortType.DESCENDING);
-            table.getSortOrder().add(table.getColumns().get(1));
+            table.getItems().setAll(new SettingsController.CredentialRow(1L, "Zulu", "Stored"),
+                    new SettingsController.CredentialRow(2L, "Alpha", "Missing"));
+            table.getColumns().get(0).setSortType(TableColumn.SortType.ASCENDING);
+            table.getSortOrder().add(table.getColumns().get(0));
         });
-        assertEquals("status=DESCENDING", applicationContext.getBean(SettingsService.class)
+        assertEquals("Alpha", table.getItems().getFirst().getAccountName());
+        assertEquals("account=ASCENDING", applicationContext.getBean(SettingsService.class)
                 .getSettingValue("settings.credentials.sort"));
 
         Parent restoredRoot = applicationContext.getBean(ViewLoader.class).load("settings");
@@ -79,7 +82,7 @@ class SettingsControllerTest extends AbstractUITest {
 
         TableView<SettingsController.CredentialRow> restoredTable = lookup("#credentialTable").query();
         assertEquals(1, restoredTable.getSortOrder().size());
-        assertTrue(restoredTable.getSortOrder().getFirst() == restoredTable.getColumns().get(1));
+        assertTrue(restoredTable.getSortOrder().getFirst() == restoredTable.getColumns().get(0));
         interact(() -> restoredTable.getSortOrder().clear());
     }
 
