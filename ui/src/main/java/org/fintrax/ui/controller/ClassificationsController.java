@@ -47,6 +47,8 @@ import java.util.stream.Collectors;
 @Scope("prototype")
 public class ClassificationsController {
     private static final String COLUMN_CONFIG_KEY = "classification.transaction.columns";
+    private static final String AMOUNT_POSITIVE_STYLE = "amount-positive";
+    private static final String AMOUNT_NEGATIVE_STYLE = "amount-negative";
 
     @FXML
     private BorderPane rootPane;
@@ -159,12 +161,12 @@ public class ClassificationsController {
             @Override
             protected void updateItem(BigDecimal item, boolean empty) {
                 super.updateItem(item, empty);
-                getStyleClass().removeAll("amount-positive", "amount-negative");
+                getStyleClass().removeAll(AMOUNT_POSITIVE_STYLE, AMOUNT_NEGATIVE_STYLE);
                 if (empty || item == null) {
                     setText(null);
                 } else {
                     setText(formatAmount(item));
-                    getStyleClass().add(item.signum() < 0 ? "amount-negative" : "amount-positive");
+                    getStyleClass().add(item.signum() < 0 ? AMOUNT_NEGATIVE_STYLE : AMOUNT_POSITIVE_STYLE);
                 }
             }
         });
@@ -205,9 +207,10 @@ public class ClassificationsController {
                 .filter(Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         classificationTransactionsTotalAmount.setText(formatAmount(total));
-        classificationTransactionsTotalAmount.getStyleClass().removeAll("amount-positive", "amount-negative");
         classificationTransactionsTotalAmount.getStyleClass()
-                .add(total.signum() < 0 ? "amount-negative" : "amount-positive");
+                .removeAll(AMOUNT_POSITIVE_STYLE, AMOUNT_NEGATIVE_STYLE);
+        classificationTransactionsTotalAmount.getStyleClass()
+                .add(total.signum() < 0 ? AMOUNT_NEGATIVE_STYLE : AMOUNT_POSITIVE_STYLE);
     }
 
     private String formatAmount(BigDecimal amount) {
