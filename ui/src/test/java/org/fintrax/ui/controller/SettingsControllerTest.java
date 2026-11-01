@@ -6,6 +6,8 @@ import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
 import javafx.stage.Stage;
 import org.fintrax.service.SettingsService;
 import org.fintrax.service.hibiscus.HibiscusXmlImporter;
@@ -59,6 +61,26 @@ class SettingsControllerTest extends AbstractUITest {
         interact(() -> lookup("#themeCombo").<ComboBox<String>>query().setValue("Dark"));
 
         assertEquals("dark", applicationContext.getBean(SettingsService.class).getTheme());
+    }
+
+    @Test
+    void credentialTableSortOrderSurvivesViewReload() throws Exception {
+        TableView<SettingsController.CredentialRow> table = lookup("#credentialTable").query();
+        interact(() -> {
+            table.getColumns().get(1).setSortType(TableColumn.SortType.DESCENDING);
+            table.getSortOrder().add(table.getColumns().get(1));
+        });
+        assertEquals("status=DESCENDING", applicationContext.getBean(SettingsService.class)
+                .getSettingValue("settings.credentials.sort"));
+
+        Parent restoredRoot = applicationContext.getBean(ViewLoader.class).load("settings");
+        Stage stage = (Stage) table.getScene().getWindow();
+        interact(() -> stage.getScene().setRoot(restoredRoot));
+
+        TableView<SettingsController.CredentialRow> restoredTable = lookup("#credentialTable").query();
+        assertEquals(1, restoredTable.getSortOrder().size());
+        assertTrue(restoredTable.getSortOrder().getFirst() == restoredTable.getColumns().get(1));
+        interact(() -> restoredTable.getSortOrder().clear());
     }
 
 }

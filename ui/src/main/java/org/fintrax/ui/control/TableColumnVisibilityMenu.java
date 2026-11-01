@@ -20,12 +20,11 @@ import java.util.stream.Collectors;
 public final class TableColumnVisibilityMenu {
     private TableColumnVisibilityMenu() {}
 
-    public record Column(String key, TableColumn<?, ?> column) {}
-
     public static <S> void install(TableView<S> table, MenuButton menuButton, String settingKey,
-                               SettingsService settingsService, List<Column> columns) {
+                                   SettingsService settingsService, List<TableColumnConfig> columns) {
         restoreColumnVisibility(settingKey, settingsService, columns);
         restoreColumnOrder(table, settingKey, settingsService, columns);
+        TableSortOrderPersistence.install(table, settingKey + ".sort", settingsService, columns);
         menuButton.getItems().setAll(columns.stream()
                 .map(config -> createMenuItem(config, settingKey, settingsService, columns))
                 .toList());
@@ -38,7 +37,7 @@ public final class TableColumnVisibilityMenu {
     }
 
     private static void restoreColumnVisibility(String settingKey, SettingsService settingsService,
-                                                List<Column> columns) {
+                                                List<TableColumnConfig> columns) {
         String value = settingsService.getSettingValue(settingKey);
         if (value == null) return;
 
@@ -53,14 +52,14 @@ public final class TableColumnVisibilityMenu {
     }
 
     private static <S> void restoreColumnOrder(TableView<S> table, String settingKey,
-                                               SettingsService settingsService, List<Column> columns) {
+                                               SettingsService settingsService, List<TableColumnConfig> columns) {
         String value = settingsService.getSettingValue(settingKey + ".order");
         if (value == null || value.isBlank()) return;
 
         applyColumnOrder(table, columns, List.of(value.split(",")));
     }
 
-    private static <S> void applyColumnOrder(TableView<S> table, List<Column> columns,
+    private static <S> void applyColumnOrder(TableView<S> table, List<TableColumnConfig> columns,
                                              List<String> orderedKeys) {
         Map<String, Integer> orderByKey = new HashMap<>();
         for (String key : orderedKeys) {
@@ -78,20 +77,20 @@ public final class TableColumnVisibilityMenu {
     }
 
     private static <S> void resetToDefaults(TableView<S> table, String settingKey,
-                                            SettingsService settingsService, List<Column> columns) {
+                                            SettingsService settingsService, List<TableColumnConfig> columns) {
         columns.forEach(config -> config.column().setVisible(true));
-        applyColumnOrder(table, columns, columns.stream().map(Column::key).toList());
+        applyColumnOrder(table, columns, columns.stream().map(TableColumnConfig::key).toList());
         table.getSortOrder().clear();
         saveColumnVisibility(settingKey, settingsService, columns);
         saveColumnOrder(table, settingKey, settingsService, columns);
     }
 
     private static <S> void saveColumnOrder(TableView<S> table, String settingKey,
-                                            SettingsService settingsService, List<Column> columns) {
+                                            SettingsService settingsService, List<TableColumnConfig> columns) {
         String value = table.getColumns().stream()
                 .map(tableColumn -> columns.stream()
                         .filter(config -> config.column() == tableColumn)
-                        .map(Column::key)
+                        .map(TableColumnConfig::key)
                         .findFirst()
                         .orElse(null))
                 .filter(Objects::nonNull)
@@ -99,8 +98,8 @@ public final class TableColumnVisibilityMenu {
         settingsService.saveSettingValue(settingKey + ".order", value);
     }
 
-    private static CheckMenuItem createMenuItem(Column config, String settingKey,
-                                               SettingsService settingsService, List<Column> columns) {
+    private static CheckMenuItem createMenuItem(TableColumnConfig config, String settingKey,
+                                                SettingsService settingsService, List<TableColumnConfig> columns) {
         TableColumn<?, ?> column = config.column();
         CheckMenuItem menuItem = new CheckMenuItem(column.getText());
         menuItem.setSelected(column.isVisible());
@@ -114,7 +113,7 @@ public final class TableColumnVisibilityMenu {
     }
 
     private static void saveColumnVisibility(String settingKey, SettingsService settingsService,
-                                             List<Column> columns) {
+                                             List<TableColumnConfig> columns) {
         settingsService.saveSettingValue(settingKey, columns.stream()
                 .map(item -> item.key() + "=" + item.column().isVisible())
                 .collect(Collectors.joining(",")));

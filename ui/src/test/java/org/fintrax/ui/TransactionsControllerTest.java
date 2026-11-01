@@ -420,6 +420,21 @@ class TransactionsControllerTest extends AbstractUITest {
                     applicationContext.getBean(SettingsService.class)
                             .getSettingValue("transaction.columns.order"));
 
+            TableColumn<Transaction, ?> dateColumn = table.getColumns().stream()
+                    .filter(column -> I18n.get("col.date").equals(column.getText()))
+                    .findFirst().orElseThrow();
+            TableColumn<Transaction, ?> amountColumn = table.getColumns().stream()
+                    .filter(column -> I18n.get("col.amount").equals(column.getText()))
+                    .findFirst().orElseThrow();
+            interact(() -> {
+                dateColumn.setSortType(TableColumn.SortType.DESCENDING);
+                amountColumn.setSortType(TableColumn.SortType.ASCENDING);
+                table.getSortOrder().setAll(dateColumn, amountColumn);
+            });
+            assertEquals("date=DESCENDING,amount=ASCENDING",
+                    applicationContext.getBean(SettingsService.class)
+                            .getSettingValue("transaction.columns.sort"));
+
             Parent restoredView = applicationContext.getBean(ViewLoader.class).load("transactions");
             interact(() -> stage.getScene().setRoot(restoredView));
             TableView<Transaction> restoredTable = lookup("#transactionTable").query();
@@ -427,14 +442,19 @@ class TransactionsControllerTest extends AbstractUITest {
                             "col.balance", "col.category", "col.labels").stream().map(I18n::get).toList(),
                     restoredTable.getColumns().stream().limit(7).map(TableColumn::getText).toList());
             assertFalse(restoredTable.getColumns().get(2).isVisible());
+            assertEquals(List.of("col.date", "col.amount").stream().map(I18n::get).toList(),
+                    restoredTable.getSortOrder().stream().map(TableColumn::getText).toList());
+            assertEquals(List.of(TableColumn.SortType.DESCENDING, TableColumn.SortType.ASCENDING),
+                    restoredTable.getSortOrder().stream().map(TableColumn::getSortType).toList());
 
             MenuButton restoredMenu = lookup("#columnMenuButton").query();
-            interact(() -> restoredTable.getSortOrder().add(restoredTable.getColumns().get(1)));
             assertFalse(restoredTable.getSortOrder().isEmpty());
             interact(restoredMenu.getItems().getLast()::fire);
             assertTrue(restoredTable.getColumns().stream().limit(7)
                     .allMatch(TableColumn::isVisible));
             assertTrue(restoredTable.getSortOrder().isEmpty());
+            assertEquals("", applicationContext.getBean(SettingsService.class)
+                    .getSettingValue("transaction.columns.sort"));
             assertEquals("date=true,payee=true,purpose=true,amount=true,balance=true,category=true,labels=true",
                     applicationContext.getBean(SettingsService.class).getSettingValue("transaction.columns"));
             assertEquals("date,payee,purpose,amount,balance,category,labels",

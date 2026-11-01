@@ -18,6 +18,7 @@ import org.fintrax.service.RuleService;
 import org.fintrax.service.SettingsService;
 import org.fintrax.service.TransactionRulePreview;
 import org.fintrax.ui.FintraxUI;
+import org.fintrax.ui.control.TableColumnConfig;
 import org.fintrax.ui.control.TableColumnVisibilityMenu;
 
 import java.time.format.DateTimeFormatter;
@@ -99,14 +100,14 @@ final class RuleReviewDialog {
         menuColumn.setGraphic(columnMenuButton);
         table.getColumns().add(menuColumn);
         TableColumnVisibilityMenu.install(table, columnMenuButton, "rules.review.columns", settingsService,
-                List.of(new TableColumnVisibilityMenu.Column("date", columns.get(0)),
-                        new TableColumnVisibilityMenu.Column("payee", columns.get(1)),
-                        new TableColumnVisibilityMenu.Column("amount", columns.get(2)),
-                        new TableColumnVisibilityMenu.Column("account", columns.get(3)),
-                        new TableColumnVisibilityMenu.Column("category", columns.get(4)),
-                        new TableColumnVisibilityMenu.Column("labels", columns.get(5)),
-                        new TableColumnVisibilityMenu.Column("note", columns.get(6)),
-                        new TableColumnVisibilityMenu.Column("matchedRules", columns.get(7))));
+                List.of(new TableColumnConfig("date", columns.get(0)),
+                        new TableColumnConfig("payee", columns.get(1)),
+                        new TableColumnConfig("amount", columns.get(2)),
+                        new TableColumnConfig("account", columns.get(3)),
+                        new TableColumnConfig("category", columns.get(4)),
+                        new TableColumnConfig("labels", columns.get(5)),
+                        new TableColumnConfig("note", columns.get(6)),
+                        new TableColumnConfig("matchedRules", columns.get(7))));
 
         Label summary = new Label();
         summary.setId("ruleReviewSummary");

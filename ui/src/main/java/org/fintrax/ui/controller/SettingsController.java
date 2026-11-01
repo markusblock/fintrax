@@ -16,12 +16,14 @@ import org.fintrax.model.BankAccount;
 import org.fintrax.service.AccountService;
 import org.fintrax.service.ResetService;
 import org.fintrax.service.CategoryService;
+import org.fintrax.service.hibiscus.HibiscusXmlImporter;
 import org.fintrax.service.LabelService;
 import org.fintrax.service.RuleService;
 import org.fintrax.service.SyncService;
 import org.fintrax.service.SettingsService;
-import org.fintrax.service.hibiscus.HibiscusXmlImporter;
 import org.fintrax.store.ResetGroup;
+import org.fintrax.ui.control.TableColumnConfig;
+import org.fintrax.ui.control.TableSortOrderPersistence;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
@@ -104,6 +106,9 @@ public class SettingsController {
         dataDirLabel.setText(storagePath.toString());
 
         loadCredentials();
+        TableSortOrderPersistence.install(credentialTable, "settings.credentials.sort", settingsService,
+                List.of(new TableColumnConfig("account", accountColumn),
+                        new TableColumnConfig("status", statusColumn)));
     }
 
     private void loadCredentials() {
