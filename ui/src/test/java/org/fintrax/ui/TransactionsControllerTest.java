@@ -248,7 +248,6 @@ class TransactionsControllerTest extends AbstractUITest {
         TextField minAmountField = lookup("#minAmountField").query();
         interact(lookup("#toggleAdditionalFiltersButton").<Button>query()::fire);
         String categoryName = testCategory.getName();
-        Long categoryId = testCategory.getId();
         Transaction matching = table.getItems().stream()
                 .filter(transaction -> testCategoryTransaction.getId().equals(transaction.getId()))
                 .findFirst().orElseThrow();
