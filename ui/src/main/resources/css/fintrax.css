@@ -88,6 +88,16 @@
     -fx-cell-size: 2.4em;
 }
 
+.classification-transactions-footer {
+    -fx-padding: 8 12 0 12;
+    -fx-border-color: -color-border-default transparent transparent transparent;
+}
+
+.classification-transactions-footer .amount-positive,
+.classification-transactions-footer .amount-negative {
+    -fx-font-weight: bold;
+}
+
 .sidebar-panel {
     -fx-background-color: -color-bg-subtle;
     -fx-border-color: -color-border-default;

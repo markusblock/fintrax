@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.TableColumn?>
@@ -45,6 +46,10 @@
                         </TableColumn>
                     </columns>
                 </TableView>
+                <HBox alignment="CENTER_RIGHT" spacing="8" styleClass="classification-transactions-footer">
+                    <Label text="%classifications.transactions.total" styleClass="secondary-text"/>
+                    <Label fx:id="classificationTransactionsTotalAmount" styleClass="amount-positive"/>
+                </HBox>
             </VBox>
         </SplitPane>
     </center>
