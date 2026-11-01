@@ -11,11 +11,11 @@ public final class SingleLineText {
 
         StringBuilder normalized = new StringBuilder(text.length());
         boolean pendingSpace = false;
-        for (int offset = 0; offset < text.length();) {
-            int codePoint = text.codePointAt(offset);
-            offset += Character.charCount(codePoint);
+        var codePoints = text.codePoints().iterator();
+        while (codePoints.hasNext()) {
+            int codePoint = codePoints.nextInt();
             if (isWhitespace(codePoint)) {
-                pendingSpace = normalized.length() > 0;
+                pendingSpace = !normalized.isEmpty();
                 continue;
             }
             if (pendingSpace) {
