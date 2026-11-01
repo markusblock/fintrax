@@ -20,6 +20,7 @@ import org.fintrax.model.*;
 import org.fintrax.service.*;
 import org.fintrax.ui.control.LabelChipFactory;
 import org.fintrax.ui.control.SearchableListPicker;
+import org.fintrax.ui.control.SingleLineText;
 import org.fintrax.ui.control.TableColumnVisibilityMenu;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
@@ -138,7 +139,8 @@ public class TransactionsController {
         payeeColumn.setCellValueFactory(cd -> new SimpleStringProperty(
                 cd.getValue().getPayeeDisplay() != null ? cd.getValue().getPayeeDisplay() : cd.getValue().getOriginalPayee()));
 
-        purposeColumn.setCellValueFactory(cd -> new SimpleStringProperty(cd.getValue().getPurpose()));
+        purposeColumn.setCellValueFactory(cd -> new SimpleStringProperty(
+                SingleLineText.normalize(cd.getValue().getPurpose())));
 
         amountColumn.setCellValueFactory(cd -> new SimpleObjectProperty<>(cd.getValue().getAmount()));
         amountColumn.setCellFactory(col -> new TableCell<>() {
