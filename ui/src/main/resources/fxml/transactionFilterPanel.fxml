@@ -4,34 +4,50 @@
 <?import javafx.scene.layout.*?>
 <?import org.kordamp.ikonli.javafx.FontIcon?>
 
-<GridPane xmlns:fx="http://javafx.com/fxml"
-          fx:controller="org.fintrax.ui.controller.TransactionFilterPanelController"
-          hgap="10" vgap="10" styleClass="filter-panel">
-    <columnConstraints>
-        <ColumnConstraints percentWidth="25" hgrow="ALWAYS" minWidth="100"/>
-        <ColumnConstraints percentWidth="25" hgrow="ALWAYS" minWidth="100"/>
-        <ColumnConstraints percentWidth="35" hgrow="ALWAYS" minWidth="140"/>
-        <ColumnConstraints percentWidth="15" hgrow="ALWAYS" minWidth="96" halignment="RIGHT"/>
-    </columnConstraints>
-    <ComboBox fx:id="accountFilter" promptText="%filter.account" accessibleText="%filter.account"
-              maxWidth="Infinity" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
-    <ComboBox fx:id="categoryFilter" promptText="%filter.category" accessibleText="%filter.category"
-              maxWidth="Infinity" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
-    <TextField fx:id="searchField" promptText="%filter.search" accessibleText="%filter.search"
-               maxWidth="Infinity" GridPane.rowIndex="0" GridPane.columnIndex="2"
-               GridPane.columnSpan="2"/>
-    <DatePicker fx:id="fromDateFilter" promptText="%filter.fromDate" accessibleText="%filter.fromDate"
-                maxWidth="Infinity" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
-    <DatePicker fx:id="toDateFilter" promptText="%filter.toDate" accessibleText="%filter.toDate"
-                maxWidth="Infinity" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
-    <ComboBox fx:id="datePresetFilter" accessibleText="%filter.datePreset"
-              maxWidth="Infinity" GridPane.rowIndex="1" GridPane.columnIndex="2"/>
-    <Button fx:id="clearFiltersButton" text="%button.clearFilters" onAction="#onClearFilters"
-            styleClass="button-outlined" GridPane.rowIndex="1" GridPane.columnIndex="3">
-        <graphic><FontIcon iconLiteral="fth-x" iconSize="15"/></graphic>
-    </Button>
-    <TextField fx:id="minAmountField" promptText="%filter.minAmount" accessibleText="%filter.minAmount"
-               maxWidth="Infinity" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
-    <TextField fx:id="maxAmountField" promptText="%filter.maxAmount" accessibleText="%filter.maxAmount"
-               maxWidth="Infinity" GridPane.rowIndex="2" GridPane.columnIndex="1"/>
-</GridPane>
+<VBox xmlns:fx="http://javafx.com/fxml"
+      fx:controller="org.fintrax.ui.controller.TransactionFilterPanelController"
+      spacing="10" styleClass="filter-panel">
+    <HBox spacing="10">
+        <TextField fx:id="searchField" promptText="%filter.search" accessibleText="%filter.search"
+                   maxWidth="Infinity" HBox.hgrow="ALWAYS"/>
+        <Button fx:id="clearFiltersButton" text="%button.clearFilters" onAction="#onClearFilters"
+                styleClass="button-outlined">
+            <graphic><FontIcon iconLiteral="fth-x" iconSize="15"/></graphic>
+        </Button>
+    </HBox>
+    <GridPane hgap="10">
+        <columnConstraints>
+            <ColumnConstraints percentWidth="34" hgrow="ALWAYS" minWidth="100"/>
+            <ColumnConstraints percentWidth="33" hgrow="ALWAYS" minWidth="100"/>
+            <ColumnConstraints percentWidth="33" hgrow="ALWAYS" minWidth="100"/>
+        </columnConstraints>
+        <ComboBox fx:id="datePresetFilter" accessibleText="%filter.datePreset"
+                  maxWidth="Infinity" GridPane.columnIndex="0"/>
+        <DatePicker fx:id="fromDateFilter" promptText="%filter.fromDate" accessibleText="%filter.fromDate"
+                    maxWidth="Infinity" GridPane.columnIndex="1"/>
+        <DatePicker fx:id="toDateFilter" promptText="%filter.toDate" accessibleText="%filter.toDate"
+                    maxWidth="Infinity" GridPane.columnIndex="2"/>
+    </GridPane>
+    <HBox fx:id="filterToggleRow" spacing="10" alignment="CENTER_LEFT" visible="false" managed="false">
+        <Button fx:id="toggleAdditionalFiltersButton" text="%button.showAdditionalFilters"
+                accessibleText="%button.showAdditionalFilters" onAction="#onToggleAdditionalFilters"
+                styleClass="button-outlined"/>
+        <TextField fx:id="collapsedFilterSummary" accessibleText="%filter.collapsedSummary"
+                   editable="false" visible="false" managed="false" maxWidth="Infinity"
+                   HBox.hgrow="ALWAYS"/>
+    </HBox>
+    <GridPane fx:id="additionalFilters" hgap="10" vgap="10">
+        <columnConstraints>
+            <ColumnConstraints percentWidth="50" hgrow="ALWAYS" minWidth="100"/>
+            <ColumnConstraints percentWidth="50" hgrow="ALWAYS" minWidth="100"/>
+        </columnConstraints>
+        <ComboBox fx:id="accountFilter" promptText="%filter.account" accessibleText="%filter.account"
+                  maxWidth="Infinity" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+        <ComboBox fx:id="categoryFilter" promptText="%filter.category" accessibleText="%filter.category"
+                  maxWidth="Infinity" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
+        <TextField fx:id="minAmountField" promptText="%filter.minAmount" accessibleText="%filter.minAmount"
+                   maxWidth="Infinity" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
+        <TextField fx:id="maxAmountField" promptText="%filter.maxAmount" accessibleText="%filter.maxAmount"
+                   maxWidth="Infinity" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
+    </GridPane>
+</VBox>

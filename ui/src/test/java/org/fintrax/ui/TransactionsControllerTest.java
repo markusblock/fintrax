@@ -123,6 +123,45 @@ class TransactionsControllerTest extends AbstractUITest {
     }
 
     @Test
+    void additionalFiltersStartCollapsedWhileSearchAndDateFiltersRemainVisible() {
+        assertFalse(lookup("#additionalFilters").query().isVisible());
+        assertTrue(lookup("#toggleAdditionalFiltersButton").query().isVisible());
+        assertTrue(lookup("#searchField").query().isVisible());
+        assertTrue(lookup("#datePresetFilter").query().isVisible());
+        assertTrue(lookup("#fromDateFilter").query().isVisible());
+        assertTrue(lookup("#toDateFilter").query().isVisible());
+        assertTrue(lookup("#clearFiltersButton").query().isVisible());
+        assertFalse(lookup("#collapsedFilterSummary").query().isVisible());
+    }
+
+    @Test
+    void collapsedSummaryListsConfiguredAdditionalFiltersAndFiltersCanBeExpanded() {
+        Button toggleFiltersButton = lookup("#toggleAdditionalFiltersButton").query();
+        ComboBox<String> categoryFilter = lookup("#categoryFilter").query();
+        String categoryName = categoryFilter.getItems().get(1);
+
+        interact(toggleFiltersButton::fire);
+        assertTrue(lookup("#additionalFilters").query().isVisible());
+        interact(() -> {
+            categoryFilter.getSelectionModel().select(categoryName);
+            lookup("#minAmountField").<TextField>query().setText("25.00");
+        });
+        interact(toggleFiltersButton::fire);
+
+        TextField summary = lookup("#collapsedFilterSummary").query();
+        assertFalse(summary.isEditable());
+        assertTrue(summary.isVisible());
+        assertEquals(I18n.get("filter.summary.item", I18n.get("filter.category"), categoryName)
+                        + " · "
+                        + I18n.get("filter.summary.item", I18n.get("filter.minAmount"), "25.00"),
+                summary.getText());
+
+        interact(toggleFiltersButton::fire);
+        assertTrue(lookup("#additionalFilters").query().isVisible());
+        assertFalse(summary.isVisible());
+    }
+
+    @Test
     void applyingTypedDateRangeFiltersTransactions() {
         LocalDate matchingDate = LocalDate.of(2024, 2, 10);
         Transaction matching = applicationContext.getBean(TransactionService.class).createTransaction(
@@ -182,6 +221,7 @@ class TransactionsControllerTest extends AbstractUITest {
         ComboBox<String> categoryFilter = lookup("#categoryFilter").query();
         TextField searchField = lookup("#searchField").query();
         TextField minAmountField = lookup("#minAmountField").query();
+        interact(lookup("#toggleAdditionalFiltersButton").<Button>query()::fire);
         String categoryName = categoryFilter.getItems().get(1);
         Long categoryId = applicationContext.getBean(CategoryService.class).getAllCategories().stream()
                 .filter(category -> category.getName().equals(categoryName))
@@ -204,6 +244,8 @@ class TransactionsControllerTest extends AbstractUITest {
         });
         assertTrue(table.getItems().isEmpty());
 
+        interact(lookup("#toggleAdditionalFiltersButton").<Button>query()::fire);
+        assertTrue(lookup("#collapsedFilterSummary").query().isVisible());
         interact(lookup("#clearFiltersButton").<Button>query()::fire);
 
         assertTrue(table.getItems().stream().anyMatch(tx -> tx.getId().equals(matching.getId())));
@@ -214,6 +256,9 @@ class TransactionsControllerTest extends AbstractUITest {
         assertEquals(0, lookup("#datePresetFilter").<ComboBox<?>>query().getSelectionModel().getSelectedIndex());
         assertNull(lookup("#fromDateFilter").<DatePicker>query().getValue());
         assertNull(lookup("#toDateFilter").<DatePicker>query().getValue());
+        assertEquals("", lookup("#collapsedFilterSummary").<TextField>query().getText());
+        assertFalse(lookup("#additionalFilters").query().isVisible());
+        assertFalse(lookup("#collapsedFilterSummary").query().isVisible());
         assertTrue(lookup("#applyFiltersButton").tryQuery().isEmpty());
         assertTrue(lookup("#clearFiltersButton").tryQuery().isPresent());
     }
