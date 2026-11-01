@@ -80,9 +80,9 @@ class TransactionServiceTest {
                 .bookingDate(LocalDate.of(2024, 3, 15)).valueDate(LocalDate.of(2024, 3, 15))
                 .checksum("c2").build());
 
-        List<Transaction> filtered = transactionService.filterTransactions(
+        List<Transaction> filtered = transactionService.filterTransactions(new TransactionFilter(
                 null, LocalDate.of(2024, 1, 1), LocalDate.of(2024, 2, 1),
-                null, null, null, null, null);
+                null, null, null, null, null));
 
         assertEquals(1, filtered.size());
         assertEquals("A", filtered.get(0).getOriginalPayee());
@@ -96,9 +96,9 @@ class TransactionServiceTest {
         transactionService.createTransaction(Transaction.builder()
                 .originalPayee("undated").amount(BigDecimal.ONE).build());
 
-        List<Transaction> filtered = transactionService.filterTransactions(
+        List<Transaction> filtered = transactionService.filterTransactions(new TransactionFilter(
                 null, LocalDate.of(2024, 1, 1), LocalDate.of(2024, 2, 1),
-                null, null, null, null, null);
+                null, null, null, null, null));
 
         assertEquals(List.of("dated"), filtered.stream().map(Transaction::getOriginalPayee).toList());
     }
@@ -118,8 +118,8 @@ class TransactionServiceTest {
                 .amount(BigDecimal.ONE).bookingDate(LocalDate.now()).valueDate(LocalDate.now())
                 .checksum("c2").build());
 
-        List<Transaction> filtered = transactionService.filterTransactions(
-                null, null, null, null, null, null, null, "rewe");
+        List<Transaction> filtered = transactionService.filterTransactions(new TransactionFilter(
+                null, null, null, null, null, null, null, "rewe"));
 
         assertEquals(1, filtered.size());
         assertEquals("REWE Markt", filtered.get(0).getOriginalPayee());

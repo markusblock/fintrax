@@ -26,6 +26,7 @@
                     <Insets top="15" right="20" bottom="15" left="20"/>
                 </padding>
                 <Label text="%view.transactions" styleClass="section-heading"/>
+                <fx:include fx:id="transactionFilterPanel" source="transactionFilterPanel.fxml"/>
                 <TableView fx:id="classificationTransactionsTable" styleClass="dense" VBox.vgrow="ALWAYS">
                     <columns>
                         <TableColumn fx:id="transactionDateColumn" text="%col.date" minWidth="100" prefWidth="105" sortable="true"/>
