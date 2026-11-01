@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -64,22 +65,24 @@ public class TransactionService {
         return List.copyOf(store.getRoot().getTransactions());
     }
 
-    public List<Transaction> filterTransactions(Long accountId, LocalDate fromDate, LocalDate toDate,
-                                                 Long categoryId, Set<Long> labelIds,
-                                                 BigDecimal minAmount, BigDecimal maxAmount,
-                                                 String searchText) {
-        return store.getRoot().getTransactions().stream()
-                .filter(t -> accountId == null || t.getAccountId().equals(accountId))
-                .filter(t -> fromDate == null || (t.getBookingDate() != null &&
-                        !t.getBookingDate().isBefore(fromDate)))
-                .filter(t -> toDate == null || (t.getBookingDate() != null &&
-                        !t.getBookingDate().isAfter(toDate)))
-                .filter(t -> categoryId == null || categoryId.equals(t.getCategoryId()))
-                .filter(t -> labelIds == null || labelIds.isEmpty() ||
-                        t.getLabelIds().containsAll(labelIds))
-                .filter(t -> minAmount == null || t.getAmount().compareTo(minAmount) >= 0)
-                .filter(t -> maxAmount == null || t.getAmount().compareTo(maxAmount) <= 0)
-                .filter(t -> searchText == null || searchText.isEmpty() || matchesSearch(t, searchText))
+    public List<Transaction> filterTransactions(TransactionFilter filter) {
+        return filterTransactions(store.getRoot().getTransactions(), filter);
+    }
+
+    public List<Transaction> filterTransactions(Collection<Transaction> transactions, TransactionFilter filter) {
+        return transactions.stream()
+                .filter(t -> filter.accountId() == null || t.getAccountId().equals(filter.accountId()))
+                .filter(t -> filter.fromDate() == null || (t.getBookingDate() != null &&
+                        !t.getBookingDate().isBefore(filter.fromDate())))
+                .filter(t -> filter.toDate() == null || (t.getBookingDate() != null &&
+                        !t.getBookingDate().isAfter(filter.toDate())))
+                .filter(t -> filter.categoryId() == null || filter.categoryId().equals(t.getCategoryId()))
+                .filter(t -> filter.labelIds() == null || filter.labelIds().isEmpty() ||
+                        t.getLabelIds().containsAll(filter.labelIds()))
+                .filter(t -> filter.minAmount() == null || t.getAmount().compareTo(filter.minAmount()) >= 0)
+                .filter(t -> filter.maxAmount() == null || t.getAmount().compareTo(filter.maxAmount()) <= 0)
+                .filter(t -> filter.searchText() == null || filter.searchText().isEmpty()
+                        || matchesSearch(t, filter.searchText()))
                 .toList();
     }
 
