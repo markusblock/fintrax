@@ -19,6 +19,7 @@ import javafx.scene.control.TreeCell;
 import javafx.scene.control.TreeView;
 import javafx.scene.control.TableView;
 import javafx.scene.control.ColorPicker;
+import javafx.scene.control.ComboBox;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.stage.Stage;
@@ -77,6 +78,68 @@ class ClassificationsControllerTest extends AbstractUITest {
         interact(() -> tree.getSelectionModel().select(
                 treeItem(tree.getRoot(), I18n.get("classifications.categoriesRoot"))));
         assertTrue(table.getItems().isEmpty());
+    }
+
+    @Test
+    void transactionFiltersNarrowCategorySubtreeWithoutEscapingIt() throws Exception {
+        Category category = categoryService().createCategory("Filter parent " + System.nanoTime(), null, null);
+        Category childCategory = categoryService().createCategory(
+                "Filter child " + System.nanoTime(), category.getId(), null);
+        Category otherCategory = categoryService().createCategory("Filter other " + System.nanoTime(), null, null);
+        Transaction parentMatch = createTransaction(category.getId(), "Family vacation", "20",
+                LocalDate.of(2025, 2, 1));
+        Transaction childMatch = createTransaction(childCategory.getId(), "Family ticket", "7",
+                LocalDate.of(2025, 2, 2));
+        createTransaction(childCategory.getId(), "Child groceries", "30", LocalDate.of(2025, 2, 3));
+        Transaction otherMatch = createTransaction(otherCategory.getId(), "Family elsewhere", "40",
+                LocalDate.of(2025, 2, 4));
+
+        reloadClassificationsView();
+        TreeView<String> tree = lookup("#classificationTree").query();
+        TableView<Transaction> table = lookup("#classificationTransactionsTable").query();
+        ComboBox<String> categoryFilter = lookup("#categoryFilter").query();
+        interact(() -> tree.getSelectionModel().select(categoryTreeItem(tree, category.getName())));
+
+        interact(() -> lookup("#searchField").<TextField>query().setText("family"));
+
+        assertEquals(List.of(parentMatch.getId(), childMatch.getId()),
+                table.getItems().stream().map(Transaction::getId).toList());
+
+        interact(() -> categoryFilter.getSelectionModel().select(childCategory.getName()));
+
+        assertEquals(List.of(childMatch.getId()), table.getItems().stream().map(Transaction::getId).toList());
+
+        interact(() -> tree.getSelectionModel().select(categoryTreeItem(tree, otherCategory.getName())));
+
+        assertTrue(table.getItems().isEmpty());
+
+        interact(lookup("#clearFiltersButton").<Button>query()::fire);
+
+        assertEquals(List.of(otherMatch.getId()), table.getItems().stream().map(Transaction::getId).toList());
+    }
+
+    @Test
+    void transactionFiltersNarrowSelectedLabelTransactions() throws Exception {
+        Label label = labelService().createLabel("Filtered label " + System.nanoTime(), "#1976d2", null);
+        Label otherLabel = labelService().createLabel("Other filtered label " + System.nanoTime(), "#cc4400", null);
+        Category category = categoryService().createCategory("Label filter " + System.nanoTime(), null, null);
+        Transaction matching = createTransaction(category.getId(), "Travel receipt", "20",
+                LocalDate.of(2025, 2, 1));
+        Transaction sameSearchOtherLabel = createTransaction(category.getId(), "Travel reimbursement", "30",
+                LocalDate.of(2025, 2, 2));
+        applicationContext.getBean(TransactionService.class).updateLabels(matching.getId(), Set.of(label.getId()));
+        applicationContext.getBean(TransactionService.class).updateLabels(
+                sameSearchOtherLabel.getId(), Set.of(otherLabel.getId()));
+
+        reloadClassificationsView();
+        TreeView<String> tree = lookup("#classificationTree").query();
+        TableView<Transaction> table = lookup("#classificationTransactionsTable").query();
+        interact(() -> tree.getSelectionModel().select(
+                treeItem(treeItem(tree.getRoot(), I18n.get("classifications.labelsRoot")), label.getName())));
+
+        interact(() -> lookup("#searchField").<TextField>query().setText("travel"));
+
+        assertEquals(List.of(matching.getId()), table.getItems().stream().map(Transaction::getId).toList());
     }
 
     @Test

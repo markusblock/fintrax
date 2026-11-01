@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -68,7 +69,15 @@ public class TransactionService {
                                                  Long categoryId, Set<Long> labelIds,
                                                  BigDecimal minAmount, BigDecimal maxAmount,
                                                  String searchText) {
-        return store.getRoot().getTransactions().stream()
+        return filterTransactions(store.getRoot().getTransactions(), accountId, fromDate, toDate,
+                categoryId, labelIds, minAmount, maxAmount, searchText);
+    }
+
+    public List<Transaction> filterTransactions(Collection<Transaction> transactions, Long accountId,
+                                                 LocalDate fromDate, LocalDate toDate, Long categoryId,
+                                                 Set<Long> labelIds, BigDecimal minAmount, BigDecimal maxAmount,
+                                                 String searchText) {
+        return transactions.stream()
                 .filter(t -> accountId == null || t.getAccountId().equals(accountId))
                 .filter(t -> fromDate == null || (t.getBookingDate() != null &&
                         !t.getBookingDate().isBefore(fromDate)))

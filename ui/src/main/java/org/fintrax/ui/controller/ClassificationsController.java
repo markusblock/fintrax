@@ -26,6 +26,7 @@ import org.fintrax.model.Transaction;
 import org.fintrax.service.CategoryService;
 import org.fintrax.service.LabelService;
 import org.fintrax.service.SettingsService;
+import org.fintrax.service.TransactionService;
 import org.fintrax.ui.FintraxUI;
 import org.fintrax.ui.control.LabelChipFactory;
 import org.fintrax.ui.control.TableColumnVisibilityMenu;
@@ -65,10 +66,13 @@ public class ClassificationsController {
     private TableColumn<Transaction, String> transactionCategoryColumn;
     @FXML
     private TableColumn<Transaction, String> transactionLabelsColumn;
+    @FXML
+    private TransactionFilterPanelController transactionFilterPanelController;
 
     private final CategoryService categoryService;
     private final LabelService labelService;
     private final SettingsService settingsService;
+    private final TransactionService transactionService;
     private final TransactionTableActions transactionTableActions;
     private final Map<Long, TreeItem<String>> categoryItemsById = new HashMap<>();
     private final Map<Long, TreeItem<String>> labelItemsById = new HashMap<>();
@@ -82,12 +86,14 @@ public class ClassificationsController {
     private TreeItem<String> labelsRoot;
 
     public ClassificationsController(CategoryService categoryService,
-                                 LabelService labelService,
-                                 SettingsService settingsService,
-                                 TransactionTableActions transactionTableActions) {
+                                  LabelService labelService,
+                                  SettingsService settingsService,
+                                  TransactionService transactionService,
+                                  TransactionTableActions transactionTableActions) {
         this.categoryService = categoryService;
         this.labelService = labelService;
         this.settingsService = settingsService;
+        this.transactionService = transactionService;
         this.transactionTableActions = transactionTableActions;
     }
 
@@ -102,16 +108,9 @@ public class ClassificationsController {
         classificationTransactionsTable.setItems(displayedTransactions);
         transactionTableActions.installContextMenu(
                 classificationTransactionsTable, rootPane, this::reloadSelectedTransactionsKeepingSelection);
+        transactionFilterPanelController.setOnFiltersChanged(this::reloadSelectedTransactionsKeepingSelection);
         classificationTree.getSelectionModel().selectedItemProperty().addListener((obs, oldItem, newItem) -> {
-            Long categoryId = newItem == null ? null : findCategoryIdByItem(newItem);
-            Long labelId = newItem == null ? null : findLabelIdByItem(newItem);
-            if (categoryId != null) {
-                loadCategoryTransactions(categoryId);
-            } else if (labelId != null) {
-                loadLabelTransactions(labelId);
-            } else {
-                displayedTransactions.clear();
-            }
+            loadSelectedNodeTransactions();
         });
     }
 
@@ -246,13 +245,38 @@ public class ClassificationsController {
     }
 
     private void loadCategoryTransactions(Long categoryId) {
-        displayedTransactions.setAll(categoryService.getTransactionsInCategoryAndDescendants(categoryId));
-        sortTransactionsIfNeeded();
+        loadFilteredTransactions(categoryService.getTransactionsInCategoryAndDescendants(categoryId));
     }
 
     private void loadLabelTransactions(Long labelId) {
-        displayedTransactions.setAll(labelService.getTransactionsWithLabel(labelId));
+        loadFilteredTransactions(labelService.getTransactionsWithLabel(labelId));
+    }
+
+    private void loadFilteredTransactions(List<Transaction> source) {
+        Optional<TransactionFilterCriteria> criteria = transactionFilterPanelController.getCriteria();
+        if (criteria.isEmpty()) {
+            displayedTransactions.clear();
+            return;
+        }
+
+        TransactionFilterCriteria filters = criteria.get();
+        displayedTransactions.setAll(transactionService.filterTransactions(source,
+                filters.accountId(), filters.fromDate(), filters.toDate(), filters.categoryId(), null,
+                filters.minAmount(), filters.maxAmount(), filters.searchText()));
         sortTransactionsIfNeeded();
+    }
+
+    private void loadSelectedNodeTransactions() {
+        TreeItem<String> selectedItem = classificationTree.getSelectionModel().getSelectedItem();
+        Long categoryId = selectedItem == null ? null : findCategoryIdByItem(selectedItem);
+        Long labelId = selectedItem == null ? null : findLabelIdByItem(selectedItem);
+        if (categoryId != null) {
+            loadCategoryTransactions(categoryId);
+        } else if (labelId != null) {
+            loadLabelTransactions(labelId);
+        } else {
+            displayedTransactions.clear();
+        }
     }
 
     private void sortTransactionsIfNeeded() {
@@ -265,16 +289,7 @@ public class ClassificationsController {
         Set<Long> selectedIds = classificationTransactionsTable.getSelectionModel().getSelectedItems().stream()
                 .map(Transaction::getId)
                 .collect(Collectors.toSet());
-        TreeItem<String> selectedItem = classificationTree.getSelectionModel().getSelectedItem();
-        Long categoryId = selectedItem == null ? null : findCategoryIdByItem(selectedItem);
-        Long labelId = selectedItem == null ? null : findLabelIdByItem(selectedItem);
-        if (categoryId != null) {
-            loadCategoryTransactions(categoryId);
-        } else if (labelId != null) {
-            loadLabelTransactions(labelId);
-        } else {
-            displayedTransactions.clear();
-        }
+        loadSelectedNodeTransactions();
 
         for (int index = 0; index < displayedTransactions.size(); index++) {
             if (selectedIds.contains(displayedTransactions.get(index).getId())) {
