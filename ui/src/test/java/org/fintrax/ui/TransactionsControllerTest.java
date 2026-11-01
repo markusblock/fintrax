@@ -11,6 +11,7 @@ import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
+import javafx.scene.control.Labeled;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.OverrunStyle;
@@ -446,6 +447,12 @@ class TransactionsControllerTest extends AbstractUITest {
                     restoredTable.getSortOrder().stream().map(TableColumn::getText).toList());
             assertEquals(List.of(TableColumn.SortType.DESCENDING, TableColumn.SortType.ASCENDING),
                     restoredTable.getSortOrder().stream().map(TableColumn::getSortType).toList());
+            for (TableColumn<Transaction, ?> sortedColumn : restoredTable.getSortOrder()) {
+                Node header = tableColumnHeader(restoredTable, sortedColumn.getText());
+                Node sortArrow = header.lookup(".arrow");
+                assertNotNull(sortArrow);
+                assertTrue(sortArrow.isVisible());
+            }
 
             MenuButton restoredMenu = lookup("#columnMenuButton").query();
             assertFalse(restoredTable.getSortOrder().isEmpty());
@@ -770,6 +777,14 @@ class TransactionsControllerTest extends AbstractUITest {
 
     private void acceptBulkEditDialog() {
         interact(lookup("#pickerSave").<Button>query()::fire);
+    }
+
+    private Node tableColumnHeader(TableView<?> table, String title) {
+        return table.lookupAll(".column-header").stream()
+                .filter(header -> header.lookup(".label") instanceof Labeled label
+                        && title.equals(label.getText()))
+                .findFirst()
+                .orElseThrow();
     }
 
     private Node cellForRow(TableView<Transaction> table, int rowIndex) {
