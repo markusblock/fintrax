@@ -382,6 +382,12 @@
     -fx-font-weight: bold;
 }
 
+.table-view .column-header .sort-order-dots-container {
+    /* Match the arrow's combined horizontal padding so a single dot is centered over it. */
+    -fx-min-width: 0.625em;
+    -fx-pref-width: 0.625em;
+}
+
 .detail-panel {
     -fx-background-color: -color-bg-subtle;
     -fx-border-color: -color-border-default;

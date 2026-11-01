@@ -21,6 +21,7 @@ import org.fintrax.service.*;
 import org.fintrax.ui.control.LabelChipFactory;
 import org.fintrax.ui.control.SearchableListPicker;
 import org.fintrax.ui.control.SingleLineText;
+import org.fintrax.ui.control.TableColumnConfig;
 import org.fintrax.ui.control.TableColumnVisibilityMenu;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
@@ -377,14 +378,14 @@ public class TransactionsController {
                 transactionTable, columnMenuButton, COLUMN_CONFIG_KEY, settingsService, columnConfigurations());
     }
 
-    private List<TableColumnVisibilityMenu.Column> columnConfigurations() {
+    private List<TableColumnConfig> columnConfigurations() {
         return List.of(
-                new TableColumnVisibilityMenu.Column("date", dateColumn),
-                new TableColumnVisibilityMenu.Column("payee", payeeColumn),
-                new TableColumnVisibilityMenu.Column("purpose", purposeColumn),
-                new TableColumnVisibilityMenu.Column("amount", amountColumn),
-                new TableColumnVisibilityMenu.Column("balance", balanceColumn),
-                new TableColumnVisibilityMenu.Column("category", categoryColumn),
-                new TableColumnVisibilityMenu.Column("labels", labelsColumn));
+                new TableColumnConfig("date", dateColumn),
+                new TableColumnConfig("payee", payeeColumn),
+                new TableColumnConfig("purpose", purposeColumn),
+                new TableColumnConfig("amount", amountColumn),
+                new TableColumnConfig("balance", balanceColumn),
+                new TableColumnConfig("category", categoryColumn),
+                new TableColumnConfig("labels", labelsColumn));
     }
 }

@@ -31,6 +31,7 @@ import org.fintrax.service.TransactionService;
 import org.fintrax.ui.FintraxUI;
 import org.fintrax.ui.control.LabelChipFactory;
 import org.fintrax.ui.control.SingleLineText;
+import org.fintrax.ui.control.TableColumnConfig;
 import org.fintrax.ui.control.TableColumnVisibilityMenu;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
@@ -110,8 +111,8 @@ public class ClassificationsController {
         configureContextMenu();
         classificationTree.setCellFactory(this::createClassificationCell);
         setupTransactionTable();
-        setupColumnMenu();
         classificationTransactionsTable.setItems(displayedTransactions);
+        setupColumnMenu();
         displayedTransactions.addListener((javafx.collections.ListChangeListener<Transaction>) change ->
                 updateTransactionTotal());
         updateTransactionTotal();
@@ -127,12 +128,12 @@ public class ClassificationsController {
     private void setupColumnMenu() {
         TableColumnVisibilityMenu.install(classificationTransactionsTable, columnMenuButton,
                 COLUMN_CONFIG_KEY, settingsService, List.of(
-                new TableColumnVisibilityMenu.Column("date", transactionDateColumn),
-                new TableColumnVisibilityMenu.Column("payee", transactionPayeeColumn),
-                new TableColumnVisibilityMenu.Column("purpose", transactionPurposeColumn),
-                new TableColumnVisibilityMenu.Column("amount", transactionAmountColumn),
-                new TableColumnVisibilityMenu.Column("category", transactionCategoryColumn),
-                new TableColumnVisibilityMenu.Column("labels", transactionLabelsColumn)));
+                new TableColumnConfig("date", transactionDateColumn),
+                new TableColumnConfig("payee", transactionPayeeColumn),
+                new TableColumnConfig("purpose", transactionPurposeColumn),
+                new TableColumnConfig("amount", transactionAmountColumn),
+                new TableColumnConfig("category", transactionCategoryColumn),
+                new TableColumnConfig("labels", transactionLabelsColumn)));
     }
 
     private void setupTransactionTable() {

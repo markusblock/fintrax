@@ -1,5 +1,6 @@
 package org.fintrax.ui.controller;
 
+import javafx.beans.property.SimpleStringProperty;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.layout.BorderPane;
@@ -16,12 +17,14 @@ import org.fintrax.model.BankAccount;
 import org.fintrax.service.AccountService;
 import org.fintrax.service.ResetService;
 import org.fintrax.service.CategoryService;
+import org.fintrax.service.hibiscus.HibiscusXmlImporter;
 import org.fintrax.service.LabelService;
 import org.fintrax.service.RuleService;
 import org.fintrax.service.SyncService;
 import org.fintrax.service.SettingsService;
-import org.fintrax.service.hibiscus.HibiscusXmlImporter;
 import org.fintrax.store.ResetGroup;
+import org.fintrax.ui.control.TableColumnConfig;
+import org.fintrax.ui.control.TableSortOrderPersistence;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
@@ -30,6 +33,7 @@ import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -103,7 +107,14 @@ public class SettingsController {
 
         dataDirLabel.setText(storagePath.toString());
 
+        accountColumn.setCellValueFactory(cell -> new SimpleStringProperty(
+                Objects.toString(cell.getValue().getAccountName(), "")));
+        statusColumn.setCellValueFactory(cell -> new SimpleStringProperty(
+                Objects.toString(cell.getValue().getStatus(), "")));
         loadCredentials();
+        TableSortOrderPersistence.install(credentialTable, "settings.credentials.sort", settingsService,
+                List.of(new TableColumnConfig("account", accountColumn),
+                        new TableColumnConfig("status", statusColumn)));
     }
 
     private void loadCredentials() {

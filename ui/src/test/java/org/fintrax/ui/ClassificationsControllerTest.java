@@ -107,6 +107,60 @@ class ClassificationsControllerTest extends AbstractUITest {
     }
 
     @Test
+    void classificationSortOrderIsSharedAcrossCategoriesAndViewReloads() throws Exception {
+        String sortSettingKey = "classification.transaction.columns.sort";
+        SettingsService settingsService = applicationContext.getBean(SettingsService.class);
+        String previousSortOrder = settingsService.getSettingValue(sortSettingKey);
+        Category firstCategory = categoryService().createCategory(
+                "First sort category " + System.nanoTime(), null, null);
+        Category secondCategory = categoryService().createCategory(
+                "Second sort category " + System.nanoTime(), null, null);
+        Transaction olderTransaction = createTransaction(secondCategory.getId(), "Older transaction", "10",
+                LocalDate.of(2025, 2, 1));
+        Transaction newerTransaction = createTransaction(secondCategory.getId(), "Newer transaction", "20",
+                LocalDate.of(2025, 2, 2));
+        createTransaction(firstCategory.getId(), "First category transaction", "30",
+                LocalDate.of(2025, 2, 3));
+
+        try {
+            reloadClassificationsView();
+            TreeView<String> tree = lookup("#classificationTree").query();
+            TableView<Transaction> table = lookup("#classificationTransactionsTable").query();
+            interact(() -> tree.getSelectionModel().select(categoryTreeItem(tree, firstCategory.getName())));
+
+            TableColumn<Transaction, ?> dateColumn = table.getColumns().stream()
+                    .filter(column -> I18n.get("col.date").equals(column.getText()))
+                    .findFirst()
+                    .orElseThrow();
+            interact(() -> {
+                dateColumn.setSortType(TableColumn.SortType.DESCENDING);
+                table.getSortOrder().setAll(dateColumn);
+            });
+            assertEquals("date=DESCENDING", settingsService.getSettingValue(sortSettingKey));
+
+            interact(() -> tree.getSelectionModel().select(categoryTreeItem(tree, secondCategory.getName())));
+            assertSame(dateColumn, table.getSortOrder().getFirst());
+            assertEquals("date=DESCENDING", settingsService.getSettingValue(sortSettingKey));
+            assertEquals(List.of(newerTransaction.getId(), olderTransaction.getId()),
+                    table.getItems().stream().map(Transaction::getId).toList());
+
+            reloadClassificationsView();
+            TreeView<String> restoredTree = lookup("#classificationTree").query();
+            TableView<Transaction> restoredTable = lookup("#classificationTransactionsTable").query();
+            assertEquals(1, restoredTable.getSortOrder().size());
+            assertEquals(TableColumn.SortType.DESCENDING, restoredTable.getSortOrder().getFirst().getSortType());
+            assertEquals("date=DESCENDING", settingsService.getSettingValue(sortSettingKey));
+
+            interact(() -> restoredTree.getSelectionModel().select(
+                    categoryTreeItem(restoredTree, secondCategory.getName())));
+            assertEquals(List.of(newerTransaction.getId(), olderTransaction.getId()),
+                    restoredTable.getItems().stream().map(Transaction::getId).toList());
+        } finally {
+            settingsService.saveSettingValue(sortSettingKey, previousSortOrder == null ? "" : previousSortOrder);
+        }
+    }
+
+    @Test
     void classificationTransactionDateColumnUsesCurrentLocaleShortDateFormat() throws Exception {
         Category category = categoryService().createCategory("Localized date " + System.nanoTime(), null, null);
         Transaction transaction = createTransaction(category.getId(), "Localized date transaction", "20",

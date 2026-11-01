@@ -1,6 +1,7 @@
 package org.fintrax.ui;
 
 import javafx.application.Platform;
+import javafx.geometry.Bounds;
 import javafx.event.Event;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
@@ -11,6 +12,7 @@ import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
+import javafx.scene.control.Labeled;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.OverrunStyle;
@@ -420,6 +422,21 @@ class TransactionsControllerTest extends AbstractUITest {
                     applicationContext.getBean(SettingsService.class)
                             .getSettingValue("transaction.columns.order"));
 
+            TableColumn<Transaction, ?> dateColumn = table.getColumns().stream()
+                    .filter(column -> I18n.get("col.date").equals(column.getText()))
+                    .findFirst().orElseThrow();
+            TableColumn<Transaction, ?> amountColumn = table.getColumns().stream()
+                    .filter(column -> I18n.get("col.amount").equals(column.getText()))
+                    .findFirst().orElseThrow();
+            interact(() -> {
+                dateColumn.setSortType(TableColumn.SortType.DESCENDING);
+                amountColumn.setSortType(TableColumn.SortType.ASCENDING);
+                table.getSortOrder().setAll(dateColumn, amountColumn);
+            });
+            assertEquals("date=DESCENDING,amount=ASCENDING",
+                    applicationContext.getBean(SettingsService.class)
+                            .getSettingValue("transaction.columns.sort"));
+
             Parent restoredView = applicationContext.getBean(ViewLoader.class).load("transactions");
             interact(() -> stage.getScene().setRoot(restoredView));
             TableView<Transaction> restoredTable = lookup("#transactionTable").query();
@@ -427,14 +444,30 @@ class TransactionsControllerTest extends AbstractUITest {
                             "col.balance", "col.category", "col.labels").stream().map(I18n::get).toList(),
                     restoredTable.getColumns().stream().limit(7).map(TableColumn::getText).toList());
             assertFalse(restoredTable.getColumns().get(2).isVisible());
+            assertEquals(List.of("col.date", "col.amount").stream().map(I18n::get).toList(),
+                    restoredTable.getSortOrder().stream().map(TableColumn::getText).toList());
+            assertEquals(List.of(TableColumn.SortType.DESCENDING, TableColumn.SortType.ASCENDING),
+                    restoredTable.getSortOrder().stream().map(TableColumn::getSortType).toList());
+            interact(() -> {
+                FintraxUI.configureScene(restoredTable.getScene());
+                restoredTable.applyCss();
+            });
+            for (TableColumn<Transaction, ?> sortedColumn : restoredTable.getSortOrder()) {
+                Node header = tableColumnHeader(restoredTable, sortedColumn.getText());
+                Node sortArrow = header.lookup(".arrow");
+                assertNotNull(sortArrow);
+                assertTrue(sortArrow.isVisible());
+                assertSortDotsCentered(header, sortArrow);
+            }
 
             MenuButton restoredMenu = lookup("#columnMenuButton").query();
-            interact(() -> restoredTable.getSortOrder().add(restoredTable.getColumns().get(1)));
             assertFalse(restoredTable.getSortOrder().isEmpty());
             interact(restoredMenu.getItems().getLast()::fire);
             assertTrue(restoredTable.getColumns().stream().limit(7)
                     .allMatch(TableColumn::isVisible));
             assertTrue(restoredTable.getSortOrder().isEmpty());
+            assertEquals("", applicationContext.getBean(SettingsService.class)
+                    .getSettingValue("transaction.columns.sort"));
             assertEquals("date=true,payee=true,purpose=true,amount=true,balance=true,category=true,labels=true",
                     applicationContext.getBean(SettingsService.class).getSettingValue("transaction.columns"));
             assertEquals("date,payee,purpose,amount,balance,category,labels",
@@ -750,6 +783,25 @@ class TransactionsControllerTest extends AbstractUITest {
 
     private void acceptBulkEditDialog() {
         interact(lookup("#pickerSave").<Button>query()::fire);
+    }
+
+    private Node tableColumnHeader(TableView<?> table, String title) {
+        return table.lookupAll(".column-header").stream()
+                .filter(header -> header.lookup(".label") instanceof Labeled label
+                        && title.equals(label.getText()))
+                .findFirst()
+                .orElseThrow();
+    }
+
+    private void assertSortDotsCentered(Node header, Node sortArrow) {
+        Node sortDots = header.lookup(".sort-order-dots-container");
+        assertNotNull(sortDots);
+        Bounds arrowBounds = sortArrow.localToScene(sortArrow.getBoundsInLocal());
+        Bounds dotsBounds = sortDots.localToScene(sortDots.getBoundsInLocal());
+        double arrowCenterX = arrowBounds.getMinX() + arrowBounds.getWidth() / 2;
+        double dotsCenterX = dotsBounds.getMinX() + dotsBounds.getWidth() / 2;
+        assertEquals(arrowCenterX, dotsCenterX, 0.5,
+                "sort-order dots should be centered over the sort arrow");
     }
 
     private Node cellForRow(TableView<Transaction> table, int rowIndex) {

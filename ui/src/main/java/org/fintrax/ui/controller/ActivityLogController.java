@@ -12,6 +12,7 @@ import org.fintrax.config.I18n;
 import org.fintrax.model.*;
 import org.fintrax.service.SettingsService;
 import org.fintrax.store.StoreManager;
+import org.fintrax.ui.control.TableColumnConfig;
 import org.fintrax.ui.control.TableColumnVisibilityMenu;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
@@ -100,11 +101,11 @@ public class ActivityLogController {
 
     private void setupColumnMenu() {
         TableColumnVisibilityMenu.install(logTable, columnMenuButton, COLUMN_CONFIG_KEY, settingsService,
-                List.of(new TableColumnVisibilityMenu.Column("timestamp", timestampColumn),
-                        new TableColumnVisibilityMenu.Column("action", actionColumn),
-                        new TableColumnVisibilityMenu.Column("entityType", entityTypeColumn),
-                        new TableColumnVisibilityMenu.Column("entityId", entityIdColumn),
-                        new TableColumnVisibilityMenu.Column("description", descriptionColumn)));
+                List.of(new TableColumnConfig("timestamp", timestampColumn),
+                        new TableColumnConfig("action", actionColumn),
+                        new TableColumnConfig("entityType", entityTypeColumn),
+                        new TableColumnConfig("entityId", entityIdColumn),
+                        new TableColumnConfig("description", descriptionColumn)));
     }
 
     @FXML
