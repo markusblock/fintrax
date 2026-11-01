@@ -59,9 +59,26 @@ class ClassificationsControllerTest extends AbstractUITest {
     }
 
     @Test
-    void transactionFiltersRemainExpandedInClassificationsView() {
+    void transactionFiltersStartCollapsedInClassificationsView() {
+        assertFalse(lookup("#additionalFilters").query().isVisible());
+        assertTrue(lookup("#toggleAdditionalFiltersButton").query().isVisible());
+        assertTrue(lookup("#searchField").query().isVisible());
+        assertTrue(lookup("#datePresetFilter").query().isVisible());
+    }
+
+    @Test
+    void classificationTransactionFiltersCanBeExpandedAndCollapsedWithSummary() {
+        Button toggleButton = lookup("#toggleAdditionalFiltersButton").query();
+
+        interact(toggleButton::fire);
         assertTrue(lookup("#additionalFilters").query().isVisible());
-        assertFalse(lookup("#toggleAdditionalFiltersButton").query().isVisible());
+        interact(() -> lookup("#minAmountField").<TextField>query().setText("25.00"));
+        interact(toggleButton::fire);
+
+        assertFalse(lookup("#additionalFilters").query().isVisible());
+        TextField summary = lookup("#collapsedFilterSummary").query();
+        assertTrue(summary.isVisible());
+        assertEquals(I18n.get("filter.summary.item", I18n.get("filter.minAmount"), "25.00"), summary.getText());
     }
 
     @Test
@@ -210,6 +227,26 @@ class ClassificationsControllerTest extends AbstractUITest {
         interact(lookup("#clearFiltersButton").<Button>query()::fire);
 
         assertEquals(List.of(otherMatch.getId()), table.getItems().stream().map(Transaction::getId).toList());
+    }
+
+    @Test
+    void classificationTransactionFooterShowsSumOfFilteredAmounts() throws Exception {
+        Category category = categoryService().createCategory("Amount total " + System.nanoTime(), null, null);
+        Category otherCategory = categoryService().createCategory("Other total " + System.nanoTime(), null, null);
+        createTransaction(category.getId(), "Income", "25", LocalDate.of(2025, 2, 1));
+        createTransaction(category.getId(), "Expense", "-8", LocalDate.of(2025, 2, 2));
+        createTransaction(otherCategory.getId(), "Unrelated", "100", LocalDate.of(2025, 2, 3));
+
+        reloadClassificationsView();
+        TreeView<String> tree = lookup("#classificationTree").query();
+        interact(() -> tree.getSelectionModel().select(categoryTreeItem(tree, category.getName())));
+        javafx.scene.control.Label total = lookup("#classificationTransactionsTotalAmount").query();
+
+        assertEquals(String.format("%,.2f EUR", new BigDecimal("17")), total.getText());
+
+        interact(() -> lookup("#searchField").<TextField>query().setText("Expense"));
+
+        assertEquals(String.format("%,.2f EUR", new BigDecimal("-8")), total.getText());
     }
 
     @Test

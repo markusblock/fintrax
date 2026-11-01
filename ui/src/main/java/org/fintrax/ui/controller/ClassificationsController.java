@@ -48,6 +48,8 @@ import java.util.stream.Collectors;
 @Scope("prototype")
 public class ClassificationsController {
     private static final String COLUMN_CONFIG_KEY = "classification.transaction.columns";
+    private static final String AMOUNT_POSITIVE_STYLE = "amount-positive";
+    private static final String AMOUNT_NEGATIVE_STYLE = "amount-negative";
 
     @FXML
     private BorderPane rootPane;
@@ -55,6 +57,8 @@ public class ClassificationsController {
     private TreeView<String> classificationTree;
     @FXML
     private TableView<Transaction> classificationTransactionsTable;
+    @FXML
+    private Label classificationTransactionsTotalAmount;
     @FXML
     private MenuButton columnMenuButton;
     @FXML
@@ -109,8 +113,12 @@ public class ClassificationsController {
         setupTransactionTable();
         classificationTransactionsTable.setItems(displayedTransactions);
         setupColumnMenu();
+        displayedTransactions.addListener((javafx.collections.ListChangeListener<Transaction>) change ->
+                updateTransactionTotal());
+        updateTransactionTotal();
         transactionTableActions.installContextMenu(
                 classificationTransactionsTable, rootPane, this::reloadSelectedTransactionsKeepingSelection);
+        transactionFilterPanelController.setCollapsible(true);
         transactionFilterPanelController.setOnFiltersChanged(this::reloadSelectedTransactionsKeepingSelection);
         classificationTree.getSelectionModel().selectedItemProperty().addListener((obs, oldItem, newItem) -> {
             loadSelectedNodeTransactions(true);
@@ -155,12 +163,12 @@ public class ClassificationsController {
             @Override
             protected void updateItem(BigDecimal item, boolean empty) {
                 super.updateItem(item, empty);
-                getStyleClass().removeAll("amount-positive", "amount-negative");
+                getStyleClass().removeAll(AMOUNT_POSITIVE_STYLE, AMOUNT_NEGATIVE_STYLE);
                 if (empty || item == null) {
                     setText(null);
                 } else {
-                    setText(String.format("%,.2f EUR", item.doubleValue()));
-                    getStyleClass().add(item.signum() < 0 ? "amount-negative" : "amount-positive");
+                    setText(formatAmount(item));
+                    getStyleClass().add(item.signum() < 0 ? AMOUNT_NEGATIVE_STYLE : AMOUNT_POSITIVE_STYLE);
                 }
             }
         });
@@ -193,6 +201,22 @@ public class ClassificationsController {
         transactionAmountColumn.setSortable(true);
         transactionCategoryColumn.setSortable(true);
         transactionLabelsColumn.setSortable(true);
+    }
+
+    private void updateTransactionTotal() {
+        BigDecimal total = displayedTransactions.stream()
+                .map(Transaction::getAmount)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        classificationTransactionsTotalAmount.setText(formatAmount(total));
+        classificationTransactionsTotalAmount.getStyleClass()
+                .removeAll(AMOUNT_POSITIVE_STYLE, AMOUNT_NEGATIVE_STYLE);
+        classificationTransactionsTotalAmount.getStyleClass()
+                .add(total.signum() < 0 ? AMOUNT_NEGATIVE_STYLE : AMOUNT_POSITIVE_STYLE);
+    }
+
+    private String formatAmount(BigDecimal amount) {
+        return String.format("%,.2f EUR", amount);
     }
 
     private TableCell<Transaction, String> createAssignmentCell(Runnable openSelection) {
