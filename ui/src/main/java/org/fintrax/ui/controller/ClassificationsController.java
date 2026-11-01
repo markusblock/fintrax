@@ -107,8 +107,8 @@ public class ClassificationsController {
         configureContextMenu();
         classificationTree.setCellFactory(this::createClassificationCell);
         setupTransactionTable();
-        setupColumnMenu();
         classificationTransactionsTable.setItems(displayedTransactions);
+        setupColumnMenu();
         transactionTableActions.installContextMenu(
                 classificationTransactionsTable, rootPane, this::reloadSelectedTransactionsKeepingSelection);
         transactionFilterPanelController.setOnFiltersChanged(this::reloadSelectedTransactionsKeepingSelection);
