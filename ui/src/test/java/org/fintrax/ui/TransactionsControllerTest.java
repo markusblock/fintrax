@@ -1,6 +1,7 @@
 package org.fintrax.ui;
 
 import javafx.application.Platform;
+import javafx.geometry.Bounds;
 import javafx.event.Event;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
@@ -447,11 +448,16 @@ class TransactionsControllerTest extends AbstractUITest {
                     restoredTable.getSortOrder().stream().map(TableColumn::getText).toList());
             assertEquals(List.of(TableColumn.SortType.DESCENDING, TableColumn.SortType.ASCENDING),
                     restoredTable.getSortOrder().stream().map(TableColumn::getSortType).toList());
+            interact(() -> {
+                FintraxUI.configureScene(restoredTable.getScene());
+                restoredTable.applyCss();
+            });
             for (TableColumn<Transaction, ?> sortedColumn : restoredTable.getSortOrder()) {
                 Node header = tableColumnHeader(restoredTable, sortedColumn.getText());
                 Node sortArrow = header.lookup(".arrow");
                 assertNotNull(sortArrow);
                 assertTrue(sortArrow.isVisible());
+                assertSortDotsCentered(header, sortArrow);
             }
 
             MenuButton restoredMenu = lookup("#columnMenuButton").query();
@@ -785,6 +791,17 @@ class TransactionsControllerTest extends AbstractUITest {
                         && title.equals(label.getText()))
                 .findFirst()
                 .orElseThrow();
+    }
+
+    private void assertSortDotsCentered(Node header, Node sortArrow) {
+        Node sortDots = header.lookup(".sort-order-dots-container");
+        assertNotNull(sortDots);
+        Bounds arrowBounds = sortArrow.localToScene(sortArrow.getBoundsInLocal());
+        Bounds dotsBounds = sortDots.localToScene(sortDots.getBoundsInLocal());
+        double arrowCenterX = arrowBounds.getMinX() + arrowBounds.getWidth() / 2;
+        double dotsCenterX = dotsBounds.getMinX() + dotsBounds.getWidth() / 2;
+        assertEquals(arrowCenterX, dotsCenterX, 0.5,
+                "sort-order dots should be centered over the sort arrow");
     }
 
     private Node cellForRow(TableView<Transaction> table, int rowIndex) {
