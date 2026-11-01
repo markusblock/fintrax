@@ -16,6 +16,7 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.Arrays;
@@ -26,6 +27,8 @@ import java.util.Optional;
 @Component
 @Scope("prototype")
 public class TransactionFilterPanelController {
+    private static final String INVALID_DATE_STYLE_CLASS = "invalid-date";
+
     @FXML
     private ComboBox<String> accountFilter;
     @FXML
@@ -175,7 +178,7 @@ public class TransactionFilterPanelController {
         datePresetFilter.valueProperty().addListener((observable, oldPreset, preset) -> {
             if (preset == null || preset == TransactionDateFilters.Preset.CUSTOM) return;
             TransactionDateFilters.Range range = TransactionDateFilters.rangeFor(
-                    preset, LocalDate.now(), locale);
+                    preset, LocalDate.now(ZoneId.systemDefault()), locale);
             updatingDateFilters = true;
             fromDateFilter.setValue(range.fromDate());
             toDateFilter.setValue(range.toDate());
@@ -221,11 +224,11 @@ public class TransactionFilterPanelController {
 
     private void setDateFieldInvalid(DatePicker datePicker, boolean invalid) {
         if (invalid) {
-            if (!datePicker.getEditor().getStyleClass().contains("invalid-date")) {
-                datePicker.getEditor().getStyleClass().add("invalid-date");
+            if (!datePicker.getEditor().getStyleClass().contains(INVALID_DATE_STYLE_CLASS)) {
+                datePicker.getEditor().getStyleClass().add(INVALID_DATE_STYLE_CLASS);
             }
         } else {
-            datePicker.getEditor().getStyleClass().remove("invalid-date");
+            datePicker.getEditor().getStyleClass().remove(INVALID_DATE_STYLE_CLASS);
         }
     }
 
