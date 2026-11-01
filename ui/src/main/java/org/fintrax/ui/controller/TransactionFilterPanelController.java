@@ -1,10 +1,15 @@
 package org.fintrax.ui.controller;
 
 import javafx.fxml.FXML;
+import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.TextField;
+import javafx.scene.control.Tooltip;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
 import javafx.util.StringConverter;
+import org.kordamp.ikonli.javafx.FontIcon;
 import org.fintrax.config.I18n;
 import org.fintrax.model.BankAccount;
 import org.fintrax.model.Category;
@@ -19,6 +24,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
@@ -28,6 +34,7 @@ import java.util.Optional;
 @Scope("prototype")
 public class TransactionFilterPanelController {
     private static final String INVALID_DATE_STYLE_CLASS = "invalid-date";
+    private static final String FILTER_SUMMARY_SEPARATOR = " · ";
 
     @FXML
     private ComboBox<String> accountFilter;
@@ -45,12 +52,26 @@ public class TransactionFilterPanelController {
     private DatePicker fromDateFilter;
     @FXML
     private DatePicker toDateFilter;
+    @FXML
+    private HBox collapsedFilterSummaryRow;
+    @FXML
+    private Button toggleAdditionalFiltersButton;
+    @FXML
+    private FontIcon toggleAdditionalFiltersIcon;
+    @FXML
+    private Tooltip toggleAdditionalFiltersTooltip;
+    @FXML
+    private TextField collapsedFilterSummary;
+    @FXML
+    private GridPane additionalFilters;
 
     private final AccountService accountService;
     private final CategoryService categoryService;
     private Runnable onFiltersChanged = () -> { };
     private boolean updatingDateFilters;
     private boolean updatingFilters;
+    private boolean collapsible;
+    private boolean additionalFiltersExpanded = true;
 
     public TransactionFilterPanelController(AccountService accountService, CategoryService categoryService) {
         this.accountService = accountService;
@@ -62,10 +83,24 @@ public class TransactionFilterPanelController {
         setupDateFilters();
         loadFilterOptions();
         setupFilterListeners();
+        updateCollapsedFilterSummary();
+    }
+
+    @FXML
+    private void onToggleAdditionalFilters() {
+        if (!collapsible) return;
+        additionalFiltersExpanded = !additionalFiltersExpanded;
+        updateAdditionalFiltersVisibility();
     }
 
     public void setOnFiltersChanged(Runnable onFiltersChanged) {
         this.onFiltersChanged = onFiltersChanged == null ? () -> { } : onFiltersChanged;
+    }
+
+    public void setCollapsible(boolean collapsible) {
+        this.collapsible = collapsible;
+        additionalFiltersExpanded = !collapsible;
+        updateAdditionalFiltersVisibility();
     }
 
     public Optional<TransactionFilter> getCriteria() {
@@ -120,6 +155,7 @@ public class TransactionFilterPanelController {
             updatingDateFilters = false;
             updatingFilters = false;
         }
+        updateCollapsedFilterSummary();
         onFiltersChanged.run();
     }
 
@@ -210,7 +246,50 @@ public class TransactionFilterPanelController {
 
     private void applyChangedFilters() {
         if (!updatingFilters && !updatingDateFilters) {
+            updateCollapsedFilterSummary();
             onFiltersChanged.run();
+        }
+    }
+
+    private void updateAdditionalFiltersVisibility() {
+        boolean expanded = !collapsible || additionalFiltersExpanded;
+        additionalFilters.setVisible(expanded);
+        additionalFilters.setManaged(expanded);
+        toggleAdditionalFiltersButton.setVisible(collapsible);
+        toggleAdditionalFiltersButton.setManaged(collapsible);
+
+        String toggleText = I18n.get(expanded
+                ? "button.hideAdditionalFilters"
+                : "button.showAdditionalFilters");
+        toggleAdditionalFiltersButton.setAccessibleText(toggleText);
+        toggleAdditionalFiltersTooltip.setText(toggleText);
+        toggleAdditionalFiltersIcon.setIconLiteral(expanded ? "fth-chevron-up" : "fth-chevron-down");
+        updateCollapsedFilterSummary();
+    }
+
+    private void updateCollapsedFilterSummary() {
+        List<String> activeFilters = new ArrayList<>();
+        if (accountFilter.getSelectionModel().getSelectedIndex() > 0) {
+            addSummaryItem(activeFilters, I18n.get("filter.account"), accountFilter.getValue());
+        }
+        if (categoryFilter.getSelectionModel().getSelectedIndex() > 0) {
+            addSummaryItem(activeFilters, I18n.get("filter.category"), categoryFilter.getValue());
+        }
+        addSummaryItem(activeFilters, I18n.get("filter.minAmount"), minAmountField.getText());
+        addSummaryItem(activeFilters, I18n.get("filter.maxAmount"), maxAmountField.getText());
+
+        String summary = String.join(FILTER_SUMMARY_SEPARATOR, activeFilters);
+        collapsedFilterSummary.setText(summary);
+        boolean showSummary = collapsible && !additionalFiltersExpanded && !summary.isEmpty();
+        collapsedFilterSummaryRow.setVisible(showSummary);
+        collapsedFilterSummaryRow.setManaged(showSummary);
+        collapsedFilterSummary.setVisible(showSummary);
+        collapsedFilterSummary.setManaged(showSummary);
+    }
+
+    private void addSummaryItem(List<String> activeFilters, String label, String value) {
+        if (value != null && !value.isBlank()) {
+            activeFilters.add(I18n.get("filter.summary.item", label, value.trim()));
         }
     }
 
