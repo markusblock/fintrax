@@ -89,6 +89,29 @@ class TransactionServiceTest {
     }
 
     @Test
+    void categoryFilterIncludesSelectedCategoryAndItsDirectChildrenOnly() {
+        Category parent = categoryService.createCategory("Household", null, null);
+        Category child = categoryService.createCategory("Utilities", parent.getId(), null);
+        Category grandchild = categoryService.createCategory("Electricity", child.getId(), null);
+        Category unrelated = categoryService.createCategory("Food", null, null);
+
+        transactionService.createTransaction(Transaction.builder()
+                .originalPayee("parent").categoryId(parent.getId()).amount(BigDecimal.ONE).build());
+        transactionService.createTransaction(Transaction.builder()
+                .originalPayee("child").categoryId(child.getId()).amount(BigDecimal.ONE).build());
+        transactionService.createTransaction(Transaction.builder()
+                .originalPayee("grandchild").categoryId(grandchild.getId()).amount(BigDecimal.ONE).build());
+        transactionService.createTransaction(Transaction.builder()
+                .originalPayee("unrelated").categoryId(unrelated.getId()).amount(BigDecimal.ONE).build());
+
+        List<Transaction> filtered = transactionService.filterTransactions(new TransactionFilter(
+                null, null, null, parent.getId(), null, null, null, null));
+
+        assertEquals(List.of("parent", "child"),
+                filtered.stream().map(Transaction::getOriginalPayee).toList());
+    }
+
+    @Test
     void dateRangeExcludesTransactionsWithoutBookingDate() {
         transactionService.createTransaction(Transaction.builder()
                 .originalPayee("dated").amount(BigDecimal.ONE)

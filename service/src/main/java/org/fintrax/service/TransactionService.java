@@ -70,13 +70,22 @@ public class TransactionService {
     }
 
     public List<Transaction> filterTransactions(Collection<Transaction> transactions, TransactionFilter filter) {
+        Set<Long> matchingCategoryIds = new HashSet<>();
+        if (filter.categoryId() != null) {
+            matchingCategoryIds.add(filter.categoryId());
+            store.getRoot().getCategories().stream()
+                    .filter(category -> filter.categoryId().equals(category.getParentId()))
+                    .map(Category::getId)
+                    .forEach(matchingCategoryIds::add);
+        }
+
         return transactions.stream()
                 .filter(t -> filter.accountId() == null || t.getAccountId().equals(filter.accountId()))
                 .filter(t -> filter.fromDate() == null || (t.getBookingDate() != null &&
                         !t.getBookingDate().isBefore(filter.fromDate())))
                 .filter(t -> filter.toDate() == null || (t.getBookingDate() != null &&
                         !t.getBookingDate().isAfter(filter.toDate())))
-                .filter(t -> filter.categoryId() == null || filter.categoryId().equals(t.getCategoryId()))
+                .filter(t -> filter.categoryId() == null || matchingCategoryIds.contains(t.getCategoryId()))
                 .filter(t -> filter.labelIds() == null || filter.labelIds().isEmpty() ||
                         t.getLabelIds().containsAll(filter.labelIds()))
                 .filter(t -> filter.minAmount() == null || t.getAmount().compareTo(filter.minAmount()) >= 0)
