@@ -27,6 +27,7 @@ import org.fintrax.service.CategoryService;
 import org.fintrax.service.LabelService;
 import org.fintrax.service.SettingsService;
 import org.fintrax.service.TransactionService;
+import org.fintrax.service.TransactionFilter;
 import org.fintrax.ui.FintraxUI;
 import org.fintrax.ui.control.LabelChipFactory;
 import org.fintrax.ui.control.TableColumnVisibilityMenu;
@@ -253,16 +254,13 @@ public class ClassificationsController {
     }
 
     private void loadFilteredTransactions(List<Transaction> source) {
-        Optional<TransactionFilterCriteria> criteria = transactionFilterPanelController.getCriteria();
+        Optional<TransactionFilter> criteria = transactionFilterPanelController.getCriteria();
         if (criteria.isEmpty()) {
             displayedTransactions.clear();
             return;
         }
 
-        TransactionFilterCriteria filters = criteria.get();
-        displayedTransactions.setAll(transactionService.filterTransactions(source,
-                filters.accountId(), filters.fromDate(), filters.toDate(), filters.categoryId(), null,
-                filters.minAmount(), filters.maxAmount(), filters.searchText()));
+        displayedTransactions.setAll(transactionService.filterTransactions(source, criteria.get()));
         sortTransactionsIfNeeded();
     }
 

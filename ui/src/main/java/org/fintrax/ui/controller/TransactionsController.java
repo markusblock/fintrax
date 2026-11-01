@@ -238,13 +238,10 @@ public class TransactionsController {
     }
 
     private void loadTransactions() {
-        Optional<TransactionFilterCriteria> criteria = transactionFilterPanelController.getCriteria();
+        Optional<TransactionFilter> criteria = transactionFilterPanelController.getCriteria();
         if (criteria.isEmpty()) return;
 
-        TransactionFilterCriteria filters = criteria.get();
-        List<Transaction> filtered = transactionService.filterTransactions(
-                filters.accountId(), filters.fromDate(), filters.toDate(), filters.categoryId(), null,
-                filters.minAmount(), filters.maxAmount(), filters.searchText());
+        List<Transaction> filtered = transactionService.filterTransactions(criteria.get());
 
         tableData.setAll(filtered);
         transactionTable.setItems(tableData);

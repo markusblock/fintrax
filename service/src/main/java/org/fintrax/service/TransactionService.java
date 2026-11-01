@@ -69,26 +69,28 @@ public class TransactionService {
                                                  Long categoryId, Set<Long> labelIds,
                                                  BigDecimal minAmount, BigDecimal maxAmount,
                                                  String searchText) {
-        return filterTransactions(store.getRoot().getTransactions(), accountId, fromDate, toDate,
-                categoryId, labelIds, minAmount, maxAmount, searchText);
+        return filterTransactions(new TransactionFilter(accountId, fromDate, toDate, categoryId,
+                labelIds, minAmount, maxAmount, searchText));
     }
 
-    public List<Transaction> filterTransactions(Collection<Transaction> transactions, Long accountId,
-                                                 LocalDate fromDate, LocalDate toDate, Long categoryId,
-                                                 Set<Long> labelIds, BigDecimal minAmount, BigDecimal maxAmount,
-                                                 String searchText) {
+    public List<Transaction> filterTransactions(TransactionFilter filter) {
+        return filterTransactions(store.getRoot().getTransactions(), filter);
+    }
+
+    public List<Transaction> filterTransactions(Collection<Transaction> transactions, TransactionFilter filter) {
         return transactions.stream()
-                .filter(t -> accountId == null || t.getAccountId().equals(accountId))
-                .filter(t -> fromDate == null || (t.getBookingDate() != null &&
-                        !t.getBookingDate().isBefore(fromDate)))
-                .filter(t -> toDate == null || (t.getBookingDate() != null &&
-                        !t.getBookingDate().isAfter(toDate)))
-                .filter(t -> categoryId == null || categoryId.equals(t.getCategoryId()))
-                .filter(t -> labelIds == null || labelIds.isEmpty() ||
-                        t.getLabelIds().containsAll(labelIds))
-                .filter(t -> minAmount == null || t.getAmount().compareTo(minAmount) >= 0)
-                .filter(t -> maxAmount == null || t.getAmount().compareTo(maxAmount) <= 0)
-                .filter(t -> searchText == null || searchText.isEmpty() || matchesSearch(t, searchText))
+                .filter(t -> filter.accountId() == null || t.getAccountId().equals(filter.accountId()))
+                .filter(t -> filter.fromDate() == null || (t.getBookingDate() != null &&
+                        !t.getBookingDate().isBefore(filter.fromDate())))
+                .filter(t -> filter.toDate() == null || (t.getBookingDate() != null &&
+                        !t.getBookingDate().isAfter(filter.toDate())))
+                .filter(t -> filter.categoryId() == null || filter.categoryId().equals(t.getCategoryId()))
+                .filter(t -> filter.labelIds() == null || filter.labelIds().isEmpty() ||
+                        t.getLabelIds().containsAll(filter.labelIds()))
+                .filter(t -> filter.minAmount() == null || t.getAmount().compareTo(filter.minAmount()) >= 0)
+                .filter(t -> filter.maxAmount() == null || t.getAmount().compareTo(filter.maxAmount()) <= 0)
+                .filter(t -> filter.searchText() == null || filter.searchText().isEmpty()
+                        || matchesSearch(t, filter.searchText()))
                 .toList();
     }
 

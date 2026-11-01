@@ -10,6 +10,7 @@ import org.fintrax.model.BankAccount;
 import org.fintrax.model.Category;
 import org.fintrax.service.AccountService;
 import org.fintrax.service.CategoryService;
+import org.fintrax.service.TransactionFilter;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
@@ -64,7 +65,7 @@ public class TransactionFilterPanelController {
         this.onFiltersChanged = onFiltersChanged == null ? () -> { } : onFiltersChanged;
     }
 
-    public Optional<TransactionFilterCriteria> getCriteria() {
+    public Optional<TransactionFilter> getCriteria() {
         LocalDate fromDate;
         LocalDate toDate;
         try {
@@ -89,8 +90,8 @@ public class TransactionFilterPanelController {
         setDateFieldInvalid(toDateFilter, false);
 
         String search = searchField.getText().trim();
-        return Optional.of(new TransactionFilterCriteria(
-                getSelectedAccountId(), getSelectedCategoryId(), fromDate, toDate,
+        return Optional.of(new TransactionFilter(
+                getSelectedAccountId(), fromDate, toDate, getSelectedCategoryId(), null,
                 parseAmount(minAmountField.getText()), parseAmount(maxAmountField.getText()),
                 search.isEmpty() ? null : search));
     }
