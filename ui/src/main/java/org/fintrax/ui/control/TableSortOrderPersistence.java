@@ -10,6 +10,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -36,17 +37,18 @@ public final class TableSortOrderPersistence {
         Set<TableColumn<?, ?>> restoredColumns = new HashSet<>();
         for (String entry : value.split(",")) {
             String[] parts = entry.split("=", 2);
-            if (parts.length != 2) continue;
-            TableColumn<?, ?> column = columnsByKey.get(parts[0]);
-            if (column == null || !column.isSortable() || restoredColumns.contains(column)) continue;
-
-            try {
-                TableColumn.SortType sortType = TableColumn.SortType.valueOf(parts[1]);
-                restoredColumns.add(column);
-                column.setSortType(sortType);
-                sortOrder.add(asTableColumn(column));
-            } catch (IllegalArgumentException ignored) {
-                // Ignore stale or malformed preference values.
+            if (parts.length == 2) {
+                TableColumn<?, ?> column = columnsByKey.get(parts[0]);
+                if (column != null && column.isSortable() && !restoredColumns.contains(column)) {
+                    try {
+                        TableColumn.SortType sortType = TableColumn.SortType.valueOf(parts[1]);
+                        restoredColumns.add(column);
+                        column.setSortType(sortType);
+                        sortOrder.add(asTableColumn(column));
+                    } catch (IllegalArgumentException ignored) {
+                        // Ignore stale or malformed preference values.
+                    }
+                }
             }
         }
         table.getSortOrder().setAll(sortOrder);
@@ -61,7 +63,7 @@ public final class TableSortOrderPersistence {
                     String key = keysByColumn.get(column);
                     return key == null ? null : key + "=" + column.getSortType().name();
                 })
-                .filter(entry -> entry != null)
+                .filter(Objects::nonNull)
                 .collect(Collectors.joining(","));
         settingsService.saveSettingValue(settingKey, value);
     }

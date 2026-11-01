@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Test;
 import org.testfx.util.WaitForAsyncUtils;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SettingsControllerTest extends AbstractUITest {
@@ -82,7 +83,7 @@ class SettingsControllerTest extends AbstractUITest {
 
         TableView<SettingsController.CredentialRow> restoredTable = lookup("#credentialTable").query();
         assertEquals(1, restoredTable.getSortOrder().size());
-        assertTrue(restoredTable.getSortOrder().getFirst() == restoredTable.getColumns().get(0));
+        assertSame(restoredTable.getColumns().get(0), restoredTable.getSortOrder().getFirst());
         interact(() -> restoredTable.getSortOrder().clear());
     }
 
