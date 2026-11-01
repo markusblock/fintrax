@@ -20,6 +20,7 @@ import javafx.scene.control.TreeView;
 import javafx.scene.control.TableView;
 import javafx.scene.control.ColorPicker;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.DatePicker;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.stage.Stage;
@@ -140,6 +141,32 @@ class ClassificationsControllerTest extends AbstractUITest {
         interact(() -> lookup("#searchField").<TextField>query().setText("travel"));
 
         assertEquals(List.of(matching.getId()), table.getItems().stream().map(Transaction::getId).toList());
+    }
+
+    @Test
+    void invalidDateKeepsCurrentResultsButClearsWhenTreeScopeChanges() throws Exception {
+        Category selectedCategory = categoryService().createCategory("Invalid date selected " + System.nanoTime(),
+                null, null);
+        Category otherCategory = categoryService().createCategory("Invalid date other " + System.nanoTime(), null,
+                null);
+        Transaction selectedTransaction = createTransaction(selectedCategory.getId(), "Selected scope", "20",
+                LocalDate.of(2025, 2, 1));
+        createTransaction(otherCategory.getId(), "Other scope", "30", LocalDate.of(2025, 2, 2));
+
+        reloadClassificationsView();
+        TreeView<String> tree = lookup("#classificationTree").query();
+        TableView<Transaction> table = lookup("#classificationTransactionsTable").query();
+        DatePicker fromDate = lookup("#fromDateFilter").query();
+        interact(() -> tree.getSelectionModel().select(categoryTreeItem(tree, selectedCategory.getName())));
+
+        interact(() -> fromDate.getEditor().setText("not a date"));
+
+        assertEquals(List.of(selectedTransaction.getId()), table.getItems().stream().map(Transaction::getId).toList());
+        assertTrue(fromDate.getEditor().getStyleClass().contains("invalid-date"));
+
+        interact(() -> tree.getSelectionModel().select(categoryTreeItem(tree, otherCategory.getName())));
+
+        assertTrue(table.getItems().isEmpty());
     }
 
     @Test

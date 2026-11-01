@@ -111,7 +111,7 @@ public class ClassificationsController {
                 classificationTransactionsTable, rootPane, this::reloadSelectedTransactionsKeepingSelection);
         transactionFilterPanelController.setOnFiltersChanged(this::reloadSelectedTransactionsKeepingSelection);
         classificationTree.getSelectionModel().selectedItemProperty().addListener((obs, oldItem, newItem) -> {
-            loadSelectedNodeTransactions();
+            loadSelectedNodeTransactions(true);
         });
     }
 
@@ -245,18 +245,19 @@ public class ClassificationsController {
         });
     }
 
-    private void loadCategoryTransactions(Long categoryId) {
-        loadFilteredTransactions(categoryService.getTransactionsInCategoryAndDescendants(categoryId));
+    private void loadCategoryTransactions(Long categoryId, boolean clearWhenCriteriaInvalid) {
+        loadFilteredTransactions(categoryService.getTransactionsInCategoryAndDescendants(categoryId),
+                clearWhenCriteriaInvalid);
     }
 
-    private void loadLabelTransactions(Long labelId) {
-        loadFilteredTransactions(labelService.getTransactionsWithLabel(labelId));
+    private void loadLabelTransactions(Long labelId, boolean clearWhenCriteriaInvalid) {
+        loadFilteredTransactions(labelService.getTransactionsWithLabel(labelId), clearWhenCriteriaInvalid);
     }
 
-    private void loadFilteredTransactions(List<Transaction> source) {
+    private void loadFilteredTransactions(List<Transaction> source, boolean clearWhenCriteriaInvalid) {
         Optional<TransactionFilter> criteria = transactionFilterPanelController.getCriteria();
         if (criteria.isEmpty()) {
-            displayedTransactions.clear();
+            if (clearWhenCriteriaInvalid) displayedTransactions.clear();
             return;
         }
 
@@ -264,14 +265,14 @@ public class ClassificationsController {
         sortTransactionsIfNeeded();
     }
 
-    private void loadSelectedNodeTransactions() {
+    private void loadSelectedNodeTransactions(boolean clearWhenCriteriaInvalid) {
         TreeItem<String> selectedItem = classificationTree.getSelectionModel().getSelectedItem();
         Long categoryId = selectedItem == null ? null : findCategoryIdByItem(selectedItem);
         Long labelId = selectedItem == null ? null : findLabelIdByItem(selectedItem);
         if (categoryId != null) {
-            loadCategoryTransactions(categoryId);
+            loadCategoryTransactions(categoryId, clearWhenCriteriaInvalid);
         } else if (labelId != null) {
-            loadLabelTransactions(labelId);
+            loadLabelTransactions(labelId, clearWhenCriteriaInvalid);
         } else {
             displayedTransactions.clear();
         }
@@ -287,7 +288,7 @@ public class ClassificationsController {
         Set<Long> selectedIds = classificationTransactionsTable.getSelectionModel().getSelectedItems().stream()
                 .map(Transaction::getId)
                 .collect(Collectors.toSet());
-        loadSelectedNodeTransactions();
+        loadSelectedNodeTransactions(false);
 
         for (int index = 0; index < displayedTransactions.size(); index++) {
             if (selectedIds.contains(displayedTransactions.get(index).getId())) {
