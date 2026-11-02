@@ -80,7 +80,7 @@ class HibiscusXmlImporterTest {
         account.setBankName("Edited bank name");
         account.setBalance(new BigDecimal("999.99"));
         Rule importedRule = store.getRoot().getRules().stream()
-                .filter(rule -> rule.getName().equals("Imported: AGIP"))
+                .filter(rule -> rule.getName().equals("AGIP"))
                 .findFirst().orElseThrow();
         importedRule.setName("Renamed imported rule");
         importedRule.setEnabled(false);
@@ -170,7 +170,7 @@ class HibiscusXmlImporterTest {
                 .filter(transaction -> "AGIP".equals(transaction.getOriginalPayee()))
                 .findFirst().orElseThrow();
         assertNull(importedTransaction.getCategoryId());
-        assertTrue(store.getRoot().getRules().stream().anyMatch(rule -> rule.getName().equals("Imported: AGIP")));
+        assertTrue(store.getRoot().getRules().stream().anyMatch(rule -> rule.getName().equals("AGIP")));
     }
 
     @Test
@@ -368,6 +368,7 @@ class HibiscusXmlImporterTest {
                 .findFirst().orElse(null);
 
         assertNotNull(agipRule);
+        assertEquals("AGIP", agipRule.getName());
         assertEquals(1, agipRule.getConditions().size());
         assertEquals(MatchField.PAYEE_NAME, agipRule.getConditions().get(0).getMatchField());
         assertEquals(Operator.CONTAINS, agipRule.getConditions().get(0).getOperator());
