@@ -358,9 +358,10 @@ public class TransactionsController {
         String iban = account.getIban() == null ? "" : account.getIban().trim();
         String maskedIban = iban.length() < 8 ? iban
                 : iban.substring(0, 4) + "****" + iban.substring(iban.length() - 4);
-        String details = bankName.isBlank() ? maskedIban
-                : maskedIban.isBlank() ? bankName : bankName + " (" + maskedIban + ")";
-        return details.isBlank() ? "—" : details;
+        if (bankName.isBlank() && maskedIban.isBlank()) return "—";
+        if (bankName.isBlank()) return maskedIban;
+        if (maskedIban.isBlank()) return bankName;
+        return bankName + " (" + maskedIban + ")";
     }
 
     private String accountCurrency(BankAccount account) {
