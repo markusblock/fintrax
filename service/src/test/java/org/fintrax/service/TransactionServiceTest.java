@@ -1,5 +1,6 @@
 package org.fintrax.service;
 
+import org.fintrax.config.I18n;
 import org.fintrax.model.*;
 import org.fintrax.store.StoreManager;
 import org.junit.jupiter.api.AfterEach;
@@ -10,6 +11,8 @@ import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.FormatStyle;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
@@ -146,6 +149,32 @@ class TransactionServiceTest {
 
         assertEquals(1, filtered.size());
         assertEquals("REWE Markt", filtered.get(0).getOriginalPayee());
+    }
+
+    @Test
+    void searchMatchesCategoryLabelAmountAndBookingDate() {
+        Category category = categoryService.createCategory("Utilities", null, null);
+        org.fintrax.model.Label label = labelService.createLabel("Urgent", "#1976d2", null);
+        BigDecimal amount = new BigDecimal("1234.56");
+        LocalDate bookingDate = LocalDate.of(2024, 2, 10);
+        Transaction transaction = transactionService.createTransaction(Transaction.builder()
+                .originalPayee("Power company")
+                .purpose("Monthly invoice")
+                .categoryId(category.getId())
+                .labelIds(Set.of(label.getId()))
+                .amount(amount)
+                .bookingDate(bookingDate)
+                .build());
+
+        DateTimeFormatter displayDateFormatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT)
+                .withLocale(I18n.getCurrentLocale());
+        for (String searchText : List.of("utilities", "urgent", String.format("%,.2f EUR", amount.doubleValue()),
+                amount.toPlainString(),
+                bookingDate.toString(), displayDateFormatter.format(bookingDate))) {
+            List<Transaction> filtered = transactionService.filterTransactions(new TransactionFilter(
+                    null, null, null, null, null, null, null, searchText));
+            assertEquals(List.of(transaction), filtered, "search should match: " + searchText);
+        }
     }
 
     @Test
