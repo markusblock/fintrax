@@ -86,7 +86,7 @@ class SpringMigrationCompatibilityTest {
                     () -> assertTrue(store.getRoot().getCategories().stream()
                             .anyMatch(category -> "Imported category".equals(category.getName()))),
                     () -> assertTrue(store.getRoot().getRules().stream()
-                            .anyMatch(rule -> rule.getName().startsWith("Imported: ")))
+                            .anyMatch(rule -> "Imported category".equals(rule.getName())))
             );
         }
 

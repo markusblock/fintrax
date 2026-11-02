@@ -263,7 +263,7 @@ public class HibiscusXmlImporter {
 
                             Rule rule = Rule.builder()
                                     .id(ruleId)
-                                    .name("Imported: " + catImport.name)
+                                    .name(catImport.name)
                                     .priority(root.getRules().size() + 1)
                                     .enabled(true)
                                     .conditions(List.of(condition))
