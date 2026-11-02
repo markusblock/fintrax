@@ -1,6 +1,7 @@
 package org.fintrax.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.fintrax.config.I18n;
 import org.fintrax.model.*;
 import org.fintrax.store.StoreManager;
 import org.springframework.stereotype.Service;
@@ -8,9 +9,13 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.FormatStyle;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -79,6 +84,15 @@ public class TransactionService {
                     .forEach(matchingCategoryIds::add);
         }
 
+        Map<Long, String> categoryNames = store.getRoot().getCategories().stream()
+                .filter(category -> category.getName() != null)
+                .collect(Collectors.toMap(Category::getId, Category::getName));
+        Map<Long, String> labelNames = store.getRoot().getLabels().stream()
+                .filter(label -> label.getName() != null)
+                .collect(Collectors.toMap(Label::getId, Label::getName));
+        DateTimeFormatter searchDateFormatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT)
+                .withLocale(I18n.getCurrentLocale());
+
         return transactions.stream()
                 .filter(t -> filter.accountId() == null || t.getAccountId().equals(filter.accountId()))
                 .filter(t -> filter.fromDate() == null || (t.getBookingDate() != null &&
@@ -91,16 +105,41 @@ public class TransactionService {
                 .filter(t -> filter.minAmount() == null || t.getAmount().compareTo(filter.minAmount()) >= 0)
                 .filter(t -> filter.maxAmount() == null || t.getAmount().compareTo(filter.maxAmount()) <= 0)
                 .filter(t -> filter.searchText() == null || filter.searchText().isEmpty()
-                        || matchesSearch(t, filter.searchText()))
+                        || matchesSearch(t, filter.searchText(), categoryNames, labelNames, searchDateFormatter))
                 .toList();
     }
 
-    private boolean matchesSearch(Transaction t, String searchText) {
-        String lower = searchText.toLowerCase();
-        return (t.getOriginalPayee() != null && t.getOriginalPayee().toLowerCase().contains(lower)) ||
-                (t.getPayeeDisplay() != null && t.getPayeeDisplay().toLowerCase().contains(lower)) ||
-                (t.getPurpose() != null && t.getPurpose().toLowerCase().contains(lower)) ||
-                (t.getNote() != null && t.getNote().toLowerCase().contains(lower));
+    private boolean matchesSearch(Transaction transaction, String searchText,
+                                  Map<Long, String> categoryNames, Map<Long, String> labelNames,
+                                  DateTimeFormatter searchDateFormatter) {
+        String normalizedSearchText = searchText.toLowerCase(Locale.ROOT);
+        if (containsSearch(transaction.getOriginalPayee(), normalizedSearchText)
+                || containsSearch(transaction.getPayeeDisplay(), normalizedSearchText)
+                || containsSearch(transaction.getPurpose(), normalizedSearchText)
+                || containsSearch(transaction.getNote(), normalizedSearchText)
+                || containsSearch(categoryNames.get(transaction.getCategoryId()), normalizedSearchText)) {
+            return true;
+        }
+
+        if (transaction.getLabelIds() != null && transaction.getLabelIds().stream()
+                .map(labelNames::get)
+                .anyMatch(labelName -> containsSearch(labelName, normalizedSearchText))) {
+            return true;
+        }
+
+        BigDecimal amount = transaction.getAmount();
+        if (amount != null && (containsSearch(amount.toPlainString(), normalizedSearchText)
+                || containsSearch(String.format("%,.2f EUR", amount.doubleValue()), normalizedSearchText))) {
+            return true;
+        }
+
+        LocalDate bookingDate = transaction.getBookingDate();
+        return bookingDate != null && (containsSearch(bookingDate.toString(), normalizedSearchText)
+                || containsSearch(searchDateFormatter.format(bookingDate), normalizedSearchText));
+    }
+
+    private boolean containsSearch(String value, String normalizedSearchText) {
+        return value != null && value.toLowerCase(Locale.ROOT).contains(normalizedSearchText);
     }
 
     public Transaction updateCategory(Long transactionId, Long categoryId) {

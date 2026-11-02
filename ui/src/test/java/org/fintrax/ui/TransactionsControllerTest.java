@@ -29,6 +29,7 @@ import javafx.scene.layout.HBox;
 import javafx.stage.Stage;
 import org.fintrax.config.I18n;
 import org.fintrax.model.Category;
+import org.fintrax.model.Label;
 import org.fintrax.model.Transaction;
 import org.fintrax.service.CategoryService;
 import org.fintrax.service.LabelService;
@@ -320,6 +321,25 @@ class TransactionsControllerTest extends AbstractUITest {
         assertFalse(lookup("#collapsedFilterSummary").query().isVisible());
         assertTrue(lookup("#applyFiltersButton").tryQuery().isEmpty());
         assertTrue(lookup("#clearFiltersButton").tryQuery().isPresent());
+    }
+
+    @Test
+    void searchFieldMatchesCategoryLabelAmountAndDisplayedDate() {
+        TableView<Transaction> table = lookup("#transactionTable").query();
+        TextField searchField = lookup("#searchField").query();
+        Label label = applicationContext.getBean(LabelService.class)
+                .getLabel(testCategoryTransaction.getLabelIds().iterator().next()).orElseThrow();
+        String displayedDate = DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT)
+                .withLocale(I18n.getCurrentLocale())
+                .format(testCategoryTransaction.getBookingDate());
+        String displayedAmount = String.format("%,.2f EUR", testCategoryTransaction.getAmount().doubleValue());
+
+        for (String searchText : List.of(testCategory.getName(), label.getName(), displayedAmount, displayedDate)) {
+            interact(() -> searchField.setText(searchText));
+            assertTrue(table.getItems().stream()
+                    .anyMatch(transaction -> transaction.getId().equals(testCategoryTransaction.getId())),
+                    "search should match: " + searchText);
+        }
     }
 
     @Test
