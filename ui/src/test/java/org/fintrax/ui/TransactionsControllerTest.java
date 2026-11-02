@@ -31,6 +31,7 @@ import org.fintrax.config.I18n;
 import org.fintrax.model.Category;
 import org.fintrax.model.Label;
 import org.fintrax.model.Transaction;
+import org.fintrax.service.AccountService;
 import org.fintrax.service.CategoryService;
 import org.fintrax.service.LabelService;
 import org.fintrax.service.SettingsService;
@@ -65,12 +66,25 @@ class TransactionsControllerTest extends AbstractUITest {
                 .createCategory("Cell category " + System.nanoTime(), null, null);
         org.fintrax.model.Label label = applicationContext.getBean(LabelService.class)
                 .createLabel("Cell label " + System.nanoTime(), "#3B82F6", null);
+        org.fintrax.model.BankAccount detailAccount = applicationContext.getBean(AccountService.class)
+                .createAccount("DE89370400440532013000", null, "Detail test bank", "Test holder", null, null);
         testCategoryTransaction = applicationContext.getBean(TransactionService.class).createTransaction(Transaction.builder()
+                .accountId(detailAccount.getId())
                 .originalPayee("Cell popup test")
+                .payeeDisplay("Display popup test")
+                .purpose("Test transaction purpose")
+                .amount(new BigDecimal("123.45"))
+                .bookingDate(LocalDate.now())
+                .valueDate(LocalDate.now().plusDays(1))
+                .balanceAfter(new BigDecimal("678.90"))
+                .transactionType("SEPA transfer")
                 .categoryId(testCategory.getId())
                 .labelIds(Set.of(label.getId()))
-                .bookingDate(LocalDate.now())
-                .amount(BigDecimal.ONE)
+                .note("Test transaction note")
+                .endToEndId("E2E-123")
+                .mandateId("MANDATE-123")
+                .creditorId("CREDITOR-123")
+                .booked(false)
                 .build());
         for (int i = 0; i < 2; i++) {
             applicationContext.getBean(TransactionService.class).createTransaction(Transaction.builder()
@@ -764,6 +778,66 @@ class TransactionsControllerTest extends AbstractUITest {
                         && lookup("#detailLabelsButton").<Button>query().isVisible());
         assertFalse(lookup("#detailLabelsButton").<Button>query().isDisabled());
         assertNotNull(lookup("#detailLabelsButton").<Button>query().getOnAction());
+    }
+
+    @Test
+    void detailPanelShowsUserFacingTransactionDataAndKeepsExistingFieldsEditable() {
+        TableView<Transaction> table = lookup("#transactionTable").query();
+        int detailRow = table.getItems().stream().map(Transaction::getId).toList()
+                .indexOf(testCategoryTransaction.getId());
+        assertTrue(detailRow >= 0);
+
+        interact(() -> table.getSelectionModel().clearAndSelect(detailRow));
+        interact(lookup("#detailToggleButton").<Button>query()::fire);
+
+        DateTimeFormatter dateFormatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT)
+                .withLocale(I18n.getCurrentLocale());
+        assertEquals("Detail test bank (DE89****3000)", detailText("#accountValue"));
+        assertEquals(LocalDate.now().format(dateFormatter), detailText("#bookingDateValue"));
+        assertEquals(LocalDate.now().plusDays(1).format(dateFormatter), detailText("#valueDateValue"));
+        assertEquals("Cell popup test", detailText("#originalPayeeValue"));
+        assertEquals("Test transaction purpose", detailText("#purposeValue"));
+        assertEquals(String.format(I18n.getCurrentLocale(), "%,.2f EUR", new BigDecimal("123.45")),
+                detailText("#amountValue"));
+        assertEquals(String.format(I18n.getCurrentLocale(), "%,.2f EUR", new BigDecimal("678.90")),
+                detailText("#balanceValue"));
+        assertEquals("SEPA transfer", detailText("#transactionTypeValue"));
+        assertEquals(I18n.get("detail.status.pending"), detailText("#bookingStatusValue"));
+        assertEquals("E2E-123", detailText("#endToEndIdValue"));
+        assertEquals("MANDATE-123", detailText("#mandateIdValue"));
+        assertEquals("CREDITOR-123", detailText("#creditorIdValue"));
+        assertEquals("Display popup test", lookup("#payeeField").<TextField>query().getText());
+        assertFalse(lookup("#payeeField").query().isDisabled());
+        assertFalse(lookup("#detailCategoryButton").query().isDisabled());
+        assertFalse(lookup("#detailLabelsButton").query().isDisabled());
+        assertFalse(lookup("#noteArea").query().isDisabled());
+    }
+
+    @Test
+    void detailPanelMarksUnavailableOptionalValues() {
+        TableView<Transaction> table = lookup("#transactionTable").query();
+        Transaction sparseTransaction = table.getItems().stream()
+                .filter(transaction -> transaction.getAccountId() == null
+                        && !testCategoryTransaction.getId().equals(transaction.getId()))
+                .findFirst().orElseThrow();
+        int detailRow = table.getItems().stream().map(Transaction::getId).toList()
+                .indexOf(sparseTransaction.getId());
+
+        interact(() -> table.getSelectionModel().clearAndSelect(detailRow));
+        interact(lookup("#detailToggleButton").<Button>query()::fire);
+
+        assertEquals("—", detailText("#accountValue"));
+        assertEquals("—", detailText("#valueDateValue"));
+        assertEquals("—", detailText("#purposeValue"));
+        assertEquals("—", detailText("#balanceValue"));
+        assertEquals("—", detailText("#transactionTypeValue"));
+        assertEquals("—", detailText("#endToEndIdValue"));
+        assertEquals("—", detailText("#mandateIdValue"));
+        assertEquals("—", detailText("#creditorIdValue"));
+    }
+
+    private String detailText(String selector) {
+        return lookup(selector).<Labeled>query().getText();
     }
 
     private void waitForPicker() throws TimeoutException {

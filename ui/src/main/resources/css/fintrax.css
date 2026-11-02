@@ -489,6 +489,11 @@
     -fx-border-width: 1 0 0 0;
 }
 
+.transaction-detail-panel .transaction-detail-scroll,
+.transaction-detail-panel .transaction-detail-scroll > .viewport {
+    -fx-background-color: transparent;
+}
+
 .assignment-picker-button {
     -fx-alignment: CENTER_LEFT;
 }

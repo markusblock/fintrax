@@ -8,11 +8,11 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.geometry.Pos;
+import javafx.scene.control.Label;
 import javafx.scene.control.*;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import lombok.extern.slf4j.Slf4j;
 import org.fintrax.config.I18n;
@@ -68,7 +68,29 @@ public class TransactionsController {
     @FXML
     private VBox detailPanel;
     @FXML
-    private GridPane detailForm;
+    private Label accountValue;
+    @FXML
+    private Label bookingDateValue;
+    @FXML
+    private Label valueDateValue;
+    @FXML
+    private Label originalPayeeValue;
+    @FXML
+    private Label purposeValue;
+    @FXML
+    private Label amountValue;
+    @FXML
+    private Label balanceValue;
+    @FXML
+    private Label transactionTypeValue;
+    @FXML
+    private Label bookingStatusValue;
+    @FXML
+    private Label endToEndIdValue;
+    @FXML
+    private Label mandateIdValue;
+    @FXML
+    private Label creditorIdValue;
     @FXML
     private TextField payeeField;
     @FXML
@@ -81,6 +103,7 @@ public class TransactionsController {
     private Button detailSaveButton;
 
     private final TransactionService transactionService;
+    private final AccountService accountService;
     private final CategoryService categoryService;
     private final LabelService labelService;
     private final SettingsService settingsService;
@@ -91,10 +114,11 @@ public class TransactionsController {
     private Long detailCategoryId;
     private Set<Long> detailLabelIds = new HashSet<>();
 
-    public TransactionsController(TransactionService transactionService,
+    public TransactionsController(TransactionService transactionService, AccountService accountService,
                                   CategoryService categoryService, LabelService labelService,
                                   SettingsService settingsService, TransactionTableActions transactionTableActions) {
         this.transactionService = transactionService;
+        this.accountService = accountService;
         this.categoryService = categoryService;
         this.labelService = labelService;
         this.settingsService = settingsService;
@@ -115,6 +139,8 @@ public class TransactionsController {
         transactionTable.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
             if (newVal != null) {
                 loadDetail(newVal);
+            } else {
+                clearDetail();
             }
         });
         transactionTable.getSelectionModel().getSelectedItems().addListener(
@@ -269,7 +295,10 @@ public class TransactionsController {
 
     private void updateDetailEditingState() {
         boolean singleTransactionSelected = getSelectedTransactions().size() == 1;
-        detailForm.setDisable(!singleTransactionSelected);
+        payeeField.setDisable(!singleTransactionSelected);
+        detailCategoryButton.setDisable(!singleTransactionSelected);
+        detailLabelsButton.setDisable(!singleTransactionSelected);
+        noteArea.setDisable(!singleTransactionSelected);
         detailSaveButton.setDisable(!singleTransactionSelected);
     }
 
@@ -284,13 +313,71 @@ public class TransactionsController {
     }
 
     private void loadDetail(Transaction transaction) {
+        BankAccount account = transaction.getAccountId() == null ? null
+                : accountService.getAccount(transaction.getAccountId()).orElse(null);
+        accountValue.setText(accountName(account));
+        DateTimeFormatter dateFormatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT)
+                .withLocale(I18n.getCurrentLocale());
+        bookingDateValue.setText(formatDate(transaction.getBookingDate(), dateFormatter));
+        valueDateValue.setText(formatDate(transaction.getValueDate(), dateFormatter));
+        originalPayeeValue.setText(display(transaction.getOriginalPayee()));
         payeeField.setText(transaction.getPayeeDisplay() != null ? transaction.getPayeeDisplay() : "");
+        purposeValue.setText(display(transaction.getPurpose()));
+        String currency = accountCurrency(account);
+        amountValue.setText(formatAmount(transaction.getAmount(), currency));
+        balanceValue.setText(formatAmount(transaction.getBalanceAfter(), currency));
+        transactionTypeValue.setText(display(transaction.getTransactionType()));
+        bookingStatusValue.setText(I18n.get(transaction.isBooked() ? "detail.status.booked" : "detail.status.pending"));
+        endToEndIdValue.setText(display(transaction.getEndToEndId()));
+        mandateIdValue.setText(display(transaction.getMandateId()));
+        creditorIdValue.setText(display(transaction.getCreditorId()));
         detailCategoryId = transaction.getCategoryId();
         detailLabelIds = transaction.getLabelIds() == null
                 ? new HashSet<>()
                 : new HashSet<>(transaction.getLabelIds());
         updateDetailAssignmentButtons();
         noteArea.setText(transaction.getNote() != null ? transaction.getNote() : "");
+    }
+
+    private void clearDetail() {
+        for (Label value : List.of(accountValue, bookingDateValue, valueDateValue, originalPayeeValue,
+                purposeValue, amountValue, balanceValue, transactionTypeValue, bookingStatusValue,
+                endToEndIdValue, mandateIdValue, creditorIdValue)) {
+            value.setText("");
+        }
+        payeeField.clear();
+        detailCategoryId = null;
+        detailLabelIds.clear();
+        updateDetailAssignmentButtons();
+        noteArea.clear();
+    }
+
+    private String accountName(BankAccount account) {
+        if (account == null) return "—";
+        String bankName = account.getBankName() == null ? "" : account.getBankName().trim();
+        String iban = account.getIban() == null ? "" : account.getIban().trim();
+        String maskedIban = iban.length() < 8 ? iban
+                : iban.substring(0, 4) + "****" + iban.substring(iban.length() - 4);
+        String details = bankName.isBlank() ? maskedIban
+                : maskedIban.isBlank() ? bankName : bankName + " (" + maskedIban + ")";
+        return details.isBlank() ? "—" : details;
+    }
+
+    private String accountCurrency(BankAccount account) {
+        return account == null || account.getCurrency() == null || account.getCurrency().isBlank()
+                ? "EUR" : account.getCurrency();
+    }
+
+    private String formatDate(LocalDate date, DateTimeFormatter formatter) {
+        return date == null ? "—" : date.format(formatter);
+    }
+
+    private String formatAmount(BigDecimal amount, String currency) {
+        return amount == null ? "—" : String.format(I18n.getCurrentLocale(), "%,.2f %s", amount, currency);
+    }
+
+    private String display(String value) {
+        return value == null || value.isBlank() ? "—" : value;
     }
 
     private void updateDetailAssignmentButtons() {
