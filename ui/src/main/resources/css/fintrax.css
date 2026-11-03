@@ -504,8 +504,10 @@
 .detail-property-key,
 .detail-property-value {
     -fx-padding: 7 10;
-    -fx-border-color: transparent transparent -color-border-default transparent;
-    -fx-border-width: 0 0 1 0;
+}
+
+.detail-row-separator {
+    -fx-background-color: -color-border-default;
 }
 
 .detail-property-key {

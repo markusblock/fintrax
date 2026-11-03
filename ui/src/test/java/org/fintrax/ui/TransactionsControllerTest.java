@@ -781,6 +781,11 @@ class TransactionsControllerTest extends AbstractUITest {
         assertSideBySide("#payeeValue", "#originalPayeeValue");
         assertEquals(3, GridPane.getColumnSpan(lookup("#noteValue").query()));
         assertEquals(3, GridPane.getColumnSpan(lookup("#purposeValue").query()));
+        Set<Node> rowDividers = lookup("#detailForm").<GridPane>query()
+                .lookupAll(".detail-row-separator");
+        assertEquals(8, rowDividers.size());
+        assertTrue(rowDividers.stream().allMatch(divider -> GridPane.getColumnIndex(divider) == 0
+                && GridPane.getColumnSpan(divider) == 4));
         assertTrue(GridPane.getRowIndex(lookup("#amountValue").query())
                 < GridPane.getRowIndex(lookup("#categoryValue").query()));
         assertTrue(GridPane.getRowIndex(lookup("#categoryValue").query())

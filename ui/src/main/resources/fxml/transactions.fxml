@@ -100,6 +100,22 @@
                             <Label fx:id="mandateIdValue" styleClass="detail-property-value" wrapText="true" GridPane.rowIndex="8" GridPane.columnIndex="1"/>
                             <Label text="%detail.creditorId" styleClass="detail-property-key" GridPane.rowIndex="8" GridPane.columnIndex="2"/>
                             <Label fx:id="creditorIdValue" styleClass="detail-property-value" wrapText="true" GridPane.rowIndex="8" GridPane.columnIndex="3"/>
+                            <Region styleClass="detail-row-separator" minHeight="1" prefHeight="1" maxHeight="1" maxWidth="Infinity"
+                                    GridPane.rowIndex="0" GridPane.columnIndex="0" GridPane.columnSpan="4" GridPane.valignment="BOTTOM"/>
+                            <Region styleClass="detail-row-separator" minHeight="1" prefHeight="1" maxHeight="1" maxWidth="Infinity"
+                                    GridPane.rowIndex="1" GridPane.columnIndex="0" GridPane.columnSpan="4" GridPane.valignment="BOTTOM"/>
+                            <Region styleClass="detail-row-separator" minHeight="1" prefHeight="1" maxHeight="1" maxWidth="Infinity"
+                                    GridPane.rowIndex="2" GridPane.columnIndex="0" GridPane.columnSpan="4" GridPane.valignment="BOTTOM"/>
+                            <Region styleClass="detail-row-separator" minHeight="1" prefHeight="1" maxHeight="1" maxWidth="Infinity"
+                                    GridPane.rowIndex="3" GridPane.columnIndex="0" GridPane.columnSpan="4" GridPane.valignment="BOTTOM"/>
+                            <Region styleClass="detail-row-separator" minHeight="1" prefHeight="1" maxHeight="1" maxWidth="Infinity"
+                                    GridPane.rowIndex="4" GridPane.columnIndex="0" GridPane.columnSpan="4" GridPane.valignment="BOTTOM"/>
+                            <Region styleClass="detail-row-separator" minHeight="1" prefHeight="1" maxHeight="1" maxWidth="Infinity"
+                                    GridPane.rowIndex="5" GridPane.columnIndex="0" GridPane.columnSpan="4" GridPane.valignment="BOTTOM"/>
+                            <Region styleClass="detail-row-separator" minHeight="1" prefHeight="1" maxHeight="1" maxWidth="Infinity"
+                                    GridPane.rowIndex="6" GridPane.columnIndex="0" GridPane.columnSpan="4" GridPane.valignment="BOTTOM"/>
+                            <Region styleClass="detail-row-separator" minHeight="1" prefHeight="1" maxHeight="1" maxWidth="Infinity"
+                                    GridPane.rowIndex="7" GridPane.columnIndex="0" GridPane.columnSpan="4" GridPane.valignment="BOTTOM"/>
                         </GridPane>
                     </content>
                 </ScrollPane>
