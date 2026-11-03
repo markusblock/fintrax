@@ -23,12 +23,14 @@ import org.kordamp.ikonli.javafx.FontIcon;
 import org.fintrax.config.I18n;
 import org.fintrax.model.Category;
 import org.fintrax.model.Transaction;
+import org.fintrax.service.AccountService;
 import org.fintrax.service.CategoryService;
 import org.fintrax.service.LabelService;
 import org.fintrax.service.SettingsService;
 import org.fintrax.service.TransactionFilter;
 import org.fintrax.service.TransactionService;
 import org.fintrax.ui.FintraxUI;
+import org.fintrax.ui.control.AccountDisplay;
 import org.fintrax.ui.control.LabelChipFactory;
 import org.fintrax.ui.control.SingleLineText;
 import org.fintrax.ui.control.TableCellTooltips;
@@ -67,6 +69,8 @@ public class ClassificationsController {
     @FXML
     private TableColumn<Transaction, String> transactionPayeeColumn;
     @FXML
+    private TableColumn<Transaction, String> transactionAccountColumn;
+    @FXML
     private TableColumn<Transaction, String> transactionPurposeColumn;
     @FXML
     private TableColumn<Transaction, BigDecimal> transactionAmountColumn;
@@ -81,6 +85,7 @@ public class ClassificationsController {
     private final LabelService labelService;
     private final SettingsService settingsService;
     private final TransactionService transactionService;
+    private final AccountService accountService;
     private final TransactionTableActions transactionTableActions;
     private final Map<Long, TreeItem<String>> categoryItemsById = new HashMap<>();
     private final Map<Long, TreeItem<String>> labelItemsById = new HashMap<>();
@@ -97,11 +102,13 @@ public class ClassificationsController {
                                   LabelService labelService,
                                   SettingsService settingsService,
                                   TransactionService transactionService,
+                                  AccountService accountService,
                                   TransactionTableActions transactionTableActions) {
         this.categoryService = categoryService;
         this.labelService = labelService;
         this.settingsService = settingsService;
         this.transactionService = transactionService;
+        this.accountService = accountService;
         this.transactionTableActions = transactionTableActions;
     }
 
@@ -132,6 +139,7 @@ public class ClassificationsController {
                 COLUMN_CONFIG_KEY, settingsService, List.of(
                 new TableColumnConfig("date", transactionDateColumn),
                 new TableColumnConfig("payee", transactionPayeeColumn),
+                new TableColumnConfig("account", transactionAccountColumn),
                 new TableColumnConfig("purpose", transactionPurposeColumn),
                 new TableColumnConfig("amount", transactionAmountColumn),
                 new TableColumnConfig("category", transactionCategoryColumn),
@@ -156,6 +164,11 @@ public class ClassificationsController {
         transactionPayeeColumn.setCellValueFactory(cell -> new SimpleStringProperty(
                 Objects.toString(cell.getValue().getPayeeDisplay() != null
                         ? cell.getValue().getPayeeDisplay() : cell.getValue().getOriginalPayee(), "")));
+        transactionAccountColumn.setCellValueFactory(cell -> {
+            Long accountId = cell.getValue().getAccountId();
+            return new SimpleStringProperty(accountId == null ? "" : AccountDisplay.name(
+                    accountService.getAccount(accountId).orElse(null)));
+        });
         transactionPurposeColumn.setCellValueFactory(cell ->
                 new SimpleStringProperty(SingleLineText.normalize(cell.getValue().getPurpose())));
 
@@ -199,6 +212,7 @@ public class ClassificationsController {
 
         transactionDateColumn.setSortable(true);
         transactionPayeeColumn.setSortable(true);
+        transactionAccountColumn.setSortable(true);
         transactionPurposeColumn.setSortable(true);
         transactionAmountColumn.setSortable(true);
         transactionCategoryColumn.setSortable(true);

@@ -25,6 +25,7 @@
                     <TableColumn fx:id="dateColumn" text="%col.date" minWidth="115" prefWidth="115" maxWidth="115"
                                  resizable="false"/>
                     <TableColumn fx:id="payeeColumn" text="%col.payee" minWidth="100" prefWidth="140"/>
+                    <TableColumn fx:id="accountColumn" text="%col.account" minWidth="110" prefWidth="150"/>
                     <TableColumn fx:id="purposeColumn" text="%col.purpose" minWidth="120" prefWidth="180"/>
                     <TableColumn fx:id="amountColumn" text="%col.amount" minWidth="90" prefWidth="110"/>
                     <TableColumn fx:id="balanceColumn" text="%col.balance" minWidth="90" prefWidth="110"/>
