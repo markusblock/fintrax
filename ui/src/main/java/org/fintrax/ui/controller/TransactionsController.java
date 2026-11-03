@@ -20,6 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.fintrax.config.I18n;
 import org.fintrax.model.*;
 import org.fintrax.service.*;
+import org.fintrax.ui.control.AccountDisplay;
 import org.fintrax.ui.control.LabelChipFactory;
 import org.fintrax.ui.control.SingleLineText;
 import org.fintrax.ui.control.TableColumnConfig;
@@ -62,6 +63,8 @@ public class TransactionsController {
     private TableColumn<Transaction, LocalDate> dateColumn;
     @FXML
     private TableColumn<Transaction, String> payeeColumn;
+    @FXML
+    private TableColumn<Transaction, String> accountColumn;
     @FXML
     private TableColumn<Transaction, String> purposeColumn;
     @FXML
@@ -175,6 +178,13 @@ public class TransactionsController {
 
         payeeColumn.setCellValueFactory(cd -> new SimpleStringProperty(
                 cd.getValue().getPayeeDisplay() != null ? cd.getValue().getPayeeDisplay() : cd.getValue().getOriginalPayee()));
+
+        accountColumn.setCellValueFactory(cd -> {
+            Long accountId = cd.getValue().getAccountId();
+            if (accountId == null) return new SimpleStringProperty("");
+            return new SimpleStringProperty(AccountDisplay.name(
+                    accountService.getAccount(accountId).orElse(null)));
+        });
 
         purposeColumn.setCellValueFactory(cd -> new SimpleStringProperty(
                 SingleLineText.normalize(cd.getValue().getPurpose())));
@@ -351,7 +361,7 @@ public class TransactionsController {
         setPropertyText(noteValue, transaction.getNote());
         setPropertyText(bookingDateValue, formatDate(transaction.getBookingDate(), dateFormatter));
         setPropertyText(valueDateValue, formatDate(transaction.getValueDate(), dateFormatter));
-        setPropertyText(accountValue, accountName(account));
+        setPropertyText(accountValue, AccountDisplay.name(account));
         setPropertyText(transactionTypeValue, transaction.getTransactionType());
         setPropertyText(payeeValue, transaction.getPayeeDisplay());
         setPropertyText(originalPayeeValue, transaction.getOriginalPayee());
@@ -395,18 +405,6 @@ public class TransactionsController {
                 .toList();
         if (labels.isEmpty()) return;
         labels.forEach(label -> labelsValue.getChildren().add(LabelChipFactory.create(label)));
-    }
-
-    private String accountName(BankAccount account) {
-        if (account == null) return "";
-        String bankName = account.getBankName() == null ? "" : account.getBankName().trim();
-        String iban = account.getIban() == null ? "" : account.getIban().trim();
-        String maskedIban = iban.length() < 8 ? iban
-                : iban.substring(0, 4) + "****" + iban.substring(iban.length() - 4);
-        if (bankName.isBlank() && maskedIban.isBlank()) return "";
-        if (bankName.isBlank()) return maskedIban;
-        if (maskedIban.isBlank()) return bankName;
-        return bankName + " (" + maskedIban + ")";
     }
 
     private String accountCurrency(BankAccount account) {
@@ -457,6 +455,7 @@ public class TransactionsController {
         return List.of(
                 new TableColumnConfig("date", dateColumn),
                 new TableColumnConfig("payee", payeeColumn),
+                new TableColumnConfig("account", accountColumn),
                 new TableColumnConfig("purpose", purposeColumn),
                 new TableColumnConfig("amount", amountColumn),
                 new TableColumnConfig("balance", balanceColumn),
