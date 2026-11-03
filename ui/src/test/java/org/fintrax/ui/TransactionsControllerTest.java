@@ -826,6 +826,8 @@ class TransactionsControllerTest extends AbstractUITest {
             throw new AssertionError("Details viewport=" + detailScrollPane.getViewportBounds().getHeight()
                     + ", content=" + detailForm.prefHeight(width) + ", panel=" + detailPanelHeight(), timeout);
         }
+        double width = detailScrollPane.getViewportBounds().getWidth();
+        assertTrue(detailScrollPane.getViewportBounds().getHeight() + 1 >= detailForm.prefHeight(width));
     }
 
     private double detailPanelHeight() {
