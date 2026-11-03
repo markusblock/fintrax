@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 @Component
@@ -37,18 +38,13 @@ public class TransactionTableActions {
         this.labelService = labelService;
     }
 
-    public void installContextMenu(TableView<Transaction> table, Node owner, Runnable afterEdit) {
-        MenuItem setCategoryItem = new MenuItem(I18n.get("contextMenu.setCategory"));
-        setCategoryItem.setGraphic(icon("fth-tag", 14));
-        setCategoryItem.setOnAction(event -> setCategory(table, owner, afterEdit));
-
-        MenuItem setLabelsItem = new MenuItem(I18n.get("contextMenu.setLabels"));
-        setLabelsItem.setGraphic(icon("fth-plus", 14));
-        setLabelsItem.setOnAction(event -> setLabels(table, owner, afterEdit));
-
-        ContextMenu contextMenu = new ContextMenu(setCategoryItem, setLabelsItem);
+    public void installContextMenu(TableView<Transaction> table, Node owner, Runnable afterEdit,
+                                   Consumer<Transaction> createRule) {
         table.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
         table.setRowFactory(view -> new TableRow<>() {
+            private final ContextMenu contextMenu = createContextMenu(
+                    this, table, owner, afterEdit, createRule);
+
             {
                 setOnMousePressed(event -> {
                     if (event.getButton() == MouseButton.SECONDARY && !isEmpty()
@@ -64,6 +60,29 @@ public class TransactionTableActions {
                 setContextMenu(empty ? null : contextMenu);
             }
         });
+    }
+
+    private ContextMenu createContextMenu(TableRow<Transaction> row, TableView<Transaction> table,
+                                          Node owner, Runnable afterEdit, Consumer<Transaction> createRule) {
+        MenuItem setCategoryItem = new MenuItem(I18n.get("contextMenu.setCategory"));
+        setCategoryItem.setGraphic(icon("fth-tag", 14));
+        setCategoryItem.setOnAction(event -> setCategory(table, owner, afterEdit));
+
+        MenuItem setLabelsItem = new MenuItem(I18n.get("contextMenu.setLabels"));
+        setLabelsItem.setGraphic(icon("fth-plus", 14));
+        setLabelsItem.setOnAction(event -> setLabels(table, owner, afterEdit));
+
+        List<MenuItem> items = new ArrayList<>(List.of(setCategoryItem, setLabelsItem));
+        if (createRule != null) {
+            MenuItem createRuleItem = new MenuItem(I18n.get("contextMenu.createRule"));
+            createRuleItem.setGraphic(icon("fth-plus-circle", 14));
+            createRuleItem.setOnAction(event -> {
+                Transaction transaction = row.getItem();
+                if (transaction != null) createRule.accept(transaction);
+            });
+            items.add(createRuleItem);
+        }
+        return new ContextMenu(items.toArray(MenuItem[]::new));
     }
 
     public void setCategory(TableView<Transaction> table, Node owner, Runnable afterEdit) {

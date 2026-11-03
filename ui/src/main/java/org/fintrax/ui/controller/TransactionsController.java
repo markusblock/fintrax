@@ -120,6 +120,7 @@ public class TransactionsController {
     private final CategoryService categoryService;
     private final LabelService labelService;
     private final SettingsService settingsService;
+    private final RuleService ruleService;
     private final TransactionTableActions transactionTableActions;
 
     private final ObservableList<Transaction> tableData = FXCollections.observableArrayList();
@@ -127,12 +128,14 @@ public class TransactionsController {
 
     public TransactionsController(TransactionService transactionService, AccountService accountService,
                                   CategoryService categoryService, LabelService labelService,
-                                  SettingsService settingsService, TransactionTableActions transactionTableActions) {
+                                  SettingsService settingsService, RuleService ruleService,
+                                  TransactionTableActions transactionTableActions) {
         this.transactionService = transactionService;
         this.accountService = accountService;
         this.categoryService = categoryService;
         this.labelService = labelService;
         this.settingsService = settingsService;
+        this.ruleService = ruleService;
         this.transactionTableActions = transactionTableActions;
     }
 
@@ -140,7 +143,7 @@ public class TransactionsController {
     public void initialize() {
         log.info("TransactionsController initialized");
         transactionTableActions.installContextMenu(
-                transactionTable, rootPane, this::reloadTransactionsKeepingSelection);
+                transactionTable, rootPane, this::reloadTransactionsKeepingSelection, this::createRuleFromTransaction);
         setupTableColumns();
         TableCellTooltips.install(transactionTable);
         transactionFilterPanelController.setCollapsible(true);
@@ -442,6 +445,11 @@ public class TransactionsController {
     private void onSetLabels() {
         transactionTableActions.setLabels(
                 transactionTable, rootPane, this::reloadTransactionsKeepingSelection);
+    }
+
+    private void createRuleFromTransaction(Transaction transaction) {
+        CreateRuleFromTransactionDialog.show(rootPane.getScene().getWindow(), transaction,
+                ruleService, categoryService, labelService);
     }
 
     private List<Transaction> getSelectedTransactions() {
