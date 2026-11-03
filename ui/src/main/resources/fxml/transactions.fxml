@@ -60,13 +60,15 @@
                                 <ColumnConstraints hgrow="ALWAYS" fillWidth="true"/>
                             </columnConstraints>
                             <Label text="%detail.amount" styleClass="detail-property-key" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
-                            <Label fx:id="amountValue" styleClass="detail-property-value" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
+                            <Label fx:id="amountValue" styleClass="detail-property-value,detail-primary-value" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
                             <Label text="%detail.balance" styleClass="detail-property-key" GridPane.rowIndex="0" GridPane.columnIndex="2"/>
-                            <Label fx:id="balanceValue" styleClass="detail-property-value" GridPane.rowIndex="0" GridPane.columnIndex="3"/>
+                            <Label fx:id="balanceValue" styleClass="detail-property-value,detail-primary-value" GridPane.rowIndex="0" GridPane.columnIndex="3"/>
                             <Label text="%detail.category" styleClass="detail-property-key" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
-                            <Label fx:id="categoryValue" styleClass="detail-property-value" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
+                            <Label fx:id="categoryValue" styleClass="detail-property-value,detail-category-value" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
                             <Label text="%detail.labels" styleClass="detail-property-key" GridPane.rowIndex="1" GridPane.columnIndex="2"/>
-                            <Label fx:id="labelsValue" styleClass="detail-property-value" wrapText="true" GridPane.rowIndex="1" GridPane.columnIndex="3"/>
+                            <FlowPane fx:id="labelsValue" styleClass="detail-property-value,detail-label-flow"
+                                      maxWidth="Infinity"
+                                      GridPane.rowIndex="1" GridPane.columnIndex="3"/>
                             <Label text="%detail.note" styleClass="detail-property-key" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
                             <Label fx:id="noteValue" styleClass="detail-property-value" wrapText="true"
                                    GridPane.rowIndex="2" GridPane.columnIndex="1" GridPane.columnSpan="3"/>
@@ -86,7 +88,12 @@
                             <Label fx:id="purposeValue" styleClass="detail-property-value" wrapText="true"
                                    GridPane.rowIndex="6" GridPane.columnIndex="1" GridPane.columnSpan="3"/>
                             <Label text="%detail.bookingStatus" styleClass="detail-property-key" GridPane.rowIndex="7" GridPane.columnIndex="0"/>
-                            <Label fx:id="bookingStatusValue" styleClass="detail-property-value" GridPane.rowIndex="7" GridPane.columnIndex="1"/>
+                            <StackPane styleClass="detail-property-value,detail-status-cell"
+                                       GridPane.rowIndex="7" GridPane.columnIndex="1">
+                                <children>
+                                    <Label fx:id="bookingStatusValue" styleClass="detail-status-badge"/>
+                                </children>
+                            </StackPane>
                             <Label text="%detail.endToEndId" styleClass="detail-property-key" GridPane.rowIndex="7" GridPane.columnIndex="2"/>
                             <Label fx:id="endToEndIdValue" styleClass="detail-property-value" wrapText="true" GridPane.rowIndex="7" GridPane.columnIndex="3"/>
                             <Label text="%detail.mandateId" styleClass="detail-property-key" GridPane.rowIndex="8" GridPane.columnIndex="0"/>

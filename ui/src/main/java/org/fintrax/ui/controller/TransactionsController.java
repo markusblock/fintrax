@@ -12,6 +12,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.*;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import lombok.extern.slf4j.Slf4j;
@@ -81,7 +82,7 @@ public class TransactionsController {
     @FXML
     private Label categoryValue;
     @FXML
-    private Label labelsValue;
+    private FlowPane labelsValue;
     @FXML
     private Label noteValue;
     @FXML
@@ -305,21 +306,28 @@ public class TransactionsController {
         payeeValue.setText(display(transaction.getPayeeDisplay()));
         purposeValue.setText(display(transaction.getPurpose()));
         String currency = accountCurrency(account);
-        amountValue.setText(formatAmount(transaction.getAmount(), currency));
-        balanceValue.setText(formatAmount(transaction.getBalanceAfter(), currency));
+        setAmountValue(amountValue, transaction.getAmount(), currency);
+        setAmountValue(balanceValue, transaction.getBalanceAfter(), currency);
         transactionTypeValue.setText(display(transaction.getTransactionType()));
-        bookingStatusValue.setText(I18n.get(transaction.isBooked() ? "detail.status.booked" : "detail.status.pending"));
+        boolean booked = transaction.isBooked();
+        bookingStatusValue.setText(I18n.get(booked ? "detail.status.booked" : "detail.status.pending"));
+        bookingStatusValue.getStyleClass().removeAll("booked", "pending");
+        bookingStatusValue.getStyleClass().add(booked ? "booked" : "pending");
         endToEndIdValue.setText(display(transaction.getEndToEndId()));
         mandateIdValue.setText(display(transaction.getMandateId()));
         creditorIdValue.setText(display(transaction.getCreditorId()));
         categoryValue.setText(categoryName(transaction.getCategoryId()));
-        labelsValue.setText(labelNames(transaction.getLabelIds()));
+        setDetailLabels(transaction.getLabelIds());
         noteValue.setText(display(transaction.getNote()));
     }
 
     private void clearDetail() {
+        clearDetailLabels();
+        bookingStatusValue.getStyleClass().removeAll("booked", "pending");
+        amountValue.getStyleClass().removeAll("amount-positive", "amount-negative");
+        balanceValue.getStyleClass().removeAll("amount-positive", "amount-negative");
         for (Label value : List.of(accountValue, bookingDateValue, valueDateValue, originalPayeeValue,
-                payeeValue, purposeValue, categoryValue, labelsValue, noteValue, amountValue, balanceValue,
+                payeeValue, purposeValue, categoryValue, noteValue, amountValue, balanceValue,
                 transactionTypeValue, bookingStatusValue, endToEndIdValue, mandateIdValue, creditorIdValue)) {
             value.setText("");
         }
@@ -330,16 +338,24 @@ public class TransactionsController {
         return categoryService.getCategory(categoryId).map(Category::getName).orElse("—");
     }
 
-    private String labelNames(Set<Long> labelIds) {
-        if (labelIds == null || labelIds.isEmpty()) return "—";
-        String names = labelIds.stream()
+    private void setDetailLabels(Set<Long> labelIds) {
+        labelsValue.getChildren().clear();
+        List<org.fintrax.model.Label> labels = labelIds == null ? List.of() : labelIds.stream()
                 .map(labelService::getLabel)
                 .flatMap(Optional::stream)
-                .map(org.fintrax.model.Label::getName)
-                .filter(name -> !name.isBlank())
-                .sorted(String.CASE_INSENSITIVE_ORDER)
-                .collect(Collectors.joining(", "));
-        return display(names);
+                .sorted(Comparator.comparing(org.fintrax.model.Label::getName, String.CASE_INSENSITIVE_ORDER))
+                .toList();
+        if (labels.isEmpty()) {
+            Label unavailable = new Label("—");
+            unavailable.getStyleClass().add("detail-missing-value");
+            labelsValue.getChildren().add(unavailable);
+            return;
+        }
+        labels.forEach(label -> labelsValue.getChildren().add(LabelChipFactory.create(label)));
+    }
+
+    private void clearDetailLabels() {
+        labelsValue.getChildren().clear();
     }
 
     private String accountName(BankAccount account) {
@@ -365,6 +381,14 @@ public class TransactionsController {
 
     private String formatAmount(BigDecimal amount, String currency) {
         return amount == null ? "—" : String.format(I18n.getCurrentLocale(), "%,.2f %s", amount, currency);
+    }
+
+    private void setAmountValue(Label value, BigDecimal amount, String currency) {
+        value.setText(formatAmount(amount, currency));
+        value.getStyleClass().removeAll("amount-positive", "amount-negative");
+        if (amount != null) {
+            value.getStyleClass().add(amount.signum() < 0 ? "amount-negative" : "amount-positive");
+        }
     }
 
     private String display(String value) {

@@ -757,10 +757,14 @@ class TransactionsControllerTest extends AbstractUITest {
         assertEquals(testCategory.getName(), detailText("#categoryValue"));
         org.fintrax.model.Label testLabel = applicationContext.getBean(LabelService.class)
                 .getLabel(testCategoryTransaction.getLabelIds().iterator().next()).orElseThrow();
-        assertEquals(testLabel.getName(), detailText("#labelsValue"));
+        FlowPane labelsValue = lookup("#labelsValue").query();
+        assertEquals(testLabel.getName(), ((javafx.scene.control.Label)
+                labelsValue.getChildren().getFirst()).getText());
         assertEquals("Test transaction note", detailText("#noteValue"));
         assertEquals("SEPA transfer", detailText("#transactionTypeValue"));
         assertEquals(I18n.get("detail.status.pending"), detailText("#bookingStatusValue"));
+        assertTrue(lookup("#bookingStatusValue").<javafx.scene.control.Label>query()
+                .getStyleClass().contains("pending"));
         assertEquals("E2E-123", detailText("#endToEndIdValue"));
         assertEquals("MANDATE-123", detailText("#mandateIdValue"));
         assertEquals("CREDITOR-123", detailText("#creditorIdValue"));
@@ -811,6 +815,8 @@ class TransactionsControllerTest extends AbstractUITest {
         assertEquals("—", detailText("#purposeValue"));
         assertEquals("—", detailText("#balanceValue"));
         assertEquals("—", detailText("#transactionTypeValue"));
+        assertEquals("—", ((javafx.scene.control.Label)
+                lookup("#labelsValue").<FlowPane>query().getChildren().getFirst()).getText());
         assertEquals("—", detailText("#endToEndIdValue"));
         assertEquals("—", detailText("#mandateIdValue"));
         assertEquals("—", detailText("#creditorIdValue"));

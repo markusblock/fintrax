@@ -497,19 +497,69 @@
 .transaction-property-table {
     -fx-background-color: -color-bg-default;
     -fx-border-color: -color-border-default;
-    -fx-border-radius: 6;
-    -fx-background-radius: 6;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
 }
 
 .detail-property-key,
 .detail-property-value {
-    -fx-padding: 5 8;
-    -fx-border-color: transparent -color-border-default -color-border-default transparent;
-    -fx-border-width: 0 1 1 0;
+    -fx-padding: 7 10;
+    -fx-border-color: transparent transparent -color-border-default transparent;
+    -fx-border-width: 0 0 1 0;
 }
 
 .detail-property-key {
     -fx-text-fill: -color-fg-muted;
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+}
+
+.detail-primary-value {
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+}
+
+.detail-category-value {
+    -fx-font-weight: bold;
+}
+
+.detail-primary-value.amount-positive {
+    -fx-text-fill: -color-success-fg;
+}
+
+.detail-primary-value.amount-negative {
+    -fx-text-fill: -color-danger-fg;
+}
+
+.detail-label-flow {
+    -fx-alignment: CENTER_LEFT;
+    -fx-hgap: 4;
+    -fx-vgap: 4;
+}
+
+.detail-missing-value {
+    -fx-text-fill: -color-fg-muted;
+}
+
+.detail-status-cell {
+    -fx-alignment: CENTER_LEFT;
+}
+
+.detail-status-badge {
+    -fx-padding: 2 9;
+    -fx-background-radius: 12;
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+}
+
+.detail-status-badge.booked {
+    -fx-background-color: derive(-color-success-fg, 85%);
+    -fx-text-fill: -color-success-fg;
+}
+
+.detail-status-badge.pending {
+    -fx-background-color: derive(-color-warning-fg, 85%);
+    -fx-text-fill: -color-warning-fg;
 }
 
 .assignment-picker-button {
