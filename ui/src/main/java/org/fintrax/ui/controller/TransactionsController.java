@@ -19,7 +19,6 @@ import org.fintrax.config.I18n;
 import org.fintrax.model.*;
 import org.fintrax.service.*;
 import org.fintrax.ui.control.LabelChipFactory;
-import org.fintrax.ui.control.SearchableListPicker;
 import org.fintrax.ui.control.SingleLineText;
 import org.fintrax.ui.control.TableColumnConfig;
 import org.fintrax.ui.control.TableColumnVisibilityMenu;
@@ -76,7 +75,15 @@ public class TransactionsController {
     @FXML
     private Label originalPayeeValue;
     @FXML
+    private Label payeeValue;
+    @FXML
     private Label purposeValue;
+    @FXML
+    private Label categoryValue;
+    @FXML
+    private Label labelsValue;
+    @FXML
+    private Label noteValue;
     @FXML
     private Label amountValue;
     @FXML
@@ -91,16 +98,6 @@ public class TransactionsController {
     private Label mandateIdValue;
     @FXML
     private Label creditorIdValue;
-    @FXML
-    private TextField payeeField;
-    @FXML
-    private Button detailCategoryButton;
-    @FXML
-    private Button detailLabelsButton;
-    @FXML
-    private TextArea noteArea;
-    @FXML
-    private Button detailSaveButton;
 
     private final TransactionService transactionService;
     private final AccountService accountService;
@@ -111,8 +108,6 @@ public class TransactionsController {
 
     private final ObservableList<Transaction> tableData = FXCollections.observableArrayList();
     private boolean detailVisible = false;
-    private Long detailCategoryId;
-    private Set<Long> detailLabelIds = new HashSet<>();
 
     public TransactionsController(TransactionService transactionService, AccountService accountService,
                                   CategoryService categoryService, LabelService labelService,
@@ -143,11 +138,6 @@ public class TransactionsController {
                 clearDetail();
             }
         });
-        transactionTable.getSelectionModel().getSelectedItems().addListener(
-                (javafx.collections.ListChangeListener<Transaction>) change -> updateDetailEditingState());
-        updateDetailEditingState();
-        detailCategoryButton.setOnAction(event -> chooseDetailCategory());
-        detailLabelsButton.setOnAction(event -> chooseDetailLabels());
         Platform.runLater(rootPane::applyCss);
     }
 
@@ -293,15 +283,6 @@ public class TransactionsController {
         }
     }
 
-    private void updateDetailEditingState() {
-        boolean singleTransactionSelected = getSelectedTransactions().size() == 1;
-        payeeField.setDisable(!singleTransactionSelected);
-        detailCategoryButton.setDisable(!singleTransactionSelected);
-        detailLabelsButton.setDisable(!singleTransactionSelected);
-        noteArea.setDisable(!singleTransactionSelected);
-        detailSaveButton.setDisable(!singleTransactionSelected);
-    }
-
     @FXML
     private void onToggleDetail() {
         detailVisible = !detailVisible;
@@ -321,7 +302,7 @@ public class TransactionsController {
         bookingDateValue.setText(formatDate(transaction.getBookingDate(), dateFormatter));
         valueDateValue.setText(formatDate(transaction.getValueDate(), dateFormatter));
         originalPayeeValue.setText(display(transaction.getOriginalPayee()));
-        payeeField.setText(transaction.getPayeeDisplay() != null ? transaction.getPayeeDisplay() : "");
+        payeeValue.setText(display(transaction.getPayeeDisplay()));
         purposeValue.setText(display(transaction.getPurpose()));
         String currency = accountCurrency(account);
         amountValue.setText(formatAmount(transaction.getAmount(), currency));
@@ -331,25 +312,34 @@ public class TransactionsController {
         endToEndIdValue.setText(display(transaction.getEndToEndId()));
         mandateIdValue.setText(display(transaction.getMandateId()));
         creditorIdValue.setText(display(transaction.getCreditorId()));
-        detailCategoryId = transaction.getCategoryId();
-        detailLabelIds = transaction.getLabelIds() == null
-                ? new HashSet<>()
-                : new HashSet<>(transaction.getLabelIds());
-        updateDetailAssignmentButtons();
-        noteArea.setText(transaction.getNote() != null ? transaction.getNote() : "");
+        categoryValue.setText(categoryName(transaction.getCategoryId()));
+        labelsValue.setText(labelNames(transaction.getLabelIds()));
+        noteValue.setText(display(transaction.getNote()));
     }
 
     private void clearDetail() {
         for (Label value : List.of(accountValue, bookingDateValue, valueDateValue, originalPayeeValue,
-                purposeValue, amountValue, balanceValue, transactionTypeValue, bookingStatusValue,
-                endToEndIdValue, mandateIdValue, creditorIdValue)) {
+                payeeValue, purposeValue, categoryValue, labelsValue, noteValue, amountValue, balanceValue,
+                transactionTypeValue, bookingStatusValue, endToEndIdValue, mandateIdValue, creditorIdValue)) {
             value.setText("");
         }
-        payeeField.clear();
-        detailCategoryId = null;
-        detailLabelIds.clear();
-        updateDetailAssignmentButtons();
-        noteArea.clear();
+    }
+
+    private String categoryName(Long categoryId) {
+        if (categoryId == null) return "—";
+        return categoryService.getCategory(categoryId).map(Category::getName).orElse("—");
+    }
+
+    private String labelNames(Set<Long> labelIds) {
+        if (labelIds == null || labelIds.isEmpty()) return "—";
+        String names = labelIds.stream()
+                .map(labelService::getLabel)
+                .flatMap(Optional::stream)
+                .map(org.fintrax.model.Label::getName)
+                .filter(name -> !name.isBlank())
+                .sorted(String.CASE_INSENSITIVE_ORDER)
+                .collect(Collectors.joining(", "));
+        return display(names);
     }
 
     private String accountName(BankAccount account) {
@@ -379,70 +369,6 @@ public class TransactionsController {
 
     private String display(String value) {
         return value == null || value.isBlank() ? "—" : value;
-    }
-
-    private void updateDetailAssignmentButtons() {
-        String categoryName = detailCategoryId == null ? I18n.get("picker.category.clear")
-                : categoryService.getCategory(detailCategoryId).map(Category::getName)
-                .orElse(I18n.get("picker.category.clear"));
-        detailCategoryButton.setText(categoryName);
-
-        String labelNames = detailLabelIds.stream()
-                .map(labelService::getLabel)
-                .flatMap(Optional::stream)
-                .map(org.fintrax.model.Label::getName)
-                .sorted(String.CASE_INSENSITIVE_ORDER)
-                .collect(Collectors.joining(", "));
-        detailLabelsButton.setText(labelNames.isEmpty() ? I18n.get("picker.labels.choose") : labelNames);
-    }
-
-    private void chooseDetailCategory() {
-        Category selectedCategory = detailCategoryId == null
-                ? null
-                : categoryService.getCategory(detailCategoryId).orElse(null);
-        SearchableListPicker.chooseOne(rootPane.getScene().getWindow(), I18n.get("picker.category.title"),
-                categoryService.getAllCategories(),
-                selectedCategory, Category::getName,
-                "picker.category.create", name -> categoryService.createCategory(name, null, null))
-                .ifPresent(choice -> {
-                    detailCategoryId = choice.isEmpty() ? null : choice.get(0).getId();
-                    updateDetailAssignmentButtons();
-                });
-    }
-
-    private void chooseDetailLabels() {
-        List<org.fintrax.model.Label> selectedLabels = labelService.getAllLabels().stream()
-                .filter(label -> detailLabelIds.contains(label.getId()))
-                .toList();
-        SearchableListPicker.chooseMany(rootPane.getScene().getWindow(), I18n.get("picker.labels.title"),
-                labelService.getAllLabels(), selectedLabels, org.fintrax.model.Label::getName,
-                "picker.labels.create", name -> labelService.createLabel(name, "#1976d2", null))
-                .ifPresent(labels -> {
-                    detailLabelIds = labels.stream().map(org.fintrax.model.Label::getId)
-                            .collect(Collectors.toCollection(HashSet::new));
-                    updateDetailAssignmentButtons();
-                });
-    }
-
-    @FXML
-    private void onSaveDetail() {
-        if (getSelectedTransactions().size() != 1) return;
-        Transaction selected = transactionTable.getSelectionModel().getSelectedItem();
-        if (selected == null) return;
-
-        String payee = payeeField.getText().trim();
-        if (!payee.isEmpty()) {
-            transactionService.updatePayeeDisplay(selected.getId(), payee);
-        }
-
-        transactionService.updateCategory(selected.getId(), detailCategoryId);
-        transactionService.updateLabels(selected.getId(), detailLabelIds);
-
-        String note = noteArea.getText().trim();
-        transactionService.updateNote(selected.getId(), note.isEmpty() ? null : note);
-
-        loadTransactions();
-        log.info("Saved detail for transaction {}", selected.getId());
     }
 
     @FXML

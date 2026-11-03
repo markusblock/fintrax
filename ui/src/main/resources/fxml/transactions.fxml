@@ -52,54 +52,50 @@
                 <ScrollPane fitToWidth="true" hbarPolicy="NEVER" styleClass="transaction-detail-scroll"
                             VBox.vgrow="ALWAYS">
                     <content>
-                        <GridPane fx:id="detailForm" hgap="10" vgap="10">
+                        <GridPane fx:id="detailForm" styleClass="transaction-property-table" hgap="0" vgap="0">
                             <columnConstraints>
-                                <ColumnConstraints minWidth="100" prefWidth="120" halignment="RIGHT"/>
+                                <ColumnConstraints minWidth="105" prefWidth="120"/>
+                                <ColumnConstraints hgrow="ALWAYS" fillWidth="true"/>
+                                <ColumnConstraints minWidth="105" prefWidth="120"/>
                                 <ColumnConstraints hgrow="ALWAYS" fillWidth="true"/>
                             </columnConstraints>
-                            <Label text="%detail.account" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
-                            <Label fx:id="accountValue" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
-                            <Label text="%detail.bookingDate" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
-                            <Label fx:id="bookingDateValue" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
-                            <Label text="%detail.valueDate" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
-                            <Label fx:id="valueDateValue" GridPane.rowIndex="2" GridPane.columnIndex="1"/>
-                            <Label text="%detail.originalPayee" GridPane.rowIndex="3" GridPane.columnIndex="0"/>
-                            <Label fx:id="originalPayeeValue" wrapText="true" GridPane.rowIndex="3" GridPane.columnIndex="1"/>
-                            <Label text="%detail.payee" GridPane.rowIndex="4" GridPane.columnIndex="0"/>
-                            <TextField fx:id="payeeField" GridPane.rowIndex="4" GridPane.columnIndex="1"/>
-                            <Label text="%detail.purpose" GridPane.rowIndex="5" GridPane.columnIndex="0"/>
-                            <Label fx:id="purposeValue" wrapText="true" GridPane.rowIndex="5" GridPane.columnIndex="1"/>
-                            <Label text="%detail.amount" GridPane.rowIndex="6" GridPane.columnIndex="0"/>
-                            <Label fx:id="amountValue" GridPane.rowIndex="6" GridPane.columnIndex="1"/>
-                            <Label text="%detail.balance" GridPane.rowIndex="7" GridPane.columnIndex="0"/>
-                            <Label fx:id="balanceValue" GridPane.rowIndex="7" GridPane.columnIndex="1"/>
-                            <Label text="%detail.transactionType" GridPane.rowIndex="8" GridPane.columnIndex="0"/>
-                            <Label fx:id="transactionTypeValue" GridPane.rowIndex="8" GridPane.columnIndex="1"/>
-                            <Label text="%detail.bookingStatus" GridPane.rowIndex="9" GridPane.columnIndex="0"/>
-                            <Label fx:id="bookingStatusValue" GridPane.rowIndex="9" GridPane.columnIndex="1"/>
-                            <Label text="%detail.endToEndId" GridPane.rowIndex="10" GridPane.columnIndex="0"/>
-                            <Label fx:id="endToEndIdValue" wrapText="true" GridPane.rowIndex="10" GridPane.columnIndex="1"/>
-                            <Label text="%detail.mandateId" GridPane.rowIndex="11" GridPane.columnIndex="0"/>
-                            <Label fx:id="mandateIdValue" wrapText="true" GridPane.rowIndex="11" GridPane.columnIndex="1"/>
-                            <Label text="%detail.creditorId" GridPane.rowIndex="12" GridPane.columnIndex="0"/>
-                            <Label fx:id="creditorIdValue" wrapText="true" GridPane.rowIndex="12" GridPane.columnIndex="1"/>
-                            <Label text="%detail.category" GridPane.rowIndex="13" GridPane.columnIndex="0"/>
-                            <Button fx:id="detailCategoryButton" maxWidth="Infinity" styleClass="button-outlined,assignment-picker-button"
-                                    GridPane.rowIndex="13" GridPane.columnIndex="1"/>
-                            <Label text="%detail.labels" GridPane.rowIndex="14" GridPane.columnIndex="0"/>
-                            <Button fx:id="detailLabelsButton" maxWidth="Infinity" styleClass="button-outlined,assignment-picker-button"
-                                    GridPane.rowIndex="14" GridPane.columnIndex="1"/>
-                            <Label text="%detail.note" GridPane.rowIndex="15" GridPane.columnIndex="0"/>
-                            <TextArea fx:id="noteArea" prefRowCount="3" wrapText="true" GridPane.rowIndex="15" GridPane.columnIndex="1"/>
+                            <Label text="%detail.amount" styleClass="detail-property-key" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+                            <Label fx:id="amountValue" styleClass="detail-property-value" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
+                            <Label text="%detail.balance" styleClass="detail-property-key" GridPane.rowIndex="0" GridPane.columnIndex="2"/>
+                            <Label fx:id="balanceValue" styleClass="detail-property-value" GridPane.rowIndex="0" GridPane.columnIndex="3"/>
+                            <Label text="%detail.category" styleClass="detail-property-key" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
+                            <Label fx:id="categoryValue" styleClass="detail-property-value" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
+                            <Label text="%detail.labels" styleClass="detail-property-key" GridPane.rowIndex="1" GridPane.columnIndex="2"/>
+                            <Label fx:id="labelsValue" styleClass="detail-property-value" wrapText="true" GridPane.rowIndex="1" GridPane.columnIndex="3"/>
+                            <Label text="%detail.note" styleClass="detail-property-key" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
+                            <Label fx:id="noteValue" styleClass="detail-property-value" wrapText="true"
+                                   GridPane.rowIndex="2" GridPane.columnIndex="1" GridPane.columnSpan="3"/>
+                            <Label text="%detail.bookingDate" styleClass="detail-property-key" GridPane.rowIndex="3" GridPane.columnIndex="0"/>
+                            <Label fx:id="bookingDateValue" styleClass="detail-property-value" GridPane.rowIndex="3" GridPane.columnIndex="1"/>
+                            <Label text="%detail.valueDate" styleClass="detail-property-key" GridPane.rowIndex="3" GridPane.columnIndex="2"/>
+                            <Label fx:id="valueDateValue" styleClass="detail-property-value" GridPane.rowIndex="3" GridPane.columnIndex="3"/>
+                            <Label text="%detail.account" styleClass="detail-property-key" GridPane.rowIndex="4" GridPane.columnIndex="0"/>
+                            <Label fx:id="accountValue" styleClass="detail-property-value" GridPane.rowIndex="4" GridPane.columnIndex="1"/>
+                            <Label text="%detail.transactionType" styleClass="detail-property-key" GridPane.rowIndex="4" GridPane.columnIndex="2"/>
+                            <Label fx:id="transactionTypeValue" styleClass="detail-property-value" GridPane.rowIndex="4" GridPane.columnIndex="3"/>
+                            <Label text="%detail.payee" styleClass="detail-property-key" GridPane.rowIndex="5" GridPane.columnIndex="0"/>
+                            <Label fx:id="payeeValue" styleClass="detail-property-value" wrapText="true" GridPane.rowIndex="5" GridPane.columnIndex="1"/>
+                            <Label text="%detail.originalPayee" styleClass="detail-property-key" GridPane.rowIndex="5" GridPane.columnIndex="2"/>
+                            <Label fx:id="originalPayeeValue" styleClass="detail-property-value" wrapText="true" GridPane.rowIndex="5" GridPane.columnIndex="3"/>
+                            <Label text="%detail.purpose" styleClass="detail-property-key" GridPane.rowIndex="6" GridPane.columnIndex="0"/>
+                            <Label fx:id="purposeValue" styleClass="detail-property-value" wrapText="true"
+                                   GridPane.rowIndex="6" GridPane.columnIndex="1" GridPane.columnSpan="3"/>
+                            <Label text="%detail.bookingStatus" styleClass="detail-property-key" GridPane.rowIndex="7" GridPane.columnIndex="0"/>
+                            <Label fx:id="bookingStatusValue" styleClass="detail-property-value" GridPane.rowIndex="7" GridPane.columnIndex="1"/>
+                            <Label text="%detail.endToEndId" styleClass="detail-property-key" GridPane.rowIndex="7" GridPane.columnIndex="2"/>
+                            <Label fx:id="endToEndIdValue" styleClass="detail-property-value" wrapText="true" GridPane.rowIndex="7" GridPane.columnIndex="3"/>
+                            <Label text="%detail.mandateId" styleClass="detail-property-key" GridPane.rowIndex="8" GridPane.columnIndex="0"/>
+                            <Label fx:id="mandateIdValue" styleClass="detail-property-value" wrapText="true" GridPane.rowIndex="8" GridPane.columnIndex="1"/>
+                            <Label text="%detail.creditorId" styleClass="detail-property-key" GridPane.rowIndex="8" GridPane.columnIndex="2"/>
+                            <Label fx:id="creditorIdValue" styleClass="detail-property-value" wrapText="true" GridPane.rowIndex="8" GridPane.columnIndex="3"/>
                         </GridPane>
                     </content>
                 </ScrollPane>
-                <HBox spacing="10" alignment="CENTER_RIGHT">
-                    <Button fx:id="detailSaveButton" text="%button.save" onAction="#onSaveDetail"
-                            styleClass="accent-button">
-                        <graphic><FontIcon iconLiteral="fth-save" iconSize="15"/></graphic>
-                    </Button>
-                </HBox>
             </VBox>
         </SplitPane>
     </center>

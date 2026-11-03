@@ -494,6 +494,24 @@
     -fx-background-color: transparent;
 }
 
+.transaction-property-table {
+    -fx-background-color: -color-bg-default;
+    -fx-border-color: -color-border-default;
+    -fx-border-radius: 6;
+    -fx-background-radius: 6;
+}
+
+.detail-property-key,
+.detail-property-value {
+    -fx-padding: 5 8;
+    -fx-border-color: transparent -color-border-default -color-border-default transparent;
+    -fx-border-width: 0 1 1 0;
+}
+
+.detail-property-key {
+    -fx-text-fill: -color-fg-muted;
+}
+
 .assignment-picker-button {
     -fx-alignment: CENTER_LEFT;
 }

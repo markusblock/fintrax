@@ -22,6 +22,7 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
+import javafx.scene.layout.GridPane;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.FlowPane;
@@ -574,22 +575,6 @@ class TransactionsControllerTest extends AbstractUITest {
     }
 
     @Test
-    void detailSaveIsDisabledWhenMultipleTransactionsAreSelected() {
-        TableView<Transaction> table = lookup("#transactionTable").query();
-        Button saveButton = lookup("#detailSaveButton").query();
-
-        interact(() -> {
-            table.getSelectionModel().clearSelection();
-            table.getSelectionModel().select(0);
-        });
-        assertFalse(saveButton.isDisabled());
-
-        interact(() -> table.getSelectionModel().select(1));
-
-        assertTrue(saveButton.isDisabled());
-    }
-
-    @Test
     void rightClickingSelectedRowKeepsMultipleSelection() {
         TableView<Transaction> table = lookup("#transactionTable").query();
         interact(() -> {
@@ -756,32 +741,7 @@ class TransactionsControllerTest extends AbstractUITest {
     }
 
     @Test
-    void detailPanelProvidesSearchableCategoryPickerAction() throws TimeoutException {
-        TableView<Transaction> table = lookup("#transactionTable").query();
-        interact(() -> table.getSelectionModel().clearAndSelect(0));
-        interact(lookup("#detailToggleButton").<Button>query()::fire);
-        WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS,
-                () -> lookup("#detailCategoryButton").tryQuery().isPresent()
-                        && lookup("#detailCategoryButton").<Button>query().isVisible());
-        assertFalse(lookup("#detailCategoryButton").<Button>query().isDisabled());
-
-        assertNotNull(lookup("#detailCategoryButton").<Button>query().getOnAction());
-    }
-
-    @Test
-    void detailPanelProvidesSearchableLabelPickerAction() throws TimeoutException {
-        TableView<Transaction> table = lookup("#transactionTable").query();
-        interact(() -> table.getSelectionModel().clearAndSelect(0));
-        interact(lookup("#detailToggleButton").<Button>query()::fire);
-        WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS,
-                () -> lookup("#detailLabelsButton").tryQuery().isPresent()
-                        && lookup("#detailLabelsButton").<Button>query().isVisible());
-        assertFalse(lookup("#detailLabelsButton").<Button>query().isDisabled());
-        assertNotNull(lookup("#detailLabelsButton").<Button>query().getOnAction());
-    }
-
-    @Test
-    void detailPanelShowsUserFacingTransactionDataAndKeepsExistingFieldsEditable() {
+    void detailPanelShowsTransactionPropertiesInCompactReadOnlyRows() {
         TableView<Transaction> table = lookup("#transactionTable").query();
         int detailRow = table.getItems().stream().map(Transaction::getId).toList()
                 .indexOf(testCategoryTransaction.getId());
@@ -801,16 +761,37 @@ class TransactionsControllerTest extends AbstractUITest {
                 detailText("#amountValue"));
         assertEquals(String.format(I18n.getCurrentLocale(), "%,.2f EUR", new BigDecimal("678.90")),
                 detailText("#balanceValue"));
+        assertEquals(testCategory.getName(), detailText("#categoryValue"));
+        org.fintrax.model.Label testLabel = applicationContext.getBean(LabelService.class)
+                .getLabel(testCategoryTransaction.getLabelIds().iterator().next()).orElseThrow();
+        assertEquals(testLabel.getName(), detailText("#labelsValue"));
+        assertEquals("Test transaction note", detailText("#noteValue"));
         assertEquals("SEPA transfer", detailText("#transactionTypeValue"));
         assertEquals(I18n.get("detail.status.pending"), detailText("#bookingStatusValue"));
         assertEquals("E2E-123", detailText("#endToEndIdValue"));
         assertEquals("MANDATE-123", detailText("#mandateIdValue"));
         assertEquals("CREDITOR-123", detailText("#creditorIdValue"));
-        assertEquals("Display popup test", lookup("#payeeField").<TextField>query().getText());
-        assertFalse(lookup("#payeeField").query().isDisabled());
-        assertFalse(lookup("#detailCategoryButton").query().isDisabled());
-        assertFalse(lookup("#detailLabelsButton").query().isDisabled());
-        assertFalse(lookup("#noteArea").query().isDisabled());
+        assertEquals("Display popup test", detailText("#payeeValue"));
+
+        GridPane propertyTable = lookup("#detailForm").query();
+        assertSameRow("#amountValue", "#balanceValue");
+        assertSameRow("#categoryValue", "#labelsValue");
+        assertSameRow("#bookingDateValue", "#valueDateValue");
+        assertSameRow("#payeeValue", "#originalPayeeValue");
+        assertEquals(3, GridPane.getColumnSpan(lookup("#noteValue").query()));
+        assertEquals(3, GridPane.getColumnSpan(lookup("#purposeValue").query()));
+        assertTrue(GridPane.getRowIndex(lookup("#amountValue").query())
+                < GridPane.getRowIndex(lookup("#categoryValue").query()));
+        assertTrue(GridPane.getRowIndex(lookup("#categoryValue").query())
+                < GridPane.getRowIndex(lookup("#noteValue").query()));
+        assertTrue(GridPane.getRowIndex(lookup("#noteValue").query())
+                < GridPane.getRowIndex(lookup("#bookingDateValue").query()));
+        assertSame(propertyTable, lookup("#amountValue").query().getParent());
+        assertFalse(lookup("#payeeField").tryQuery().isPresent());
+        assertFalse(lookup("#noteArea").tryQuery().isPresent());
+        assertFalse(lookup("#detailCategoryButton").tryQuery().isPresent());
+        assertFalse(lookup("#detailLabelsButton").tryQuery().isPresent());
+        assertFalse(lookup("#detailSaveButton").tryQuery().isPresent());
     }
 
     @Test
@@ -838,6 +819,11 @@ class TransactionsControllerTest extends AbstractUITest {
 
     private String detailText(String selector) {
         return lookup(selector).<Labeled>query().getText();
+    }
+
+    private void assertSameRow(String firstSelector, String secondSelector) {
+        assertEquals(GridPane.getRowIndex(lookup(firstSelector).query()),
+                GridPane.getRowIndex(lookup(secondSelector).query()));
     }
 
     private void waitForPicker() throws TimeoutException {
