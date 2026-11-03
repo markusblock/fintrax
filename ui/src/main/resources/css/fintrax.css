@@ -37,6 +37,14 @@
     -fx-padding: 18;
 }
 
+.transactions-content-area {
+    -fx-padding: 0 12 12 12;
+}
+
+.transactions-content-panel {
+    -fx-padding: 15 20 15 20;
+}
+
 .editor-panel,
 .settings-card {
     -fx-spacing: 12;

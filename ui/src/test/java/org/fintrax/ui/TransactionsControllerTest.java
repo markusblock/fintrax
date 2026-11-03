@@ -27,6 +27,7 @@ import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import org.fintrax.config.I18n;
 import org.fintrax.model.Category;
@@ -132,6 +133,20 @@ class TransactionsControllerTest extends AbstractUITest {
         assertEquals(label.getName(), chip.getText());
         assertEquals(javafx.scene.paint.Color.web(label.getColor()),
                 chip.getBackground().getFills().getFirst().getFill());
+    }
+
+    @Test
+    void transactionTableAlignsWithFilterInsideContentPanel() {
+        VBox panel = lookup("#transactionsPanel").query();
+        Node filter = lookup(".filter-panel").query();
+        TableView<?> table = lookup("#transactionTable").query();
+
+        Bounds filterBounds = filter.localToScene(filter.getBoundsInLocal());
+        Bounds tableBounds = table.localToScene(table.getBoundsInLocal());
+
+        assertTrue(panel.getStyleClass().contains("content-panel"));
+        assertEquals(filterBounds.getMinX(), tableBounds.getMinX(), 1.0);
+        assertEquals(filterBounds.getMaxX(), tableBounds.getMaxX(), 1.0);
     }
 
     @Test
