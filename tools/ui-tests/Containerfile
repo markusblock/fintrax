@@ -1,0 +1,25 @@
+FROM docker.io/library/eclipse-temurin:21-jdk-jammy
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update \
+    && apt-get install --no-install-recommends -y \
+        fonts-dejavu-core \
+        libasound2 \
+        libfontconfig1 \
+        libgl1 \
+        libgtk-3-0 \
+        libx11-6 \
+        libxext6 \
+        libxi6 \
+        libxrender1 \
+        libxtst6 \
+        openssl \
+        x11vnc \
+        xvfb \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY run-ui-tests.sh /usr/local/bin/run-ui-tests
+RUN chmod +x /usr/local/bin/run-ui-tests
+
+WORKDIR /workspace

@@ -1,5 +1,6 @@
 # fintrax
 .gradle/
+.gradle-podman/
 build/
 *.class
 *.jar
