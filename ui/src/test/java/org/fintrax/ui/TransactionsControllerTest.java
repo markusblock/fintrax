@@ -219,6 +219,38 @@ class TransactionsControllerTest extends AbstractUITest {
     }
 
     @Test
+    void transactionTableShowsAccountNameColumn() {
+        TableView<Transaction> table = lookup("#transactionTable").query();
+        TableColumn<?, ?> accountColumn = table.getColumns().stream()
+                .filter(column -> I18n.get("col.account").equals(column.getText()))
+                .findFirst()
+                .orElseThrow();
+
+        interact(() -> table.scrollTo(table.getItems().indexOf(testCategoryTransaction)));
+        WaitForAsyncUtils.waitForFxEvents();
+        TableCell<?, ?> accountCell = accountCellFor(table, accountColumn, testCategoryTransaction.getId());
+        assertEquals("Detail test bank (DE89****3000)", accountCell.getText());
+
+        interact(() -> table.scrollTo(table.getItems().indexOf(detailSparseTransaction)));
+        WaitForAsyncUtils.waitForFxEvents();
+        TableCell<?, ?> sparseAccountCell = accountCellFor(table, accountColumn, detailSparseTransaction.getId());
+        assertEquals("", sparseAccountCell.getText());
+    }
+
+    private TableCell<?, ?> accountCellFor(TableView<Transaction> table, TableColumn<?, ?> accountColumn,
+                                           Long transactionId) {
+        return table.lookupAll(".table-cell").stream()
+                .filter(TableCell.class::isInstance)
+                .map(node -> (TableCell<?, ?>) node)
+                .filter(cell -> !cell.isEmpty() && cell.getTableColumn() == accountColumn
+                        && cell.getTableRow() != null
+                        && cell.getTableRow().getItem() instanceof Transaction rowTransaction
+                        && transactionId.equals(rowTransaction.getId()))
+                .findFirst()
+                .orElseThrow();
+    }
+
+    @Test
     void transactionTableKeepsDateColumnFixedAndCellsSingleLineWithEllipsis() {
         TableView<Transaction> table = lookup("#transactionTable").query();
         TableColumn<?, ?> dateColumn = table.getColumns().stream()
@@ -433,7 +465,7 @@ class TransactionsControllerTest extends AbstractUITest {
                 .filter(CheckMenuItem.class::isInstance)
                 .map(CheckMenuItem.class::cast)
                 .toList();
-        assertEquals(List.of("col.date", "col.payee", "col.purpose", "col.amount",
+        assertEquals(List.of("col.date", "col.payee", "col.account", "col.purpose", "col.amount",
                         "col.balance", "col.category", "col.labels").stream().map(I18n::get).toList(),
                 columnItems.stream().map(MenuItem::getText).toList());
         assertTrue(columnItems.stream().allMatch(CheckMenuItem::isSelected));
@@ -442,11 +474,11 @@ class TransactionsControllerTest extends AbstractUITest {
         var initialColumnOrder = List.copyOf(table.getColumns());
         Stage stage = (Stage) table.getScene().getWindow();
         Parent originalRoot = table.getScene().getRoot();
-        CheckMenuItem purposeItem = (CheckMenuItem) columnMenu.getItems().get(2);
+        CheckMenuItem purposeItem = (CheckMenuItem) columnMenu.getItems().get(3);
         try {
             interact(() -> purposeItem.setSelected(false));
 
-            assertFalse(table.getColumns().get(2).isVisible());
+            assertFalse(table.getColumns().get(3).isVisible());
             assertFalse(purposeItem.isSelected());
             assertTrue(applicationContext.getBean(SettingsService.class)
                     .getSettingValue("transaction.columns").contains("purpose=false"));
@@ -455,7 +487,7 @@ class TransactionsControllerTest extends AbstractUITest {
                 var dateColumn = table.getColumns().remove(0);
                 table.getColumns().add(1, dateColumn);
             });
-            assertEquals("payee,date,purpose,amount,balance,category,labels",
+            assertEquals("payee,date,account,purpose,amount,balance,category,labels",
                     applicationContext.getBean(SettingsService.class)
                             .getSettingValue("transaction.columns.order"));
 
@@ -477,10 +509,10 @@ class TransactionsControllerTest extends AbstractUITest {
             Parent restoredView = applicationContext.getBean(ViewLoader.class).load("transactions");
             interact(() -> stage.getScene().setRoot(restoredView));
             TableView<Transaction> restoredTable = lookup("#transactionTable").query();
-            assertEquals(List.of("col.payee", "col.date", "col.purpose", "col.amount",
+            assertEquals(List.of("col.payee", "col.date", "col.account", "col.purpose", "col.amount",
                             "col.balance", "col.category", "col.labels").stream().map(I18n::get).toList(),
-                    restoredTable.getColumns().stream().limit(7).map(TableColumn::getText).toList());
-            assertFalse(restoredTable.getColumns().get(2).isVisible());
+                    restoredTable.getColumns().stream().limit(8).map(TableColumn::getText).toList());
+            assertFalse(restoredTable.getColumns().get(3).isVisible());
             assertEquals(List.of("col.date", "col.amount").stream().map(I18n::get).toList(),
                     restoredTable.getSortOrder().stream().map(TableColumn::getText).toList());
             assertEquals(List.of(TableColumn.SortType.DESCENDING, TableColumn.SortType.ASCENDING),
@@ -500,14 +532,14 @@ class TransactionsControllerTest extends AbstractUITest {
             MenuButton restoredMenu = lookup("#columnMenuButton").query();
             assertFalse(restoredTable.getSortOrder().isEmpty());
             interact(restoredMenu.getItems().getLast()::fire);
-            assertTrue(restoredTable.getColumns().stream().limit(7)
+            assertTrue(restoredTable.getColumns().stream().limit(8)
                     .allMatch(TableColumn::isVisible));
             assertTrue(restoredTable.getSortOrder().isEmpty());
             assertEquals("", applicationContext.getBean(SettingsService.class)
                     .getSettingValue("transaction.columns.sort"));
-            assertEquals("date=true,payee=true,purpose=true,amount=true,balance=true,category=true,labels=true",
+            assertEquals("date=true,payee=true,account=true,purpose=true,amount=true,balance=true,category=true,labels=true",
                     applicationContext.getBean(SettingsService.class).getSettingValue("transaction.columns"));
-            assertEquals("date,payee,purpose,amount,balance,category,labels",
+            assertEquals("date,payee,account,purpose,amount,balance,category,labels",
                     applicationContext.getBean(SettingsService.class)
                             .getSettingValue("transaction.columns.order"));
         } finally {
