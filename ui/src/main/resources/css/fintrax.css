@@ -539,10 +539,6 @@
     -fx-vgap: 4;
 }
 
-.detail-missing-value {
-    -fx-text-fill: -color-fg-muted;
-}
-
 .detail-status-cell {
     -fx-alignment: CENTER_LEFT;
 }

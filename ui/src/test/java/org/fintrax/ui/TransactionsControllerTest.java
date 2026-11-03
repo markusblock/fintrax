@@ -60,6 +60,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class TransactionsControllerTest extends AbstractUITest {
     private Category testCategory;
     private Transaction testCategoryTransaction;
+    private Transaction detailSparseTransaction;
 
     @Override
     public void start(Stage stage) throws Exception {
@@ -88,11 +89,12 @@ class TransactionsControllerTest extends AbstractUITest {
                 .booked(false)
                 .build());
         for (int i = 0; i < 2; i++) {
-            applicationContext.getBean(TransactionService.class).createTransaction(Transaction.builder()
+            Transaction transaction = applicationContext.getBean(TransactionService.class).createTransaction(Transaction.builder()
                     .originalPayee("Context menu test " + i + " " + System.nanoTime())
                     .bookingDate(LocalDate.now().minusDays(i + 1))
                     .amount(BigDecimal.valueOf(i + 2))
                     .build());
+            if (i == 0) detailSparseTransaction = transaction;
         }
 
         Parent root = applicationContext.getBean(ViewLoader.class).load("transactions");
@@ -763,8 +765,10 @@ class TransactionsControllerTest extends AbstractUITest {
         assertEquals("Test transaction note", detailText("#noteValue"));
         assertEquals("SEPA transfer", detailText("#transactionTypeValue"));
         assertEquals(I18n.get("detail.status.pending"), detailText("#bookingStatusValue"));
+        assertEquals(I18n.get("detail.bookingStatus"), detailText("#bookingStatusKey"));
         assertTrue(lookup("#bookingStatusValue").<javafx.scene.control.Label>query()
                 .getStyleClass().contains("pending"));
+        assertTrue(lookup("#originalPayeeKey").<javafx.scene.control.Label>query().isWrapText());
         assertEquals("E2E-123", detailText("#endToEndIdValue"));
         assertEquals("MANDATE-123", detailText("#mandateIdValue"));
         assertEquals("CREDITOR-123", detailText("#creditorIdValue"));
@@ -807,28 +811,40 @@ class TransactionsControllerTest extends AbstractUITest {
 
     @Test
     void detailPanelMarksUnavailableOptionalValues() {
-        TableView<Transaction> table = lookup("#transactionTable").query();
-        Transaction sparseTransaction = table.getItems().stream()
-                .filter(transaction -> transaction.getAccountId() == null
-                        && !testCategoryTransaction.getId().equals(transaction.getId()))
-                .findFirst().orElseThrow();
+        showTransactionDetail(detailSparseTransaction);
 
-        showTransactionDetail(sparseTransaction);
-
-        assertEquals("—", detailText("#accountValue"));
-        assertEquals("—", detailText("#valueDateValue"));
-        assertEquals("—", detailText("#purposeValue"));
-        assertEquals("—", detailText("#balanceValue"));
-        assertEquals("—", detailText("#transactionTypeValue"));
-        assertEquals("—", ((javafx.scene.control.Label)
-                lookup("#labelsValue").<FlowPane>query().getChildren().getFirst()).getText());
-        assertEquals("—", detailText("#endToEndIdValue"));
-        assertEquals("—", detailText("#mandateIdValue"));
-        assertEquals("—", detailText("#creditorIdValue"));
+        assertPropertyHidden("#accountKey", "#accountValue");
+        assertPropertyHidden("#valueDateKey", "#valueDateValue");
+        assertPropertyHidden("#purposeKey", "#purposeValue");
+        assertPropertyHidden("#balanceKey", "#balanceValue");
+        assertPropertyHidden("#transactionTypeKey", "#transactionTypeValue");
+        assertPropertyHidden("#categoryKey", "#categoryValue");
+        assertPropertyHidden("#labelsKey", "#labelsValue");
+        assertPropertyHidden("#noteKey", "#noteValue");
+        assertPropertyHidden("#payeeKey", "#payeeValue");
+        assertPropertyHidden("#endToEndIdKey", "#endToEndIdValue");
+        assertPropertyHidden("#mandateIdKey", "#mandateIdValue");
+        assertPropertyHidden("#creditorIdKey", "#creditorIdValue");
+        assertTrue(detailPropertyIsVisible("#bookingDateKey", "#bookingDateValue"));
+        assertTrue(detailPropertyIsVisible("#originalPayeeKey", "#originalPayeeValue"));
+        assertEquals(0, GridPane.getColumnIndex(lookup("#originalPayeeKey").query()));
+        assertEquals(1, GridPane.getColumnIndex(lookup("#originalPayeeValue").query()));
+        assertEquals("", detailText("#accountValue"));
+        assertTrue(lookup("#labelsValue").<FlowPane>query().getChildren().isEmpty());
     }
 
     private String detailText(String selector) {
         return lookup(selector).<Labeled>query().getText();
+    }
+
+    private void assertPropertyHidden(String keySelector, String valueSelector) {
+        assertFalse(detailPropertyIsVisible(keySelector, valueSelector));
+    }
+
+    private boolean detailPropertyIsVisible(String keySelector, String valueSelector) {
+        Node key = lookup(keySelector).query();
+        Node value = lookup(valueSelector).query();
+        return key.isVisible() && key.isManaged() && value.isVisible() && value.isManaged();
     }
 
     private void showTransactionDetail(Transaction transaction) {
