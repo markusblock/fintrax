@@ -25,9 +25,11 @@ import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.stage.Stage;
 import org.fintrax.config.I18n;
+import org.fintrax.model.BankAccount;
 import org.fintrax.model.Category;
 import org.fintrax.model.Label;
 import org.fintrax.model.Transaction;
+import org.fintrax.service.AccountService;
 import org.fintrax.service.CategoryService;
 import org.fintrax.service.LabelService;
 import org.fintrax.service.SettingsService;
@@ -104,6 +106,41 @@ class ClassificationsControllerTest extends AbstractUITest {
         interact(() -> tree.getSelectionModel().select(
                 treeItem(tree.getRoot(), I18n.get("classifications.categoriesRoot"))));
         assertTrue(table.getItems().isEmpty());
+    }
+
+    @Test
+    void classificationTableShowsAccountNameColumn() throws Exception {
+        BankAccount account = applicationContext.getBean(AccountService.class)
+                .createAccount("DE89370400440532013000", null, "Detail test bank", "Test holder", null, null);
+        Category category = categoryService().createCategory("Account column " + System.nanoTime(), null, null);
+        Transaction transaction = applicationContext.getBean(TransactionService.class).createTransaction(
+                Transaction.builder()
+                        .categoryId(category.getId())
+                        .accountId(account.getId())
+                        .originalPayee("Account column transaction")
+                        .amount(new BigDecimal("10"))
+                        .bookingDate(LocalDate.of(2025, 2, 1))
+                        .build());
+
+        reloadClassificationsView();
+        TreeView<String> tree = lookup("#classificationTree").query();
+        interact(() -> tree.getSelectionModel().select(categoryTreeItem(tree, category.getName())));
+        TableView<Transaction> table = lookup("#classificationTransactionsTable").query();
+        TableColumn<?, ?> accountColumn = table.getColumns().stream()
+                .filter(column -> I18n.get("col.account").equals(column.getText()))
+                .findFirst()
+                .orElseThrow();
+        TableCell<?, ?> accountCell = table.lookupAll(".table-cell").stream()
+                .filter(TableCell.class::isInstance)
+                .map(node -> (TableCell<?, ?>) node)
+                .filter(cell -> !cell.isEmpty() && cell.getTableColumn() == accountColumn
+                        && cell.getTableRow() != null
+                        && cell.getTableRow().getItem() instanceof Transaction rowTransaction
+                        && transaction.getId().equals(rowTransaction.getId()))
+                .findFirst()
+                .orElseThrow();
+
+        assertEquals("Detail test bank (DE89****3000)", accountCell.getText());
     }
 
     @Test
@@ -355,7 +392,7 @@ class ClassificationsControllerTest extends AbstractUITest {
                 .filter(CheckMenuItem.class::isInstance)
                 .map(CheckMenuItem.class::cast)
                 .toList();
-        assertEquals(List.of("col.date", "col.payee", "col.purpose", "col.amount",
+        assertEquals(List.of("col.date", "col.payee", "col.account", "col.purpose", "col.amount",
                         "col.category", "col.labels").stream().map(I18n::get).toList(),
                 columnItems.stream().map(MenuItem::getText).toList());
         assertTrue(columnItems.stream().allMatch(CheckMenuItem::isSelected));
@@ -364,11 +401,11 @@ class ClassificationsControllerTest extends AbstractUITest {
         var initialColumnOrder = List.copyOf(table.getColumns());
         Stage stage = (Stage) table.getScene().getWindow();
         Parent originalRoot = table.getScene().getRoot();
-        CheckMenuItem purposeItem = (CheckMenuItem) columnMenu.getItems().get(2);
+        CheckMenuItem purposeItem = (CheckMenuItem) columnMenu.getItems().get(3);
         try {
             interact(() -> purposeItem.setSelected(false));
 
-            assertFalse(table.getColumns().get(2).isVisible());
+            assertFalse(table.getColumns().get(3).isVisible());
             assertFalse(purposeItem.isSelected());
             assertTrue(applicationContext.getBean(SettingsService.class)
                     .getSettingValue("classification.transaction.columns").contains("purpose=false"));
@@ -377,26 +414,26 @@ class ClassificationsControllerTest extends AbstractUITest {
                 var dateColumn = table.getColumns().remove(0);
                 table.getColumns().add(1, dateColumn);
             });
-            assertEquals("payee,date,purpose,amount,category,labels",
+            assertEquals("payee,date,account,purpose,amount,category,labels",
                     applicationContext.getBean(SettingsService.class)
                             .getSettingValue("classification.transaction.columns.order"));
 
             Parent restoredView = applicationContext.getBean(ViewLoader.class).load("classifications");
             interact(() -> stage.getScene().setRoot(restoredView));
             TableView<?> restoredTable = lookup("#classificationTransactionsTable").query();
-            assertEquals(List.of("col.payee", "col.date", "col.purpose", "col.amount",
+            assertEquals(List.of("col.payee", "col.date", "col.account", "col.purpose", "col.amount",
                             "col.category", "col.labels").stream().map(I18n::get).toList(),
-                    restoredTable.getColumns().stream().limit(6).map(TableColumn::getText).toList());
-            assertFalse(restoredTable.getColumns().get(2).isVisible());
+                    restoredTable.getColumns().stream().limit(7).map(TableColumn::getText).toList());
+            assertFalse(restoredTable.getColumns().get(3).isVisible());
 
             MenuButton restoredMenu = lookup("#columnMenuButton").query();
             interact(restoredMenu.getItems().getLast()::fire);
-            assertTrue(restoredTable.getColumns().stream().limit(6)
+            assertTrue(restoredTable.getColumns().stream().limit(7)
                     .allMatch(TableColumn::isVisible));
-            assertEquals("date=true,payee=true,purpose=true,amount=true,category=true,labels=true",
+            assertEquals("date=true,payee=true,account=true,purpose=true,amount=true,category=true,labels=true",
                     applicationContext.getBean(SettingsService.class)
                             .getSettingValue("classification.transaction.columns"));
-            assertEquals("date,payee,purpose,amount,category,labels",
+            assertEquals("date,payee,account,purpose,amount,category,labels",
                     applicationContext.getBean(SettingsService.class)
                             .getSettingValue("classification.transaction.columns.order"));
         } finally {
