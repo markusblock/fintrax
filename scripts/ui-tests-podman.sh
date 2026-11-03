@@ -22,6 +22,11 @@ if ! command -v podman >/dev/null 2>&1; then
     exit 1
 fi
 
+if ! command -v openssl >/dev/null 2>&1; then
+    echo "OpenSSL is required to generate an ephemeral VNC password." >&2
+    exit 1
+fi
+
 if ! podman info >/dev/null 2>&1; then
     echo "Podman is not running. On macOS, start its VM with 'podman machine start'." >&2
     exit 1
@@ -38,6 +43,7 @@ if ((vnc_port_number < 1 || vnc_port_number > 65535)); then
     exit 2
 fi
 vnc_port="$vnc_port_number"
+vnc_password="$(openssl rand -hex 4)"
 
 podman_args=(
     --platform linux/amd64
@@ -47,6 +53,7 @@ podman_args=(
     --workdir /workspace
     --env GRADLE_USER_HOME=/workspace/.gradle-podman
     --env "JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=14 -XX:ActiveProcessorCount=2"
+    --env "FINTRAX_UI_VNC_PASSWORD=$vnc_password"
 )
 podman_args+=(--publish "127.0.0.1:${vnc_port}:5900")
 
@@ -79,7 +86,7 @@ if [[ "$vnc_ready" == true ]]; then
     sleep 2
     if [[ "$(uname -s)" == "Darwin" ]]; then
         echo "Opening VNC at vnc://localhost:${vnc_port}"
-        open "vnc://localhost:${vnc_port}" || \
+        open "vnc://vnc:${vnc_password}@localhost:${vnc_port}" || \
             echo "Screen Sharing did not open; connect manually to localhost:${vnc_port}." >&2
     fi
 else

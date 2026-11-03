@@ -22,7 +22,7 @@ Run the full UI test suite:
 ./scripts/ui-tests-podman.sh all
 ```
 
-Every test command starts an authenticated, view-only VNC server on the host loopback interface. On macOS, the script automatically opens Screen Sharing; enter the one-time password printed by the script. Set `FINTRAX_UI_VNC_PORT` to select another local port if `5900` is occupied. If automatic launch is unavailable, macOS users can open it manually:
+Every test command starts an authenticated, view-only VNC server on the host loopback interface. On macOS, the script automatically opens Screen Sharing with the one-time password embedded in its connection URL. The password is also printed for use with other VNC clients. Set `FINTRAX_UI_VNC_PORT` to select another local port if `5900` is occupied. If automatic launch is unavailable, macOS users can open it manually:
 
 ```sh
 open vnc://localhost:5900

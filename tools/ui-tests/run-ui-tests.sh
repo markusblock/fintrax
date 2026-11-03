@@ -61,7 +61,7 @@ if ! kill -0 "$xvfb_pid" 2>/dev/null || [[ ! -S /tmp/.X11-unix/X99 ]]; then
 fi
 
 if [[ "$vnc_mode" == "--vnc" ]]; then
-    vnc_password="$(openssl rand -hex 4)"
+    vnc_password="${FINTRAX_UI_VNC_PASSWORD:?VNC password must be supplied by scripts/ui-tests-podman.sh}"
     x11vnc -storepasswd "$vnc_password" /tmp/fintrax-ui-vnc.pass >/dev/null
     x11vnc \
         -display :99 \
