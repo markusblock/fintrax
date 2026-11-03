@@ -28,9 +28,11 @@ class UiTestFailureScreenshotExtensionTest {
         UiTestFailureScreenshotExtension extension = new UiTestFailureScreenshotExtension(
                 screenshotDirectory, () -> testImage);
         AssertionError failure = new AssertionError("test failure");
+        ExtensionContext context = extensionContext(
+                "engine:junit-jupiter/class:SampleTest/method:failed UI test()");
 
-        AssertionError thrown = assertThrows(AssertionError.class, () -> extension.handleTestExecutionException(
-                extensionContext("engine:junit-jupiter/class:SampleTest/method:failed UI test()"), failure));
+        AssertionError thrown = assertThrows(AssertionError.class,
+                () -> extension.handleTestExecutionException(context, failure));
 
         assertSame(failure, thrown);
         List<Path> screenshots;
