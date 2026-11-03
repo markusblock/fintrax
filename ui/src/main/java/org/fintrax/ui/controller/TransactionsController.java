@@ -38,6 +38,10 @@ import java.util.stream.Collectors;
 @Scope("prototype")
 public class TransactionsController {
     private static final String COLUMN_CONFIG_KEY = "transaction.columns";
+    private static final String AMOUNT_POSITIVE_STYLE_CLASS = "amount-positive";
+    private static final String AMOUNT_NEGATIVE_STYLE_CLASS = "amount-negative";
+    private static final String BOOKED_STYLE_CLASS = "booked";
+    private static final String PENDING_STYLE_CLASS = "pending";
     private static final double TABLE_DIVIDER_WITH_DETAILS = 0.7;
     private static final double TABLE_DIVIDER_WITHOUT_DETAILS = 1.0;
 
@@ -171,11 +175,11 @@ public class TransactionsController {
                     setStyle("");
                 } else {
                     setText(String.format("%,.2f EUR", item.doubleValue()));
-                    getStyleClass().removeAll("amount-positive", "amount-negative");
+                    getStyleClass().removeAll(AMOUNT_POSITIVE_STYLE_CLASS, AMOUNT_NEGATIVE_STYLE_CLASS);
                     if (item.signum() < 0) {
-                        getStyleClass().add("amount-negative");
+                        getStyleClass().add(AMOUNT_NEGATIVE_STYLE_CLASS);
                     } else {
-                        getStyleClass().add("amount-positive");
+                        getStyleClass().add(AMOUNT_POSITIVE_STYLE_CLASS);
                     }
                 }
             }
@@ -311,8 +315,8 @@ public class TransactionsController {
         transactionTypeValue.setText(display(transaction.getTransactionType()));
         boolean booked = transaction.isBooked();
         bookingStatusValue.setText(I18n.get(booked ? "detail.status.booked" : "detail.status.pending"));
-        bookingStatusValue.getStyleClass().removeAll("booked", "pending");
-        bookingStatusValue.getStyleClass().add(booked ? "booked" : "pending");
+        bookingStatusValue.getStyleClass().removeAll(BOOKED_STYLE_CLASS, PENDING_STYLE_CLASS);
+        bookingStatusValue.getStyleClass().add(booked ? BOOKED_STYLE_CLASS : PENDING_STYLE_CLASS);
         endToEndIdValue.setText(display(transaction.getEndToEndId()));
         mandateIdValue.setText(display(transaction.getMandateId()));
         creditorIdValue.setText(display(transaction.getCreditorId()));
@@ -323,9 +327,9 @@ public class TransactionsController {
 
     private void clearDetail() {
         clearDetailLabels();
-        bookingStatusValue.getStyleClass().removeAll("booked", "pending");
-        amountValue.getStyleClass().removeAll("amount-positive", "amount-negative");
-        balanceValue.getStyleClass().removeAll("amount-positive", "amount-negative");
+        bookingStatusValue.getStyleClass().removeAll(BOOKED_STYLE_CLASS, PENDING_STYLE_CLASS);
+        amountValue.getStyleClass().removeAll(AMOUNT_POSITIVE_STYLE_CLASS, AMOUNT_NEGATIVE_STYLE_CLASS);
+        balanceValue.getStyleClass().removeAll(AMOUNT_POSITIVE_STYLE_CLASS, AMOUNT_NEGATIVE_STYLE_CLASS);
         for (Label value : List.of(accountValue, bookingDateValue, valueDateValue, originalPayeeValue,
                 payeeValue, purposeValue, categoryValue, noteValue, amountValue, balanceValue,
                 transactionTypeValue, bookingStatusValue, endToEndIdValue, mandateIdValue, creditorIdValue)) {
@@ -385,9 +389,10 @@ public class TransactionsController {
 
     private void setAmountValue(Label value, BigDecimal amount, String currency) {
         value.setText(formatAmount(amount, currency));
-        value.getStyleClass().removeAll("amount-positive", "amount-negative");
+        value.getStyleClass().removeAll(AMOUNT_POSITIVE_STYLE_CLASS, AMOUNT_NEGATIVE_STYLE_CLASS);
         if (amount != null) {
-            value.getStyleClass().add(amount.signum() < 0 ? "amount-negative" : "amount-positive");
+            value.getStyleClass().add(amount.signum() < 0
+                    ? AMOUNT_NEGATIVE_STYLE_CLASS : AMOUNT_POSITIVE_STYLE_CLASS);
         }
     }
 
