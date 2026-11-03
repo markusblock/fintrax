@@ -75,6 +75,11 @@ A transaction defined in a Hibiscus XML export, carrying an account reference, b
 **Transaction Match**:
 An association between an incoming Hibiscus Transaction and an existing Fintrax transaction during import. When both have checksums, they match only when checksums and account identities match. If either checksum is absent, they match by account identity, booking date, amount, and normalized payee and purpose.
 
+### Transactions
+
+**Transaction Details**:
+User-facing information describing a transaction, including its account, dates, payees, purpose, amount, balance, type, booking status, and bank references. Source checksums, internal identifiers, and audit timestamps are not transaction details.
+
 ### Data Reset
 
 **Data Reset**:

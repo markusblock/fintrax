@@ -25,12 +25,14 @@ import javafx.scene.control.TextField;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.stage.Stage;
 import org.fintrax.config.I18n;
 import org.fintrax.model.Category;
 import org.fintrax.model.Label;
 import org.fintrax.model.Transaction;
+import org.fintrax.service.AccountService;
 import org.fintrax.service.CategoryService;
 import org.fintrax.service.LabelService;
 import org.fintrax.service.SettingsService;
@@ -58,6 +60,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class TransactionsControllerTest extends AbstractUITest {
     private Category testCategory;
     private Transaction testCategoryTransaction;
+    private Transaction detailSparseTransaction;
 
     @Override
     public void start(Stage stage) throws Exception {
@@ -65,19 +68,33 @@ class TransactionsControllerTest extends AbstractUITest {
                 .createCategory("Cell category " + System.nanoTime(), null, null);
         org.fintrax.model.Label label = applicationContext.getBean(LabelService.class)
                 .createLabel("Cell label " + System.nanoTime(), "#3B82F6", null);
+        org.fintrax.model.BankAccount detailAccount = applicationContext.getBean(AccountService.class)
+                .createAccount("DE89370400440532013000", null, "Detail test bank", "Test holder", null, null);
         testCategoryTransaction = applicationContext.getBean(TransactionService.class).createTransaction(Transaction.builder()
+                .accountId(detailAccount.getId())
                 .originalPayee("Cell popup test")
+                .payeeDisplay("Display popup test")
+                .purpose("Test transaction purpose")
+                .amount(new BigDecimal("123.45"))
+                .bookingDate(LocalDate.now())
+                .valueDate(LocalDate.now().plusDays(1))
+                .balanceAfter(new BigDecimal("678.90"))
+                .transactionType("SEPA transfer")
                 .categoryId(testCategory.getId())
                 .labelIds(Set.of(label.getId()))
-                .bookingDate(LocalDate.now())
-                .amount(BigDecimal.ONE)
+                .note("Test transaction note")
+                .endToEndId("E2E-123")
+                .mandateId("MANDATE-123")
+                .creditorId("CREDITOR-123")
+                .booked(false)
                 .build());
         for (int i = 0; i < 2; i++) {
-            applicationContext.getBean(TransactionService.class).createTransaction(Transaction.builder()
+            Transaction transaction = applicationContext.getBean(TransactionService.class).createTransaction(Transaction.builder()
                     .originalPayee("Context menu test " + i + " " + System.nanoTime())
                     .bookingDate(LocalDate.now().minusDays(i + 1))
                     .amount(BigDecimal.valueOf(i + 2))
                     .build());
+            if (i == 0) detailSparseTransaction = transaction;
         }
 
         Parent root = applicationContext.getBean(ViewLoader.class).load("transactions");
@@ -560,22 +577,6 @@ class TransactionsControllerTest extends AbstractUITest {
     }
 
     @Test
-    void detailSaveIsDisabledWhenMultipleTransactionsAreSelected() {
-        TableView<Transaction> table = lookup("#transactionTable").query();
-        Button saveButton = lookup("#detailSaveButton").query();
-
-        interact(() -> {
-            table.getSelectionModel().clearSelection();
-            table.getSelectionModel().select(0);
-        });
-        assertFalse(saveButton.isDisabled());
-
-        interact(() -> table.getSelectionModel().select(1));
-
-        assertTrue(saveButton.isDisabled());
-    }
-
-    @Test
     void rightClickingSelectedRowKeepsMultipleSelection() {
         TableView<Transaction> table = lookup("#transactionTable").query();
         interact(() -> {
@@ -742,28 +743,151 @@ class TransactionsControllerTest extends AbstractUITest {
     }
 
     @Test
-    void detailPanelProvidesSearchableCategoryPickerAction() throws TimeoutException {
-        TableView<Transaction> table = lookup("#transactionTable").query();
-        interact(() -> table.getSelectionModel().clearAndSelect(0));
-        interact(lookup("#detailToggleButton").<Button>query()::fire);
-        WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS,
-                () -> lookup("#detailCategoryButton").tryQuery().isPresent()
-                        && lookup("#detailCategoryButton").<Button>query().isVisible());
-        assertFalse(lookup("#detailCategoryButton").<Button>query().isDisabled());
-
-        assertNotNull(lookup("#detailCategoryButton").<Button>query().getOnAction());
+    void detailPanelShowsTransactionProperties() {
+        showTransactionDetail(testCategoryTransaction);
+        DateTimeFormatter dateFormatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT)
+                .withLocale(I18n.getCurrentLocale());
+        assertEquals("Detail test bank (DE89****3000)", detailText("#accountValue"));
+        assertEquals(LocalDate.now().format(dateFormatter), detailText("#bookingDateValue"));
+        assertEquals(LocalDate.now().plusDays(1).format(dateFormatter), detailText("#valueDateValue"));
+        assertEquals("Cell popup test", detailText("#originalPayeeValue"));
+        assertEquals("Test transaction purpose", detailText("#purposeValue"));
+        assertEquals(String.format(I18n.getCurrentLocale(), "%,.2f EUR", new BigDecimal("123.45")),
+                detailText("#amountValue"));
+        assertEquals(String.format(I18n.getCurrentLocale(), "%,.2f EUR", new BigDecimal("678.90")),
+                detailText("#balanceValue"));
+        assertEquals(testCategory.getName(), detailText("#categoryValue"));
+        org.fintrax.model.Label testLabel = applicationContext.getBean(LabelService.class)
+                .getLabel(testCategoryTransaction.getLabelIds().iterator().next()).orElseThrow();
+        FlowPane labelsValue = lookup("#labelsValue").query();
+        assertEquals(testLabel.getName(), ((javafx.scene.control.Label)
+                labelsValue.getChildren().getFirst()).getText());
+        assertEquals("Test transaction note", detailText("#noteValue"));
+        assertEquals("SEPA transfer", detailText("#transactionTypeValue"));
+        assertEquals(I18n.get("detail.status.pending"), detailText("#bookingStatusValue"));
+        assertEquals(I18n.get("detail.bookingStatus"), detailText("#bookingStatusKey"));
+        assertTrue(lookup("#bookingStatusValue").<javafx.scene.control.Label>query()
+                .getStyleClass().contains("pending"));
+        assertTrue(lookup("#originalPayeeKey").<javafx.scene.control.Label>query().isWrapText());
+        assertEquals("E2E-123", detailText("#endToEndIdValue"));
+        assertEquals("MANDATE-123", detailText("#mandateIdValue"));
+        assertEquals("CREDITOR-123", detailText("#creditorIdValue"));
+        assertEquals("Display popup test", detailText("#payeeValue"));
     }
 
     @Test
-    void detailPanelProvidesSearchableLabelPickerAction() throws TimeoutException {
+    void detailPropertiesUseRequestedCompactPairingsAndFullWidthText() {
+        showTransactionDetail(testCategoryTransaction);
+
+        assertSideBySide("#amountValue", "#balanceValue");
+        assertSideBySide("#categoryValue", "#labelsValue");
+        assertSideBySide("#bookingDateValue", "#valueDateValue");
+        assertSideBySide("#payeeValue", "#originalPayeeValue");
+        assertEquals(3, GridPane.getColumnSpan(lookup("#noteValue").query()));
+        assertEquals(3, GridPane.getColumnSpan(lookup("#purposeValue").query()));
+        Set<Node> rowDividers = lookup("#detailForm").<GridPane>query()
+                .lookupAll(".detail-row-separator");
+        assertEquals(8, rowDividers.size());
+        assertTrue(rowDividers.stream().allMatch(divider -> GridPane.getColumnIndex(divider) == 0
+                && GridPane.getColumnSpan(divider) == 4));
+        assertTrue(GridPane.getRowIndex(lookup("#amountValue").query())
+                < GridPane.getRowIndex(lookup("#categoryValue").query()));
+        assertTrue(GridPane.getRowIndex(lookup("#categoryValue").query())
+                < GridPane.getRowIndex(lookup("#noteValue").query()));
+        assertTrue(GridPane.getRowIndex(lookup("#noteValue").query())
+                < GridPane.getRowIndex(lookup("#bookingDateValue").query()));
+    }
+
+    @Test
+    void detailPanelDoesNotExposeEditablePropertiesOrSaveAction() {
+        showTransactionDetail(testCategoryTransaction);
+
+        assertFalse(lookup("#payeeField").tryQuery().isPresent());
+        assertFalse(lookup("#noteArea").tryQuery().isPresent());
+        assertFalse(lookup("#detailCategoryButton").tryQuery().isPresent());
+        assertFalse(lookup("#detailLabelsButton").tryQuery().isPresent());
+        assertFalse(lookup("#detailSaveButton").tryQuery().isPresent());
+    }
+
+    @Test
+    void openingDetailsResizesPanelToShowAllProperties() throws TimeoutException {
+        showTransactionDetail(testCategoryTransaction);
+        javafx.scene.control.ScrollPane detailScrollPane = lookup("#detailScrollPane").query();
+        GridPane detailForm = lookup("#detailForm").query();
+
+        try {
+            WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS, () -> {
+                double width = detailScrollPane.getViewportBounds().getWidth();
+                return width > 0 && detailScrollPane.getViewportBounds().getHeight() + 1
+                        >= detailForm.prefHeight(width);
+            });
+        } catch (TimeoutException timeout) {
+            double width = detailScrollPane.getViewportBounds().getWidth();
+            throw new AssertionError("Details viewport=" + detailScrollPane.getViewportBounds().getHeight()
+                    + ", content=" + detailForm.prefHeight(width) + ", panel=" + detailPanelHeight(), timeout);
+        }
+        double width = detailScrollPane.getViewportBounds().getWidth();
+        assertTrue(detailScrollPane.getViewportBounds().getHeight() + 1 >= detailForm.prefHeight(width));
+    }
+
+    private double detailPanelHeight() {
+        return lookup("#detailPanel").query().getBoundsInParent().getHeight();
+    }
+
+    @Test
+    void detailPanelKeepsUnavailablePropertiesWithEmptyValues() {
+        showTransactionDetail(detailSparseTransaction);
+
+        assertPropertyEmpty("#accountKey", "#accountValue");
+        assertPropertyEmpty("#valueDateKey", "#valueDateValue");
+        assertPropertyEmpty("#purposeKey", "#purposeValue");
+        assertPropertyEmpty("#balanceKey", "#balanceValue");
+        assertPropertyEmpty("#transactionTypeKey", "#transactionTypeValue");
+        assertPropertyEmpty("#categoryKey", "#categoryValue");
+        assertPropertyEmpty("#labelsKey", "#labelsValue");
+        assertPropertyEmpty("#noteKey", "#noteValue");
+        assertPropertyEmpty("#payeeKey", "#payeeValue");
+        assertPropertyEmpty("#endToEndIdKey", "#endToEndIdValue");
+        assertPropertyEmpty("#mandateIdKey", "#mandateIdValue");
+        assertPropertyEmpty("#creditorIdKey", "#creditorIdValue");
+        assertTrue(detailPropertyIsVisible("#bookingDateKey", "#bookingDateValue"));
+        assertTrue(detailPropertyIsVisible("#originalPayeeKey", "#originalPayeeValue"));
+        assertEquals(2, GridPane.getColumnIndex(lookup("#originalPayeeKey").query()));
+        assertEquals(3, GridPane.getColumnIndex(lookup("#originalPayeeValue").query()));
+        assertTrue(lookup("#labelsValue").<FlowPane>query().getChildren().isEmpty());
+    }
+
+    private String detailText(String selector) {
+        return lookup(selector).<Labeled>query().getText();
+    }
+
+    private void assertPropertyEmpty(String keySelector, String valueSelector) {
+        assertTrue(detailPropertyIsVisible(keySelector, valueSelector));
+        Node value = lookup(valueSelector).query();
+        if (value instanceof Labeled labeled) assertEquals("", labeled.getText());
+        if (value instanceof FlowPane labels) assertTrue(labels.getChildren().isEmpty());
+    }
+
+    private boolean detailPropertyIsVisible(String keySelector, String valueSelector) {
+        Node key = lookup(keySelector).query();
+        Node value = lookup(valueSelector).query();
+        return key.isVisible() && key.isManaged() && value.isVisible() && value.isManaged();
+    }
+
+    private void showTransactionDetail(Transaction transaction) {
         TableView<Transaction> table = lookup("#transactionTable").query();
-        interact(() -> table.getSelectionModel().clearAndSelect(0));
+        int row = table.getItems().stream().map(Transaction::getId).toList().indexOf(transaction.getId());
+        if (row < 0) throw new AssertionError("Expected transaction to be visible in the table");
+        interact(() -> table.getSelectionModel().clearAndSelect(row));
         interact(lookup("#detailToggleButton").<Button>query()::fire);
-        WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS,
-                () -> lookup("#detailLabelsButton").tryQuery().isPresent()
-                        && lookup("#detailLabelsButton").<Button>query().isVisible());
-        assertFalse(lookup("#detailLabelsButton").<Button>query().isDisabled());
-        assertNotNull(lookup("#detailLabelsButton").<Button>query().getOnAction());
+    }
+
+    private void assertSideBySide(String leftSelector, String rightSelector) {
+        Node left = lookup(leftSelector).query();
+        Node right = lookup(rightSelector).query();
+        assertEquals(GridPane.getRowIndex(left), GridPane.getRowIndex(right));
+        assertEquals(1, GridPane.getColumnIndex(left));
+        assertEquals(3, GridPane.getColumnIndex(right));
     }
 
     private void waitForPicker() throws TimeoutException {
