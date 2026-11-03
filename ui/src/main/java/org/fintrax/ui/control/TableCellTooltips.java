@@ -2,12 +2,14 @@ package org.fintrax.ui.control;
 
 import javafx.animation.PauseTransition;
 import javafx.geometry.Insets;
+import javafx.geometry.Point2D;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.text.Text;
+import javafx.event.Event;
 import javafx.util.Callback;
 import javafx.util.Duration;
 
@@ -100,10 +102,26 @@ public final class TableCellTooltips {
         }
         Tooltip tooltip = cell.getTooltip();
         if (tooltip == null) {
-            cell.setTooltip(new Tooltip(text));
+            tooltip = new Tooltip(text);
+            // Let a click that dismisses the visible tooltip still reach the cell.
+            tooltip.setConsumeAutoHidingEvents(false);
+            cell.setTooltip(tooltip);
         } else {
             tooltip.setText(text);
         }
+        arm(cell);
+    }
+
+    private static void arm(TableCell<?, ?> cell) {
+        // JavaFX arms a tooltip only on MOUSE_MOVED; fire one so a hover that
+        // stays still (wheel scroll, freeze) still shows the tooltip.
+        double x = cell.getWidth() / 2;
+        double y = cell.getHeight() / 2;
+        Point2D screen = cell.localToScreen(x, y);
+        if (screen == null) return;
+        Event.fireEvent(cell, new MouseEvent(MouseEvent.MOUSE_MOVED, x, y,
+                screen.getX(), screen.getY(), null, 0,
+                false, false, false, false, false, false, false, false, false, false, null));
     }
 
     private static boolean isTextTruncated(TableCell<?, ?> cell, String text) {

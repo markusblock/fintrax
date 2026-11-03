@@ -54,6 +54,10 @@ class TableCellTooltipsTest extends AbstractUITest {
         WaitForAsyncUtils.waitForFxEvents();
         assertNotNull(longTextCell.getTooltip());
         assertEquals(LONG_DESCRIPTION, longTextCell.getTooltip().getText());
+
+        sleep(1400);
+        WaitForAsyncUtils.waitForFxEvents();
+        assertTrue(longTextCell.getTooltip().isShowing());
     }
 
     @Test
