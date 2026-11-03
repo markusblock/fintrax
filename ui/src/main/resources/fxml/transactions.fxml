@@ -15,11 +15,14 @@
                     <graphic><FontIcon iconLiteral="fth-eye" iconSize="15"/></graphic>
                 </Button>
             </HBox>
-            <fx:include fx:id="transactionFilterPanel" source="transactionFilterPanel.fxml"/>
         </VBox>
     </top>
     <center>
-        <SplitPane fx:id="splitPane" orientation="VERTICAL" dividerPositions="1.0">
+        <VBox styleClass="transactions-content-area">
+            <VBox fx:id="transactionsPanel" spacing="12" styleClass="content-panel,transactions-content-panel"
+                  VBox.vgrow="ALWAYS">
+                <fx:include fx:id="transactionFilterPanel" source="transactionFilterPanel.fxml"/>
+                <SplitPane fx:id="splitPane" orientation="VERTICAL" dividerPositions="1.0" VBox.vgrow="ALWAYS">
             <TableView fx:id="transactionTable" SplitPane.resizableWithParent="true">
                 <columns>
                     <TableColumn fx:id="dateColumn" text="%col.date" minWidth="115" prefWidth="115" maxWidth="115"
@@ -122,6 +125,8 @@
                     </content>
                 </ScrollPane>
             </VBox>
-        </SplitPane>
+                </SplitPane>
+            </VBox>
+        </VBox>
     </center>
 </BorderPane>
