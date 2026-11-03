@@ -23,6 +23,7 @@ import org.fintrax.service.*;
 import org.fintrax.ui.control.AccountDisplay;
 import org.fintrax.ui.control.LabelChipFactory;
 import org.fintrax.ui.control.SingleLineText;
+import org.fintrax.ui.control.TableCellTooltips;
 import org.fintrax.ui.control.TableColumnConfig;
 import org.fintrax.ui.control.TableColumnVisibilityMenu;
 import org.springframework.context.annotation.Scope;
@@ -141,6 +142,7 @@ public class TransactionsController {
         transactionTableActions.installContextMenu(
                 transactionTable, rootPane, this::reloadTransactionsKeepingSelection);
         setupTableColumns();
+        TableCellTooltips.install(transactionTable);
         transactionFilterPanelController.setCollapsible(true);
         transactionFilterPanelController.setOnFiltersChanged(this::loadTransactions);
         loadTransactions();

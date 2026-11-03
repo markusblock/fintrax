@@ -12,6 +12,7 @@ import org.fintrax.config.I18n;
 import org.fintrax.model.*;
 import org.fintrax.service.SettingsService;
 import org.fintrax.store.StoreManager;
+import org.fintrax.ui.control.TableCellTooltips;
 import org.fintrax.ui.control.TableColumnConfig;
 import org.fintrax.ui.control.TableColumnVisibilityMenu;
 import org.springframework.context.annotation.Scope;
@@ -80,6 +81,7 @@ public class ActivityLogController {
                 cd.getValue().getEntityId() != null ? String.valueOf(cd.getValue().getEntityId()) : ""));
         descriptionColumn.setCellValueFactory(cd -> new SimpleStringProperty(
                 cd.getValue().getDescription() != null ? cd.getValue().getDescription() : ""));
+        TableCellTooltips.install(logTable);
 
         setupColumnMenu();
         logTable.setItems(tableData);

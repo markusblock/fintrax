@@ -15,6 +15,7 @@ import org.fintrax.config.I18n;
 import org.fintrax.model.*;
 import org.fintrax.service.*;
 import org.fintrax.ui.FintraxUI;
+import org.fintrax.ui.control.TableCellTooltips;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
@@ -85,6 +86,7 @@ public class RulesController {
         ruleTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         ruleNumberColumn.setSortable(false);
         ruleNameColumn.setSortable(false);
+        TableCellTooltips.install(ruleTable);
         ruleTable.setRowFactory(table -> new TableRow<>() {
             @Override
             protected void updateItem(Rule item, boolean empty) {
