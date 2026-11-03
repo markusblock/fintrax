@@ -6,6 +6,7 @@ import org.fintrax.store.StoreConfiguration;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.testfx.framework.junit5.ApplicationTest;
 
 import javafx.stage.Stage;
@@ -17,6 +18,10 @@ import java.util.Map;
 import java.util.Comparator;
 
 public abstract class AbstractUITest extends ApplicationTest {
+    @RegisterExtension
+    protected static final UiTestFailureScreenshotExtension screenshotOnFailure =
+            new UiTestFailureScreenshotExtension();
+
     private static Path tempDir;
     protected static AnnotationConfigApplicationContext applicationContext;
 

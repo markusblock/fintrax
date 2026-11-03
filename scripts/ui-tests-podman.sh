@@ -3,6 +3,34 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 mode="${1:-focused}"
+screen_sharing_pid=""
+
+close_screen_sharing() {
+    if [[ -n "$screen_sharing_pid" ]] && kill -0 "$screen_sharing_pid" 2>/dev/null; then
+        kill -TERM "$screen_sharing_pid" 2>/dev/null || true
+    fi
+}
+trap close_screen_sharing EXIT
+
+open_screen_sharing() {
+    local previous_pid current_pid
+    previous_pid="$(pgrep -nx "Screen Sharing" 2>/dev/null || true)"
+    if ! open -n -a "Screen Sharing" "vnc://vnc:${vnc_password}@localhost:${vnc_port}"; then
+        echo "Screen Sharing did not open; connect manually to localhost:${vnc_port}." >&2
+        return
+    fi
+
+    for _ in {1..50}; do
+        current_pid="$(pgrep -nx "Screen Sharing" 2>/dev/null || true)"
+        if [[ -n "$current_pid" && "$current_pid" != "$previous_pid" ]]; then
+            screen_sharing_pid="$current_pid"
+            return
+        fi
+        sleep 0.1
+    done
+
+    echo "Could not isolate the test's Screen Sharing instance; leaving it open to avoid closing existing sessions." >&2
+}
 
 if [[ $# -gt 1 ]]; then
     echo "Usage: $0 [focused|all]" >&2
@@ -52,6 +80,7 @@ podman_args=(
     --volume "$repo_root:/workspace:rw"
     --workdir /workspace
     --env GRADLE_USER_HOME=/workspace/.gradle-podman
+    --env FINTRAX_UI_TEST_FAILURE_SCREENSHOT_DIR=/workspace/ui/build/test-failures
     --env "JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=14 -XX:ActiveProcessorCount=2"
     --env "FINTRAX_UI_VNC_PASSWORD=$vnc_password"
 )
@@ -86,8 +115,7 @@ if [[ "$vnc_ready" == true ]]; then
     sleep 2
     if [[ "$(uname -s)" == "Darwin" ]]; then
         echo "Opening VNC at vnc://localhost:${vnc_port}"
-        open "vnc://vnc:${vnc_password}@localhost:${vnc_port}" || \
-            echo "Screen Sharing did not open; connect manually to localhost:${vnc_port}." >&2
+        open_screen_sharing
     fi
 else
     echo "VNC did not become ready on localhost:${vnc_port}; UI tests are still running." >&2
