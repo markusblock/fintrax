@@ -22,10 +22,10 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
-import javafx.scene.layout.GridPane;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.stage.Stage;
 import org.fintrax.config.I18n;
@@ -741,15 +741,8 @@ class TransactionsControllerTest extends AbstractUITest {
     }
 
     @Test
-    void detailPanelShowsTransactionPropertiesInCompactReadOnlyRows() {
-        TableView<Transaction> table = lookup("#transactionTable").query();
-        int detailRow = table.getItems().stream().map(Transaction::getId).toList()
-                .indexOf(testCategoryTransaction.getId());
-        assertTrue(detailRow >= 0);
-
-        interact(() -> table.getSelectionModel().clearAndSelect(detailRow));
-        interact(lookup("#detailToggleButton").<Button>query()::fire);
-
+    void detailPanelShowsTransactionProperties() {
+        showTransactionDetail(testCategoryTransaction);
         DateTimeFormatter dateFormatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT)
                 .withLocale(I18n.getCurrentLocale());
         assertEquals("Detail test bank (DE89****3000)", detailText("#accountValue"));
@@ -772,12 +765,16 @@ class TransactionsControllerTest extends AbstractUITest {
         assertEquals("MANDATE-123", detailText("#mandateIdValue"));
         assertEquals("CREDITOR-123", detailText("#creditorIdValue"));
         assertEquals("Display popup test", detailText("#payeeValue"));
+    }
 
-        GridPane propertyTable = lookup("#detailForm").query();
-        assertSameRow("#amountValue", "#balanceValue");
-        assertSameRow("#categoryValue", "#labelsValue");
-        assertSameRow("#bookingDateValue", "#valueDateValue");
-        assertSameRow("#payeeValue", "#originalPayeeValue");
+    @Test
+    void detailPropertiesUseRequestedCompactPairingsAndFullWidthText() {
+        showTransactionDetail(testCategoryTransaction);
+
+        assertSideBySide("#amountValue", "#balanceValue");
+        assertSideBySide("#categoryValue", "#labelsValue");
+        assertSideBySide("#bookingDateValue", "#valueDateValue");
+        assertSideBySide("#payeeValue", "#originalPayeeValue");
         assertEquals(3, GridPane.getColumnSpan(lookup("#noteValue").query()));
         assertEquals(3, GridPane.getColumnSpan(lookup("#purposeValue").query()));
         assertTrue(GridPane.getRowIndex(lookup("#amountValue").query())
@@ -786,7 +783,12 @@ class TransactionsControllerTest extends AbstractUITest {
                 < GridPane.getRowIndex(lookup("#noteValue").query()));
         assertTrue(GridPane.getRowIndex(lookup("#noteValue").query())
                 < GridPane.getRowIndex(lookup("#bookingDateValue").query()));
-        assertSame(propertyTable, lookup("#amountValue").query().getParent());
+    }
+
+    @Test
+    void detailPanelDoesNotExposeEditablePropertiesOrSaveAction() {
+        showTransactionDetail(testCategoryTransaction);
+
         assertFalse(lookup("#payeeField").tryQuery().isPresent());
         assertFalse(lookup("#noteArea").tryQuery().isPresent());
         assertFalse(lookup("#detailCategoryButton").tryQuery().isPresent());
@@ -801,11 +803,8 @@ class TransactionsControllerTest extends AbstractUITest {
                 .filter(transaction -> transaction.getAccountId() == null
                         && !testCategoryTransaction.getId().equals(transaction.getId()))
                 .findFirst().orElseThrow();
-        int detailRow = table.getItems().stream().map(Transaction::getId).toList()
-                .indexOf(sparseTransaction.getId());
 
-        interact(() -> table.getSelectionModel().clearAndSelect(detailRow));
-        interact(lookup("#detailToggleButton").<Button>query()::fire);
+        showTransactionDetail(sparseTransaction);
 
         assertEquals("—", detailText("#accountValue"));
         assertEquals("—", detailText("#valueDateValue"));
@@ -821,9 +820,20 @@ class TransactionsControllerTest extends AbstractUITest {
         return lookup(selector).<Labeled>query().getText();
     }
 
-    private void assertSameRow(String firstSelector, String secondSelector) {
-        assertEquals(GridPane.getRowIndex(lookup(firstSelector).query()),
-                GridPane.getRowIndex(lookup(secondSelector).query()));
+    private void showTransactionDetail(Transaction transaction) {
+        TableView<Transaction> table = lookup("#transactionTable").query();
+        int row = table.getItems().stream().map(Transaction::getId).toList().indexOf(transaction.getId());
+        if (row < 0) throw new AssertionError("Expected transaction to be visible in the table");
+        interact(() -> table.getSelectionModel().clearAndSelect(row));
+        interact(lookup("#detailToggleButton").<Button>query()::fire);
+    }
+
+    private void assertSideBySide(String leftSelector, String rightSelector) {
+        Node left = lookup(leftSelector).query();
+        Node right = lookup(rightSelector).query();
+        assertEquals(GridPane.getRowIndex(left), GridPane.getRowIndex(right));
+        assertEquals(1, GridPane.getColumnIndex(left));
+        assertEquals(3, GridPane.getColumnIndex(right));
     }
 
     private void waitForPicker() throws TimeoutException {
