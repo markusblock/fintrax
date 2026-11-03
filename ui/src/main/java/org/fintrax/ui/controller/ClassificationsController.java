@@ -31,6 +31,7 @@ import org.fintrax.service.TransactionService;
 import org.fintrax.ui.FintraxUI;
 import org.fintrax.ui.control.LabelChipFactory;
 import org.fintrax.ui.control.SingleLineText;
+import org.fintrax.ui.control.TableCellTooltips;
 import org.fintrax.ui.control.TableColumnConfig;
 import org.fintrax.ui.control.TableColumnVisibilityMenu;
 import org.springframework.context.annotation.Scope;
@@ -111,6 +112,7 @@ public class ClassificationsController {
         configureContextMenu();
         classificationTree.setCellFactory(this::createClassificationCell);
         setupTransactionTable();
+        TableCellTooltips.install(classificationTransactionsTable);
         classificationTransactionsTable.setItems(displayedTransactions);
         setupColumnMenu();
         displayedTransactions.addListener((javafx.collections.ListChangeListener<Transaction>) change ->

@@ -23,6 +23,7 @@ import org.fintrax.service.RuleService;
 import org.fintrax.service.SyncService;
 import org.fintrax.service.SettingsService;
 import org.fintrax.store.ResetGroup;
+import org.fintrax.ui.control.TableCellTooltips;
 import org.fintrax.ui.control.TableColumnConfig;
 import org.fintrax.ui.control.TableSortOrderPersistence;
 import org.springframework.context.annotation.Scope;
@@ -111,6 +112,7 @@ public class SettingsController {
                 Objects.toString(cell.getValue().getAccountName(), "")));
         statusColumn.setCellValueFactory(cell -> new SimpleStringProperty(
                 Objects.toString(cell.getValue().getStatus(), "")));
+        TableCellTooltips.install(credentialTable);
         loadCredentials();
         TableSortOrderPersistence.install(credentialTable, "settings.credentials.sort", settingsService,
                 List.of(new TableColumnConfig("account", accountColumn),

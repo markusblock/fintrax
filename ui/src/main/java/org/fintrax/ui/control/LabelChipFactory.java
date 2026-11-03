@@ -27,6 +27,11 @@ public final class LabelChipFactory {
         return new LabelChipStrip(chips);
     }
 
+    /** Whether the strip hides chips behind the overflow indicator. */
+    public static boolean isTruncated(javafx.scene.Node graphic) {
+        return graphic instanceof LabelChipStrip strip && strip.isOverflowVisible();
+    }
+
     /** Creates one chip using the label's configured color. */
     public static Label create(org.fintrax.model.Label label) {
         Color color = parseColor(label.getColor());
@@ -120,6 +125,10 @@ public final class LabelChipFactory {
                 chips.get(index).setManaged(visible);
                 chips.get(index).setVisible(visible);
             }
+        }
+
+        private boolean isOverflowVisible() {
+            return overflow.isVisible();
         }
     }
 }

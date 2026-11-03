@@ -18,6 +18,7 @@ import org.fintrax.service.RuleService;
 import org.fintrax.service.SettingsService;
 import org.fintrax.service.TransactionRulePreview;
 import org.fintrax.ui.FintraxUI;
+import org.fintrax.ui.control.TableCellTooltips;
 import org.fintrax.ui.control.TableColumnConfig;
 import org.fintrax.ui.control.TableColumnVisibilityMenu;
 
@@ -108,6 +109,7 @@ final class RuleReviewDialog {
                         new TableColumnConfig("labels", columns.get(5)),
                         new TableColumnConfig("note", columns.get(6)),
                         new TableColumnConfig("matchedRules", columns.get(7))));
+        TableCellTooltips.install(table);
 
         Label summary = new Label();
         summary.setId("ruleReviewSummary");
