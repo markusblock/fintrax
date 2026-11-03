@@ -8,8 +8,8 @@ import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
-import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.CheckBox;
+import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
@@ -37,6 +37,7 @@ import org.fintrax.model.Label;
 import org.fintrax.model.MatchField;
 import org.fintrax.model.Operator;
 import org.fintrax.model.Rule;
+import org.fintrax.model.RuleCondition;
 import org.fintrax.model.Transaction;
 import org.fintrax.service.AccountService;
 import org.fintrax.service.CategoryService;
@@ -695,9 +696,9 @@ class TransactionsControllerTest extends AbstractUITest {
                 .filter(rule -> rule.getName().equals("Rule for Display popup test"))
                 .findFirst().orElseThrow();
         assertEquals(List.of(MatchField.PAYEE_NAME, MatchField.PURPOSE),
-                created.getConditions().stream().map(condition -> condition.getMatchField()).toList());
+                created.getConditions().stream().map(RuleCondition::getMatchField).toList());
         assertEquals(List.of("Display popup test", "Test transaction purpose"),
-                created.getConditions().stream().map(condition -> condition.getValue()).toList());
+                created.getConditions().stream().map(RuleCondition::getValue).toList());
         assertTrue(created.getConditions().stream().allMatch(condition -> condition.getOperator() == Operator.CONTAINS));
         assertEquals(1, created.getActions().stream()
                 .filter(action -> action.getActionType() == ActionType.ASSIGN_CATEGORY
