@@ -8,7 +8,6 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.geometry.Pos;
-import javafx.scene.Node;
 import javafx.scene.control.Label;
 import javafx.scene.control.*;
 import javafx.scene.input.MouseEvent;
@@ -16,7 +15,6 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import lombok.extern.slf4j.Slf4j;
 import org.fintrax.config.I18n;
@@ -45,8 +43,10 @@ public class TransactionsController {
     private static final String AMOUNT_NEGATIVE_STYLE_CLASS = "amount-negative";
     private static final String BOOKED_STYLE_CLASS = "booked";
     private static final String PENDING_STYLE_CLASS = "pending";
-    private static final double TABLE_DIVIDER_WITH_DETAILS = 0.7;
+    private static final double TABLE_DIVIDER_WITH_DETAILS = 0.45;
     private static final double TABLE_DIVIDER_WITHOUT_DETAILS = 1.0;
+    private static final double MIN_TABLE_HEIGHT_WITH_DETAILS = 150;
+    private static final double DETAIL_VIEWPORT_HEIGHT_BUFFER = 8;
 
     @FXML
     private BorderPane rootPane;
@@ -77,6 +77,8 @@ public class TransactionsController {
     @FXML
     private GridPane detailForm;
     @FXML
+    private ScrollPane detailScrollPane;
+    @FXML
     private Label accountValue;
     @FXML
     private Label bookingDateValue;
@@ -103,8 +105,6 @@ public class TransactionsController {
     @FXML
     private Label bookingStatusValue;
     @FXML
-    private StackPane bookingStatusCell;
-    @FXML
     private Label endToEndIdValue;
     @FXML
     private Label mandateIdValue;
@@ -119,7 +119,6 @@ public class TransactionsController {
     private final TransactionTableActions transactionTableActions;
 
     private final ObservableList<Transaction> tableData = FXCollections.observableArrayList();
-    private final Map<Integer, Node> detailRowSeparators = new HashMap<>();
     private boolean detailVisible = false;
 
     public TransactionsController(TransactionService transactionService, AccountService accountService,
@@ -143,9 +142,6 @@ public class TransactionsController {
         transactionFilterPanelController.setOnFiltersChanged(this::loadTransactions);
         loadTransactions();
         setupColumnMenu();
-        detailRowSeparators.clear();
-        detailForm.lookupAll(".detail-row-separator").forEach(separator ->
-                detailRowSeparators.put(GridPane.getRowIndex(separator), separator));
         clearDetail();
 
         transactionTable.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
@@ -154,6 +150,12 @@ public class TransactionsController {
             } else {
                 clearDetail();
             }
+        });
+        splitPane.heightProperty().addListener((observable, oldHeight, newHeight) -> {
+            if (detailVisible) Platform.runLater(this::sizeDetailPanelToContent);
+        });
+        detailScrollPane.widthProperty().addListener((observable, oldWidth, newWidth) -> {
+            if (detailVisible) Platform.runLater(this::sizeDetailPanelToContent);
         });
         Platform.runLater(rootPane::applyCss);
     }
@@ -305,9 +307,34 @@ public class TransactionsController {
         detailVisible = !detailVisible;
         detailPanel.setVisible(detailVisible);
         detailPanel.setManaged(detailVisible);
-        splitPane.setDividerPosition(0, detailVisible
-                ? TABLE_DIVIDER_WITH_DETAILS
-                : TABLE_DIVIDER_WITHOUT_DETAILS);
+        if (detailVisible) {
+            splitPane.setDividerPosition(0, TABLE_DIVIDER_WITH_DETAILS);
+            Platform.runLater(this::sizeDetailPanelToContent);
+        } else {
+            splitPane.setDividerPosition(0, TABLE_DIVIDER_WITHOUT_DETAILS);
+        }
+    }
+
+    private void sizeDetailPanelToContent() {
+        if (!detailVisible) return;
+        double availableHeight = splitPane.getHeight();
+        if (availableHeight <= 0) return;
+
+        double contentWidth = detailScrollPane.getViewportBounds().getWidth();
+        if (contentWidth <= 0) contentWidth = splitPane.getWidth() - 40;
+        if (contentWidth <= 0) return;
+
+        detailScrollPane.setPrefViewportHeight(
+                detailForm.prefHeight(contentWidth) + DETAIL_VIEWPORT_HEIGHT_BUFFER);
+        splitPane.requestLayout();
+        Platform.runLater(() -> {
+            if (!detailVisible) return;
+            double maxDetailHeight = Math.max(0, splitPane.getHeight() - MIN_TABLE_HEIGHT_WITH_DETAILS);
+            double detailHeight = Math.min(detailPanel.prefHeight(-1), maxDetailHeight);
+            if (detailHeight > 0 && splitPane.getHeight() > 0) {
+                splitPane.setDividerPosition(0, 1.0 - detailHeight / splitPane.getHeight());
+            }
+        });
     }
 
     private void loadDetail(Transaction transaction) {
@@ -317,46 +344,28 @@ public class TransactionsController {
                 .withLocale(I18n.getCurrentLocale());
         String currency = accountCurrency(account);
 
-        boolean hasAmount = setAmountValue(amountValue, transaction.getAmount(), currency);
-        boolean hasBalance = setAmountValue(balanceValue, transaction.getBalanceAfter(), currency);
-        boolean hasCategory = setPropertyText(categoryValue, categoryName(transaction.getCategoryId()));
-        boolean hasLabels = setDetailLabels(transaction.getLabelIds());
-        boolean hasNote = setPropertyText(noteValue, transaction.getNote());
-        boolean hasBookingDate = setPropertyText(
-                bookingDateValue, formatDate(transaction.getBookingDate(), dateFormatter));
-        boolean hasValueDate = setPropertyText(
-                valueDateValue, formatDate(transaction.getValueDate(), dateFormatter));
-        boolean hasAccount = setPropertyText(accountValue, accountName(account));
-        boolean hasTransactionType = setPropertyText(transactionTypeValue, transaction.getTransactionType());
-        boolean hasPayee = setPropertyText(payeeValue, transaction.getPayeeDisplay());
-        boolean hasOriginalPayee = setPropertyText(originalPayeeValue, transaction.getOriginalPayee());
-        boolean hasPurpose = setPropertyText(purposeValue, transaction.getPurpose());
+        setAmountValue(amountValue, transaction.getAmount(), currency);
+        setAmountValue(balanceValue, transaction.getBalanceAfter(), currency);
+        setPropertyText(categoryValue, categoryName(transaction.getCategoryId()));
+        setDetailLabels(transaction.getLabelIds());
+        setPropertyText(noteValue, transaction.getNote());
+        setPropertyText(bookingDateValue, formatDate(transaction.getBookingDate(), dateFormatter));
+        setPropertyText(valueDateValue, formatDate(transaction.getValueDate(), dateFormatter));
+        setPropertyText(accountValue, accountName(account));
+        setPropertyText(transactionTypeValue, transaction.getTransactionType());
+        setPropertyText(payeeValue, transaction.getPayeeDisplay());
+        setPropertyText(originalPayeeValue, transaction.getOriginalPayee());
+        setPropertyText(purposeValue, transaction.getPurpose());
         boolean booked = transaction.isBooked();
         bookingStatusValue.setText(I18n.get(booked ? "detail.status.booked" : "detail.status.pending"));
         bookingStatusValue.getStyleClass().removeAll(BOOKED_STYLE_CLASS, PENDING_STYLE_CLASS);
         bookingStatusValue.getStyleClass().add(booked ? BOOKED_STYLE_CLASS : PENDING_STYLE_CLASS);
-        boolean hasEndToEndId = setPropertyText(endToEndIdValue, transaction.getEndToEndId());
-        boolean hasMandateId = setPropertyText(mandateIdValue, transaction.getMandateId());
-        boolean hasCreditorId = setPropertyText(creditorIdValue, transaction.getCreditorId());
-
-        setDetailPair(0, "amountKey", amountValue, hasAmount, "balanceKey", balanceValue, hasBalance);
-        setDetailPair(1, "categoryKey", categoryValue, hasCategory, "labelsKey", labelsValue, hasLabels);
-        setDetailProperty(2, "noteKey", noteValue, hasNote);
-        setDetailPair(3, "bookingDateKey", bookingDateValue, hasBookingDate,
-                "valueDateKey", valueDateValue, hasValueDate);
-        setDetailPair(4, "accountKey", accountValue, hasAccount,
-                "transactionTypeKey", transactionTypeValue, hasTransactionType);
-        setDetailPair(5, "payeeKey", payeeValue, hasPayee,
-                "originalPayeeKey", originalPayeeValue, hasOriginalPayee);
-        setDetailProperty(6, "purposeKey", purposeValue, hasPurpose);
-        setDetailPair(7, "bookingStatusKey", bookingStatusCell, true,
-                "endToEndIdKey", endToEndIdValue, hasEndToEndId);
-        setDetailPair(8, "mandateIdKey", mandateIdValue, hasMandateId,
-                "creditorIdKey", creditorIdValue, hasCreditorId);
+        setPropertyText(endToEndIdValue, transaction.getEndToEndId());
+        setPropertyText(mandateIdValue, transaction.getMandateId());
+        setPropertyText(creditorIdValue, transaction.getCreditorId());
     }
 
     private void clearDetail() {
-        detailForm.getChildren().forEach(node -> setNodeVisible(node, false));
         labelsValue.getChildren().clear();
         bookingStatusValue.getStyleClass().removeAll(BOOKED_STYLE_CLASS, PENDING_STYLE_CLASS);
         amountValue.getStyleClass().removeAll(AMOUNT_POSITIVE_STYLE_CLASS, AMOUNT_NEGATIVE_STYLE_CLASS);
@@ -368,48 +377,8 @@ public class TransactionsController {
         }
     }
 
-    private void setDetailPair(int row, String leftKeyId, Node leftValue, boolean showLeft,
-                               String rightKeyId, Node rightValue, boolean showRight) {
-        Label leftKey = propertyKey(leftKeyId);
-        Label rightKey = propertyKey(rightKeyId);
-        setNodeVisible(leftKey, showLeft);
-        setNodeVisible(leftValue, showLeft);
-        setNodeVisible(rightKey, showRight);
-        setNodeVisible(rightValue, showRight);
-
-        int rightColumn = showLeft ? 2 : 0;
-        GridPane.setColumnIndex(rightKey, rightColumn);
-        GridPane.setColumnIndex(rightValue, rightColumn + 1);
-        setDetailRowVisible(row, showLeft || showRight);
-    }
-
-    private void setDetailProperty(int row, String keyId, Node value, boolean show) {
-        setNodeVisible(propertyKey(keyId), show);
-        setNodeVisible(value, show);
-        setDetailRowVisible(row, show);
-    }
-
-    private Label propertyKey(String keyId) {
-        Node node = detailForm.lookup("#" + keyId);
-        if (!(node instanceof Label label)) {
-            throw new IllegalStateException("Missing transaction property key: " + keyId);
-        }
-        return label;
-    }
-
-    private void setDetailRowVisible(int row, boolean show) {
-        Node separator = detailRowSeparators.get(row);
-        if (separator != null) setNodeVisible(separator, show);
-    }
-
-    private void setNodeVisible(Node node, boolean show) {
-        node.setVisible(show);
-        node.setManaged(show);
-    }
-
-    private boolean setPropertyText(Label value, String text) {
+    private void setPropertyText(Label value, String text) {
         value.setText(text == null ? "" : text);
-        return text != null && !text.isBlank();
     }
 
     private String categoryName(Long categoryId) {
@@ -417,16 +386,15 @@ public class TransactionsController {
         return categoryService.getCategory(categoryId).map(Category::getName).orElse("");
     }
 
-    private boolean setDetailLabels(Set<Long> labelIds) {
+    private void setDetailLabels(Set<Long> labelIds) {
         labelsValue.getChildren().clear();
         List<org.fintrax.model.Label> labels = labelIds == null ? List.of() : labelIds.stream()
                 .map(labelService::getLabel)
                 .flatMap(Optional::stream)
                 .sorted(Comparator.comparing(org.fintrax.model.Label::getName, String.CASE_INSENSITIVE_ORDER))
                 .toList();
-        if (labels.isEmpty()) return false;
+        if (labels.isEmpty()) return;
         labels.forEach(label -> labelsValue.getChildren().add(LabelChipFactory.create(label)));
-        return true;
     }
 
     private String accountName(BankAccount account) {
@@ -454,7 +422,7 @@ public class TransactionsController {
         return amount == null ? "" : String.format(I18n.getCurrentLocale(), "%,.2f %s", amount, currency);
     }
 
-    private boolean setAmountValue(Label value, BigDecimal amount, String currency) {
+    private void setAmountValue(Label value, BigDecimal amount, String currency) {
         String formattedAmount = formatAmount(amount, currency);
         value.setText(formattedAmount);
         value.getStyleClass().removeAll(AMOUNT_POSITIVE_STYLE_CLASS, AMOUNT_NEGATIVE_STYLE_CLASS);
@@ -462,7 +430,6 @@ public class TransactionsController {
             value.getStyleClass().add(amount.signum() < 0
                     ? AMOUNT_NEGATIVE_STYLE_CLASS : AMOUNT_POSITIVE_STYLE_CLASS);
         }
-        return !formattedAmount.isBlank();
     }
 
     @FXML

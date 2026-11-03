@@ -49,7 +49,8 @@
                     <Region HBox.hgrow="ALWAYS"/>
                     <Button text="%button.close" onAction="#onToggleDetail" styleClass="button-outlined"/>
                 </HBox>
-                <ScrollPane fitToWidth="true" hbarPolicy="NEVER" styleClass="transaction-detail-scroll"
+                <ScrollPane fx:id="detailScrollPane" fitToWidth="true" hbarPolicy="NEVER"
+                            styleClass="transaction-detail-scroll"
                             VBox.vgrow="ALWAYS">
                     <content>
                         <GridPane fx:id="detailForm" styleClass="transaction-property-table" hgap="0" vgap="0">
@@ -88,7 +89,7 @@
                             <Label fx:id="purposeValue" styleClass="detail-property-value" wrapText="true"
                                    GridPane.rowIndex="6" GridPane.columnIndex="1" GridPane.columnSpan="3"/>
                             <Label fx:id="bookingStatusKey" text="%detail.bookingStatus" styleClass="detail-property-key" wrapText="true" GridPane.rowIndex="7" GridPane.columnIndex="0"/>
-                            <StackPane fx:id="bookingStatusCell" styleClass="detail-property-value,detail-status-cell"
+                            <StackPane styleClass="detail-property-value,detail-status-cell"
                                        GridPane.rowIndex="7" GridPane.columnIndex="1">
                                 <children>
                                     <Label fx:id="bookingStatusValue" styleClass="detail-status-badge"/>

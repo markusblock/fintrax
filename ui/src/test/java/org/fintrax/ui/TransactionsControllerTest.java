@@ -810,26 +810,48 @@ class TransactionsControllerTest extends AbstractUITest {
     }
 
     @Test
-    void detailPanelMarksUnavailableOptionalValues() {
+    void openingDetailsResizesPanelToShowAllProperties() throws TimeoutException {
+        showTransactionDetail(testCategoryTransaction);
+        javafx.scene.control.ScrollPane detailScrollPane = lookup("#detailScrollPane").query();
+        GridPane detailForm = lookup("#detailForm").query();
+
+        try {
+            WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS, () -> {
+                double width = detailScrollPane.getViewportBounds().getWidth();
+                return width > 0 && detailScrollPane.getViewportBounds().getHeight() + 1
+                        >= detailForm.prefHeight(width);
+            });
+        } catch (TimeoutException timeout) {
+            double width = detailScrollPane.getViewportBounds().getWidth();
+            throw new AssertionError("Details viewport=" + detailScrollPane.getViewportBounds().getHeight()
+                    + ", content=" + detailForm.prefHeight(width) + ", panel=" + detailPanelHeight(), timeout);
+        }
+    }
+
+    private double detailPanelHeight() {
+        return lookup("#detailPanel").query().getBoundsInParent().getHeight();
+    }
+
+    @Test
+    void detailPanelKeepsUnavailablePropertiesWithEmptyValues() {
         showTransactionDetail(detailSparseTransaction);
 
-        assertPropertyHidden("#accountKey", "#accountValue");
-        assertPropertyHidden("#valueDateKey", "#valueDateValue");
-        assertPropertyHidden("#purposeKey", "#purposeValue");
-        assertPropertyHidden("#balanceKey", "#balanceValue");
-        assertPropertyHidden("#transactionTypeKey", "#transactionTypeValue");
-        assertPropertyHidden("#categoryKey", "#categoryValue");
-        assertPropertyHidden("#labelsKey", "#labelsValue");
-        assertPropertyHidden("#noteKey", "#noteValue");
-        assertPropertyHidden("#payeeKey", "#payeeValue");
-        assertPropertyHidden("#endToEndIdKey", "#endToEndIdValue");
-        assertPropertyHidden("#mandateIdKey", "#mandateIdValue");
-        assertPropertyHidden("#creditorIdKey", "#creditorIdValue");
+        assertPropertyEmpty("#accountKey", "#accountValue");
+        assertPropertyEmpty("#valueDateKey", "#valueDateValue");
+        assertPropertyEmpty("#purposeKey", "#purposeValue");
+        assertPropertyEmpty("#balanceKey", "#balanceValue");
+        assertPropertyEmpty("#transactionTypeKey", "#transactionTypeValue");
+        assertPropertyEmpty("#categoryKey", "#categoryValue");
+        assertPropertyEmpty("#labelsKey", "#labelsValue");
+        assertPropertyEmpty("#noteKey", "#noteValue");
+        assertPropertyEmpty("#payeeKey", "#payeeValue");
+        assertPropertyEmpty("#endToEndIdKey", "#endToEndIdValue");
+        assertPropertyEmpty("#mandateIdKey", "#mandateIdValue");
+        assertPropertyEmpty("#creditorIdKey", "#creditorIdValue");
         assertTrue(detailPropertyIsVisible("#bookingDateKey", "#bookingDateValue"));
         assertTrue(detailPropertyIsVisible("#originalPayeeKey", "#originalPayeeValue"));
-        assertEquals(0, GridPane.getColumnIndex(lookup("#originalPayeeKey").query()));
-        assertEquals(1, GridPane.getColumnIndex(lookup("#originalPayeeValue").query()));
-        assertEquals("", detailText("#accountValue"));
+        assertEquals(2, GridPane.getColumnIndex(lookup("#originalPayeeKey").query()));
+        assertEquals(3, GridPane.getColumnIndex(lookup("#originalPayeeValue").query()));
         assertTrue(lookup("#labelsValue").<FlowPane>query().getChildren().isEmpty());
     }
 
@@ -837,8 +859,11 @@ class TransactionsControllerTest extends AbstractUITest {
         return lookup(selector).<Labeled>query().getText();
     }
 
-    private void assertPropertyHidden(String keySelector, String valueSelector) {
-        assertFalse(detailPropertyIsVisible(keySelector, valueSelector));
+    private void assertPropertyEmpty(String keySelector, String valueSelector) {
+        assertTrue(detailPropertyIsVisible(keySelector, valueSelector));
+        Node value = lookup(valueSelector).query();
+        if (value instanceof Labeled labeled) assertEquals("", labeled.getText());
+        if (value instanceof FlowPane labels) assertTrue(labels.getChildren().isEmpty());
     }
 
     private boolean detailPropertyIsVisible(String keySelector, String valueSelector) {
