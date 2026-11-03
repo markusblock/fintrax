@@ -78,7 +78,7 @@ if [[ "$vnc_mode" == "--vnc" ]]; then
         echo "Could not start the VNC server." >&2
         exit 1
     fi
-    echo "View-only VNC: vnc://localhost:5900 (password: $vnc_password)"
+    echo "View-only VNC password: $vnc_password"
 fi
 
 ./gradlew "${gradle_args[@]}"
