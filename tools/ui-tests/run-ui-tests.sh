@@ -24,7 +24,7 @@ if [[ $# -gt 1 ]] || [[ -n "$vnc_mode" && "$vnc_mode" != "--vnc" ]]; then
 fi
 
 gradle_args=(
-    --rerun-tasks
+    --init-script tools/ui-tests/rerun-tests.gradle
     --no-parallel
     --max-workers=1
     "-Dorg.gradle.jvmargs=-Xmx384m -Dfile.encoding=UTF-8"
