@@ -7,8 +7,6 @@ import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.VBox;
 import lombok.extern.slf4j.Slf4j;
 import org.kordamp.ikonli.javafx.FontIcon;
 import org.fintrax.config.I18n;
@@ -19,7 +17,6 @@ import org.fintrax.ui.control.TableCellTooltips;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
-import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -38,11 +35,7 @@ public class RulesController {
     @FXML
     private TableColumn<Rule, String> ruleNameColumn;
     @FXML
-    private TextField ruleNameField;
-    @FXML
-    private VBox conditionsContainer;
-    @FXML
-    private VBox actionsContainer;
+    private RuleEditorController ruleEditorController;
     @FXML
     private Button saveButton;
     @FXML
@@ -63,8 +56,6 @@ public class RulesController {
     private final ObservableList<Rule> ruleData = FXCollections.observableArrayList();
     private Long editingRuleId;
     private boolean editingNew = false;
-    private final List<ConditionRow> conditionRows = new ArrayList<>();
-    private final List<ActionRow> actionRows = new ArrayList<>();
 
     public RulesController(RuleService ruleService, AccountService accountService,
                            CategoryService categoryService, LabelService labelService,
@@ -171,22 +162,7 @@ public class RulesController {
         editingRuleId = rule.getId();
         editingNew = false;
 
-        ruleNameField.setText(rule.getName() != null ? rule.getName() : "");
-        ruleNameField.setDisable(false);
-
-        conditionsContainer.getChildren().clear();
-        conditionRows.clear();
-        for (RuleCondition cond : rule.getConditions()) {
-            addConditionRow(cond);
-        }
-
-        actionsContainer.getChildren().clear();
-        actionRows.clear();
-        for (RuleAction action : rule.getActions()) {
-            if (action.getActionType() != ActionType.SET_NOTE) {
-                addActionRow(action);
-            }
-        }
+        ruleEditorController.setRule(rule.getName(), rule.getConditions(), rule.getActions());
 
         int matchCount = ruleService.previewRule(rule.getId());
         matchCountLabel.setText(I18n.get("rules.matchCount", matchCount));
@@ -200,106 +176,23 @@ public class RulesController {
     private void onAddRule() {
         editingNew = true;
         editingRuleId = null;
-        ruleNameField.clear();
-        ruleNameField.setDisable(false);
-        conditionsContainer.getChildren().clear();
-        conditionRows.clear();
-        actionsContainer.getChildren().clear();
-        actionRows.clear();
+        ruleEditorController.prepareNewRule();
         matchCountLabel.setText("");
         saveButton.setDisable(false);
         deleteButton.setDisable(true);
         previewButton.setDisable(true);
-        addConditionRow(null);
-        addActionRow(null);
-    }
-
-    @FXML
-    private void onAddCondition() {
-        addConditionRow(null);
-    }
-
-    @FXML
-    private void onAddAction() {
-        addActionRow(null);
-    }
-
-    private void addConditionRow(RuleCondition existing) {
-        ConditionRow row = new ConditionRow();
-        row.fieldCombo.getItems().setAll(Arrays.stream(MatchField.values()).map(Enum::name).toList());
-        row.operatorCombo.getItems().setAll(Arrays.stream(Operator.values()).map(Enum::name).toList());
-
-        if (existing != null) {
-            row.fieldCombo.setValue(existing.getMatchField().name());
-            row.operatorCombo.setValue(existing.getOperator().name());
-            row.valueField.setText(existing.getValue() != null ? existing.getValue() : "");
-        }
-
-        row.removeButton.setOnAction(e -> {
-            conditionsContainer.getChildren().remove(row.hBox);
-            conditionRows.remove(row);
-        });
-
-        conditionRows.add(row);
-        conditionsContainer.getChildren().add(row.hBox);
-    }
-
-    private void addActionRow(RuleAction existing) {
-        ActionRow row = new ActionRow();
-        row.typeCombo.getItems().setAll(Arrays.stream(ActionType.values())
-                .filter(actionType -> actionType != ActionType.SET_NOTE).map(Enum::name).toList());
-
-        if (existing != null) {
-            row.typeCombo.setValue(existing.getActionType().name());
-            if (existing.getCategoryId() != null) {
-                categoryService.getCategory(existing.getCategoryId())
-                        .ifPresent(c -> row.targetCombo.setValue(c.getName()));
-            }
-            if (existing.getLabelId() != null) {
-                labelService.getLabel(existing.getLabelId())
-                        .ifPresent(l -> row.targetCombo.setValue(l.getName()));
-            }
-            if (existing.getNote() != null) {
-                row.targetCombo.setValue(existing.getNote());
-            }
-        }
-
-        row.typeCombo.setOnAction(e -> onActionTypeChanged(row));
-        onActionTypeChanged(row);
-
-        row.removeButton.setOnAction(e -> {
-            actionsContainer.getChildren().remove(row.hBox);
-            actionRows.remove(row);
-        });
-
-        actionRows.add(row);
-        actionsContainer.getChildren().add(row.hBox);
-    }
-
-    private void onActionTypeChanged(ActionRow row) {
-        String type = row.typeCombo.getValue();
-        row.targetCombo.getItems().clear();
-        row.targetCombo.setDisable(false);
-
-        if ("ASSIGN_CATEGORY".equals(type)) {
-            row.targetCombo.getItems().setAll(
-                    categoryService.getAllCategories().stream().map(Category::getName).toList());
-        } else if ("ADD_LABEL".equals(type)) {
-            row.targetCombo.getItems().setAll(
-                    labelService.getAllLabels().stream().map(org.fintrax.model.Label::getName).toList());
-        }
     }
 
     @FXML
     private void onSave() {
-        String name = ruleNameField.getText().trim();
+        String name = ruleEditorController.getRuleName();
         if (name.isEmpty()) {
             showError(I18n.get("rules.name.required"));
             return;
         }
 
-        List<RuleCondition> conditions = buildConditions();
-        List<RuleAction> actions = buildActions();
+        List<RuleCondition> conditions = ruleEditorController.getConditions();
+        List<RuleAction> actions = ruleEditorController.getActions();
 
         if (conditions.isEmpty()) {
             showError(I18n.get("rules.conditions.required"));
@@ -319,69 +212,6 @@ public class RulesController {
 
         loadRules();
         log.info("Saved rule: {}", name);
-    }
-
-    private List<RuleCondition> buildConditions() {
-        List<RuleCondition> conditions = new ArrayList<>();
-        for (ConditionRow row : conditionRows) {
-            String field = row.fieldCombo.getValue();
-            String operator = row.operatorCombo.getValue();
-            String value = row.valueField.getText().trim();
-
-            if (field == null || operator == null) continue;
-
-            RuleCondition cond = RuleCondition.builder()
-                    .matchField(MatchField.valueOf(field))
-                    .operator(Operator.valueOf(operator))
-                    .value(value.isEmpty() ? null : value)
-                    .build();
-
-            if (Operator.AMOUNT_RANGE.name().equals(operator)) {
-                String[] parts = value.split("[;,]");
-                if (parts.length >= 1) cond.setAmountMin(parseAmount(parts[0].trim()));
-                if (parts.length >= 2) cond.setAmountMax(parseAmount(parts[1].trim()));
-            }
-
-            conditions.add(cond);
-        }
-        return conditions;
-    }
-
-    private List<RuleAction> buildActions() {
-        List<RuleAction> actions = new ArrayList<>();
-        for (ActionRow row : actionRows) {
-            String type = row.typeCombo.getValue();
-            String target = row.targetCombo.getValue();
-            if (type == null) continue;
-
-            RuleAction action = RuleAction.builder()
-                    .actionType(ActionType.valueOf(type))
-                    .build();
-
-            if ("ASSIGN_CATEGORY".equals(type) && target != null) {
-                categoryService.getAllCategories().stream()
-                        .filter(c -> c.getName().equals(target))
-                        .findFirst()
-                        .ifPresent(c -> action.setCategoryId(c.getId()));
-            } else if ("ADD_LABEL".equals(type) && target != null) {
-                labelService.getAllLabels().stream()
-                        .filter(l -> l.getName().equals(target))
-                        .findFirst()
-                        .ifPresent(l -> action.setLabelId(l.getId()));
-            }
-
-            actions.add(action);
-        }
-        return actions;
-    }
-
-    private BigDecimal parseAmount(String text) {
-        if (text == null || text.isEmpty()) return null;
-        try {
-            return new BigDecimal(text.replace(",", "."));
-        } catch (NumberFormatException e) {
-            return null;
-        }
     }
 
     @FXML
@@ -460,11 +290,7 @@ public class RulesController {
     }
 
     private void clearEditor() {
-        ruleNameField.clear();
-        conditionsContainer.getChildren().clear();
-        conditionRows.clear();
-        actionsContainer.getChildren().clear();
-        actionRows.clear();
+        ruleEditorController.clear();
         matchCountLabel.setText("");
         saveButton.setDisable(true);
         deleteButton.setDisable(true);
@@ -477,46 +303,6 @@ public class RulesController {
         alert.setTitle("Error");
         alert.initOwner(rootPane.getScene().getWindow());
         alert.showAndWait();
-    }
-
-    private static class ConditionRow {
-        HBox hBox = new HBox(5);
-        ComboBox<String> fieldCombo = new ComboBox<>();
-        ComboBox<String> operatorCombo = new ComboBox<>();
-        TextField valueField = new TextField();
-        Button removeButton = new Button("\u2716");
-
-        ConditionRow() {
-            hBox.getStyleClass().add("rule-condition-row");
-            removeButton.setText("");
-            removeButton.setGraphic(icon("fth-x", 14));
-            removeButton.getStyleClass().addAll("icon-button", "danger");
-            removeButton.setAccessibleText(I18n.get("button.delete"));
-            removeButton.setTooltip(new Tooltip(I18n.get("button.delete")));
-            fieldCombo.setPromptText("Field");
-            operatorCombo.setPromptText("Operator");
-            valueField.setPromptText("Value");
-            hBox.getChildren().addAll(fieldCombo, operatorCombo, valueField, removeButton);
-        }
-    }
-
-    private static class ActionRow {
-        HBox hBox = new HBox(5);
-        ComboBox<String> typeCombo = new ComboBox<>();
-        ComboBox<String> targetCombo = new ComboBox<>();
-        Button removeButton = new Button("\u2716");
-
-        ActionRow() {
-            hBox.getStyleClass().add("rule-action-row");
-            removeButton.setText("");
-            removeButton.setGraphic(icon("fth-x", 14));
-            removeButton.getStyleClass().addAll("icon-button", "danger");
-            removeButton.setAccessibleText(I18n.get("button.delete"));
-            removeButton.setTooltip(new Tooltip(I18n.get("button.delete")));
-            typeCombo.setPromptText("Action");
-            targetCombo.setPromptText("Target");
-            hBox.getChildren().addAll(typeCombo, targetCombo, removeButton);
-        }
     }
 
     private static FontIcon icon(String literal, int size) {

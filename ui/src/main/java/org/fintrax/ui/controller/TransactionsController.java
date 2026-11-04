@@ -20,6 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.fintrax.config.I18n;
 import org.fintrax.model.*;
 import org.fintrax.service.*;
+import org.fintrax.ui.ViewLoader;
 import org.fintrax.ui.control.AccountDisplay;
 import org.fintrax.ui.control.LabelChipFactory;
 import org.fintrax.ui.control.SingleLineText;
@@ -121,6 +122,7 @@ public class TransactionsController {
     private final LabelService labelService;
     private final SettingsService settingsService;
     private final RuleService ruleService;
+    private final ViewLoader viewLoader;
     private final TransactionTableActions transactionTableActions;
 
     private final ObservableList<Transaction> tableData = FXCollections.observableArrayList();
@@ -129,13 +131,14 @@ public class TransactionsController {
     public TransactionsController(TransactionService transactionService, AccountService accountService,
                                   CategoryService categoryService, LabelService labelService,
                                   SettingsService settingsService, RuleService ruleService,
-                                  TransactionTableActions transactionTableActions) {
+                                  ViewLoader viewLoader, TransactionTableActions transactionTableActions) {
         this.transactionService = transactionService;
         this.accountService = accountService;
         this.categoryService = categoryService;
         this.labelService = labelService;
         this.settingsService = settingsService;
         this.ruleService = ruleService;
+        this.viewLoader = viewLoader;
         this.transactionTableActions = transactionTableActions;
     }
 
@@ -448,8 +451,7 @@ public class TransactionsController {
     }
 
     private void createRuleFromTransaction(Transaction transaction) {
-        CreateRuleFromTransactionDialog.show(rootPane.getScene().getWindow(), transaction,
-                ruleService, categoryService, labelService);
+        CreateRuleFromTransactionDialog.show(rootPane.getScene().getWindow(), transaction, ruleService, viewLoader);
     }
 
     private List<Transaction> getSelectedTransactions() {

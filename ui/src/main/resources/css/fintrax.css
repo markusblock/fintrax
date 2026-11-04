@@ -350,6 +350,26 @@
     -fx-pref-height: 36px;
 }
 
+.searchable-choice-button {
+    -fx-pref-height: 36px;
+    -fx-alignment: CENTER_LEFT;
+    -fx-padding: 0 10 0 8;
+    -fx-background-color: -color-bg-default;
+    -fx-border-color: -color-border-default;
+    -fx-border-radius: 4;
+    -fx-background-radius: 4;
+    -fx-text-fill: -color-fg-default;
+}
+
+.searchable-choice-button:hover {
+    -fx-background-color: -color-bg-subtle;
+}
+
+.searchable-choice-arrow {
+    -fx-shape: "M 0 0 H 8 L 4 4 Z";
+    -fx-background-color: -color-fg-muted;
+}
+
 .settings-content {
     -fx-padding: 8 24 24 24;
     -fx-spacing: 16;
