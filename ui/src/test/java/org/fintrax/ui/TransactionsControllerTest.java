@@ -8,7 +8,6 @@ import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
-import javafx.scene.control.CheckBox;
 import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.ComboBox;
@@ -38,6 +37,7 @@ import org.fintrax.model.Label;
 import org.fintrax.model.MatchField;
 import org.fintrax.model.Operator;
 import org.fintrax.model.Rule;
+import org.fintrax.model.RuleAction;
 import org.fintrax.model.RuleCondition;
 import org.fintrax.model.Transaction;
 import org.fintrax.service.AccountService;
@@ -769,10 +769,10 @@ class TransactionsControllerTest extends AbstractUITest {
                 .filter(label -> label.getName().equals(labelName)).findFirst().orElseThrow();
         assertEquals(createdCategory.getId(), created.getActions().stream()
                 .filter(action -> action.getActionType() == ActionType.ASSIGN_CATEGORY)
-                .map(action -> action.getCategoryId()).findFirst().orElseThrow());
+                .map(RuleAction::getCategoryId).findFirst().orElseThrow());
         assertEquals(createdLabel.getId(), created.getActions().stream()
                 .filter(action -> action.getActionType() == ActionType.ADD_LABEL)
-                .map(action -> action.getLabelId()).findFirst().orElseThrow());
+                .map(RuleAction::getLabelId).findFirst().orElseThrow());
         assertEquals("#1976d2", createdLabel.getColor());
     }
 

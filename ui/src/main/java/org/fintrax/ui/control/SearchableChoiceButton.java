@@ -23,7 +23,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
-import java.util.function.Function;
+import java.util.function.UnaryOperator;
 
 public final class SearchableChoiceButton extends Button {
     private final StringProperty value = new SimpleStringProperty(this, "value");
@@ -35,7 +35,7 @@ public final class SearchableChoiceButton extends Button {
     private final ContextMenu popup = new ContextMenu();
     private List<String> choices = List.of();
     private String createTextKey;
-    private Function<String, String> createChoice;
+    private UnaryOperator<String> createChoice;
 
     public SearchableChoiceButton() {
         getStyleClass().add("searchable-choice-button");
@@ -109,7 +109,7 @@ public final class SearchableChoiceButton extends Button {
         updateChoices();
     }
 
-    public void setCreateChoice(String textKey, Function<String, String> createChoice) {
+    public void setCreateChoice(String textKey, UnaryOperator<String> createChoice) {
         this.createTextKey = textKey;
         this.createChoice = createChoice;
         updateChoices();
