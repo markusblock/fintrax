@@ -126,7 +126,7 @@ public class ClassificationsController {
                 updateTransactionTotal());
         updateTransactionTotal();
         transactionTableActions.installContextMenu(
-                classificationTransactionsTable, rootPane, this::reloadSelectedTransactionsKeepingSelection);
+                classificationTransactionsTable, rootPane, this::reloadSelectedTransactionsKeepingSelection, null);
         transactionFilterPanelController.setCollapsible(true);
         transactionFilterPanelController.setOnFiltersChanged(this::reloadSelectedTransactionsKeepingSelection);
         classificationTree.getSelectionModel().selectedItemProperty().addListener((obs, oldItem, newItem) -> {
