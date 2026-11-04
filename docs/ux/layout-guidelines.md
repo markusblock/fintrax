@@ -1,50 +1,57 @@
 # UI layout guidelines
 
-Guidance for contributors changing Fintrax's JavaFX desktop UI. These rules capture patterns already used across the views and identify places where no shared standard exists yet. They are not a pixel-perfect design specification.
+Concise guidance for new JavaFX views, panels, dialogs, popups, and buttons. Follow existing patterns; avoid inventing shared standards where none exist.
 
 ## Page structure
 
-- Use `BorderPane` for a view's main regions: header in `top`, primary work area in `center`, and persistent supporting content in `bottom` only when needed. The application shell already uses a `BorderPane` for navigation and view content.
-- Keep a clear hierarchy: page title, optional subtitle or short context, then the main task. Reuse `.view-header`, `.page-title`, `.view-subtitle`, and `.section-heading` from `fintrax.css` where they fit.
-- Use `VBox` for vertically ordered content and `HBox` for related horizontal controls. Use `GridPane` for aligned label/control forms. Use `SplitPane` when both panes need to remain visible and users benefit from resizing them.
-- Keep each view focused on its primary task. Put secondary settings or details in a supporting panel, section, or collapsible area rather than competing with the main content.
+- Use `BorderPane` for page regions: header (`top`), main task (`center`), optional persistent status/actions (`bottom`). The app shell uses it for navigation and view content.
+- View recipe: title and optional subtitle; related actions aligned at the trailing edge; primary work area; optional footer. Include empty, loading, and error states where relevant.
+- Use `VBox` for vertical flow, `HBox` for related controls, `GridPane` for aligned forms, and `SplitPane` for simultaneously useful, user-resizable regions.
+- Reuse `.view-header`, `.page-title`, `.view-subtitle`, and `.section-heading` where they fit. Keep one clear primary task; place secondary details in a supporting region.
 
 ## Spacing and surfaces
 
-- Prefer existing style classes and shared CSS in `ui/src/main/resources/css/fintrax.css` over per-node inline styles or duplicated style values.
-- Use whitespace to group related controls and separate unrelated sections. Existing views use consistent gaps within groups and larger insets around page content; follow the nearest established pattern rather than introducing a new spacing scale.
-- Reserve bordered, rounded surfaces such as `.content-panel`, `.settings-card`, and `.filter-panel` for meaningful groups. Avoid nesting decorative cards without a clear hierarchy.
-- Use the theme color variables (`-color-bg-*`, `-color-fg-*`, `-color-border-*`, and semantic status colors) so surfaces remain legible in both themes.
+- Panel recipe: optional heading/context and actions; content; optional footer. Use `VBox`/`BorderPane`, existing `.content-panel`, `.settings-card`, or `.filter-panel` styles, and grow priorities for content that should expand.
+- Keep fixed headers/footers outside a panel's scrolling content. Add a `ScrollPane` only around content that can exceed available space; fit its width when content can reflow.
+- Prefer shared CSS in `ui/src/main/resources/css/fintrax.css` over inline styles or duplicated values. Use whitespace to group content; avoid decorative or nested panels without a clear hierarchy.
+- Use theme variables (`-color-bg-*`, `-color-fg-*`, `-color-border-*`, semantic status colors) for both themes.
 
 ## Resizing and overflow
 
-- Let the layout grow with its window. Use JavaFX grow priorities (`HBox.hgrow`, `VBox.vgrow`) and fill constraints for the content that should take remaining space; use `maxWidth="Infinity"` for controls intended to fill their available column.
-- Set minimum and preferred sizes only where they protect usability or communicate a meaningful default. Avoid fixed sizes on whole content regions; small fixed dimensions are appropriate for invariant controls such as table action columns.
-- Give split panes usable initial proportions and enough room for each side. Check that important content remains accessible when panes are resized.
-- Put potentially long content in a `ScrollPane` or another suitable scrolling control. Prefer vertical scrolling for forms and settings; avoid forcing horizontal scrolling when content can wrap or resize.
-- For tables, set minimum widths that keep values and actions usable, allow descriptive columns to take remaining space, and constrain only columns whose content has a stable size. Long table cells may truncate; provide a way to inspect important full values.
-- The main window currently has a minimum size of 1024 × 768. Do not claim support below that size without checking the complete view at the smaller dimensions.
+- Use `HBox.hgrow`, `VBox.vgrow`, fill constraints, and `maxWidth="Infinity"` for expanding content. Avoid fixed sizes on whole regions; constrain only where needed for usability.
+- Give split panes usable proportions. Prefer vertical scrolling for long forms/settings; let text wrap and controls resize before requiring horizontal scrolling.
+- Tables: keep essential columns usable, let descriptive columns grow, constrain stable-width columns, and provide a way to inspect truncated important values.
+- Main window minimum is 1024 × 768. Smaller-window behavior is unsupported unless checked across the complete view.
 
 ## Forms, actions, and content
 
-- Align form labels and controls with `GridPane` constraints. Let input controls grow where possible and keep related fields visually grouped.
-- Use concise, localized visible labels. Define user-facing text through the resource bundles rather than hard-coding it in FXML. Allow for translations that are longer than the current English text; avoid widths that clip labels or buttons.
-- Make the primary action visually distinct with the established accent style. Keep destructive actions visually identifiable and separate from routine actions.
-- Icon-only controls need an accessible name and, where useful, a tooltip. Do not communicate meaning through color or an icon alone.
-- Wrap explanatory or user-provided text when it needs to be read in full. Use muted text styles for secondary explanations, not for essential instructions or status.
-- Consider empty, error, and long-content states when sizing a view; the layout should still explain what the user can do next.
+- Align forms with `GridPane`; let controls grow. Use localized resource-bundle text and allow translated labels to expand.
+- Button styles: `.accent-button` for the primary action; `.button-outlined` for secondary actions; `.delete-button` for destructive actions; `.icon-button` for compact icon actions. Use text for actions where space allows.
+- Reuse style classes instead of setting one-off dimensions. The filter panel's 36 × 36 icon actions are a compact reference, not a global size rule. Keep related buttons together and destructive actions distinct.
+- In custom action rows, place the primary action trailing; in `Dialog`, use correct `ButtonData` and let JavaFX order the button bar. Preserve focus feedback and disable unavailable actions.
+- Icon-only buttons need `accessibleText` and, where useful, a tooltip. Do not rely on icon or color alone. Wrap explanatory/user text; keep essential instructions and status readable.
+
+## Dialogs and popups
+
+- Use `Dialog`/`Alert` for a focused decision, input, or review; use `ContextMenu` for short actions on a specific item; use tooltips only for supplemental help. Do not put a multi-step form in a context menu.
+- Give dialogs an owner and localized title. Choose blocking behavior deliberately (`showAndWait` when the user must decide before continuing); make substantial dialogs resizable.
+- Organize dialog content as title/context, task controls, then actions. Use `ButtonType`/`ButtonBar` for dialog actions; keep cancel and destructive outcomes clear and distinct.
+- Focus the first useful control when appropriate. Make Enter/Escape behavior safe, keep keyboard navigation usable, and prevent invalid submissions.
+- Use `ScrollPane` for content that can exceed the dialog; size from content and avoid clipping translated text. Reuse `FintraxUI.configureDialog` and `.dialog-content` for styled dialogs.
+- Keep context menus short and specific to their owner. Prefer visible controls for primary or persistent actions.
 
 ## Examples in the current UI
 
-- Application shell and navigation: [`main.fxml`](../../ui/src/main/resources/fxml/main.fxml)
-- Page header and resizable split layout: [`classifications.fxml`](../../ui/src/main/resources/fxml/classifications.fxml)
-- Search/filter controls and accessible icon actions: [`transactionFilterPanel.fxml`](../../ui/src/main/resources/fxml/transactionFilterPanel.fxml)
-- Scrollable settings sections and aligned form fields: [`settings.fxml`](../../ui/src/main/resources/fxml/settings.fxml)
-- Shared view styles and theme colors: [`fintrax.css`](../../ui/src/main/resources/css/fintrax.css)
+- View/split layout: [`classifications.fxml`](../../ui/src/main/resources/fxml/classifications.fxml)
+- Panels and scrollable sections: [`settings.fxml`](../../ui/src/main/resources/fxml/settings.fxml), [`transactionFilterPanel.fxml`](../../ui/src/main/resources/fxml/transactionFilterPanel.fxml)
+- FXML dialog and action row: [`addAccountDialog.fxml`](../../ui/src/main/resources/fxml/addAccountDialog.fxml)
+- Programmatic dialog and button states: [`RuleReviewDialog.java`](../../ui/src/main/java/org/fintrax/ui/controller/RuleReviewDialog.java)
+- Context menu: [`TransactionTableActions.java`](../../ui/src/main/java/org/fintrax/ui/controller/TransactionTableActions.java)
+- Shared styles and theme colors: [`fintrax.css`](../../ui/src/main/resources/css/fintrax.css)
 
 ## Current gaps
 
-- There is no documented spacing scale or full design-token reference. Follow existing shared styles and local patterns; do not infer a new numeric system from one view.
-- The application enforces a 1024 × 768 minimum window size and has no documented narrow-window breakpoint. Smaller-window or mobile behavior needs an explicit design decision before being treated as supported.
+- No shared spacing/button-size scale, full token reference, dialog-size standard, or global button-order rule exists. Follow the closest pattern; document a new shared rule only when it becomes intentional.
+- No narrow-window breakpoint is defined. Do not claim support below the 1024 × 768 app minimum without checking it.
 
-When a view must depart from these guidelines, keep the reason clear in the UI or its change description and update this guide if the new pattern should be shared.
+When departing from these guidelines, explain why in the change description. Update this guide when a new pattern should be shared.
