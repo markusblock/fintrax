@@ -22,6 +22,7 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
+import javafx.scene.control.ListView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.FlowPane;
@@ -30,14 +31,22 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import org.fintrax.config.I18n;
+import org.fintrax.model.ActionType;
 import org.fintrax.model.Category;
 import org.fintrax.model.Label;
+import org.fintrax.model.MatchField;
+import org.fintrax.model.Operator;
+import org.fintrax.model.Rule;
+import org.fintrax.model.RuleAction;
+import org.fintrax.model.RuleCondition;
 import org.fintrax.model.Transaction;
 import org.fintrax.service.AccountService;
 import org.fintrax.service.CategoryService;
 import org.fintrax.service.LabelService;
+import org.fintrax.service.RuleService;
 import org.fintrax.service.SettingsService;
 import org.fintrax.service.TransactionService;
+import org.fintrax.ui.control.SearchableChoiceButton;
 import org.kordamp.ikonli.javafx.FontIcon;
 import org.junit.jupiter.api.Test;
 import org.testfx.util.WaitForAsyncUtils;
@@ -662,9 +671,109 @@ class TransactionsControllerTest extends AbstractUITest {
         assertNotNull(contextMenu);
         assertEquals(List.of(
                         I18n.get("contextMenu.setCategory"),
-                        I18n.get("contextMenu.setLabels")),
+                        I18n.get("contextMenu.setLabels"),
+                        I18n.get("contextMenu.createRule")),
                 contextMenu.getItems().stream().map(MenuItem::getText).toList());
         assertTrue(contextMenu.getItems().stream().allMatch(item -> item.getOnAction() != null));
+    }
+
+    @Test
+    void creatingRuleFromTransactionPrefillsEditableConditionsAndActions() throws TimeoutException {
+        TableView<Transaction> table = lookup("#transactionTable").query();
+        int rowIndex = table.getItems().indexOf(testCategoryTransaction);
+        assertTrue(rowIndex >= 0);
+        Category replacementCategory = applicationContext.getBean(CategoryService.class)
+                .createCategory("Rule dialog category " + System.nanoTime(), null, null);
+
+        scrollToRow(table, rowIndex);
+        Platform.runLater(() -> rowFor(table, rowIndex).getContextMenu().getItems().get(2).fire());
+        WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS,
+                () -> lookup("#createRuleSave").tryQuery().isPresent());
+
+        List<HBox> conditions = rows(".rule-condition-row");
+        assertEquals(2, conditions.size());
+        HBox purposeCondition = conditions.stream()
+                .filter(row -> comboBoxAt(row, 0).getValue().equals(MatchField.PURPOSE.name()))
+                .findFirst().orElseThrow();
+        assertEquals("Test transaction purpose", ((TextField) purposeCondition.getChildren().get(2)).getText());
+
+        interact(() -> {
+            comboBoxAt(purposeCondition, 1).setValue(Operator.EQUALS.name());
+            ((TextField) purposeCondition.getChildren().get(2)).setText("Edited transaction purpose");
+        });
+
+        HBox categoryAction = rows(".rule-action-row").stream()
+                .filter(row -> comboBoxAt(row, 0).getValue().equals(ActionType.ASSIGN_CATEGORY.name()))
+                .findFirst().orElseThrow();
+        SearchableChoiceButton categoryChoice = (SearchableChoiceButton) categoryAction.getChildren().get(1);
+        assertEquals(testCategory.getName(), categoryChoice.getValue());
+        chooseSearchableChoice(categoryChoice, replacementCategory.getName());
+        assertEquals(replacementCategory.getName(), categoryChoice.getValue());
+
+        interact(lookup("#createRuleSave").<Button>query()::fire);
+        WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS, () -> applicationContext.getBean(RuleService.class)
+                .getAllRules().stream().anyMatch(rule -> rule.getName().equals("Rule for Display popup test")));
+
+        Rule created = applicationContext.getBean(RuleService.class).getAllRules().stream()
+                .filter(rule -> rule.getName().equals("Rule for Display popup test"))
+                .findFirst().orElseThrow();
+        assertEquals(List.of(MatchField.PAYEE_NAME, MatchField.PURPOSE),
+                created.getConditions().stream().map(RuleCondition::getMatchField).toList());
+        assertEquals(List.of("Display popup test", "Edited transaction purpose"),
+                created.getConditions().stream().map(RuleCondition::getValue).toList());
+        assertEquals(List.of(Operator.CONTAINS, Operator.EQUALS),
+                created.getConditions().stream().map(RuleCondition::getOperator).toList());
+        assertEquals(1, created.getActions().stream()
+                .filter(action -> action.getActionType() == ActionType.ASSIGN_CATEGORY
+                        && replacementCategory.getId().equals(action.getCategoryId())).count());
+        assertTrue(created.getActions().stream().anyMatch(action -> action.getActionType() == ActionType.ADD_LABEL
+                && testCategoryTransaction.getLabelIds().contains(action.getLabelId())));
+    }
+
+    @Test
+    void creatingRuleWithoutTransactionActionsRequiresChoosingAnAction() throws TimeoutException {
+        TableView<Transaction> table = lookup("#transactionTable").query();
+        int rowIndex = table.getItems().indexOf(detailSparseTransaction);
+        assertTrue(rowIndex >= 0);
+
+        scrollToRow(table, rowIndex);
+        Platform.runLater(() -> rowFor(table, rowIndex).getContextMenu().getItems().get(2).fire());
+        WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS,
+                () -> lookup("#createRuleSave").tryQuery().isPresent());
+        assertTrue(lookup("#createRuleSave").<Button>query().isDisabled());
+        assertTrue(rows(".rule-action-row").isEmpty());
+
+        String categoryName = "Created category action " + System.nanoTime();
+        String labelName = "Created label action " + System.nanoTime();
+        interact(lookup("#addRuleActionButton").<Button>query()::fire);
+        HBox categoryAction = rows(".rule-action-row").get(0);
+        interact(() -> comboBoxAt(categoryAction, 0).setValue(ActionType.ASSIGN_CATEGORY.name()));
+        createSearchableChoice((SearchableChoiceButton) categoryAction.getChildren().get(1), categoryName);
+
+        interact(lookup("#addRuleActionButton").<Button>query()::fire);
+        HBox labelAction = rows(".rule-action-row").get(1);
+        interact(() -> comboBoxAt(labelAction, 0).setValue(ActionType.ADD_LABEL.name()));
+        createSearchableChoice((SearchableChoiceButton) labelAction.getChildren().get(1), labelName);
+        assertFalse(lookup("#createRuleSave").<Button>query().isDisabled());
+
+        String ruleName = lookup("#ruleNameField").<TextField>query().getText();
+        interact(lookup("#createRuleSave").<Button>query()::fire);
+        WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS, () -> applicationContext.getBean(RuleService.class)
+                .getAllRules().stream().anyMatch(rule -> rule.getName().equals(ruleName)));
+
+        Rule created = applicationContext.getBean(RuleService.class).getAllRules().stream()
+                .filter(rule -> rule.getName().equals(ruleName)).findFirst().orElseThrow();
+        Category createdCategory = applicationContext.getBean(CategoryService.class).getAllCategories().stream()
+                .filter(category -> category.getName().equals(categoryName)).findFirst().orElseThrow();
+        org.fintrax.model.Label createdLabel = applicationContext.getBean(LabelService.class).getAllLabels().stream()
+                .filter(label -> label.getName().equals(labelName)).findFirst().orElseThrow();
+        assertEquals(createdCategory.getId(), created.getActions().stream()
+                .filter(action -> action.getActionType() == ActionType.ASSIGN_CATEGORY)
+                .map(RuleAction::getCategoryId).findFirst().orElseThrow());
+        assertEquals(createdLabel.getId(), created.getActions().stream()
+                .filter(action -> action.getActionType() == ActionType.ADD_LABEL)
+                .map(RuleAction::getLabelId).findFirst().orElseThrow());
+        assertEquals("#1976d2", createdLabel.getColor());
     }
 
     @Test
@@ -940,6 +1049,60 @@ class TransactionsControllerTest extends AbstractUITest {
     private void waitForPicker() throws TimeoutException {
         WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS,
                 () -> lookup("#pickerSearch").tryQuery().isPresent());
+    }
+
+    private void scrollToRow(TableView<Transaction> table, int rowIndex) throws TimeoutException {
+        interact(() -> table.scrollTo(rowIndex));
+        WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS, () -> {
+            try {
+                return rowFor(table, rowIndex).getItem() != null;
+            } catch (java.util.NoSuchElementException ignored) {
+                return false;
+            }
+        });
+    }
+
+    private List<HBox> rows(String selector) {
+        return lookup(selector).queryAll().stream()
+                .filter(HBox.class::isInstance)
+                .map(HBox.class::cast)
+                .toList();
+    }
+
+    @SuppressWarnings("unchecked")
+    private ComboBox<String> comboBoxAt(HBox row, int index) {
+        return (ComboBox<String>) row.getChildren().get(index);
+    }
+
+    private void chooseSearchableChoice(SearchableChoiceButton control, String value) throws TimeoutException {
+        interact(control::fire);
+        WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS,
+                () -> lookup("#searchableChoiceSearch").tryQuery().isPresent());
+        TextField searchField = lookup("#searchableChoiceSearch").query();
+        assertEquals("", searchField.getText());
+        interact(() -> searchField.setText(value));
+        WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS, () ->
+                lookup("#searchableChoiceList").<ListView<?>>query().getItems().contains(value));
+        interact(() -> {
+            ListView<?> choices = lookup("#searchableChoiceList").query();
+            choices.getSelectionModel().select(choices.getItems().indexOf(value));
+            Event.fireEvent(searchField, new KeyEvent(KeyEvent.KEY_PRESSED, "", "", KeyCode.ENTER,
+                    false, false, false, false));
+        });
+        WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS, () -> value.equals(control.getValue()));
+    }
+
+    private void createSearchableChoice(SearchableChoiceButton control, String value) throws TimeoutException {
+        interact(control::fire);
+        WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS,
+                () -> lookup("#searchableChoiceSearch").tryQuery().isPresent());
+        TextField searchField = lookup("#searchableChoiceSearch").query();
+        assertEquals("", searchField.getText());
+        interact(() -> searchField.setText(value));
+        WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS, () -> lookup("#searchableChoiceCreate").tryQuery()
+                .map(Button.class::cast).filter(Button::isVisible).isPresent());
+        interact(lookup("#searchableChoiceCreate").<Button>query()::fire);
+        WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS, () -> value.equals(control.getValue()));
     }
 
     private void openPickerFromContextMenu(TableView<Transaction> table, int rowIndex, int actionIndex)
