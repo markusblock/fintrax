@@ -1,57 +1,81 @@
-# UI layout guidelines
+# Layout guidelines
 
-Concise guidance for new JavaFX views, panels, dialogs, popups, and buttons. Follow existing patterns; avoid inventing shared standards where none exist.
+Use these rules for new screens, panels, dialogs, popups, and actions. Keep layouts clear, resizable, and consistent across light and dark themes.
 
-## Page structure
+## Structure
 
-- Use `BorderPane` for page regions: header (`top`), main task (`center`), optional persistent status/actions (`bottom`). The app shell uses it for navigation and view content.
-- View recipe: title and optional subtitle; related actions aligned at the trailing edge; primary work area; optional footer. Include empty, loading, and error states where relevant.
-- Use `VBox` for vertical flow, `HBox` for related controls, `GridPane` for aligned forms, and `SplitPane` for simultaneously useful, user-resizable regions.
-- Reuse `.view-header`, `.page-title`, `.view-subtitle`, and `.section-heading` where they fit. Keep one clear primary task; place secondary details in a supporting region.
+- Screen: header, primary work area, optional persistent footer. Keep one primary task per screen.
+- Header: title, optional short context, actions aligned at the trailing edge.
+- Panel: optional heading and actions, content, optional footer. Use panels to group related tasks; avoid decorative nesting.
+- Place secondary details in a supporting or collapsible area. Keep fixed headers and footers outside scrolling content.
+- Include empty, loading, and error states where relevant; each state should explain the next action.
 
-## Spacing and surfaces
+## Foundations
 
-- Panel recipe: optional heading/context and actions; content; optional footer. Use `VBox`/`BorderPane`, existing `.content-panel`, `.settings-card`, or `.filter-panel` styles, and grow priorities for content that should expand.
-- Keep fixed headers/footers outside a panel's scrolling content. Add a `ScrollPane` only around content that can exceed available space; fit its width when content can reflow.
-- Prefer shared CSS in `ui/src/main/resources/css/fintrax.css` over inline styles or duplicated values. Use whitespace to group content; avoid decorative or nested panels without a clear hierarchy.
-- Use theme variables (`-color-bg-*`, `-color-fg-*`, `-color-border-*`, semantic status colors) for both themes.
+### Spacing
 
-## Resizing and overflow
+Use a 4 px base. Choose from this scale; do not add one-off values.
 
-- Use `HBox.hgrow`, `VBox.vgrow`, fill constraints, and `maxWidth="Infinity"` for expanding content. Avoid fixed sizes on whole regions; constrain only where needed for usability.
-- Give split panes usable proportions. Prefer vertical scrolling for long forms/settings; let text wrap and controls resize before requiring horizontal scrolling.
-- Tables: keep essential columns usable, let descriptive columns grow, constrain stable-width columns, and provide a way to inspect truncated important values.
-- Main window minimum is 1024 × 768. Smaller-window behavior is unsupported unless checked across the complete view.
+| Spacing | Use |
+| ---: | --- |
+| 4 px | Tight inline separation |
+| 8 px | Related controls |
+| 12 px | Form rows and grouped controls |
+| 16 px | Sections within a panel |
+| 20 px | Panel inset |
+| 24 px | Screen inset |
+| 40 px | Empty-state breathing room |
 
-## Forms, actions, and content
+### Type and surfaces
 
-- Align forms with `GridPane`; let controls grow. Use localized resource-bundle text and allow translated labels to expand.
-- Button styles: `.accent-button` for the primary action; `.button-outlined` for secondary actions; `.delete-button` for destructive actions; `.icon-button` for compact icon actions. Use text for actions where space allows.
-- Reuse style classes instead of setting one-off dimensions. The filter panel's 36 × 36 icon actions are a compact reference, not a global size rule. Keep related buttons together and destructive actions distinct.
-- In custom action rows, place the primary action trailing; in `Dialog`, use correct `ButtonData` and let JavaFX order the button bar. Preserve focus feedback and disable unavailable actions.
-- Icon-only buttons need `accessibleText` and, where useful, a tooltip. Do not rely on icon or color alone. Wrap explanatory/user text; keep essential instructions and status readable.
+- Type sizes: 12 px supporting text, 13 px body, 16 px section heading, 24 px screen title. Use weight and size for hierarchy; keep essential instructions at body size or larger.
+- Corner radii: 4 px for compact controls, 8 px for panels, full rounding only for badges/chips. Use thin borders to define surfaces; reserve soft shadows for raised surfaces.
+- Surface roles: default for the screen, subtle for panels, default for controls. Text roles: default, muted, emphasis. Keep muted text for secondary content.
 
-## Dialogs and popups
+### Color roles
 
-- Use `Dialog`/`Alert` for a focused decision, input, or review; use `ContextMenu` for short actions on a specific item; use tooltips only for supplemental help. Do not put a multi-step form in a context menu.
-- Give dialogs an owner and localized title. Choose blocking behavior deliberately (`showAndWait` when the user must decide before continuing); make substantial dialogs resizable.
-- Organize dialog content as title/context, task controls, then actions. Use `ButtonType`/`ButtonBar` for dialog actions; keep cancel and destructive outcomes clear and distinct.
-- Focus the first useful control when appropriate. Make Enter/Escape behavior safe, keep keyboard navigation usable, and prevent invalid submissions.
-- Use `ScrollPane` for content that can exceed the dialog; size from content and avoid clipping translated text. Reuse `FintraxUI.configureDialog` and `.dialog-content` for styled dialogs.
-- Keep context menus short and specific to their owner. Prefer visible controls for primary or persistent actions.
+Use semantic theme colors, never fixed colors for interface meaning.
 
-## Examples in the current UI
+| Role | Use |
+| --- | --- |
+| Default / subtle surface | Screen / grouped panel backgrounds |
+| Default / muted / emphasis text | Main content / secondary copy / titles and primary values |
+| Default border | Panel edges, separators, control boundaries |
+| Accent emphasis / subtle / muted | Primary action / selected state / hover or divider emphasis |
+| Success / warning / danger | Status, validation, and destructive actions |
+| Selection background / foreground | Selected row or item / high-contrast selected text |
+| Neutral hover / focus / soft shadow | Hover feedback / keyboard focus / raised surfaces |
 
-- View/split layout: [`classifications.fxml`](../../ui/src/main/resources/fxml/classifications.fxml)
-- Panels and scrollable sections: [`settings.fxml`](../../ui/src/main/resources/fxml/settings.fxml), [`transactionFilterPanel.fxml`](../../ui/src/main/resources/fxml/transactionFilterPanel.fxml)
-- FXML dialog and action row: [`addAccountDialog.fxml`](../../ui/src/main/resources/fxml/addAccountDialog.fxml)
-- Programmatic dialog and button states: [`RuleReviewDialog.java`](../../ui/src/main/java/org/fintrax/ui/controller/RuleReviewDialog.java)
-- Context menu: [`TransactionTableActions.java`](../../ui/src/main/java/org/fintrax/ui/controller/TransactionTableActions.java)
-- Shared styles and theme colors: [`fintrax.css`](../../ui/src/main/resources/css/fintrax.css)
+Use subtle status fills with matching status text. Pair status colors with text or an icon; keep selection and keyboard focus distinguishable in both themes.
 
-## Current gaps
+## Component rules
 
-- No shared spacing/button-size scale, full token reference, dialog-size standard, or global button-order rule exists. Follow the closest pattern; document a new shared rule only when it becomes intentional.
-- No narrow-window breakpoint is defined. Do not claim support below the 1024 × 768 app minimum without checking it.
+### Screens and panels
 
-When departing from these guidelines, explain why in the change description. Update this guide when a new pattern should be shared.
+- Let the primary work area take remaining space. Keep header and footer content stable while the body grows or scrolls.
+- Use side-by-side panels only when both are useful together. At constrained widths, collapse secondary content before shrinking primary controls or labels.
+- Add scrolling only to content that can exceed its region. Prefer vertical scrolling; wrap text before requiring horizontal scrolling.
+- Tables: protect essential columns, let descriptive columns grow, and provide column hiding or a way to inspect truncated values.
+
+### Dialogs and popups
+
+- Use a dialog for a focused decision, form, or review. Use an anchored popup for a short action on its source item; use a tooltip only for supplemental help.
+- Size dialogs by content: compact prompts/pickers target 420 px wide (350 px minimum); forms target 560 px; wide reviews use available width. Cap all widths at viewport minus 48 px.
+- Limit dialog height to viewport minus 48 px. Keep title and actions visible; scroll the body when content exceeds the limit. Allow resizing for substantial content.
+- Keep the dialog connected to the screen that opened it. Block the task only when a decision is required before continuing.
+- Order content as title/context, task controls, then actions. Put cancel/secondary actions before the primary action; keep destructive actions separate.
+- Start focus at the first useful control. Enter must not trigger an unsafe action; Escape cancels only when safe. Return focus to the opener on close.
+
+### Buttons and actions
+
+- Button height: at least 36 px; icon-only actions use a 36 × 36 px hit area. Let text buttons grow for labels and translation.
+- Use one primary action per region. Put it at the trailing edge; order secondary/cancel before it. Separate destructive actions from the primary action.
+- Use text labels where space allows. Icon-only actions need an accessible name and, when useful, a tooltip. Never rely on color or icon alone.
+- Show unavailable actions as disabled rather than removing them. Preserve visible keyboard-focus and hover feedback.
+- Localize labels and allow them to grow; do not clip or truncate action names.
+
+## Viewport support
+
+- Design and verify layouts at 1024 × 768 or wider. This is the supported desktop minimum.
+- Below 1024 px, desktop layouts are unsupported. Do not compress controls to simulate support.
+- At the minimum size, keep primary actions and content reachable; collapse secondary panels and allow optional table columns to be hidden.
