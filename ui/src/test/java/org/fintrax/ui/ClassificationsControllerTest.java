@@ -165,7 +165,7 @@ class ClassificationsControllerTest extends AbstractUITest {
             WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS,
                     () -> categoryService().getCategory(category.getId()).orElseThrow().getParentId() == null);
 
-            assertTrue(categoryTreeItem(lookup("#classificationTree").query(), category.getName()) != null);
+            assertNotNull(categoryTreeItem(lookup("#classificationTree").query(), category.getName()));
         } finally {
             categoryService().deleteCategory(parent.getId(), null, false);
         }

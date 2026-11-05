@@ -145,8 +145,12 @@ class CategoryServiceTest {
         Category category = categoryService.createCategory("Category", null, null);
         Category child = categoryService.createCategory("Child", category.getId(), null);
 
+        Long categoryId = category.getId();
+        String categoryName = category.getName();
+        Long childId = child.getId();
+        String comment = category.getComment();
         assertThrows(IllegalArgumentException.class, () ->
-                categoryService.updateCategory(category.getId(), category.getName(), child.getId(), category.getComment()));
+                categoryService.updateCategory(categoryId, categoryName, childId, comment));
 
         assertNull(category.getParentId());
         assertEquals(category.getId(), child.getParentId());
@@ -158,8 +162,12 @@ class CategoryServiceTest {
         Category category = categoryService.createCategory("Shared", null, null);
         categoryService.createCategory("Shared", targetParent.getId(), null);
 
+        Long categoryId = category.getId();
+        String categoryName = category.getName();
+        Long targetParentId = targetParent.getId();
+        String comment = category.getComment();
         assertThrows(IllegalArgumentException.class, () ->
-                categoryService.updateCategory(category.getId(), category.getName(), targetParent.getId(), category.getComment()));
+                categoryService.updateCategory(categoryId, categoryName, targetParentId, comment));
 
         assertNull(category.getParentId());
     }
@@ -173,8 +181,12 @@ class CategoryServiceTest {
         Category child = categoryService.createCategory("Child", category.getId(), null);
         Category grandchild = categoryService.createCategory("Grandchild", child.getId(), null);
 
+        Long categoryId = category.getId();
+        String categoryName = category.getName();
+        Long targetParentId = targetLevelThree.getId();
+        String comment = category.getComment();
         assertThrows(IllegalArgumentException.class, () ->
-                categoryService.updateCategory(category.getId(), category.getName(), targetLevelThree.getId(), category.getComment()));
+                categoryService.updateCategory(categoryId, categoryName, targetParentId, comment));
 
         assertNull(category.getParentId());
         assertEquals(category.getId(), child.getParentId());

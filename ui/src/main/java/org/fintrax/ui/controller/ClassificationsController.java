@@ -543,7 +543,7 @@ public class ClassificationsController {
         nameField.setId("nameField");
         TextField commentField = new TextField(category == null ? "" : nullToEmpty(category.getComment()));
         commentField.setId("commentField");
-        ComboBox<CategoryParentChoice> parentSelector = category == null ? null : createParentSelector(category);
+        ComboBox<CategoryParentChoice> parentSelector = createParentSelectorForEditing(category);
         Label errorLabel = new Label();
         errorLabel.setId("errorLabel");
 
@@ -553,12 +553,7 @@ public class ClassificationsController {
         fields.getColumnConstraints().addAll(new ColumnConstraints(90), new ColumnConstraints());
         fields.add(new Label(I18n.get("label.name")), 0, 0);
         fields.add(nameField, 1, 0);
-        int commentRow = 1;
-        if (parentSelector != null) {
-            fields.add(new Label(I18n.get("categories.parent")), 0, 1);
-            fields.add(parentSelector, 1, 1);
-            commentRow++;
-        }
+        int commentRow = addParentField(fields, parentSelector);
         fields.add(new Label(I18n.get("label.comment")), 0, commentRow);
         fields.add(commentField, 1, commentRow);
 
@@ -586,9 +581,7 @@ public class ClassificationsController {
         dialog.setOnHidden(event -> {
             ButtonType result = dialog.getResult();
             if (result == saveType) {
-                Long selectedParentId = parentSelector == null
-                        ? parentId
-                        : parentSelector.getValue() == null ? null : parentSelector.getValue().id();
+                Long selectedParentId = getSelectedParentId(parentId, parentSelector);
                 saveCategory(category, parentId, selectedParentId,
                         nameField.getText().trim(), commentField.getText().trim());
             }
@@ -599,6 +592,23 @@ public class ClassificationsController {
 
     private String nullToEmpty(String value) {
         return value == null ? "" : value;
+    }
+
+    private ComboBox<CategoryParentChoice> createParentSelectorForEditing(Category category) {
+        return category == null ? null : createParentSelector(category);
+    }
+
+    private int addParentField(GridPane fields, ComboBox<CategoryParentChoice> parentSelector) {
+        if (parentSelector == null) return 1;
+        fields.add(new Label(I18n.get("categories.parent")), 0, 1);
+        fields.add(parentSelector, 1, 1);
+        return 2;
+    }
+
+    private Long getSelectedParentId(Long parentId, ComboBox<CategoryParentChoice> parentSelector) {
+        if (parentSelector == null) return parentId;
+        CategoryParentChoice choice = parentSelector.getValue();
+        return choice == null ? null : choice.id();
     }
 
     private ComboBox<CategoryParentChoice> createParentSelector(Category category) {
