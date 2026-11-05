@@ -1,7 +1,5 @@
 package org.fintrax.ui.controller;
 
-import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.binding.Bindings;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -18,6 +16,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.stage.Modality;
+import javafx.util.StringConverter;
 import lombok.extern.slf4j.Slf4j;
 import org.kordamp.ikonli.javafx.FontIcon;
 import org.fintrax.config.I18n;
@@ -30,19 +29,14 @@ import org.fintrax.service.SettingsService;
 import org.fintrax.service.TransactionFilter;
 import org.fintrax.service.TransactionService;
 import org.fintrax.ui.FintraxUI;
-import org.fintrax.ui.control.AccountDisplay;
 import org.fintrax.ui.control.LabelChipFactory;
-import org.fintrax.ui.control.SingleLineText;
 import org.fintrax.ui.control.TableCellTooltips;
-import org.fintrax.ui.control.TableColumnConfig;
-import org.fintrax.ui.control.TableColumnVisibilityMenu;
+import org.fintrax.ui.control.TransactionTableSetup;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.time.format.FormatStyle;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -63,22 +57,6 @@ public class ClassificationsController {
     @FXML
     private Label classificationTransactionsTotalAmount;
     @FXML
-    private MenuButton columnMenuButton;
-    @FXML
-    private TableColumn<Transaction, LocalDate> transactionDateColumn;
-    @FXML
-    private TableColumn<Transaction, String> transactionPayeeColumn;
-    @FXML
-    private TableColumn<Transaction, String> transactionAccountColumn;
-    @FXML
-    private TableColumn<Transaction, String> transactionPurposeColumn;
-    @FXML
-    private TableColumn<Transaction, BigDecimal> transactionAmountColumn;
-    @FXML
-    private TableColumn<Transaction, String> transactionCategoryColumn;
-    @FXML
-    private TableColumn<Transaction, String> transactionLabelsColumn;
-    @FXML
     private TransactionFilterPanelController transactionFilterPanelController;
 
     private final CategoryService categoryService;
@@ -90,6 +68,7 @@ public class ClassificationsController {
     private final Map<Long, TreeItem<String>> categoryItemsById = new HashMap<>();
     private final Map<Long, TreeItem<String>> labelItemsById = new HashMap<>();
     private final ObservableList<Transaction> displayedTransactions = FXCollections.observableArrayList();
+    private TransactionTableSetup transactionTableSetup;
     private final ContextMenu classificationContextMenu = new ContextMenu();
     private final MenuItem addCategoryMenuItem = new MenuItem();
     private final MenuItem addLabelMenuItem = new MenuItem();
@@ -135,88 +114,19 @@ public class ClassificationsController {
     }
 
     private void setupColumnMenu() {
-        TableColumnVisibilityMenu.install(classificationTransactionsTable, columnMenuButton,
-                COLUMN_CONFIG_KEY, settingsService, List.of(
-                new TableColumnConfig("date", transactionDateColumn),
-                new TableColumnConfig("payee", transactionPayeeColumn),
-                new TableColumnConfig("account", transactionAccountColumn),
-                new TableColumnConfig("purpose", transactionPurposeColumn),
-                new TableColumnConfig("amount", transactionAmountColumn),
-                new TableColumnConfig("category", transactionCategoryColumn),
-                new TableColumnConfig("labels", transactionLabelsColumn)));
+        transactionTableSetup.installColumnMenu(COLUMN_CONFIG_KEY, settingsService);
     }
 
     private void setupTransactionTable() {
-        classificationTransactionsTable.setColumnResizePolicy(
-                TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
-        transactionDateColumn.setCellValueFactory(cell ->
-                new SimpleObjectProperty<>(cell.getValue().getBookingDate()));
-        DateTimeFormatter dateFormatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT)
-                .withLocale(I18n.getCurrentLocale());
-        transactionDateColumn.setCellFactory(column -> new TableCell<>() {
-            @Override
-            protected void updateItem(LocalDate item, boolean empty) {
-                super.updateItem(item, empty);
-                setText(empty || item == null ? null : item.format(dateFormatter));
-            }
-        });
-
-        transactionPayeeColumn.setCellValueFactory(cell -> new SimpleStringProperty(
-                Objects.toString(cell.getValue().getPayeeDisplay() != null
-                        ? cell.getValue().getPayeeDisplay() : cell.getValue().getOriginalPayee(), "")));
-        transactionAccountColumn.setCellValueFactory(cell -> {
-            Long accountId = cell.getValue().getAccountId();
-            return new SimpleStringProperty(accountId == null ? "" : AccountDisplay.name(
-                    accountService.getAccount(accountId).orElse(null)));
-        });
-        transactionPurposeColumn.setCellValueFactory(cell ->
-                new SimpleStringProperty(SingleLineText.normalize(cell.getValue().getPurpose())));
-
-        transactionAmountColumn.setCellValueFactory(cell ->
-                new SimpleObjectProperty<>(cell.getValue().getAmount()));
-        transactionAmountColumn.setCellFactory(column -> new TableCell<>() {
-            @Override
-            protected void updateItem(BigDecimal item, boolean empty) {
-                super.updateItem(item, empty);
-                getStyleClass().removeAll(AMOUNT_POSITIVE_STYLE, AMOUNT_NEGATIVE_STYLE);
-                if (empty || item == null) {
-                    setText(null);
-                } else {
-                    setText(formatAmount(item));
-                    getStyleClass().add(item.signum() < 0 ? AMOUNT_NEGATIVE_STYLE : AMOUNT_POSITIVE_STYLE);
-                }
-            }
-        });
-
-        transactionCategoryColumn.setCellValueFactory(cell -> {
-            Long categoryId = cell.getValue().getCategoryId();
-            return new SimpleStringProperty(categoryId == null ? "" : categoryService.getCategory(categoryId)
-                    .map(Category::getName).orElse(""));
-        });
-        transactionCategoryColumn.setCellFactory(column -> createAssignmentCell(() ->
+        transactionTableSetup = new TransactionTableSetup(classificationTransactionsTable,
+                accountService, categoryService, labelService);
+        transactionTableSetup.configure();
+        transactionTableSetup.categoryColumn().setCellFactory(column -> createAssignmentCell(() ->
                 transactionTableActions.setCategory(classificationTransactionsTable, rootPane,
                         this::reloadSelectedTransactionsKeepingSelection)));
-
-        transactionLabelsColumn.setCellValueFactory(cell -> {
-            Set<Long> labelIds = cell.getValue().getLabelIds();
-            if (labelIds == null || labelIds.isEmpty()) return new SimpleStringProperty("");
-            String text = labelIds.stream()
-                    .map(id -> labelService.getLabel(id).map(org.fintrax.model.Label::getName).orElse(""))
-                    .filter(name -> !name.isEmpty())
-                    .collect(Collectors.joining(", "));
-            return new SimpleStringProperty(text);
-        });
-        transactionLabelsColumn.setCellFactory(column -> createLabelChipCell(() ->
+        transactionTableSetup.labelsColumn().setCellFactory(column -> createLabelChipCell(() ->
                 transactionTableActions.setLabels(classificationTransactionsTable, rootPane,
                         this::reloadSelectedTransactionsKeepingSelection)));
-
-        transactionDateColumn.setSortable(true);
-        transactionPayeeColumn.setSortable(true);
-        transactionAccountColumn.setSortable(true);
-        transactionPurposeColumn.setSortable(true);
-        transactionAmountColumn.setSortable(true);
-        transactionCategoryColumn.setSortable(true);
-        transactionLabelsColumn.setSortable(true);
     }
 
     private void updateTransactionTotal() {
@@ -269,7 +179,7 @@ public class ClassificationsController {
                 }
                 HBox chips = LabelChipFactory.createAll(labels);
                 chips.prefWidthProperty().bind(Bindings.max(0,
-                        transactionLabelsColumn.widthProperty().subtract(12)));
+                        transactionTableSetup.labelsColumn().widthProperty().subtract(12)));
                 setGraphic(chips.getChildren().isEmpty() ? null : chips);
             }
         };
@@ -542,6 +452,7 @@ public class ClassificationsController {
         nameField.setId("nameField");
         TextField commentField = new TextField(category == null ? "" : nullToEmpty(category.getComment()));
         commentField.setId("commentField");
+        ComboBox<CategoryParentChoice> parentSelector = createParentSelectorForEditing(category);
         Label errorLabel = new Label();
         errorLabel.setId("errorLabel");
 
@@ -551,8 +462,9 @@ public class ClassificationsController {
         fields.getColumnConstraints().addAll(new ColumnConstraints(90), new ColumnConstraints());
         fields.add(new Label(I18n.get("label.name")), 0, 0);
         fields.add(nameField, 1, 0);
-        fields.add(new Label(I18n.get("label.comment")), 0, 1);
-        fields.add(commentField, 1, 1);
+        int commentRow = addParentField(fields, parentSelector);
+        fields.add(new Label(I18n.get("label.comment")), 0, commentRow);
+        fields.add(commentField, 1, commentRow);
 
         VBox content = new VBox(10, fields, errorLabel);
         content.getStyleClass().add("dialog-content");
@@ -578,7 +490,9 @@ public class ClassificationsController {
         dialog.setOnHidden(event -> {
             ButtonType result = dialog.getResult();
             if (result == saveType) {
-                saveCategory(category, parentId, nameField.getText().trim(), commentField.getText().trim());
+                Long selectedParentId = getSelectedParentId(parentId, parentSelector);
+                saveCategory(category, parentId, selectedParentId,
+                        nameField.getText().trim(), commentField.getText().trim());
             }
         });
         dialog.setOnShown(event -> nameField.requestFocus());
@@ -589,17 +503,107 @@ public class ClassificationsController {
         return value == null ? "" : value;
     }
 
-    private void saveCategory(Category category, Long parentId, String name, String comment) {
-        Long parentIdToExpand = category == null ? parentId : null;
-        if (category == null) {
-            categoryService.createCategory(name, parentId, emptyToNull(comment));
-        } else {
-            categoryService.updateCategory(category.getId(), name, emptyToNull(comment));
+    private ComboBox<CategoryParentChoice> createParentSelectorForEditing(Category category) {
+        return category == null ? null : createParentSelector(category);
+    }
+
+    private int addParentField(GridPane fields, ComboBox<CategoryParentChoice> parentSelector) {
+        if (parentSelector == null) return 1;
+        fields.add(new Label(I18n.get("categories.parent")), 0, 1);
+        fields.add(parentSelector, 1, 1);
+        return 2;
+    }
+
+    private Long getSelectedParentId(Long parentId, ComboBox<CategoryParentChoice> parentSelector) {
+        if (parentSelector == null) return parentId;
+        CategoryParentChoice choice = parentSelector.getValue();
+        return choice == null ? null : choice.id();
+    }
+
+    private ComboBox<CategoryParentChoice> createParentSelector(Category category) {
+        ComboBox<CategoryParentChoice> selector = new ComboBox<>();
+        selector.setId("parentCategoryCombo");
+        selector.setMaxWidth(Double.MAX_VALUE);
+        selector.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(CategoryParentChoice choice) {
+                return choice == null ? "" : choice.label();
+            }
+
+            @Override
+            public CategoryParentChoice fromString(String value) {
+                return selector.getItems().stream()
+                        .filter(choice -> choice.label().equals(value))
+                        .findFirst()
+                        .orElse(null);
+            }
+        });
+
+        List<CategoryParentChoice> choices = new ArrayList<>();
+        choices.add(new CategoryParentChoice(null, I18n.get("classifications.categoriesRoot")));
+        Set<Long> excludedIds = getCategorySubtreeIds(category.getId());
+        int subtreeHeight = calculateSubtreeHeight(category.getId());
+        categoryService.getAllCategories().stream()
+                .filter(candidate -> !excludedIds.contains(candidate.getId()))
+                .filter(candidate -> calculateDepth(candidate.getId()) + subtreeHeight <= 5)
+                .map(candidate -> new CategoryParentChoice(candidate.getId(), categoryPath(candidate)))
+                .sorted(Comparator.comparing(CategoryParentChoice::label, String.CASE_INSENSITIVE_ORDER))
+                .forEach(choices::add);
+        selector.getItems().setAll(choices);
+        selector.setValue(choices.stream()
+                .filter(choice -> Objects.equals(choice.id(), category.getParentId()))
+                .findFirst()
+                .orElse(choices.getFirst()));
+        return selector;
+    }
+
+    private Set<Long> getCategorySubtreeIds(Long categoryId) {
+        Set<Long> ids = new HashSet<>();
+        ids.add(categoryId);
+        for (Category child : categoryService.getChildCategories(categoryId)) {
+            ids.addAll(getCategorySubtreeIds(child.getId()));
+        }
+        return ids;
+    }
+
+    private int calculateSubtreeHeight(Long categoryId) {
+        return 1 + categoryService.getChildCategories(categoryId).stream()
+                .mapToInt(child -> calculateSubtreeHeight(child.getId()))
+                .max()
+                .orElse(0);
+    }
+
+    private String categoryPath(Category category) {
+        Deque<String> names = new ArrayDeque<>();
+        Category current = category;
+        while (current != null) {
+            names.addFirst(current.getName());
+            current = current.getParentId() == null
+                    ? null
+                    : categoryService.getCategory(current.getParentId()).orElse(null);
+        }
+        return String.join(" / ", names);
+    }
+
+    private void saveCategory(Category category, Long parentId, Long selectedParentId, String name, String comment) {
+        try {
+            if (category == null) {
+                categoryService.createCategory(name, parentId, emptyToNull(comment));
+            } else {
+                categoryService.updateCategory(category.getId(), name, selectedParentId, emptyToNull(comment));
+            }
+        } catch (IllegalArgumentException exception) {
+            showError(exception.getMessage());
+            return;
         }
 
         loadTree();
-        if (parentIdToExpand != null) {
-            expandPathToCategory(parentIdToExpand);
+        Long categoryIdToSelect = category == null ? null : category.getId();
+        Long parentIdToExpand = category == null ? parentId : selectedParentId;
+        if (parentIdToExpand != null) expandPathToCategory(parentIdToExpand);
+        if (categoryIdToSelect != null) {
+            expandPathToCategory(categoryIdToSelect);
+            classificationTree.getSelectionModel().select(categoryItemsById.get(categoryIdToSelect));
         }
         log.info("Saved category");
     }
@@ -775,5 +779,8 @@ public class ClassificationsController {
         icon.setIconLiteral(literal);
         icon.setIconSize(size);
         return icon;
+    }
+
+    private record CategoryParentChoice(Long id, String label) {
     }
 }

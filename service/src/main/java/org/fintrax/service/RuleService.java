@@ -160,6 +160,14 @@ public class RuleService {
         return ruleEngine.countMatchingTransactions(rule);
     }
 
+    public List<Transaction> getMatchingTransactions(Long ruleId) {
+        Rule rule = store.getRule(ruleId);
+        if (rule == null) {
+            throw new IllegalArgumentException("Rule not found: " + ruleId);
+        }
+        return ruleEngine.previewRule(rule);
+    }
+
     public RuleApplicationPreview previewAllRules(boolean onlyFillMissing) {
         return ruleEngine.previewRules(onlyFillMissing);
     }

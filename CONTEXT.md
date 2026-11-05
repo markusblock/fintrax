@@ -19,6 +19,9 @@ The category a child category is nested directly under.
 **Child Category**:
 A category nested directly under a parent category.
 
+**Category Move**:
+Changing a category's parent while keeping its descendants attached. Choosing no parent makes it a top-level category.
+
 **Sibling Categories**:
 Categories sharing the same parent. Top-level categories are siblings when they have no parent.
 
