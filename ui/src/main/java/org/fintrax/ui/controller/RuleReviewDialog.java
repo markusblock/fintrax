@@ -1,6 +1,6 @@
 package org.fintrax.ui.controller;
 
-import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.scene.control.*;
@@ -71,19 +71,18 @@ final class RuleReviewDialog {
         TableView<TransactionRulePreview> table = new TableView<>();
         table.setId("ruleReviewTable");
         table.getStyleClass().add("dense");
-        List<TableColumn<TransactionRulePreview, String>> columns = List.of(
+        List<TableColumn<TransactionRulePreview, ?>> columns = List.of(
                 column("rules.review.date", row -> row.bookingDate() == null
                         ? "—" : row.bookingDate().format(DATE_FORMAT), 100),
                 column("rules.review.payee", TransactionRulePreview::payee, 180),
                 column("rules.review.amount", row -> row.amount() == null
                         ? "—" : String.format("%,.2f EUR", row.amount().doubleValue()), 110),
                 column("rules.review.account", this::accountName, 140),
-                column("rules.review.category", row -> change(categoryName(row.currentCategoryId()),
-                        categoryName(row.proposedCategoryId())), 190),
-                column("rules.review.labels", row -> change(labels(row.currentLabelIds()),
-                        labels(row.proposedLabelIds())), 220),
-                column("rules.review.note", row -> change(display(row.currentNote()),
-                        display(row.proposedNote())), 220),
+                column("rules.review.currentCategory", row -> categoryName(row.currentCategoryId()), 150),
+                column("rules.review.categoryAfter", row -> categoryName(row.proposedCategoryId()), 150),
+                column("rules.review.currentLabel", row -> display(labels(row.currentLabelIds())), 160),
+                column("rules.review.labelAfter", row -> display(labels(row.proposedLabelIds())), 160),
+                column("rules.review.matchingRuleCount", row -> row.matchedRuleNames().size(), 50),
                 column("rules.review.matchedRules", this::matchedRules, 200));
         table.getColumns().setAll(columns);
 
@@ -105,10 +104,12 @@ final class RuleReviewDialog {
                         new TableColumnConfig("payee", columns.get(1)),
                         new TableColumnConfig("amount", columns.get(2)),
                         new TableColumnConfig("account", columns.get(3)),
-                        new TableColumnConfig("category", columns.get(4)),
-                        new TableColumnConfig("labels", columns.get(5)),
-                        new TableColumnConfig("note", columns.get(6)),
-                        new TableColumnConfig("matchedRules", columns.get(7))));
+                        new TableColumnConfig("currentCategory", columns.get(4)),
+                        new TableColumnConfig("categoryAfter", columns.get(5)),
+                        new TableColumnConfig("currentLabel", columns.get(6)),
+                        new TableColumnConfig("labelAfter", columns.get(7)),
+                        new TableColumnConfig("matchingRuleCount", columns.get(8)),
+                        new TableColumnConfig("matchedRules", columns.get(9))));
         TableCellTooltips.install(table);
 
         Label summary = new Label();
@@ -174,11 +175,11 @@ final class RuleReviewDialog {
         });
     }
 
-    private <T> TableColumn<TransactionRulePreview, String> column(
-            String titleKey, Function<TransactionRulePreview, String> value, double width) {
-        TableColumn<TransactionRulePreview, String> column = new TableColumn<>(I18n.get(titleKey));
+    private <T> TableColumn<TransactionRulePreview, T> column(
+            String titleKey, Function<TransactionRulePreview, T> value, double width) {
+        TableColumn<TransactionRulePreview, T> column = new TableColumn<>(I18n.get(titleKey));
         column.setPrefWidth(width);
-        column.setCellValueFactory(cell -> new SimpleStringProperty(value.apply(cell.getValue())));
+        column.setCellValueFactory(cell -> new SimpleObjectProperty<>(value.apply(cell.getValue())));
         return column;
     }
 
@@ -215,10 +216,6 @@ final class RuleReviewDialog {
         return row.matchedRuleNames().size() > 1
                 ? I18n.get("rules.review.multipleRuleNames", row.matchedRuleNames().size(), names)
                 : names;
-    }
-
-    private String change(String current, String proposed) {
-        return current.equals(proposed) ? current : current + " → " + proposed;
     }
 
     private String display(String value) {
