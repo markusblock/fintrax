@@ -36,6 +36,7 @@ import java.util.stream.Collectors;
 
 final class RuleReviewDialog {
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ISO_LOCAL_DATE;
+    private static final double SELECTION_COLUMN_WIDTH = 36;
 
     record Services(RuleService ruleService, AccountService accountService, CategoryService categoryService,
                     LabelService labelService, SettingsService settingsService) {}
@@ -127,9 +128,9 @@ final class RuleReviewDialog {
                         new TableColumnConfig("matchedRules", columns.get(9))));
         Map<Long, BooleanProperty> selectionByTransactionId = new HashMap<>();
         TableColumn<TransactionRulePreview, Boolean> selectionColumn = new TableColumn<>();
-        selectionColumn.setMinWidth(80);
-        selectionColumn.setPrefWidth(80);
-        selectionColumn.setMaxWidth(80);
+        selectionColumn.setMinWidth(SELECTION_COLUMN_WIDTH);
+        selectionColumn.setPrefWidth(SELECTION_COLUMN_WIDTH);
+        selectionColumn.setMaxWidth(SELECTION_COLUMN_WIDTH);
         selectionColumn.setResizable(false);
         selectionColumn.setSortable(false);
         selectionColumn.setReorderable(false);

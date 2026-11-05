@@ -174,6 +174,7 @@ class RulesControllerTest extends AbstractUITest {
         TableView<TransactionRulePreview> reviewTable = lookup("#ruleReviewTable").query();
         TableColumn<TransactionRulePreview, ?> includeColumn = reviewTable.getColumns().getFirst();
         assertTrue(includeColumn.getText().isBlank());
+        assertEquals(36, includeColumn.getPrefWidth());
         BooleanProperty selectedTransaction = (BooleanProperty) includeColumn.getCellObservableValue(
                 rowFor(reviewTable, transaction.getId()));
         interact(() -> selectedTransaction.set(false));
