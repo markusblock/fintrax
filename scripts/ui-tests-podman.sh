@@ -3,7 +3,20 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 mode="${1:-focused}"
+mode_args=()
 screen_sharing_pid=""
+
+usage() {
+    cat <<EOF
+Usage: $0 [focused|all]
+       $0 test <Gradle --tests pattern> [<pattern> ...]
+
+Examples:
+  $0 test org.fintrax.ui.RulesControllerTest
+  $0 test 'org.fintrax.ui.RulesControllerTest.editingRule*'
+  $0 test 'org.fintrax.ui.*ControllerTest'
+EOF
+}
 
 close_screen_sharing() {
     if [[ -n "$screen_sharing_pid" ]] && kill -0 "$screen_sharing_pid" 2>/dev/null; then
@@ -32,15 +45,35 @@ open_screen_sharing() {
     echo "Could not isolate the test's Screen Sharing instance; leaving it open to avoid closing existing sessions." >&2
 }
 
-if [[ $# -gt 1 ]]; then
-    echo "Usage: $0 [focused|all]" >&2
-    exit 2
+if [[ "$mode" == "--help" || "$mode" == "-h" ]]; then
+    usage
+    exit 0
 fi
 
+if [[ $# -gt 0 ]]; then shift; fi
 case "$mode" in
-    focused|all) ;;
+    focused|all)
+        if [[ $# -gt 0 ]]; then
+            usage >&2
+            exit 2
+        fi
+        ;;
+    test)
+        if [[ $# -eq 0 ]]; then
+            usage >&2
+            exit 2
+        fi
+        mode_args=("$@")
+        for pattern in "${mode_args[@]}"; do
+            if [[ -z "$pattern" ]]; then
+                echo "Test patterns must not be empty." >&2
+                exit 2
+            fi
+        done
+        ;;
     *)
-        echo "Unknown test mode '$mode'. Usage: $0 [focused|all]" >&2
+        echo "Unknown test mode '$mode'." >&2
+        usage >&2
         exit 2
         ;;
 esac
@@ -94,7 +127,7 @@ podman build \
     "$repo_root/tools/ui-tests"
 
 podman run "${podman_args[@]}" "$image" \
-    /usr/local/bin/run-ui-tests "$mode" --vnc &
+    /usr/local/bin/run-ui-tests "$mode" "${mode_args[@]}" --vnc &
 container_pid=$!
 
 vnc_ready=false
