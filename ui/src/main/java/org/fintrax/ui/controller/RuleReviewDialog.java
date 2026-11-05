@@ -7,7 +7,6 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.CheckBoxTableCell;
-import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Window;
 import org.kordamp.ikonli.javafx.FontIcon;
@@ -73,10 +72,12 @@ final class RuleReviewDialog {
         CheckBox onlyFillMissing = new CheckBox(I18n.get("rules.review.onlyFillMissing"));
         onlyFillMissing.setId("onlyFillMissingRules");
         onlyFillMissing.setSelected(true);
-        Button selectAllButton = new Button();
-        selectAllButton.setId("ruleReviewSelectAllButton");
-        selectAllButton.setGraphic(icon("fth-check-square", 14));
-        selectAllButton.getStyleClass().add("button-outlined");
+        CheckBox selectAllCheckbox = new CheckBox();
+        selectAllCheckbox.setId("ruleReviewSelectAllCheckbox");
+        selectAllCheckbox.setAllowIndeterminate(true);
+        Tooltip selectAllTooltip = new Tooltip(I18n.get("button.selectAll"));
+        selectAllCheckbox.setTooltip(selectAllTooltip);
+        selectAllCheckbox.setAccessibleText(selectAllTooltip.getText());
 
         TableView<TransactionRulePreview> table = new TableView<>();
         table.setId("ruleReviewTable");
@@ -122,14 +123,14 @@ final class RuleReviewDialog {
                         new TableColumnConfig("matchingRuleCount", columns.get(8)),
                         new TableColumnConfig("matchedRules", columns.get(9))));
         Map<Long, BooleanProperty> selectionByTransactionId = new HashMap<>();
-        TableColumn<TransactionRulePreview, Boolean> selectionColumn = new TableColumn<>(
-                I18n.get("rules.review.include"));
+        TableColumn<TransactionRulePreview, Boolean> selectionColumn = new TableColumn<>();
         selectionColumn.setMinWidth(80);
         selectionColumn.setPrefWidth(80);
         selectionColumn.setMaxWidth(80);
         selectionColumn.setResizable(false);
         selectionColumn.setSortable(false);
         selectionColumn.setReorderable(false);
+        selectionColumn.setGraphic(selectAllCheckbox);
         selectionColumn.setCellValueFactory(cell -> selectionByTransactionId.get(
                 cell.getValue().transactionId()));
         selectionColumn.setCellFactory(CheckBoxTableCell.forTableColumn(selectionColumn));
@@ -166,10 +167,14 @@ final class RuleReviewDialog {
             boolean allRowsSelected = !rows.isEmpty() && rows.stream()
                     .allMatch(row -> selectionByTransactionId.get(row.transactionId()).get());
             applyButton.setDisable(!hasSelectedRows);
-            selectAllButton.setDisable(rows.isEmpty());
-            selectAllButton.setText(I18n.get(allRowsSelected ? "button.clearAll" : "button.selectAll"));
+            selectAllCheckbox.setDisable(rows.isEmpty());
+            selectAllCheckbox.setSelected(allRowsSelected);
+            selectAllCheckbox.setIndeterminate(hasSelectedRows && !allRowsSelected);
+            String actionText = I18n.get(allRowsSelected ? "button.deselectAll" : "button.selectAll");
+            selectAllTooltip.setText(actionText);
+            selectAllCheckbox.setAccessibleText(actionText);
         };
-        selectAllButton.setOnAction(event -> {
+        selectAllCheckbox.setOnAction(event -> {
             boolean selectRows = rows.stream()
                     .anyMatch(row -> !selectionByTransactionId.get(row.transactionId()).get());
             rows.forEach(row -> selectionByTransactionId.get(row.transactionId()).set(selectRows));
@@ -203,8 +208,7 @@ final class RuleReviewDialog {
         onlyFillMissing.selectedProperty().addListener((observable, oldValue, newValue) -> refreshPreview.run());
         refreshPreview.run();
 
-        HBox previewOptions = new HBox(10, onlyFillMissing, selectAllButton);
-        VBox content = new VBox(10, previewOptions, summary, multipleMatchWarning, emptyResult, table);
+        VBox content = new VBox(10, onlyFillMissing, summary, multipleMatchWarning, emptyResult, table);
         content.getStyleClass().add("dialog-content");
         content.setMinWidth(1100);
         content.setPrefHeight(420);

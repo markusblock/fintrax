@@ -172,9 +172,8 @@ class RulesControllerTest extends AbstractUITest {
     void applyingReviewSkipsDeselectedTransactions() {
         openReviewDialog();
         TableView<TransactionRulePreview> reviewTable = lookup("#ruleReviewTable").query();
-        TableColumn<TransactionRulePreview, ?> includeColumn = reviewTable.getColumns().stream()
-                .filter(column -> column.getText().equals(I18n.get("rules.review.include")))
-                .findFirst().orElseThrow();
+        TableColumn<TransactionRulePreview, ?> includeColumn = reviewTable.getColumns().getFirst();
+        assertTrue(includeColumn.getText().isBlank());
         BooleanProperty selectedTransaction = (BooleanProperty) includeColumn.getCellObservableValue(
                 rowFor(reviewTable, transaction.getId()));
         interact(() -> selectedTransaction.set(false));
@@ -195,19 +194,23 @@ class RulesControllerTest extends AbstractUITest {
         BooleanProperty skippedSelection = (BooleanProperty) includeColumn.getCellObservableValue(
                 rowFor(reviewTable, includedTransaction.getId()));
 
-        Button selectAll = lookup("#ruleReviewSelectAllButton").query();
+        CheckBox selectAll = lookup("#ruleReviewSelectAllCheckbox").query();
         Button applyButton = lookup("#applyReviewedRulesButton").query();
-        assertEquals(I18n.get("button.selectAll"), selectAll.getText());
+        assertTrue(selectAll.isIndeterminate());
+        assertEquals(I18n.get("button.selectAll"), selectAll.getTooltip().getText());
         interact(selectAll::fire);
         assertTrue(selectedTransaction.get());
         assertTrue(skippedSelection.get());
-        assertEquals(I18n.get("button.clearAll"), selectAll.getText());
+        assertTrue(selectAll.isSelected());
+        assertFalse(selectAll.isIndeterminate());
+        assertEquals(I18n.get("button.deselectAll"), selectAll.getTooltip().getText());
 
         interact(selectAll::fire);
         assertFalse(selectedTransaction.get());
         assertFalse(skippedSelection.get());
+        assertFalse(selectAll.isSelected());
+        assertFalse(selectAll.isIndeterminate());
         assertTrue(applyButton.isDisabled());
-        assertEquals(I18n.get("button.selectAll"), selectAll.getText());
 
         interact(selectAll::fire);
         assertTrue(skippedSelection.get());
