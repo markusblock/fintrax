@@ -2,6 +2,7 @@ package org.fintrax.ui;
 
 import javafx.scene.Scene;
 import javafx.scene.Parent;
+import javafx.application.Platform;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.CheckMenuItem;
@@ -11,6 +12,7 @@ import javafx.scene.control.MenuItem;
 import javafx.scene.control.TableColumnBase;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
+import javafx.scene.control.TextField;
 import javafx.stage.Stage;
 import org.fintrax.config.I18n;
 import org.fintrax.model.*;
@@ -22,6 +24,7 @@ import org.fintrax.service.SettingsService;
 import org.fintrax.service.TransactionService;
 import org.fintrax.service.TransactionRulePreview;
 import org.junit.jupiter.api.Test;
+import org.testfx.util.WaitForAsyncUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -166,13 +169,13 @@ class RulesControllerTest extends AbstractUITest {
 
         ContextMenu enabledMenu = enabledRow.getContextMenu();
         assertNotNull(enabledMenu);
-        assertEquals(List.of(I18n.get("rules.applySelected"), I18n.get("button.moveUp"),
+        assertEquals(List.of(I18n.get("button.edit"), I18n.get("rules.applySelected"), I18n.get("button.moveUp"),
                         I18n.get("button.moveDown"), I18n.get("rules.disable"),
                         I18n.get("button.delete")), menuLabels(enabledMenu));
 
         ContextMenu disabledMenu = disabledRow.getContextMenu();
         assertNotNull(disabledMenu);
-        assertEquals(List.of(I18n.get("rules.applySelected"), I18n.get("button.moveUp"),
+        assertEquals(List.of(I18n.get("button.edit"), I18n.get("rules.applySelected"), I18n.get("button.moveUp"),
                         I18n.get("button.moveDown"), I18n.get("rules.enable"),
                         I18n.get("button.delete")), menuLabels(disabledMenu));
         assertTrue(menuItem(disabledMenu, I18n.get("rules.applySelected")).isDisable());
@@ -192,6 +195,47 @@ class RulesControllerTest extends AbstractUITest {
         interact(() -> menuItem(reorderedDisabledMenu, I18n.get("rules.enable")).fire());
         assertTrue(ruleService.getRule(disabledRule.getId()).orElseThrow().isEnabled());
         assertEquals("", rowForRule(ruleTable, disabledRuleName).getStyle());
+    }
+
+    @Test
+    void selectingRuleShowsSummaryAndFilteredMatchingTransactions() {
+        TableView<Rule> ruleTable = lookup("#ruleTable").query();
+        Rule selectedRule = ruleTable.getItems().stream()
+                .filter(rule -> rule.getName().equals(ruleName)).findFirst().orElseThrow();
+
+        interact(() -> ruleTable.getSelectionModel().select(selectedRule));
+
+        assertTrue(lookup("#ruleConditionsSummary").queryLabeled().getText().contains("REVIEW-"));
+        assertTrue(lookup("#ruleActionsSummary").queryLabeled().getText().contains(proposedCategory.getName()));
+        TableView<Transaction> transactions = lookup("#ruleTransactionsTable").query();
+        assertEquals(List.of(transaction.getId()), transactions.getItems().stream().map(Transaction::getId).toList());
+
+        TextField search = lookup("#searchField").query();
+        interact(() -> search.setText("not a matching payee"));
+        assertTrue(transactions.getItems().isEmpty());
+        interact(() -> search.setText("REVIEW-"));
+        assertEquals(List.of(transaction.getId()), transactions.getItems().stream().map(Transaction::getId).toList());
+    }
+
+    @Test
+    void editingRuleFromContextMenuUpdatesRuleAndSelectedSummary() {
+        TableView<Rule> ruleTable = lookup("#ruleTable").query();
+        Rule selectedRule = ruleTable.getItems().stream()
+                .filter(rule -> rule.getName().equals(ruleName)).findFirst().orElseThrow();
+        TableRow<?> row = rowForRule(ruleTable, ruleName);
+
+        interact(() -> ruleTable.getSelectionModel().select(selectedRule));
+        Platform.runLater(() -> menuItem(row.getContextMenu(), I18n.get("button.edit")).fire());
+        WaitForAsyncUtils.waitForFxEvents();
+        TextField nameField = lookup("#ruleNameField").query();
+        String editedName = ruleName + " updated";
+        interact(() -> nameField.setText(editedName));
+        Button saveButton = lookup("#editRuleSave").query();
+        clickOn(saveButton);
+
+        assertEquals(editedName, applicationContext.getBean(RuleService.class)
+                .getRule(selectedRule.getId()).orElseThrow().getName());
+        assertTrue(lookup("#ruleNameSummary").queryLabeled().getText().contains(editedName));
     }
 
     private TransactionRulePreview rowFor(TableView<TransactionRulePreview> table, Long transactionId) {
