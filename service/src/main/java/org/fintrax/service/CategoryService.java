@@ -110,11 +110,27 @@ public class CategoryService {
             throw new IllegalArgumentException("Category not found: " + id);
         }
 
-        if (!name.equals(category.getName()) && hasSiblingWithName(name, category.getParentId())) {
+        return updateCategory(id, name, category.getParentId(), comment);
+    }
+
+    public Category updateCategory(Long id, String name, Long parentId, String comment) {
+        Category category = store.getCategory(id);
+        if (category == null) {
+            throw new IllegalArgumentException("Category not found: " + id);
+        }
+
+        boolean parentChanged = !Objects.equals(parentId, category.getParentId());
+        boolean nameChanged = !Objects.equals(name, category.getName());
+        if (parentChanged) {
+            validateNewParent(category, parentId);
+        }
+
+        if ((nameChanged || parentChanged) && hasSiblingWithName(name, parentId)) {
             throw new IllegalArgumentException("A sibling category with name '" + name + "' already exists");
         }
 
         category.setName(name);
+        category.setParentId(parentId);
         category.setComment(comment);
         category.setUpdatedAt(LocalDateTime.now());
 
@@ -125,6 +141,34 @@ public class CategoryService {
 
         log.info("Updated category {}", id);
         return category;
+    }
+
+    private void validateNewParent(Category category, Long parentId) {
+        if (parentId == null) return;
+
+        if (store.getCategory(parentId) == null) {
+            throw new IllegalArgumentException("Parent category not found: " + parentId);
+        }
+
+        Long currentId = parentId;
+        while (currentId != null) {
+            if (category.getId().equals(currentId)) {
+                throw new IllegalArgumentException("A category cannot be moved under itself or its descendant");
+            }
+            Category ancestor = store.getCategory(currentId);
+            currentId = ancestor == null ? null : ancestor.getParentId();
+        }
+
+        if (calculateDepth(parentId) + calculateSubtreeHeight(category.getId()) > MAX_DEPTH) {
+            throw new IllegalArgumentException("Maximum category depth (" + MAX_DEPTH + ") exceeded");
+        }
+    }
+
+    private int calculateSubtreeHeight(Long categoryId) {
+        return 1 + getChildCategories(categoryId).stream()
+                .mapToInt(child -> calculateSubtreeHeight(child.getId()))
+                .max()
+                .orElse(0);
     }
 
     public void deleteCategory(Long id, Long reassignToId) {

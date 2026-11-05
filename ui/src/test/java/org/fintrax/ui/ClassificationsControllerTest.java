@@ -109,6 +109,69 @@ class ClassificationsControllerTest extends AbstractUITest {
     }
 
     @Test
+    void categoryEditorMovesCategoryToSelectedParentAndOffersTopLevel() throws Exception {
+        Category oldParent = categoryService().createCategory("Old parent " + System.nanoTime(), null, null);
+        Category newParent = categoryService().createCategory("New parent " + System.nanoTime(), null, null);
+        Category category = categoryService().createCategory("Movable " + System.nanoTime(), oldParent.getId(), null);
+        Category child = categoryService().createCategory("Child " + System.nanoTime(), category.getId(), null);
+        try {
+            reloadClassificationsView();
+            TreeView<String> tree = lookup("#classificationTree").query();
+            TreeItem<String> oldParentItem = categoryTreeItem(tree, oldParent.getName());
+            TreeItem<String> categoryItem = treeItem(oldParentItem, category.getName());
+            interact(() -> oldParentItem.setExpanded(true));
+            WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS, () -> hasTreeCell(tree, categoryItem));
+            TreeCell<?> categoryCell = treeCellFor(tree, categoryItem);
+
+            openCategoryEditor(tree, categoryItem, categoryCell);
+            WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS,
+                    () -> lookup("#parentCategoryCombo").tryQuery().isPresent());
+            ComboBox<?> parentSelector = lookup("#parentCategoryCombo").query();
+            assertTrue(hasParentChoice(parentSelector, I18n.get("classifications.categoriesRoot")));
+            selectParent(parentSelector, newParent.getName());
+            interact(() -> lookup("#saveButton").<Button>query().fire());
+            WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS,
+                    () -> newParent.getId().equals(categoryService().getCategory(category.getId())
+                            .orElseThrow().getParentId()));
+
+            assertEquals(category.getId(), categoryService().getCategory(child.getId()).orElseThrow().getParentId());
+            TreeView<String> updatedTree = lookup("#classificationTree").query();
+            TreeItem<String> newParentItem = categoryTreeItem(updatedTree, newParent.getName());
+            assertEquals(category.getName(), treeItem(newParentItem, category.getName()).getValue());
+        } finally {
+            categoryService().deleteCategory(oldParent.getId(), null, false);
+            categoryService().deleteCategory(newParent.getId(), null, false);
+        }
+    }
+
+    @Test
+    void categoryEditorCanMoveCategoryToTopLevel() throws Exception {
+        Category parent = categoryService().createCategory("Parent " + System.nanoTime(), null, null);
+        Category category = categoryService().createCategory("Movable " + System.nanoTime(), parent.getId(), null);
+        try {
+            reloadClassificationsView();
+            TreeView<String> tree = lookup("#classificationTree").query();
+            TreeItem<String> parentItem = categoryTreeItem(tree, parent.getName());
+            interact(() -> parentItem.setExpanded(true));
+            TreeItem<String> categoryItem = treeItem(parentItem, category.getName());
+            WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS, () -> hasTreeCell(tree, categoryItem));
+            TreeCell<?> categoryCell = treeCellFor(tree, categoryItem);
+
+            openCategoryEditor(tree, categoryItem, categoryCell);
+            WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS,
+                    () -> lookup("#parentCategoryCombo").tryQuery().isPresent());
+            selectParent(lookup("#parentCategoryCombo").query(), I18n.get("classifications.categoriesRoot"));
+            interact(() -> lookup("#saveButton").<Button>query().fire());
+            WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS,
+                    () -> categoryService().getCategory(category.getId()).orElseThrow().getParentId() == null);
+
+            assertNotNull(categoryTreeItem(lookup("#classificationTree").query(), category.getName()));
+        } finally {
+            categoryService().deleteCategory(parent.getId(), null, false);
+        }
+    }
+
+    @Test
     void classificationTableShowsAccountNameColumn() throws Exception {
         BankAccount account = applicationContext.getBean(AccountService.class)
                 .createAccount("DE89370400440532013000", null, "Detail test bank", "Test holder", null, null);
@@ -678,6 +741,48 @@ class ClassificationsControllerTest extends AbstractUITest {
     private TreeItem<String> categoryTreeItem(TreeView<String> tree, String name) {
         TreeItem<String> categoriesRoot = treeItem(tree.getRoot(), I18n.get("classifications.categoriesRoot"));
         return treeItem(categoriesRoot, name);
+    }
+
+    private boolean hasTreeCell(TreeView<?> tree, TreeItem<?> item) {
+        return tree.lookupAll(".tree-cell").stream()
+                .filter(TreeCell.class::isInstance)
+                .map(TreeCell.class::cast)
+                .anyMatch(cell -> !cell.isEmpty() && cell.getTreeItem() == item);
+    }
+
+    private TreeCell<?> treeCellFor(TreeView<?> tree, TreeItem<?> item) {
+        return tree.lookupAll(".tree-cell").stream()
+                .filter(TreeCell.class::isInstance)
+                .map(TreeCell.class::cast)
+                .filter(cell -> !cell.isEmpty() && cell.getTreeItem() == item)
+                .findFirst()
+                .orElseThrow();
+    }
+
+    private void openCategoryEditor(TreeView<String> tree, TreeItem<String> item, TreeCell<?> cell) {
+        interact(() -> tree.getSelectionModel().select(item));
+        MenuItem editItem = cell.getContextMenu().getItems().stream()
+                .filter(menuItem -> "editNodeMenuItem".equals(menuItem.getId()))
+                .findFirst()
+                .orElseThrow();
+        interact(editItem::fire);
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private void selectParent(ComboBox<?> selector, String label) {
+        ComboBox rawSelector = selector;
+        Object choice = (Object) rawSelector.getItems().stream()
+                .filter(item -> label.equals(rawSelector.getConverter().toString(item)))
+                .findFirst()
+                .orElseThrow();
+        interact(() -> rawSelector.getSelectionModel().select(choice));
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private boolean hasParentChoice(ComboBox<?> selector, String label) {
+        ComboBox rawSelector = selector;
+        return rawSelector.getItems().stream()
+                .anyMatch(choice -> label.equals(rawSelector.getConverter().toString(choice)));
     }
 
     private void reloadClassificationsView() throws Exception {
