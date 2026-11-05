@@ -4,6 +4,8 @@ import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.collections.transformation.FilteredList;
+import javafx.collections.transformation.SortedList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.layout.BorderPane;
@@ -18,6 +20,7 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -30,6 +33,8 @@ public class RulesController {
     private BorderPane rootPane;
     @FXML
     private TableView<Rule> ruleTable;
+    @FXML
+    private TextField ruleSearchField;
     @FXML
     private TableColumn<Rule, Number> ruleNumberColumn;
     @FXML
@@ -74,9 +79,18 @@ public class RulesController {
                 new SimpleIntegerProperty(cell.getValue().getPriority()));
         ruleNameColumn.setCellValueFactory(cell ->
                 new SimpleStringProperty(cell.getValue().getName()));
+        ruleNumberColumn.setSortable(true);
+        ruleNameColumn.setSortable(true);
+        ruleNameColumn.setComparator(String.CASE_INSENSITIVE_ORDER);
+        FilteredList<Rule> filteredRules = new FilteredList<>(ruleData);
+        ruleSearchField.textProperty().addListener((observable, oldValue, newValue) ->
+                filteredRules.setPredicate(ruleNamePredicate(newValue)));
+        SortedList<Rule> sortedRules = new SortedList<>(filteredRules);
+        sortedRules.comparatorProperty().bind(ruleTable.comparatorProperty());
+        ruleTable.setItems(sortedRules);
+        ruleNumberColumn.setSortType(TableColumn.SortType.ASCENDING);
+        ruleTable.getSortOrder().setAll(ruleNumberColumn);
         ruleTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
-        ruleNumberColumn.setSortable(false);
-        ruleNameColumn.setSortable(false);
         TableCellTooltips.install(ruleTable);
         ruleTable.setRowFactory(table -> new TableRow<>() {
             @Override
@@ -105,7 +119,11 @@ public class RulesController {
 
     private void loadRules() {
         ruleData.setAll(ruleService.getAllRules());
-        ruleTable.setItems(ruleData);
+    }
+
+    private Predicate<Rule> ruleNamePredicate(String searchText) {
+        String query = searchText == null ? "" : searchText.trim().toLowerCase(Locale.ROOT);
+        return rule -> query.isEmpty() || rule.getName().toLowerCase(Locale.ROOT).contains(query);
     }
 
     private ContextMenu createRuleContextMenu(Rule rule) {

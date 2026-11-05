@@ -11,6 +11,7 @@ import javafx.scene.control.MenuItem;
 import javafx.scene.control.TableColumnBase;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
+import javafx.scene.control.TextField;
 import javafx.stage.Stage;
 import org.fintrax.config.I18n;
 import org.fintrax.model.*;
@@ -26,6 +27,7 @@ import org.junit.jupiter.api.Test;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Locale;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -147,6 +149,27 @@ class RulesControllerTest extends AbstractUITest {
                         I18n.get("button.moveDown"), I18n.get("button.applyAll")),
                 lookup(".view-header .button").queryAll().stream()
                         .map(node -> ((Button) node).getText()).toList());
+    }
+
+    @Test
+    void rulesTableDefaultsToPrioritySortAndCanSortAndSearchByName() {
+        TableView<Rule> ruleTable = lookup("#ruleTable").query();
+
+        assertEquals(ruleTable.getColumns().getFirst(), ruleTable.getSortOrder().getFirst());
+        assertTrue(ruleTable.getColumns().stream().allMatch(TableColumnBase::isSortable));
+        assertEquals(ruleTable.getItems().stream().map(Rule::getPriority).sorted().toList(),
+                ruleTable.getItems().stream().map(Rule::getPriority).toList());
+
+        interact(() -> {
+            ruleTable.getSortOrder().setAll(ruleTable.getColumns().get(1));
+            ruleTable.sort();
+        });
+        List<String> displayedNames = ruleTable.getItems().stream().map(Rule::getName).toList();
+        assertEquals(displayedNames.stream().sorted(String.CASE_INSENSITIVE_ORDER).toList(), displayedNames);
+
+        TextField searchField = lookup("#ruleSearchField").query();
+        interact(() -> searchField.setText(disabledRuleName.toUpperCase(Locale.ROOT)));
+        assertEquals(List.of(disabledRuleName), ruleTable.getItems().stream().map(Rule::getName).toList());
     }
 
     @Test
