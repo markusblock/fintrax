@@ -1,7 +1,6 @@
 package org.fintrax.ui.controller;
 
 import javafx.beans.property.SimpleIntegerProperty;
-import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -16,18 +15,15 @@ import org.fintrax.model.*;
 import org.fintrax.service.*;
 import org.fintrax.ui.FintraxUI;
 import org.fintrax.ui.ViewLoader;
-import org.fintrax.ui.control.AccountDisplay;
-import org.fintrax.ui.control.SingleLineText;
 import org.fintrax.ui.control.TableCellTooltips;
 import org.fintrax.ui.control.TableColumnConfig;
 import org.fintrax.ui.control.TableColumnVisibilityMenu;
+import org.fintrax.ui.control.TransactionTableSetup;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.time.format.FormatStyle;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -160,65 +156,10 @@ public class RulesController {
     }
 
     private void setupTransactionTable() {
-        ruleTransactionsTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
-        transactionDateColumn.setCellValueFactory(cell ->
-                new SimpleObjectProperty<>(cell.getValue().getBookingDate()));
-        DateTimeFormatter dateFormatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT)
-                .withLocale(I18n.getCurrentLocale());
-        transactionDateColumn.setCellFactory(column -> new TableCell<>() {
-            @Override
-            protected void updateItem(LocalDate item, boolean empty) {
-                super.updateItem(item, empty);
-                setText(empty || item == null ? null : item.format(dateFormatter));
-            }
-        });
-        transactionPayeeColumn.setCellValueFactory(cell -> new SimpleStringProperty(
-                Objects.toString(cell.getValue().getPayeeDisplay() != null
-                        ? cell.getValue().getPayeeDisplay() : cell.getValue().getOriginalPayee(), "")));
-        transactionAccountColumn.setCellValueFactory(cell -> {
-            Long accountId = cell.getValue().getAccountId();
-            return new SimpleStringProperty(accountId == null ? "" : AccountDisplay.name(
-                    accountService.getAccount(accountId).orElse(null)));
-        });
-        transactionPurposeColumn.setCellValueFactory(cell ->
-                new SimpleStringProperty(SingleLineText.normalize(cell.getValue().getPurpose())));
-        transactionAmountColumn.setCellValueFactory(cell ->
-                new SimpleObjectProperty<>(cell.getValue().getAmount()));
-        transactionAmountColumn.setCellFactory(column -> new TableCell<>() {
-            @Override
-            protected void updateItem(BigDecimal item, boolean empty) {
-                super.updateItem(item, empty);
-                getStyleClass().removeAll(AMOUNT_POSITIVE_STYLE, AMOUNT_NEGATIVE_STYLE);
-                if (empty || item == null) {
-                    setText(null);
-                } else {
-                    setText(formatAmount(item));
-                    getStyleClass().add(item.signum() < 0 ? AMOUNT_NEGATIVE_STYLE : AMOUNT_POSITIVE_STYLE);
-                }
-            }
-        });
-        transactionCategoryColumn.setCellValueFactory(cell -> {
-            Long categoryId = cell.getValue().getCategoryId();
-            return new SimpleStringProperty(categoryId == null ? "" : categoryService.getCategory(categoryId)
-                    .map(Category::getName).orElse(""));
-        });
-        transactionLabelsColumn.setCellValueFactory(cell -> {
-            Set<Long> labelIds = cell.getValue().getLabelIds();
-            if (labelIds == null || labelIds.isEmpty()) return new SimpleStringProperty("");
-            return new SimpleStringProperty(labelIds.stream()
-                    .map(labelService::getLabel)
-                    .flatMap(Optional::stream)
-                    .map(org.fintrax.model.Label::getName)
-                    .sorted()
-                    .collect(Collectors.joining(", ")));
-        });
-        transactionDateColumn.setSortable(true);
-        transactionPayeeColumn.setSortable(true);
-        transactionAccountColumn.setSortable(true);
-        transactionPurposeColumn.setSortable(true);
-        transactionAmountColumn.setSortable(true);
-        transactionCategoryColumn.setSortable(true);
-        transactionLabelsColumn.setSortable(true);
+        TransactionTableSetup.configure(ruleTransactionsTable, transactionDateColumn,
+                transactionPayeeColumn, transactionAccountColumn, transactionPurposeColumn,
+                transactionAmountColumn, transactionCategoryColumn, transactionLabelsColumn,
+                accountService, categoryService, labelService);
     }
 
     private ContextMenu createRuleContextMenu(Rule rule) {
