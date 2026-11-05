@@ -36,6 +36,8 @@ public class RulesController {
     @FXML
     private TextField ruleSearchField;
     @FXML
+    private Button ruleSearchClearButton;
+    @FXML
     private TableColumn<Rule, Number> ruleNumberColumn;
     @FXML
     private TableColumn<Rule, String> ruleNameColumn;
@@ -85,6 +87,8 @@ public class RulesController {
         FilteredList<Rule> filteredRules = new FilteredList<>(ruleData);
         ruleSearchField.textProperty().addListener((observable, oldValue, newValue) ->
                 filteredRules.setPredicate(ruleNamePredicate(newValue)));
+        ruleSearchClearButton.visibleProperty().bind(ruleSearchField.textProperty().isNotEmpty());
+        ruleSearchClearButton.managedProperty().bind(ruleSearchClearButton.visibleProperty());
         SortedList<Rule> sortedRules = new SortedList<>(filteredRules);
         sortedRules.comparatorProperty().bind(ruleTable.comparatorProperty());
         ruleTable.setItems(sortedRules);
@@ -119,6 +123,12 @@ public class RulesController {
 
     private void loadRules() {
         ruleData.setAll(ruleService.getAllRules());
+    }
+
+    @FXML
+    private void onClearRuleSearch() {
+        ruleSearchField.clear();
+        ruleSearchField.requestFocus();
     }
 
     private Predicate<Rule> ruleNamePredicate(String searchText) {

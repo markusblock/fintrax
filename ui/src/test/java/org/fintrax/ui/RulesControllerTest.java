@@ -154,9 +154,12 @@ class RulesControllerTest extends AbstractUITest {
     @Test
     void rulesTableDefaultsToPrioritySortAndCanSortAndSearchByName() {
         TableView<Rule> ruleTable = lookup("#ruleTable").query();
+        int totalRuleCount = ruleTable.getItems().size();
+        Button clearSearchButton = lookup("#ruleSearchClearButton").query();
 
         assertEquals(ruleTable.getColumns().getFirst(), ruleTable.getSortOrder().getFirst());
         assertTrue(ruleTable.getColumns().stream().allMatch(TableColumnBase::isSortable));
+        assertFalse(clearSearchButton.isVisible());
         assertEquals(ruleTable.getItems().stream().map(Rule::getPriority).sorted().toList(),
                 ruleTable.getItems().stream().map(Rule::getPriority).toList());
 
@@ -169,7 +172,13 @@ class RulesControllerTest extends AbstractUITest {
 
         TextField searchField = lookup("#ruleSearchField").query();
         interact(() -> searchField.setText(disabledRuleName.toUpperCase(Locale.ROOT)));
+        assertTrue(clearSearchButton.isVisible());
         assertEquals(List.of(disabledRuleName), ruleTable.getItems().stream().map(Rule::getName).toList());
+
+        interact(clearSearchButton::fire);
+        assertEquals("", searchField.getText());
+        assertEquals(totalRuleCount, ruleTable.getItems().size());
+        assertFalse(clearSearchButton.isVisible());
     }
 
     @Test
