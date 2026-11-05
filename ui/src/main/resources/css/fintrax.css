@@ -64,6 +64,10 @@
     -fx-background-color: -color-accent-muted;
 }
 
+.rule-search-field {
+    -fx-padding: 0.333em 36 0.333em 0.75em;
+}
+
 .category-tree {
     -fx-background-color: -color-bg-default;
     -fx-border-color: -color-border-default;

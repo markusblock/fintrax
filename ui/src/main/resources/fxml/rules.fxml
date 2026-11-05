@@ -7,9 +7,12 @@
 <?import javafx.scene.control.SplitPane?>
 <?import javafx.scene.control.TableColumn?>
 <?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.control.Tooltip?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 <?import org.kordamp.ikonli.javafx.FontIcon?>
 
@@ -38,14 +41,28 @@
     </top>
     <center>
         <SplitPane dividerPositions="0.34" styleClass="content-split-pane">
-            <TableView fx:id="ruleTable" styleClass="dense">
-                <columns>
-                    <TableColumn fx:id="ruleNumberColumn" text="%rules.column.number"
-                                 minWidth="56" prefWidth="56" maxWidth="56"
-                                 resizable="false" sortable="false"/>
-                    <TableColumn fx:id="ruleNameColumn" text="%label.ruleName" prefWidth="170" sortable="false"/>
-                </columns>
-            </TableView>
+            <VBox spacing="8">
+                <StackPane>
+                    <TextField fx:id="ruleSearchField" promptText="%rules.search.prompt"
+                               styleClass="rule-search-field"/>
+                    <Button fx:id="ruleSearchClearButton" accessibleText="%rules.search.clear"
+                            onAction="#onClearRuleSearch" styleClass="icon-button"
+                            minWidth="28" prefWidth="28" minHeight="28" prefHeight="28"
+                            visible="false" managed="false" StackPane.alignment="CENTER_RIGHT">
+                        <graphic><FontIcon iconLiteral="fth-x" iconSize="14"/></graphic>
+                        <tooltip><Tooltip text="%rules.search.clear"/></tooltip>
+                        <StackPane.margin><Insets right="3"/></StackPane.margin>
+                    </Button>
+                </StackPane>
+                <TableView fx:id="ruleTable" styleClass="dense" VBox.vgrow="ALWAYS">
+                    <columns>
+                        <TableColumn fx:id="ruleNumberColumn" text="%rules.column.number"
+                                     minWidth="56" prefWidth="56" maxWidth="56"
+                                     resizable="false"/>
+                        <TableColumn fx:id="ruleNameColumn" text="%label.ruleName" prefWidth="170"/>
+                    </columns>
+                </TableView>
+            </VBox>
             <VBox spacing="12" styleClass="content-panel">
                 <padding>
                     <Insets top="15" right="20" bottom="15" left="20"/>
