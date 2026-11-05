@@ -3,25 +3,65 @@ set -euo pipefail
 
 mode="${1:-focused}"
 shift || true
+test_patterns=()
+vnc_mode=""
 
-if [[ "$mode" == "focused" ]]; then
-    test_args=(
-        :ui:test
-        --tests
-        org.fintrax.ui.ClassificationsControllerTest.transactionFiltersStartCollapsedInClassificationsView
-    )
-elif [[ "$mode" == "all" ]]; then
-    test_args=(:ui:test)
-else
-    echo "Unknown test mode '$mode'. Expected focused or all." >&2
-    exit 2
-fi
+usage() {
+    echo "Usage: run-ui-tests [focused|all] [--vnc] | run-ui-tests test <pattern> [<pattern> ...] [--vnc]" >&2
+}
 
-vnc_mode="${1:-}"
-if [[ $# -gt 1 ]] || [[ -n "$vnc_mode" && "$vnc_mode" != "--vnc" ]]; then
-    echo "Usage: run-ui-tests [focused|all] [--vnc]" >&2
-    exit 2
-fi
+case "$mode" in
+    focused|all)
+        if [[ $# -gt 1 ]] || [[ $# -eq 1 && "$1" != "--vnc" ]]; then
+            usage
+            exit 2
+        fi
+        vnc_mode="${1:-}"
+        ;;
+    test)
+        while [[ $# -gt 0 && "$1" != "--vnc" ]]; do
+            if [[ -z "$1" ]]; then
+                echo "Test patterns must not be empty." >&2
+                exit 2
+            fi
+            test_patterns+=("$1")
+            shift
+        done
+        if [[ ${#test_patterns[@]} -eq 0 ]]; then
+            usage
+            exit 2
+        fi
+        if [[ $# -gt 1 ]] || [[ $# -eq 1 && "$1" != "--vnc" ]]; then
+            usage
+            exit 2
+        fi
+        vnc_mode="${1:-}"
+        ;;
+    *)
+        echo "Unknown test mode '$mode'." >&2
+        usage
+        exit 2
+        ;;
+esac
+
+case "$mode" in
+    focused)
+        test_args=(
+            :ui:test
+            --tests
+            org.fintrax.ui.ClassificationsControllerTest.transactionFiltersStartCollapsedInClassificationsView
+        )
+        ;;
+    all)
+        test_args=(:ui:test)
+        ;;
+    test)
+        test_args=(:ui:test)
+        for pattern in "${test_patterns[@]}"; do
+            test_args+=(--tests "$pattern")
+        done
+        ;;
+esac
 
 gradle_args=(
     --init-script tools/ui-tests/rerun-tests.gradle
