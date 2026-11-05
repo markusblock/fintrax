@@ -54,6 +54,7 @@ public class RuleEditorController {
 
     @FXML
     private void initialize() {
+        ruleNameField.setId("ruleNameField");
         ruleNameField.setPromptText(I18n.get("dialog.createRule.name"));
         ruleNameField.textProperty().addListener((observable, oldValue, newValue) -> notifyChanged());
     }

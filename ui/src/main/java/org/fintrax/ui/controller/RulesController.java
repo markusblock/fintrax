@@ -5,6 +5,7 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
+import javafx.scene.control.Label;
 import javafx.scene.control.*;
 import javafx.scene.layout.BorderPane;
 import lombok.extern.slf4j.Slf4j;
@@ -13,10 +14,13 @@ import org.fintrax.config.I18n;
 import org.fintrax.model.*;
 import org.fintrax.service.*;
 import org.fintrax.ui.FintraxUI;
+import org.fintrax.ui.ViewLoader;
 import org.fintrax.ui.control.TableCellTooltips;
+import org.fintrax.ui.control.TransactionTableSetup;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -24,6 +28,9 @@ import java.util.stream.Collectors;
 @Component
 @Scope("prototype")
 public class RulesController {
+    private static final String COLUMN_CONFIG_KEY = "rules.transaction.columns";
+    private static final String AMOUNT_POSITIVE_STYLE = "amount-positive";
+    private static final String AMOUNT_NEGATIVE_STYLE = "amount-negative";
     private static final String DISABLED_RULE_ROW_CLASS = "disabled-rule-row";
 
     @FXML
@@ -35,36 +42,45 @@ public class RulesController {
     @FXML
     private TableColumn<Rule, String> ruleNameColumn;
     @FXML
-    private RuleEditorController ruleEditorController;
+    private Label ruleNameSummary;
     @FXML
-    private Button saveButton;
+    private Label ruleConditionsSummary;
     @FXML
-    private Button deleteButton;
+    private Label ruleActionsSummary;
     @FXML
-    private Button previewButton;
+    private TableView<Transaction> ruleTransactionsTable;
     @FXML
-    private Button applyAllButton;
+    private Label ruleTransactionsTotalAmount;
     @FXML
-    private javafx.scene.control.Label matchCountLabel;
+    private TransactionFilterPanelController transactionFilterPanelController;
 
     private final RuleService ruleService;
     private final AccountService accountService;
     private final CategoryService categoryService;
     private final LabelService labelService;
     private final SettingsService settingsService;
+    private final TransactionService transactionService;
+    private final TransactionTableActions transactionTableActions;
+    private final ViewLoader viewLoader;
 
     private final ObservableList<Rule> ruleData = FXCollections.observableArrayList();
-    private Long editingRuleId;
-    private boolean editingNew = false;
+    private final ObservableList<Transaction> displayedTransactions = FXCollections.observableArrayList();
+    private TransactionTableSetup transactionTableSetup;
+    private Long selectedRuleId;
+    private List<Transaction> selectedRuleTransactions = List.of();
 
     public RulesController(RuleService ruleService, AccountService accountService,
                            CategoryService categoryService, LabelService labelService,
-                           SettingsService settingsService) {
+                           SettingsService settingsService, TransactionService transactionService,
+                           TransactionTableActions transactionTableActions, ViewLoader viewLoader) {
         this.ruleService = ruleService;
         this.accountService = accountService;
         this.categoryService = categoryService;
         this.labelService = labelService;
         this.settingsService = settingsService;
+        this.transactionService = transactionService;
+        this.transactionTableActions = transactionTableActions;
+        this.viewLoader = viewLoader;
     }
 
     @FXML
@@ -87,28 +103,43 @@ public class RulesController {
                 if (empty || item == null) {
                     setContextMenu(null);
                 } else {
-                    if (!item.isEnabled()) {
-                        getStyleClass().add(DISABLED_RULE_ROW_CLASS);
-                    }
+                    if (!item.isEnabled()) getStyleClass().add(DISABLED_RULE_ROW_CLASS);
                     setContextMenu(createRuleContextMenu(item));
                 }
             }
         });
         loadRules();
-
-        ruleTable.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
-            if (newVal != null && !editingNew) {
-                loadRuleEditor(newVal);
-            }
-        });
+        setupTransactionTable();
+        TableCellTooltips.install(ruleTransactionsTable);
+        ruleTransactionsTable.setItems(displayedTransactions);
+        setupColumnMenu();
+        displayedTransactions.addListener((javafx.collections.ListChangeListener<Transaction>) change ->
+                updateTransactionTotal());
+        updateTransactionTotal();
+        transactionTableActions.installContextMenu(
+                ruleTransactionsTable, rootPane, this::reloadSelectedTransactionsKeepingSelection, null);
+        transactionFilterPanelController.setCollapsible(true);
+        transactionFilterPanelController.setOnFiltersChanged(this::refreshSelectedRuleTransactions);
+        ruleTable.getSelectionModel().selectedItemProperty().addListener((obs, oldRule, newRule) ->
+                showSelectedRule(newRule));
+        clearSelectedRule();
     }
 
-    private void loadRules() {
-        ruleData.setAll(ruleService.getAllRules());
-        ruleTable.setItems(ruleData);
+    private void setupColumnMenu() {
+        transactionTableSetup.installColumnMenu(COLUMN_CONFIG_KEY, settingsService);
+    }
+
+    private void setupTransactionTable() {
+        transactionTableSetup = new TransactionTableSetup(ruleTransactionsTable,
+                accountService, categoryService, labelService);
+        transactionTableSetup.configure();
     }
 
     private ContextMenu createRuleContextMenu(Rule rule) {
+        MenuItem editRule = new MenuItem(I18n.get("button.edit"));
+        editRule.setGraphic(icon("fth-edit-2", 14));
+        editRule.setOnAction(event -> editRule(rule));
+
         MenuItem applyRule = new MenuItem(I18n.get("rules.applySelected"));
         applyRule.setGraphic(icon("fth-play", 14));
         applyRule.setDisable(!rule.isEnabled());
@@ -135,119 +166,162 @@ public class RulesController {
         deleteRule.setGraphic(icon("fth-trash-2", 14));
         deleteRule.setOnAction(event -> confirmDeleteRule(rule));
 
-        return new ContextMenu(applyRule, new SeparatorMenuItem(), moveUp, moveDown,
+        return new ContextMenu(editRule, applyRule, new SeparatorMenuItem(), moveUp, moveDown,
                 toggleEnabled, new SeparatorMenuItem(), deleteRule);
     }
 
+    private void loadRules() {
+        ruleData.setAll(ruleService.getAllRules());
+        ruleTable.setItems(ruleData);
+    }
+
+    private void showSelectedRule(Rule rule) {
+        if (rule == null) {
+            clearSelectedRule();
+            return;
+        }
+        selectedRuleId = rule.getId();
+        ruleNameSummary.setText(rule.getName());
+        ruleConditionsSummary.setText(I18n.get("rules.summary.conditions", rule.getConditions().stream()
+                .map(this::conditionSummary).collect(Collectors.joining(" · "))));
+        ruleActionsSummary.setText(I18n.get("rules.summary.actions", rule.getActions().stream()
+                .map(this::actionSummary)
+                .filter(Objects::nonNull)
+                .collect(Collectors.joining(" · "))));
+        selectedRuleTransactions = ruleService.getMatchingTransactions(rule.getId());
+        refreshSelectedRuleTransactions();
+    }
+
+    private void clearSelectedRule() {
+        selectedRuleId = null;
+        selectedRuleTransactions = List.of();
+        ruleNameSummary.setText(I18n.get("rules.selectRule"));
+        ruleConditionsSummary.setText("");
+        ruleActionsSummary.setText("");
+        displayedTransactions.clear();
+    }
+
+    private String conditionSummary(RuleCondition condition) {
+        String value = condition.getOperator() == Operator.AMOUNT_RANGE
+                ? amountRangeSummary(condition)
+                : Objects.toString(condition.getValue(), "");
+        return condition.getMatchField().name() + " " + condition.getOperator().name() + " " + value;
+    }
+
+    private String amountRangeSummary(RuleCondition condition) {
+        String minimum = condition.getAmountMin() == null ? "−∞" : condition.getAmountMin().toPlainString();
+        String maximum = condition.getAmountMax() == null ? "∞" : condition.getAmountMax().toPlainString();
+        return minimum + "–" + maximum;
+    }
+
+    private String actionSummary(RuleAction action) {
+        return switch (action.getActionType()) {
+            case ASSIGN_CATEGORY -> categoryService.getCategory(action.getCategoryId())
+                    .map(category -> I18n.get("rules.summary.assignCategory", category.getName()))
+                    .orElse(I18n.get("rules.summary.unknownTarget"));
+            case ADD_LABEL -> labelService.getLabel(action.getLabelId())
+                    .map(label -> I18n.get("rules.summary.addLabel", label.getName()))
+                    .orElse(I18n.get("rules.summary.unknownTarget"));
+            case SET_NOTE -> null;
+        };
+    }
+
+    private void refreshSelectedRuleTransactions() {
+        if (selectedRuleId == null) {
+            displayedTransactions.clear();
+            return;
+        }
+        Optional<TransactionFilter> criteria = transactionFilterPanelController.getCriteria();
+        if (criteria.isEmpty()) {
+            displayedTransactions.clear();
+            return;
+        }
+        displayedTransactions.setAll(transactionService.filterTransactions(selectedRuleTransactions, criteria.get()));
+        if (!ruleTransactionsTable.getSortOrder().isEmpty()) ruleTransactionsTable.sort();
+    }
+
+    private void reloadSelectedTransactionsKeepingSelection() {
+        Set<Long> selectedIds = ruleTransactionsTable.getSelectionModel().getSelectedItems().stream()
+                .map(Transaction::getId)
+                .collect(Collectors.toSet());
+        if (selectedRuleId != null) {
+            selectedRuleTransactions = ruleService.getMatchingTransactions(selectedRuleId);
+        }
+        refreshSelectedRuleTransactions();
+        for (int index = 0; index < displayedTransactions.size(); index++) {
+            if (selectedIds.contains(displayedTransactions.get(index).getId())) {
+                ruleTransactionsTable.getSelectionModel().select(index);
+            }
+        }
+    }
+
+    private void updateTransactionTotal() {
+        BigDecimal total = displayedTransactions.stream()
+                .map(Transaction::getAmount)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        ruleTransactionsTotalAmount.setText(formatAmount(total));
+        ruleTransactionsTotalAmount.getStyleClass().removeAll(AMOUNT_POSITIVE_STYLE, AMOUNT_NEGATIVE_STYLE);
+        ruleTransactionsTotalAmount.getStyleClass()
+                .add(total.signum() < 0 ? AMOUNT_NEGATIVE_STYLE : AMOUNT_POSITIVE_STYLE);
+    }
+
+    private String formatAmount(BigDecimal amount) {
+        return String.format("%,.2f EUR", amount);
+    }
+
+    @FXML
+    private void onAddRule() {
+        RuleEditorDialog.show(rootPane.getScene().getWindow(), viewLoader,
+                        "dialog.newRule.title", "dialog.newRule.header",
+                        "createRuleSave", "createRuleCancel", RuleEditorController::prepareNewRule)
+                .ifPresent(input -> {
+                    Rule created = ruleService.createRule(input.name(), input.conditions(), input.actions());
+                    reloadRulesAndSelect(created.getId());
+                });
+    }
+
+    private void editRule(Rule rule) {
+        RuleEditorDialog.show(rootPane.getScene().getWindow(), viewLoader,
+                        "dialog.editRule.title", "dialog.editRule.header",
+                        "editRuleSave", "editRuleCancel",
+                        editor -> editor.setRule(rule.getName(), rule.getConditions(), rule.getActions()))
+                .ifPresent(input -> {
+                    ruleService.updateRule(rule.getId(), input.name(), input.conditions(), input.actions());
+                    reloadRulesAndSelect(rule.getId());
+                });
+    }
+
+    private void reloadRulesAndSelect(Long ruleId) {
+        loadRules();
+        ruleData.stream().filter(rule -> Objects.equals(rule.getId(), ruleId))
+                .findFirst().ifPresent(this::selectRule);
+    }
+
     private void selectRule(Rule rule) {
-        editingNew = false;
+        Rule matchingRule = ruleData.stream()
+                .filter(candidate -> Objects.equals(candidate.getId(), rule.getId()))
+                .findFirst().orElse(null);
+        if (matchingRule == null) return;
         Rule selected = ruleTable.getSelectionModel().getSelectedItem();
-        if (selected != null && Objects.equals(selected.getId(), rule.getId())) {
-            loadRuleEditor(rule);
+        if (selected != null && Objects.equals(selected.getId(), matchingRule.getId())) {
+            showSelectedRule(matchingRule);
         } else {
-            ruleTable.getSelectionModel().select(rule);
+            ruleTable.getSelectionModel().select(matchingRule);
         }
     }
 
     private int indexOfRule(Long ruleId) {
         for (int index = 0; index < ruleData.size(); index++) {
-            if (Objects.equals(ruleData.get(index).getId(), ruleId)) {
-                return index;
-            }
+            if (Objects.equals(ruleData.get(index).getId(), ruleId)) return index;
         }
         return -1;
     }
 
-    private void loadRuleEditor(Rule rule) {
-        editingRuleId = rule.getId();
-        editingNew = false;
-
-        ruleEditorController.setRule(rule.getName(), rule.getConditions(), rule.getActions());
-
-        int matchCount = ruleService.previewRule(rule.getId());
-        matchCountLabel.setText(I18n.get("rules.matchCount", matchCount));
-
-        saveButton.setDisable(false);
-        deleteButton.setDisable(false);
-        previewButton.setDisable(false);
-    }
-
-    @FXML
-    private void onAddRule() {
-        editingNew = true;
-        editingRuleId = null;
-        ruleEditorController.prepareNewRule();
-        matchCountLabel.setText("");
-        saveButton.setDisable(false);
-        deleteButton.setDisable(true);
-        previewButton.setDisable(true);
-    }
-
-    @FXML
-    private void onSave() {
-        String name = ruleEditorController.getRuleName();
-        if (name.isEmpty()) {
-            showError(I18n.get("rules.name.required"));
-            return;
-        }
-
-        List<RuleCondition> conditions = ruleEditorController.getConditions();
-        List<RuleAction> actions = ruleEditorController.getActions();
-
-        if (conditions.isEmpty()) {
-            showError(I18n.get("rules.conditions.required"));
-            return;
-        }
-        if (actions.isEmpty()) {
-            showError(I18n.get("rules.actions.required"));
-            return;
-        }
-
-        if (editingNew) {
-            ruleService.createRule(name, conditions, actions);
-            editingNew = false;
-        } else if (editingRuleId != null) {
-            ruleService.updateRule(editingRuleId, name, conditions, actions);
-        }
-
-        loadRules();
-        log.info("Saved rule: {}", name);
-    }
-
-    @FXML
-    private void onDelete() {
-        if (editingRuleId == null) return;
-        ruleService.getRule(editingRuleId).ifPresent(this::confirmDeleteRule);
-    }
-
-    private void confirmDeleteRule(Rule rule) {
-        Long ruleId = rule.getId();
-        Alert alert = new Alert(Alert.AlertType.CONFIRMATION,
-                I18n.get("rules.delete.confirm"),
-                ButtonType.OK, ButtonType.CANCEL);
-        FintraxUI.configureDialog(alert);
-        alert.initOwner(rootPane.getScene().getWindow());
-
-        alert.showAndWait().ifPresent(btn -> {
-            if (btn == ButtonType.OK) {
-                ruleService.deleteRule(ruleId);
-                if (Objects.equals(editingRuleId, ruleId)) {
-                    editingRuleId = null;
-                    editingNew = false;
-                    clearEditor();
-                }
-                loadRules();
-            }
-        });
-    }
-
     private void toggleRule(Rule rule) {
         Long ruleId = rule.getId();
-        editingNew = false;
         ruleService.toggleRule(ruleId);
-        loadRules();
-        ruleData.stream().filter(candidate -> Objects.equals(candidate.getId(), ruleId))
-                .findFirst().ifPresent(this::selectRule);
+        reloadRulesAndSelect(ruleId);
     }
 
     private void moveRule(Rule rule, int offset) {
@@ -258,9 +332,7 @@ public class RulesController {
         List<Long> ids = ruleData.stream().map(Rule::getId).collect(Collectors.toCollection(ArrayList::new));
         Collections.swap(ids, index, destination);
         ruleService.reorderRules(ids);
-        loadRules();
-        ruleData.stream().filter(candidate -> Objects.equals(candidate.getId(), rule.getId()))
-                .findFirst().ifPresent(this::selectRule);
+        reloadRulesAndSelect(rule.getId());
     }
 
     @FXML
@@ -276,12 +348,6 @@ public class RulesController {
     }
 
     @FXML
-    private void onPreview() {
-        Rule selected = ruleTable.getSelectionModel().getSelectedItem();
-        if (selected != null) selectRule(selected);
-    }
-
-    @FXML
     private void onApplyAll() {
         new RuleReviewDialog(rootPane.getScene().getWindow(),
                 new RuleReviewDialog.Services(ruleService, accountService, categoryService, labelService,
@@ -289,20 +355,19 @@ public class RulesController {
                 ruleService::previewAllRules, false).show();
     }
 
-    private void clearEditor() {
-        ruleEditorController.clear();
-        matchCountLabel.setText("");
-        saveButton.setDisable(true);
-        deleteButton.setDisable(true);
-        previewButton.setDisable(true);
-    }
-
-    private void showError(String message) {
-        Alert alert = new Alert(Alert.AlertType.ERROR, message);
+    private void confirmDeleteRule(Rule rule) {
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION,
+                I18n.get("rules.delete.confirm"), ButtonType.OK, ButtonType.CANCEL);
         FintraxUI.configureDialog(alert);
-        alert.setTitle("Error");
         alert.initOwner(rootPane.getScene().getWindow());
-        alert.showAndWait();
+        alert.showAndWait().ifPresent(button -> {
+            if (button != ButtonType.OK) return;
+            ruleService.deleteRule(rule.getId());
+            if (Objects.equals(selectedRuleId, rule.getId())) {
+                ruleTable.getSelectionModel().clearSelection();
+            }
+            loadRules();
+        });
     }
 
     private static FontIcon icon(String literal, int size) {
