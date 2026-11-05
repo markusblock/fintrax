@@ -1,9 +1,12 @@
 package org.fintrax.ui.controller;
 
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.scene.control.*;
+import javafx.scene.control.cell.CheckBoxTableCell;
 import javafx.scene.layout.VBox;
 import javafx.stage.Window;
 import org.kordamp.ikonli.javafx.FontIcon;
@@ -23,7 +26,9 @@ import org.fintrax.ui.control.TableColumnConfig;
 import org.fintrax.ui.control.TableColumnVisibilityMenu;
 
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
@@ -71,6 +76,7 @@ final class RuleReviewDialog {
         TableView<TransactionRulePreview> table = new TableView<>();
         table.setId("ruleReviewTable");
         table.getStyleClass().add("dense");
+        table.setEditable(true);
         List<TableColumn<TransactionRulePreview, ?>> columns = List.of(
                 column("rules.review.date", row -> row.bookingDate() == null
                         ? "—" : row.bookingDate().format(DATE_FORMAT), 100),
@@ -110,6 +116,19 @@ final class RuleReviewDialog {
                         new TableColumnConfig("labelAfter", columns.get(7)),
                         new TableColumnConfig("matchingRuleCount", columns.get(8)),
                         new TableColumnConfig("matchedRules", columns.get(9))));
+        Map<Long, BooleanProperty> selectionByTransactionId = new HashMap<>();
+        TableColumn<TransactionRulePreview, Boolean> selectionColumn = new TableColumn<>(
+                I18n.get("rules.review.include"));
+        selectionColumn.setMinWidth(80);
+        selectionColumn.setPrefWidth(80);
+        selectionColumn.setMaxWidth(80);
+        selectionColumn.setResizable(false);
+        selectionColumn.setSortable(false);
+        selectionColumn.setReorderable(false);
+        selectionColumn.setCellValueFactory(cell -> selectionByTransactionId.get(
+                cell.getValue().transactionId()));
+        selectionColumn.setCellFactory(CheckBoxTableCell.forTableColumn(selectionColumn));
+        table.getColumns().add(0, selectionColumn);
         TableCellTooltips.install(table);
 
         Label summary = new Label();
@@ -136,13 +155,20 @@ final class RuleReviewDialog {
         ObservableList<TransactionRulePreview> rows = FXCollections.observableArrayList();
         table.setItems(rows);
         AtomicReference<RuleApplicationPreview> currentPreview = new AtomicReference<>();
+        Runnable updateApplyButtonState = () -> applyButton.setDisable(rows.isEmpty()
+                || rows.stream().noneMatch(row -> selectionByTransactionId.get(row.transactionId()).get()));
 
         Runnable refreshPreview = () -> {
             RuleApplicationPreview preview = previewProvider.apply(onlyFillMissing.isSelected());
             currentPreview.set(preview);
             List<TransactionRulePreview> changedRows = preview.transactionsWithChanges();
+            changedRows.forEach(row -> selectionByTransactionId.computeIfAbsent(row.transactionId(), id -> {
+                BooleanProperty selected = new SimpleBooleanProperty(true);
+                selected.addListener((observable, wasSelected, isSelected) -> updateApplyButtonState.run());
+                return selected;
+            }));
             rows.setAll(changedRows);
-            applyButton.setDisable(changedRows.isEmpty());
+            updateApplyButtonState.run();
             summary.setText(I18n.get("rules.review.summary", changedRows.size(),
                     preview.matchingTransactionsWithoutChanges()));
             long multipleMatches = preview.matchingTransactions().stream()
@@ -170,7 +196,10 @@ final class RuleReviewDialog {
 
         dialog.showAndWait().ifPresent(result -> {
             if (result == applyButtonType) {
-                ruleService.applyReviewedRules(currentPreview.get());
+                List<TransactionRulePreview> selectedChanges = currentPreview.get().transactionsWithChanges().stream()
+                        .filter(row -> selectionByTransactionId.get(row.transactionId()).get())
+                        .toList();
+                ruleService.applyReviewedRules(new RuleApplicationPreview(selectedChanges));
             }
         });
     }

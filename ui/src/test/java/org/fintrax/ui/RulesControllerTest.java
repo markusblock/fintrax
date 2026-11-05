@@ -1,5 +1,6 @@
 package org.fintrax.ui;
 
+import javafx.beans.property.BooleanProperty;
 import javafx.scene.Scene;
 import javafx.scene.Parent;
 import javafx.scene.control.Button;
@@ -8,6 +9,7 @@ import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableColumnBase;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
@@ -114,12 +116,12 @@ class RulesControllerTest extends AbstractUITest {
         CheckMenuItem currentCategoryItem = (CheckMenuItem) reviewColumnMenu.getItems().get(4);
         try {
             interact(() -> currentCategoryItem.setSelected(false));
-            assertFalse(reviewTable.getColumns().get(4).isVisible());
+            assertFalse(reviewTable.getColumns().get(5).isVisible());
             assertTrue(applicationContext.getBean(SettingsService.class)
                     .getSettingValue("rules.review.columns").contains("currentCategory=false"));
             interact(() -> {
-                var dateColumn = reviewTable.getColumns().remove(0);
-                reviewTable.getColumns().add(1, dateColumn);
+                var dateColumn = reviewTable.getColumns().remove(1);
+                reviewTable.getColumns().add(2, dateColumn);
             });
             assertEquals("payee,date,amount,account,currentCategory,categoryAfter,currentLabel,labelAfter,matchingRuleCount,matchedRules",
                     applicationContext.getBean(SettingsService.class)
@@ -163,6 +165,47 @@ class RulesControllerTest extends AbstractUITest {
         assertEquals(proposedCategory.getId(), updated.getCategoryId());
         assertTrue(updated.getLabelIds().contains(proposedLabelId));
         assertEquals("Current note", updated.getNote());
+    }
+
+    @Test
+    void applyingReviewSkipsDeselectedTransactions() {
+        clickOn(lookup("#applyAllButton").<Button>query());
+        TableView<TransactionRulePreview> reviewTable = lookup("#ruleReviewTable").query();
+        TableColumn<TransactionRulePreview, ?> includeColumn = reviewTable.getColumns().stream()
+                .filter(column -> column.getText().equals(I18n.get("rules.review.include")))
+                .findFirst().orElseThrow();
+        BooleanProperty selectedTransaction = (BooleanProperty) includeColumn.getCellObservableValue(
+                rowFor(reviewTable, transaction.getId()));
+        interact(() -> selectedTransaction.set(false));
+
+        Transaction includedTransaction = applicationContext.getBean(TransactionService.class)
+                .createTransaction(Transaction.builder()
+                        .accountId(transaction.getAccountId())
+                        .originalPayee(transaction.getOriginalPayee())
+                        .amount(BigDecimal.ONE)
+                        .bookingDate(LocalDate.now())
+                        .valueDate(LocalDate.now())
+                        .categoryId(currentCategory.getId())
+                        .note("Skipped note")
+                        .build());
+        clickOn(lookup("#onlyFillMissingRules").<CheckBox>query());
+        assertFalse(selectedTransaction.get());
+        BooleanProperty skippedSelection = (BooleanProperty) includeColumn.getCellObservableValue(
+                rowFor(reviewTable, includedTransaction.getId()));
+
+        Button applyButton = lookup("#applyReviewedRulesButton").query();
+        interact(() -> skippedSelection.set(false));
+        assertTrue(applyButton.isDisabled());
+        interact(() -> skippedSelection.set(true));
+        assertFalse(applyButton.isDisabled());
+        clickOn(applyButton);
+
+        TransactionService transactionService = applicationContext.getBean(TransactionService.class);
+        assertEquals(currentCategory.getId(), transactionService.getTransaction(transaction.getId())
+                .orElseThrow().getCategoryId());
+        Transaction included = transactionService.getTransaction(includedTransaction.getId()).orElseThrow();
+        assertEquals(proposedCategory.getId(), included.getCategoryId());
+        assertTrue(included.getLabelIds().contains(proposedLabelId));
     }
 
     @Test
