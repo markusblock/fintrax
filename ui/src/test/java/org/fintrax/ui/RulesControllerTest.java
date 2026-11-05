@@ -195,11 +195,24 @@ class RulesControllerTest extends AbstractUITest {
         BooleanProperty skippedSelection = (BooleanProperty) includeColumn.getCellObservableValue(
                 rowFor(reviewTable, includedTransaction.getId()));
 
+        Button selectAll = lookup("#ruleReviewSelectAllButton").query();
         Button applyButton = lookup("#applyReviewedRulesButton").query();
-        interact(() -> skippedSelection.set(false));
+        assertEquals(I18n.get("button.selectAll"), selectAll.getText());
+        interact(selectAll::fire);
+        assertTrue(selectedTransaction.get());
+        assertTrue(skippedSelection.get());
+        assertEquals(I18n.get("button.clearAll"), selectAll.getText());
+
+        interact(selectAll::fire);
+        assertFalse(selectedTransaction.get());
+        assertFalse(skippedSelection.get());
         assertTrue(applyButton.isDisabled());
-        interact(() -> skippedSelection.set(true));
+        assertEquals(I18n.get("button.selectAll"), selectAll.getText());
+
+        interact(selectAll::fire);
+        assertTrue(skippedSelection.get());
         assertFalse(applyButton.isDisabled());
+        interact(() -> selectedTransaction.set(false));
         interact(applyButton::fire);
 
         TransactionService transactionService = applicationContext.getBean(TransactionService.class);

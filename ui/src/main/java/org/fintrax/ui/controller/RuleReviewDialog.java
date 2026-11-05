@@ -7,6 +7,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.CheckBoxTableCell;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Window;
 import org.kordamp.ikonli.javafx.FontIcon;
@@ -72,6 +73,10 @@ final class RuleReviewDialog {
         CheckBox onlyFillMissing = new CheckBox(I18n.get("rules.review.onlyFillMissing"));
         onlyFillMissing.setId("onlyFillMissingRules");
         onlyFillMissing.setSelected(true);
+        Button selectAllButton = new Button();
+        selectAllButton.setId("ruleReviewSelectAllButton");
+        selectAllButton.setGraphic(icon("fth-check-square", 14));
+        selectAllButton.getStyleClass().add("button-outlined");
 
         TableView<TransactionRulePreview> table = new TableView<>();
         table.setId("ruleReviewTable");
@@ -155,8 +160,20 @@ final class RuleReviewDialog {
         ObservableList<TransactionRulePreview> rows = FXCollections.observableArrayList();
         table.setItems(rows);
         AtomicReference<RuleApplicationPreview> currentPreview = new AtomicReference<>();
-        Runnable updateApplyButtonState = () -> applyButton.setDisable(rows.isEmpty()
-                || rows.stream().noneMatch(row -> selectionByTransactionId.get(row.transactionId()).get()));
+        Runnable updateSelectionControls = () -> {
+            boolean hasSelectedRows = rows.stream()
+                    .anyMatch(row -> selectionByTransactionId.get(row.transactionId()).get());
+            boolean allRowsSelected = !rows.isEmpty() && rows.stream()
+                    .allMatch(row -> selectionByTransactionId.get(row.transactionId()).get());
+            applyButton.setDisable(!hasSelectedRows);
+            selectAllButton.setDisable(rows.isEmpty());
+            selectAllButton.setText(I18n.get(allRowsSelected ? "button.clearAll" : "button.selectAll"));
+        };
+        selectAllButton.setOnAction(event -> {
+            boolean selectRows = rows.stream()
+                    .anyMatch(row -> !selectionByTransactionId.get(row.transactionId()).get());
+            rows.forEach(row -> selectionByTransactionId.get(row.transactionId()).set(selectRows));
+        });
 
         Runnable refreshPreview = () -> {
             RuleApplicationPreview preview = previewProvider.apply(onlyFillMissing.isSelected());
@@ -164,11 +181,11 @@ final class RuleReviewDialog {
             List<TransactionRulePreview> changedRows = preview.transactionsWithChanges();
             changedRows.forEach(row -> selectionByTransactionId.computeIfAbsent(row.transactionId(), id -> {
                 BooleanProperty selected = new SimpleBooleanProperty(true);
-                selected.addListener((observable, wasSelected, isSelected) -> updateApplyButtonState.run());
+                selected.addListener((observable, wasSelected, isSelected) -> updateSelectionControls.run());
                 return selected;
             }));
             rows.setAll(changedRows);
-            updateApplyButtonState.run();
+            updateSelectionControls.run();
             summary.setText(I18n.get("rules.review.summary", changedRows.size(),
                     preview.matchingTransactionsWithoutChanges()));
             long multipleMatches = preview.matchingTransactions().stream()
@@ -186,7 +203,8 @@ final class RuleReviewDialog {
         onlyFillMissing.selectedProperty().addListener((observable, oldValue, newValue) -> refreshPreview.run());
         refreshPreview.run();
 
-        VBox content = new VBox(10, onlyFillMissing, summary, multipleMatchWarning, emptyResult, table);
+        HBox previewOptions = new HBox(10, onlyFillMissing, selectAllButton);
+        VBox content = new VBox(10, previewOptions, summary, multipleMatchWarning, emptyResult, table);
         content.getStyleClass().add("dialog-content");
         content.setMinWidth(1100);
         content.setPrefHeight(420);
