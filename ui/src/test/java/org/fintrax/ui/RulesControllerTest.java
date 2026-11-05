@@ -231,7 +231,9 @@ class RulesControllerTest extends AbstractUITest {
         String editedName = ruleName + " updated";
         interact(() -> nameField.setText(editedName));
         Button saveButton = lookup("#editRuleSave").query();
-        clickOn(saveButton);
+        assertFalse(saveButton.isDisabled());
+        interact(saveButton::fire);
+        WaitForAsyncUtils.waitForFxEvents();
 
         assertEquals(editedName, applicationContext.getBean(RuleService.class)
                 .getRule(selectedRule.getId()).orElseThrow().getName());

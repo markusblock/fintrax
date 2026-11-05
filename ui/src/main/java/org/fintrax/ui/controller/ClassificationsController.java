@@ -30,8 +30,6 @@ import org.fintrax.service.TransactionService;
 import org.fintrax.ui.FintraxUI;
 import org.fintrax.ui.control.LabelChipFactory;
 import org.fintrax.ui.control.TableCellTooltips;
-import org.fintrax.ui.control.TableColumnConfig;
-import org.fintrax.ui.control.TableColumnVisibilityMenu;
 import org.fintrax.ui.control.TransactionTableSetup;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
@@ -58,22 +56,6 @@ public class ClassificationsController {
     @FXML
     private Label classificationTransactionsTotalAmount;
     @FXML
-    private MenuButton columnMenuButton;
-    @FXML
-    private TableColumn<Transaction, LocalDate> transactionDateColumn;
-    @FXML
-    private TableColumn<Transaction, String> transactionPayeeColumn;
-    @FXML
-    private TableColumn<Transaction, String> transactionAccountColumn;
-    @FXML
-    private TableColumn<Transaction, String> transactionPurposeColumn;
-    @FXML
-    private TableColumn<Transaction, BigDecimal> transactionAmountColumn;
-    @FXML
-    private TableColumn<Transaction, String> transactionCategoryColumn;
-    @FXML
-    private TableColumn<Transaction, String> transactionLabelsColumn;
-    @FXML
     private TransactionFilterPanelController transactionFilterPanelController;
 
     private final CategoryService categoryService;
@@ -85,6 +67,7 @@ public class ClassificationsController {
     private final Map<Long, TreeItem<String>> categoryItemsById = new HashMap<>();
     private final Map<Long, TreeItem<String>> labelItemsById = new HashMap<>();
     private final ObservableList<Transaction> displayedTransactions = FXCollections.observableArrayList();
+    private TransactionTableSetup transactionTableSetup;
     private final ContextMenu classificationContextMenu = new ContextMenu();
     private final MenuItem addCategoryMenuItem = new MenuItem();
     private final MenuItem addLabelMenuItem = new MenuItem();
@@ -130,26 +113,17 @@ public class ClassificationsController {
     }
 
     private void setupColumnMenu() {
-        TableColumnVisibilityMenu.install(classificationTransactionsTable, columnMenuButton,
-                COLUMN_CONFIG_KEY, settingsService, List.of(
-                new TableColumnConfig("date", transactionDateColumn),
-                new TableColumnConfig("payee", transactionPayeeColumn),
-                new TableColumnConfig("account", transactionAccountColumn),
-                new TableColumnConfig("purpose", transactionPurposeColumn),
-                new TableColumnConfig("amount", transactionAmountColumn),
-                new TableColumnConfig("category", transactionCategoryColumn),
-                new TableColumnConfig("labels", transactionLabelsColumn)));
+        transactionTableSetup.installColumnMenu(COLUMN_CONFIG_KEY, settingsService);
     }
 
     private void setupTransactionTable() {
-        TransactionTableSetup.configure(classificationTransactionsTable, transactionDateColumn,
-                transactionPayeeColumn, transactionAccountColumn, transactionPurposeColumn,
-                transactionAmountColumn, transactionCategoryColumn, transactionLabelsColumn,
+        transactionTableSetup = new TransactionTableSetup(classificationTransactionsTable,
                 accountService, categoryService, labelService);
-        transactionCategoryColumn.setCellFactory(column -> createAssignmentCell(() ->
+        transactionTableSetup.configure();
+        transactionTableSetup.categoryColumn().setCellFactory(column -> createAssignmentCell(() ->
                 transactionTableActions.setCategory(classificationTransactionsTable, rootPane,
                         this::reloadSelectedTransactionsKeepingSelection)));
-        transactionLabelsColumn.setCellFactory(column -> createLabelChipCell(() ->
+        transactionTableSetup.labelsColumn().setCellFactory(column -> createLabelChipCell(() ->
                 transactionTableActions.setLabels(classificationTransactionsTable, rootPane,
                         this::reloadSelectedTransactionsKeepingSelection)));
     }
@@ -204,7 +178,7 @@ public class ClassificationsController {
                 }
                 HBox chips = LabelChipFactory.createAll(labels);
                 chips.prefWidthProperty().bind(Bindings.max(0,
-                        transactionLabelsColumn.widthProperty().subtract(12)));
+                        transactionTableSetup.labelsColumn().widthProperty().subtract(12)));
                 setGraphic(chips.getChildren().isEmpty() ? null : chips);
             }
         };

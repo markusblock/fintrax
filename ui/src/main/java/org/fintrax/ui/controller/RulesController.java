@@ -16,14 +16,11 @@ import org.fintrax.service.*;
 import org.fintrax.ui.FintraxUI;
 import org.fintrax.ui.ViewLoader;
 import org.fintrax.ui.control.TableCellTooltips;
-import org.fintrax.ui.control.TableColumnConfig;
-import org.fintrax.ui.control.TableColumnVisibilityMenu;
 import org.fintrax.ui.control.TransactionTableSetup;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -55,22 +52,6 @@ public class RulesController {
     @FXML
     private Label ruleTransactionsTotalAmount;
     @FXML
-    private MenuButton columnMenuButton;
-    @FXML
-    private TableColumn<Transaction, LocalDate> transactionDateColumn;
-    @FXML
-    private TableColumn<Transaction, String> transactionPayeeColumn;
-    @FXML
-    private TableColumn<Transaction, String> transactionAccountColumn;
-    @FXML
-    private TableColumn<Transaction, String> transactionPurposeColumn;
-    @FXML
-    private TableColumn<Transaction, BigDecimal> transactionAmountColumn;
-    @FXML
-    private TableColumn<Transaction, String> transactionCategoryColumn;
-    @FXML
-    private TableColumn<Transaction, String> transactionLabelsColumn;
-    @FXML
     private TransactionFilterPanelController transactionFilterPanelController;
 
     private final RuleService ruleService;
@@ -84,6 +65,7 @@ public class RulesController {
 
     private final ObservableList<Rule> ruleData = FXCollections.observableArrayList();
     private final ObservableList<Transaction> displayedTransactions = FXCollections.observableArrayList();
+    private TransactionTableSetup transactionTableSetup;
     private Long selectedRuleId;
     private List<Transaction> selectedRuleTransactions = List.of();
 
@@ -144,22 +126,13 @@ public class RulesController {
     }
 
     private void setupColumnMenu() {
-        TableColumnVisibilityMenu.install(ruleTransactionsTable, columnMenuButton,
-                COLUMN_CONFIG_KEY, settingsService, List.of(
-                        new TableColumnConfig("date", transactionDateColumn),
-                        new TableColumnConfig("payee", transactionPayeeColumn),
-                        new TableColumnConfig("account", transactionAccountColumn),
-                        new TableColumnConfig("purpose", transactionPurposeColumn),
-                        new TableColumnConfig("amount", transactionAmountColumn),
-                        new TableColumnConfig("category", transactionCategoryColumn),
-                        new TableColumnConfig("labels", transactionLabelsColumn)));
+        transactionTableSetup.installColumnMenu(COLUMN_CONFIG_KEY, settingsService);
     }
 
     private void setupTransactionTable() {
-        TransactionTableSetup.configure(ruleTransactionsTable, transactionDateColumn,
-                transactionPayeeColumn, transactionAccountColumn, transactionPurposeColumn,
-                transactionAmountColumn, transactionCategoryColumn, transactionLabelsColumn,
+        transactionTableSetup = new TransactionTableSetup(ruleTransactionsTable,
                 accountService, categoryService, labelService);
+        transactionTableSetup.configure();
     }
 
     private ContextMenu createRuleContextMenu(Rule rule) {

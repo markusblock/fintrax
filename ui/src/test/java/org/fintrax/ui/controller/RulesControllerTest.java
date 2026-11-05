@@ -2,13 +2,17 @@ package org.fintrax.ui.controller;
 
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.stage.Stage;
 import org.fintrax.config.I18n;
 import org.fintrax.ui.AbstractUITest;
 import org.fintrax.ui.ViewLoader;
 import org.junit.jupiter.api.Test;
+import org.testfx.util.WaitForAsyncUtils;
 
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -23,8 +27,10 @@ class RulesControllerTest extends AbstractUITest {
     }
 
     @Test
-    void ruleActionOptionsExcludeNoteEditing() {
+    void ruleActionOptionsExcludeNoteEditing() throws TimeoutException {
         clickOn(I18n.get("button.addRule"));
+        WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS,
+                () -> lookup("#createRuleSave").tryQuery().isPresent());
 
         ComboBox<?> actionType = lookup(".combo-box").queryAll().stream()
                 .filter(node -> node instanceof ComboBox<?> combo
@@ -34,5 +40,9 @@ class RulesControllerTest extends AbstractUITest {
 
         assertEquals(List.of("ASSIGN_CATEGORY", "ADD_LABEL"), actionType.getItems());
         assertFalse(actionType.getItems().contains("SET_NOTE"));
+
+        Button cancelButton = lookup("#createRuleCancel").query();
+        interact(cancelButton::fire);
+        WaitForAsyncUtils.waitForFxEvents();
     }
 }
