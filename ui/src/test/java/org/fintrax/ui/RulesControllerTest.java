@@ -84,8 +84,7 @@ class RulesControllerTest extends AbstractUITest {
 
     @Test
     void applyingRulesShowsReviewAndCancelLeavesTransactionsUnchanged() {
-        Button applyRulesButton = lookup("#applyAllButton").query();
-        clickOn(applyRulesButton);
+        openReviewDialog();
 
         CheckBox onlyFillMissing = lookup("#onlyFillMissingRules").query();
         assertTrue(onlyFillMissing.isSelected());
@@ -136,7 +135,7 @@ class RulesControllerTest extends AbstractUITest {
             });
         }
 
-        clickOn(onlyFillMissing);
+        interact(() -> onlyFillMissing.setSelected(false));
         assertFalse(onlyFillMissing.isSelected());
         TransactionRulePreview updatedPreview = rowFor(reviewTable, transaction.getId());
         assertEquals(proposedCategory.getId(), updatedPreview.proposedCategoryId());
@@ -145,7 +144,7 @@ class RulesControllerTest extends AbstractUITest {
                 .findFirst().orElseThrow().getCellObservableValue(updatedPreview).getValue());
 
         Button cancelButton = lookup("#cancelRuleReviewButton").query();
-        clickOn(cancelButton);
+        interact(cancelButton::fire);
 
         Transaction unchanged = applicationContext.getBean(TransactionService.class)
                 .getTransaction(transaction.getId()).orElseThrow();
@@ -155,13 +154,12 @@ class RulesControllerTest extends AbstractUITest {
 
     @Test
     void confirmingReviewAppliesProposedChanges() {
-        Button applyRulesButton = lookup("#applyAllButton").query();
-        clickOn(applyRulesButton);
+        openReviewDialog();
         CheckBox onlyFillMissing = lookup("#onlyFillMissingRules").query();
-        clickOn(onlyFillMissing);
+        interact(() -> onlyFillMissing.setSelected(false));
 
         Button applyButton = lookup("#applyReviewedRulesButton").query();
-        clickOn(applyButton);
+        interact(applyButton::fire);
 
         Transaction updated = applicationContext.getBean(TransactionService.class)
                 .getTransaction(transaction.getId()).orElseThrow();
@@ -172,7 +170,7 @@ class RulesControllerTest extends AbstractUITest {
 
     @Test
     void applyingReviewSkipsDeselectedTransactions() {
-        clickOn(lookup("#applyAllButton").<Button>query());
+        openReviewDialog();
         TableView<TransactionRulePreview> reviewTable = lookup("#ruleReviewTable").query();
         TableColumn<TransactionRulePreview, ?> includeColumn = reviewTable.getColumns().stream()
                 .filter(column -> column.getText().equals(I18n.get("rules.review.include")))
@@ -191,7 +189,8 @@ class RulesControllerTest extends AbstractUITest {
                         .categoryId(currentCategory.getId())
                         .note("Skipped note")
                         .build());
-        clickOn(lookup("#onlyFillMissingRules").<CheckBox>query());
+        CheckBox onlyFillMissing = lookup("#onlyFillMissingRules").query();
+        interact(() -> onlyFillMissing.setSelected(false));
         assertFalse(selectedTransaction.get());
         BooleanProperty skippedSelection = (BooleanProperty) includeColumn.getCellObservableValue(
                 rowFor(reviewTable, includedTransaction.getId()));
@@ -201,7 +200,7 @@ class RulesControllerTest extends AbstractUITest {
         assertTrue(applyButton.isDisabled());
         interact(() -> skippedSelection.set(true));
         assertFalse(applyButton.isDisabled());
-        clickOn(applyButton);
+        interact(applyButton::fire);
 
         TransactionService transactionService = applicationContext.getBean(TransactionService.class);
         assertEquals(currentCategory.getId(), transactionService.getTransaction(transaction.getId())
@@ -311,6 +310,12 @@ class RulesControllerTest extends AbstractUITest {
         return table.getItems().stream()
                 .filter(row -> row.transactionId().equals(transactionId))
                 .findFirst().orElseThrow();
+    }
+
+    private void openReviewDialog() {
+        Button applyRulesButton = lookup("#applyAllButton").query();
+        Platform.runLater(applyRulesButton::fire);
+        WaitForAsyncUtils.waitForFxEvents();
     }
 
     private TableRow<?> rowForRule(TableView<Rule> table, String name) {
