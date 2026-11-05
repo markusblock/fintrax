@@ -115,6 +115,73 @@ class CategoryServiceTest {
     }
 
     @Test
+    void updatingCategoryParentMovesItsSubtreeAndPreservesTransactionAssignment() {
+        Category oldParent = categoryService.createCategory("Old parent", null, null);
+        Category newParent = categoryService.createCategory("New parent", null, null);
+        Category category = categoryService.createCategory("Category", oldParent.getId(), null);
+        Category child = categoryService.createCategory("Child", category.getId(), null);
+        Transaction transaction = Transaction.builder().id(1L).categoryId(category.getId()).build();
+        store.getRoot().getTransactions().add(transaction);
+
+        categoryService.updateCategory(category.getId(), category.getName(), newParent.getId(), category.getComment());
+
+        assertEquals(newParent.getId(), category.getParentId());
+        assertEquals(category.getId(), categoryService.getCategory(child.getId()).orElseThrow().getParentId());
+        assertEquals(category.getId(), transaction.getCategoryId());
+    }
+
+    @Test
+    void updatingCategoryParentToNullMakesItTopLevel() {
+        Category parent = categoryService.createCategory("Parent", null, null);
+        Category category = categoryService.createCategory("Category", parent.getId(), null);
+
+        categoryService.updateCategory(category.getId(), category.getName(), null, category.getComment());
+
+        assertNull(category.getParentId());
+    }
+
+    @Test
+    void updatingCategoryParentRejectsMovingUnderItsDescendant() {
+        Category category = categoryService.createCategory("Category", null, null);
+        Category child = categoryService.createCategory("Child", category.getId(), null);
+
+        assertThrows(IllegalArgumentException.class, () ->
+                categoryService.updateCategory(category.getId(), category.getName(), child.getId(), category.getComment()));
+
+        assertNull(category.getParentId());
+        assertEquals(category.getId(), child.getParentId());
+    }
+
+    @Test
+    void updatingCategoryParentRejectsDuplicateSiblingName() {
+        Category targetParent = categoryService.createCategory("Target", null, null);
+        Category category = categoryService.createCategory("Shared", null, null);
+        categoryService.createCategory("Shared", targetParent.getId(), null);
+
+        assertThrows(IllegalArgumentException.class, () ->
+                categoryService.updateCategory(category.getId(), category.getName(), targetParent.getId(), category.getComment()));
+
+        assertNull(category.getParentId());
+    }
+
+    @Test
+    void updatingCategoryParentRejectsSubtreeThatWouldExceedMaximumDepth() {
+        Category targetLevelOne = categoryService.createCategory("Target one", null, null);
+        Category targetLevelTwo = categoryService.createCategory("Target two", targetLevelOne.getId(), null);
+        Category targetLevelThree = categoryService.createCategory("Target three", targetLevelTwo.getId(), null);
+        Category category = categoryService.createCategory("Category", null, null);
+        Category child = categoryService.createCategory("Child", category.getId(), null);
+        Category grandchild = categoryService.createCategory("Grandchild", child.getId(), null);
+
+        assertThrows(IllegalArgumentException.class, () ->
+                categoryService.updateCategory(category.getId(), category.getName(), targetLevelThree.getId(), category.getComment()));
+
+        assertNull(category.getParentId());
+        assertEquals(category.getId(), child.getParentId());
+        assertEquals(child.getId(), grandchild.getParentId());
+    }
+
+    @Test
     void testDeleteCategoryReassignsTransactions() {
         CategoryService txService = new CategoryService(store, activityLogger);
         Category cat1 = categoryService.createCategory("Cat1", null, null);

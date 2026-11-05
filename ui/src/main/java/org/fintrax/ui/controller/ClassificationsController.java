@@ -18,6 +18,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.stage.Modality;
+import javafx.util.StringConverter;
 import lombok.extern.slf4j.Slf4j;
 import org.kordamp.ikonli.javafx.FontIcon;
 import org.fintrax.config.I18n;
@@ -542,6 +543,7 @@ public class ClassificationsController {
         nameField.setId("nameField");
         TextField commentField = new TextField(category == null ? "" : nullToEmpty(category.getComment()));
         commentField.setId("commentField");
+        ComboBox<CategoryParentChoice> parentSelector = category == null ? null : createParentSelector(category);
         Label errorLabel = new Label();
         errorLabel.setId("errorLabel");
 
@@ -551,8 +553,14 @@ public class ClassificationsController {
         fields.getColumnConstraints().addAll(new ColumnConstraints(90), new ColumnConstraints());
         fields.add(new Label(I18n.get("label.name")), 0, 0);
         fields.add(nameField, 1, 0);
-        fields.add(new Label(I18n.get("label.comment")), 0, 1);
-        fields.add(commentField, 1, 1);
+        int commentRow = 1;
+        if (parentSelector != null) {
+            fields.add(new Label(I18n.get("categories.parent")), 0, 1);
+            fields.add(parentSelector, 1, 1);
+            commentRow++;
+        }
+        fields.add(new Label(I18n.get("label.comment")), 0, commentRow);
+        fields.add(commentField, 1, commentRow);
 
         VBox content = new VBox(10, fields, errorLabel);
         content.getStyleClass().add("dialog-content");
@@ -578,7 +586,11 @@ public class ClassificationsController {
         dialog.setOnHidden(event -> {
             ButtonType result = dialog.getResult();
             if (result == saveType) {
-                saveCategory(category, parentId, nameField.getText().trim(), commentField.getText().trim());
+                Long selectedParentId = parentSelector == null
+                        ? parentId
+                        : parentSelector.getValue() == null ? null : parentSelector.getValue().id();
+                saveCategory(category, parentId, selectedParentId,
+                        nameField.getText().trim(), commentField.getText().trim());
             }
         });
         dialog.setOnShown(event -> nameField.requestFocus());
@@ -589,17 +601,90 @@ public class ClassificationsController {
         return value == null ? "" : value;
     }
 
-    private void saveCategory(Category category, Long parentId, String name, String comment) {
-        Long parentIdToExpand = category == null ? parentId : null;
-        if (category == null) {
-            categoryService.createCategory(name, parentId, emptyToNull(comment));
-        } else {
-            categoryService.updateCategory(category.getId(), name, emptyToNull(comment));
+    private ComboBox<CategoryParentChoice> createParentSelector(Category category) {
+        ComboBox<CategoryParentChoice> selector = new ComboBox<>();
+        selector.setId("parentCategoryCombo");
+        selector.setMaxWidth(Double.MAX_VALUE);
+        selector.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(CategoryParentChoice choice) {
+                return choice == null ? "" : choice.label();
+            }
+
+            @Override
+            public CategoryParentChoice fromString(String value) {
+                return selector.getItems().stream()
+                        .filter(choice -> choice.label().equals(value))
+                        .findFirst()
+                        .orElse(null);
+            }
+        });
+
+        List<CategoryParentChoice> choices = new ArrayList<>();
+        choices.add(new CategoryParentChoice(null, I18n.get("classifications.categoriesRoot")));
+        Set<Long> excludedIds = getCategorySubtreeIds(category.getId());
+        int subtreeHeight = calculateSubtreeHeight(category.getId());
+        categoryService.getAllCategories().stream()
+                .filter(candidate -> !excludedIds.contains(candidate.getId()))
+                .filter(candidate -> calculateDepth(candidate.getId()) + subtreeHeight <= 5)
+                .map(candidate -> new CategoryParentChoice(candidate.getId(), categoryPath(candidate)))
+                .sorted(Comparator.comparing(CategoryParentChoice::label, String.CASE_INSENSITIVE_ORDER))
+                .forEach(choices::add);
+        selector.getItems().setAll(choices);
+        selector.setValue(choices.stream()
+                .filter(choice -> Objects.equals(choice.id(), category.getParentId()))
+                .findFirst()
+                .orElse(choices.getFirst()));
+        return selector;
+    }
+
+    private Set<Long> getCategorySubtreeIds(Long categoryId) {
+        Set<Long> ids = new HashSet<>();
+        ids.add(categoryId);
+        for (Category child : categoryService.getChildCategories(categoryId)) {
+            ids.addAll(getCategorySubtreeIds(child.getId()));
+        }
+        return ids;
+    }
+
+    private int calculateSubtreeHeight(Long categoryId) {
+        return 1 + categoryService.getChildCategories(categoryId).stream()
+                .mapToInt(child -> calculateSubtreeHeight(child.getId()))
+                .max()
+                .orElse(0);
+    }
+
+    private String categoryPath(Category category) {
+        Deque<String> names = new ArrayDeque<>();
+        Category current = category;
+        while (current != null) {
+            names.addFirst(current.getName());
+            current = current.getParentId() == null
+                    ? null
+                    : categoryService.getCategory(current.getParentId()).orElse(null);
+        }
+        return String.join(" / ", names);
+    }
+
+    private void saveCategory(Category category, Long parentId, Long selectedParentId, String name, String comment) {
+        try {
+            if (category == null) {
+                categoryService.createCategory(name, parentId, emptyToNull(comment));
+            } else {
+                categoryService.updateCategory(category.getId(), name, selectedParentId, emptyToNull(comment));
+            }
+        } catch (IllegalArgumentException exception) {
+            showError(exception.getMessage());
+            return;
         }
 
         loadTree();
-        if (parentIdToExpand != null) {
-            expandPathToCategory(parentIdToExpand);
+        Long categoryIdToSelect = category == null ? null : category.getId();
+        Long parentIdToExpand = category == null ? parentId : selectedParentId;
+        if (parentIdToExpand != null) expandPathToCategory(parentIdToExpand);
+        if (categoryIdToSelect != null) {
+            expandPathToCategory(categoryIdToSelect);
+            classificationTree.getSelectionModel().select(categoryItemsById.get(categoryIdToSelect));
         }
         log.info("Saved category");
     }
@@ -775,5 +860,8 @@ public class ClassificationsController {
         icon.setIconLiteral(literal);
         icon.setIconSize(size);
         return icon;
+    }
+
+    private record CategoryParentChoice(Long id, String label) {
     }
 }
