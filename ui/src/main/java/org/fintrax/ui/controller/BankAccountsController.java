@@ -44,6 +44,7 @@ import java.util.concurrent.Executors;
 @Scope("prototype")
 public class BankAccountsController {
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+    private static final String ACCOUNT_ACTION_BUTTON_STYLE_CLASS = "account-action-button";
 
     @FXML
     private BorderPane rootPane;
@@ -156,14 +157,14 @@ public class BankAccountsController {
         buttonBox.setAlignment(javafx.geometry.Pos.CENTER_RIGHT);
 
         Button syncButton = new Button();
-        syncButton.getStyleClass().addAll("sync-button", "account-action-button");
+        syncButton.getStyleClass().addAll("sync-button", ACCOUNT_ACTION_BUTTON_STYLE_CLASS);
         syncButton.setGraphic(icon("fth-refresh-cw", 14));
         syncButton.setTooltip(new Tooltip(I18n.get("button.sync")));
         syncButton.setAccessibleText(I18n.get("button.sync"));
         syncButton.setOnAction(e -> onSyncAccount(account.getId()));
 
         Button editButton = new Button();
-        editButton.getStyleClass().addAll("button-outlined", "account-action-button");
+        editButton.getStyleClass().addAll("button-outlined", ACCOUNT_ACTION_BUTTON_STYLE_CLASS);
         editButton.setId("editAccountButton-" + account.getId());
         editButton.setGraphic(icon("fth-edit-2", 14));
         editButton.setTooltip(new Tooltip(I18n.get("button.edit")));
@@ -171,7 +172,7 @@ public class BankAccountsController {
         editButton.setOnAction(e -> onEditAccount(account));
 
         Button deleteButton = new Button();
-        deleteButton.getStyleClass().addAll("delete-button", "account-action-button");
+        deleteButton.getStyleClass().addAll("delete-button", ACCOUNT_ACTION_BUTTON_STYLE_CLASS);
         deleteButton.setGraphic(icon("fth-trash-2", 14));
         deleteButton.setTooltip(new Tooltip(I18n.get("button.delete")));
         deleteButton.setAccessibleText(I18n.get("button.delete"));
