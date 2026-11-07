@@ -160,12 +160,18 @@ public class BankAccountsController {
         syncButton.setGraphic(icon("fth-refresh-cw", 14));
         syncButton.setOnAction(e -> onSyncAccount(account.getId()));
 
+        Button editButton = new Button(I18n.get("button.edit"));
+        editButton.getStyleClass().add("button-outlined");
+        editButton.setId("editAccountButton-" + account.getId());
+        editButton.setGraphic(icon("fth-edit-2", 14));
+        editButton.setOnAction(e -> onEditAccount(account));
+
         Button deleteButton = new Button(I18n.get("button.delete"));
         deleteButton.getStyleClass().add("delete-button");
         deleteButton.setGraphic(icon("fth-trash-2", 14));
         deleteButton.setOnAction(e -> onDeleteAccount(account));
 
-        buttonBox.getChildren().addAll(syncButton, deleteButton);
+        buttonBox.getChildren().addAll(syncButton, editButton, deleteButton);
 
         card.getChildren().addAll(header, holderLabel, ibanLabel, balanceLabel, lastSyncLabel, buttonBox);
         return card;
@@ -200,6 +206,29 @@ public class BankAccountsController {
             loadAccounts();
         } catch (Exception e) {
             log.error("Failed to open add account dialog", e);
+            showError(I18n.get("error.dialog.open", e.getMessage()));
+        }
+    }
+
+    private void onEditAccount(BankAccount account) {
+        try {
+            Parent root = viewLoader.load("editAccountDialog");
+            EditAccountDialogController editController = (EditAccountDialogController) root.getProperties()
+                    .get(EditAccountDialogController.class.getName());
+            editController.setAccount(account);
+
+            Stage dialog = new Stage();
+            dialog.setTitle(I18n.get("dialog.editAccount.title"));
+            dialog.initModality(Modality.WINDOW_MODAL);
+            dialog.initOwner(rootPane.getScene().getWindow());
+            Scene dialogScene = new Scene(root, 500, 600);
+            FintraxUI.configureScene(dialogScene);
+            dialog.setScene(dialogScene);
+
+            dialog.showAndWait();
+            loadAccounts();
+        } catch (Exception e) {
+            log.error("Failed to open edit account dialog", e);
             showError(I18n.get("error.dialog.open", e.getMessage()));
         }
     }

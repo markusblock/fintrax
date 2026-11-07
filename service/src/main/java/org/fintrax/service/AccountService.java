@@ -61,7 +61,8 @@ public class AccountService {
         return List.copyOf(store.getRoot().getAccounts());
     }
 
-    public BankAccount updateAccount(Long id, String bankName, String bic, String comment) {
+    public BankAccount updateAccount(Long id, String bankName, String bic, String accountHolder,
+                                     AccountType accountType, String comment) {
         BankAccount account = store.getAccount(id);
         if (account == null) {
             throw new IllegalArgumentException("Account not found: " + id);
@@ -69,6 +70,8 @@ public class AccountService {
 
         account.setBankName(bankName);
         account.setBic(bic);
+        account.setAccountHolder(accountHolder);
+        account.setAccountType(accountType);
         account.setComment(comment);
         account.setUpdatedAt(LocalDateTime.now());
 

@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.LocalDateTime;
 import java.util.Comparator;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -56,16 +57,31 @@ class AccountServiceTest {
     }
 
     @Test
-    void testUpdateAccount() {
+    void updateAccountChangesEditableDetailsAndPreservesIdentityAndSyncState() {
         BankAccount account = accountService.createAccount(
                 "DE89370400440532013000", "COBADEFFXXX", "Commerzbank",
                 "Max Mustermann", AccountType.GIRO, null);
+        LocalDateTime balanceDate = LocalDateTime.of(2025, 1, 2, 3, 4);
+        LocalDateTime syncDate = LocalDateTime.of(2025, 2, 3, 4, 5);
+        accountService.updateBalance(account.getId(), new BigDecimal("42.50"), balanceDate);
+        accountService.updateLastSync(account.getId(), syncDate);
+        LocalDateTime createdAt = account.getCreatedAt();
 
-        BankAccount updated = accountService.updateAccount(account.getId(), "Updated Bank", "NEWBIC", "New comment");
+        BankAccount updated = accountService.updateAccount(account.getId(), "Updated Bank", "NEWBIC",
+                "Updated holder", AccountType.SAVINGS, "New comment");
 
         assertEquals("Updated Bank", updated.getBankName());
         assertEquals("NEWBIC", updated.getBic());
+        assertEquals("Updated holder", updated.getAccountHolder());
+        assertEquals(AccountType.SAVINGS, updated.getAccountType());
         assertEquals("New comment", updated.getComment());
+        assertEquals(account.getId(), updated.getId());
+        assertEquals("DE89370400440532013000", updated.getIban());
+        assertEquals("EUR", updated.getCurrency());
+        assertEquals(new BigDecimal("42.50"), updated.getBalance());
+        assertEquals(balanceDate, updated.getBalanceDate());
+        assertEquals(syncDate, updated.getLastSyncAt());
+        assertEquals(createdAt, updated.getCreatedAt());
     }
 
     @Test

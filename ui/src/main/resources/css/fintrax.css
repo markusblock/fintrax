@@ -640,6 +640,17 @@
     -fx-text-fill: -color-fg-muted;
 }
 
+.read-only-field {
+    -fx-background-color: -color-bg-subtle;
+    -fx-text-fill: -color-fg-muted;
+}
+
+.account-edit-metadata {
+    -fx-padding: 10 12;
+    -fx-background-color: -color-bg-subtle;
+    -fx-background-radius: 6;
+}
+
 .rule-condition-row,
 .rule-action-row {
     -fx-spacing: 8;
