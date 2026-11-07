@@ -22,19 +22,21 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /** Configures the standard transaction columns shared by RulesView and ClassificationView. */
 public final class TransactionTableSetup {
     // Keep these indices aligned with the shared transaction columns in both view FXML files.
-    private static final int DATE_COLUMN = 0;
-    private static final int PAYEE_COLUMN = 1;
-    private static final int ACCOUNT_COLUMN = 2;
-    private static final int PURPOSE_COLUMN = 3;
-    private static final int AMOUNT_COLUMN = 4;
-    private static final int CATEGORY_COLUMN = 5;
-    private static final int LABELS_COLUMN = 6;
-    private static final int COLUMN_MENU = 7;
+    private static final int BOOKING_DATE_COLUMN = 0;
+    private static final int VALUE_DATE_COLUMN = 1;
+    private static final int PAYEE_COLUMN = 2;
+    private static final int ACCOUNT_COLUMN = 3;
+    private static final int PURPOSE_COLUMN = 4;
+    private static final int AMOUNT_COLUMN = 5;
+    private static final int CATEGORY_COLUMN = 6;
+    private static final int LABELS_COLUMN = 7;
+    private static final int COLUMN_MENU = 8;
     private static final String AMOUNT_POSITIVE_STYLE = "amount-positive";
     private static final String AMOUNT_NEGATIVE_STYLE = "amount-negative";
 
@@ -53,7 +55,10 @@ public final class TransactionTableSetup {
 
     public void configure() {
         TableViewResizePolicy.fitColumnsAndAllowHorizontalScrolling(table);
-        setupDateColumn(dateColumn());
+        DateTimeFormatter dateFormatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT)
+                .withLocale(I18n.getCurrentLocale());
+        setupDateColumn(bookingDateColumn(), Transaction::getBookingDate, dateFormatter);
+        setupDateColumn(valueDateColumn(), Transaction::getValueDate, dateFormatter);
         payeeColumn().setCellValueFactory(cell -> new SimpleStringProperty(
                 Objects.toString(cell.getValue().getPayeeDisplay() != null
                         ? cell.getValue().getPayeeDisplay() : cell.getValue().getOriginalPayee(), "")));
@@ -79,7 +84,8 @@ public final class TransactionTableSetup {
                     .map(org.fintrax.model.Label::getName)
                     .collect(Collectors.joining(", ")));
         });
-        dateColumn().setSortable(true);
+        bookingDateColumn().setSortable(true);
+        valueDateColumn().setSortable(true);
         payeeColumn().setSortable(true);
         accountColumn().setSortable(true);
         purposeColumn().setSortable(true);
@@ -93,7 +99,8 @@ public final class TransactionTableSetup {
             throw new IllegalStateException("Transaction table must have a menu button in its last column");
         }
         TableColumnVisibilityMenu.install(table, columnMenuButton, configKey, settingsService, List.of(
-                new TableColumnConfig("date", dateColumn()),
+                new TableColumnConfig("date", bookingDateColumn()),
+                new TableColumnConfig("valueDate", valueDateColumn()),
                 new TableColumnConfig("payee", payeeColumn()),
                 new TableColumnConfig("account", accountColumn()),
                 new TableColumnConfig("purpose", purposeColumn()),
@@ -110,8 +117,12 @@ public final class TransactionTableSetup {
         return column(LABELS_COLUMN);
     }
 
-    private TableColumn<Transaction, LocalDate> dateColumn() {
-        return column(DATE_COLUMN);
+    private TableColumn<Transaction, LocalDate> bookingDateColumn() {
+        return column(BOOKING_DATE_COLUMN);
+    }
+
+    private TableColumn<Transaction, LocalDate> valueDateColumn() {
+        return column(VALUE_DATE_COLUMN);
     }
 
     private TableColumn<Transaction, String> payeeColumn() {
@@ -135,10 +146,10 @@ public final class TransactionTableSetup {
         return (TableColumn<Transaction, T>) table.getColumns().get(index);
     }
 
-    private void setupDateColumn(TableColumn<Transaction, LocalDate> dateColumn) {
-        dateColumn.setCellValueFactory(cell -> new SimpleObjectProperty<>(cell.getValue().getBookingDate()));
-        DateTimeFormatter dateFormatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT)
-                .withLocale(I18n.getCurrentLocale());
+    private void setupDateColumn(TableColumn<Transaction, LocalDate> dateColumn,
+                                 Function<Transaction, LocalDate> dateFor,
+                                 DateTimeFormatter dateFormatter) {
+        dateColumn.setCellValueFactory(cell -> new SimpleObjectProperty<>(dateFor.apply(cell.getValue())));
         dateColumn.setCellFactory(column -> new TableCell<>() {
             @Override
             protected void updateItem(LocalDate item, boolean empty) {

@@ -37,6 +37,7 @@ final class RuleEditorDialog {
 
         Dialog<ButtonType> dialog = new Dialog<>();
         FintraxUI.configureDialog(dialog);
+        dialog.setResizable(true);
         dialog.initOwner(owner);
         dialog.setTitle(I18n.get(titleKey));
         dialog.setHeaderText(I18n.get(headerKey));

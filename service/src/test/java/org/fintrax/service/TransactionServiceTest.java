@@ -92,6 +92,29 @@ class TransactionServiceTest {
     }
 
     @Test
+    void dateRangeMatchesEitherBookingDateOrValueDateInclusively() {
+        LocalDate fromDate = LocalDate.of(2024, 1, 1);
+        LocalDate toDate = LocalDate.of(2024, 2, 1);
+        transactionService.createTransaction(Transaction.builder()
+                .originalPayee("booking date match").amount(BigDecimal.ONE)
+                .bookingDate(fromDate).valueDate(toDate.plusDays(1)).build());
+        transactionService.createTransaction(Transaction.builder()
+                .originalPayee("value date match").amount(BigDecimal.ONE)
+                .bookingDate(fromDate.minusDays(1)).valueDate(toDate).build());
+        transactionService.createTransaction(Transaction.builder()
+                .originalPayee("no date match").amount(BigDecimal.ONE)
+                .bookingDate(fromDate.minusDays(1)).valueDate(toDate.plusDays(1)).build());
+        transactionService.createTransaction(Transaction.builder()
+                .originalPayee("no dates").amount(BigDecimal.ONE).build());
+
+        List<Transaction> filtered = transactionService.filterTransactions(new TransactionFilter(
+                null, fromDate, toDate, null, null, null, null, null));
+
+        assertEquals(List.of("booking date match", "value date match"),
+                filtered.stream().map(Transaction::getOriginalPayee).toList());
+    }
+
+    @Test
     void categoryFilterIncludesSelectedCategoryAndItsDirectChildrenOnly() {
         Category parent = categoryService.createCategory("Household", null, null);
         Category child = categoryService.createCategory("Utilities", parent.getId(), null);

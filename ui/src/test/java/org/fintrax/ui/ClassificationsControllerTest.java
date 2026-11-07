@@ -229,7 +229,7 @@ class ClassificationsControllerTest extends AbstractUITest {
             interact(() -> tree.getSelectionModel().select(categoryTreeItem(tree, firstCategory.getName())));
 
             TableColumn<Transaction, ?> dateColumn = table.getColumns().stream()
-                    .filter(column -> I18n.get("col.date").equals(column.getText()))
+                    .filter(column -> I18n.get("col.bookingDate").equals(column.getText()))
                     .findFirst()
                     .orElseThrow();
             interact(() -> {
@@ -261,10 +261,12 @@ class ClassificationsControllerTest extends AbstractUITest {
     }
 
     @Test
-    void classificationTransactionDateColumnUsesCurrentLocaleShortDateFormat() throws Exception {
+    void classificationTransactionDateColumnsUseCurrentLocaleShortDateFormat() throws Exception {
         Category category = categoryService().createCategory("Localized date " + System.nanoTime(), null, null);
+        LocalDate bookingDate = LocalDate.of(2025, 2, 1);
+        LocalDate valueDate = bookingDate.plusDays(3);
         Transaction transaction = createTransaction(category.getId(), "Localized date transaction", "20",
-                LocalDate.of(2025, 2, 1));
+                bookingDate, valueDate);
 
         reloadClassificationsView();
         TreeView<String> tree = lookup("#classificationTree").query();
@@ -272,23 +274,21 @@ class ClassificationsControllerTest extends AbstractUITest {
         interact(() -> tree.getSelectionModel().select(categoryTreeItem(tree, category.getName())));
         WaitForAsyncUtils.waitForFxEvents();
 
-        TableColumn<?, ?> dateColumn = table.getColumns().stream()
-                .filter(column -> I18n.get("col.date").equals(column.getText()))
+        TableColumn<?, ?> bookingDateColumn = table.getColumns().stream()
+                .filter(column -> I18n.get("col.bookingDate").equals(column.getText()))
                 .findFirst()
                 .orElseThrow();
-        TableCell<?, ?> dateCell = table.lookupAll(".table-cell").stream()
-                .filter(TableCell.class::isInstance)
-                .map(node -> (TableCell<?, ?>) node)
-                .filter(cell -> !cell.isEmpty() && cell.getTableColumn() == dateColumn
-                        && cell.getTableRow() != null && cell.getTableRow().getItem() instanceof Transaction row
-                        && transaction.getId().equals(row.getId()))
+        TableColumn<?, ?> valueDateColumn = table.getColumns().stream()
+                .filter(column -> I18n.get("col.valueDate").equals(column.getText()))
                 .findFirst()
                 .orElseThrow();
-        String expectedDate = DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT)
-                .withLocale(I18n.getCurrentLocale())
-                .format(transaction.getBookingDate());
+        DateTimeFormatter dateFormatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT)
+                .withLocale(I18n.getCurrentLocale());
 
-        assertEquals(expectedDate, dateCell.getText());
+        assertEquals(dateFormatter.format(bookingDate),
+                cellForTransaction(table, bookingDateColumn, transaction).getText());
+        assertEquals(dateFormatter.format(valueDate),
+                cellForTransaction(table, valueDateColumn, transaction).getText());
     }
 
     @Test
@@ -442,6 +442,9 @@ class ClassificationsControllerTest extends AbstractUITest {
     void classificationTransactionColumnsCanBeShownAndHidden() throws Exception {
         MenuButton columnMenu = lookup("#columnMenuButton").query();
         TableView<Transaction> table = lookup("#classificationTransactionsTable").query();
+        Stage stage = (Stage) table.getScene().getWindow();
+        double originalWindowWidth = stage.getWidth();
+        interact(() -> stage.setWidth(Math.max(originalWindowWidth, 1280)));
         WaitForAsyncUtils.waitForFxEvents();
 
         assertSame(columnMenu, table.getColumns().getLast().getGraphic());
@@ -450,25 +453,28 @@ class ClassificationsControllerTest extends AbstractUITest {
                 .mapToDouble(TableColumn::getWidth)
                 .sum();
         assertTrue(totalVisibleColumnWidth <= table.getWidth() + 1,
-                "all transaction columns should fit in table before window resize");
+                "all transaction columns should fit in the widened test window");
         List<CheckMenuItem> columnItems = columnMenu.getItems().stream()
                 .filter(CheckMenuItem.class::isInstance)
                 .map(CheckMenuItem.class::cast)
                 .toList();
-        assertEquals(List.of("col.date", "col.payee", "col.account", "col.purpose", "col.amount",
-                        "col.category", "col.labels").stream().map(I18n::get).toList(),
+        assertEquals(List.of("col.bookingDate", "col.valueDate", "col.payee", "col.account", "col.purpose",
+                        "col.amount", "col.category", "col.labels").stream().map(I18n::get).toList(),
                 columnItems.stream().map(MenuItem::getText).toList());
         assertTrue(columnItems.stream().allMatch(CheckMenuItem::isSelected));
         assertEquals(I18n.get("button.columns.reset"), columnMenu.getItems().getLast().getText());
 
         var initialColumnOrder = List.copyOf(table.getColumns());
-        Stage stage = (Stage) table.getScene().getWindow();
         Parent originalRoot = table.getScene().getRoot();
-        CheckMenuItem purposeItem = (CheckMenuItem) columnMenu.getItems().get(3);
+        CheckMenuItem purposeItem = columnItems.stream()
+                .filter(item -> I18n.get("col.purpose").equals(item.getText()))
+                .findFirst().orElseThrow();
         try {
             interact(() -> purposeItem.setSelected(false));
 
-            assertFalse(table.getColumns().get(3).isVisible());
+            assertFalse(table.getColumns().stream()
+                    .filter(column -> I18n.get("col.purpose").equals(column.getText()))
+                    .findFirst().orElseThrow().isVisible());
             assertFalse(purposeItem.isSelected());
             assertTrue(applicationContext.getBean(SettingsService.class)
                     .getSettingValue("classification.transaction.columns").contains("purpose=false"));
@@ -477,26 +483,28 @@ class ClassificationsControllerTest extends AbstractUITest {
                 var dateColumn = table.getColumns().remove(0);
                 table.getColumns().add(1, dateColumn);
             });
-            assertEquals("payee,date,account,purpose,amount,category,labels",
+            assertEquals("valueDate,date,payee,account,purpose,amount,category,labels",
                     applicationContext.getBean(SettingsService.class)
                             .getSettingValue("classification.transaction.columns.order"));
 
             Parent restoredView = applicationContext.getBean(ViewLoader.class).load("classifications");
             interact(() -> stage.getScene().setRoot(restoredView));
             TableView<?> restoredTable = lookup("#classificationTransactionsTable").query();
-            assertEquals(List.of("col.payee", "col.date", "col.account", "col.purpose", "col.amount",
-                            "col.category", "col.labels").stream().map(I18n::get).toList(),
-                    restoredTable.getColumns().stream().limit(7).map(TableColumn::getText).toList());
-            assertFalse(restoredTable.getColumns().get(3).isVisible());
+            assertEquals(List.of("col.valueDate", "col.bookingDate", "col.payee", "col.account", "col.purpose",
+                            "col.amount", "col.category", "col.labels").stream().map(I18n::get).toList(),
+                    restoredTable.getColumns().stream().limit(8).map(TableColumn::getText).toList());
+            assertFalse(restoredTable.getColumns().stream()
+                    .filter(column -> I18n.get("col.purpose").equals(column.getText()))
+                    .findFirst().orElseThrow().isVisible());
 
             MenuButton restoredMenu = lookup("#columnMenuButton").query();
             interact(restoredMenu.getItems().getLast()::fire);
-            assertTrue(restoredTable.getColumns().stream().limit(7)
+            assertTrue(restoredTable.getColumns().stream().limit(8)
                     .allMatch(TableColumn::isVisible));
-            assertEquals("date=true,payee=true,account=true,purpose=true,amount=true,category=true,labels=true",
+            assertEquals("date=true,valueDate=true,payee=true,account=true,purpose=true,amount=true,category=true,labels=true",
                     applicationContext.getBean(SettingsService.class)
                             .getSettingValue("classification.transaction.columns"));
-            assertEquals("date,payee,account,purpose,amount,category,labels",
+            assertEquals("date,valueDate,payee,account,purpose,amount,category,labels",
                     applicationContext.getBean(SettingsService.class)
                             .getSettingValue("classification.transaction.columns.order"));
         } finally {
@@ -504,6 +512,7 @@ class ClassificationsControllerTest extends AbstractUITest {
                 purposeItem.setSelected(true);
                 table.getColumns().setAll(initialColumnOrder);
                 stage.getScene().setRoot(originalRoot);
+                stage.setWidth(originalWindowWidth);
             });
         }
     }
@@ -792,12 +801,30 @@ class ClassificationsControllerTest extends AbstractUITest {
     }
 
     private Transaction createTransaction(Long categoryId, String payee, String amount, LocalDate bookingDate) {
+        return createTransaction(categoryId, payee, amount, bookingDate, null);
+    }
+
+    private Transaction createTransaction(Long categoryId, String payee, String amount,
+                                          LocalDate bookingDate, LocalDate valueDate) {
         return applicationContext.getBean(TransactionService.class).createTransaction(Transaction.builder()
                 .categoryId(categoryId)
                 .originalPayee(payee)
                 .amount(new BigDecimal(amount))
                 .bookingDate(bookingDate)
+                .valueDate(valueDate)
                 .build());
+    }
+
+    private TableCell<?, ?> cellForTransaction(TableView<Transaction> table, TableColumn<?, ?> column,
+                                               Transaction transaction) {
+        return table.lookupAll(".table-cell").stream()
+                .filter(TableCell.class::isInstance)
+                .map(node -> (TableCell<?, ?>) node)
+                .filter(cell -> !cell.isEmpty() && cell.getTableColumn() == column
+                        && cell.getTableRow() != null && cell.getTableRow().getItem() instanceof Transaction row
+                        && transaction.getId().equals(row.getId()))
+                .findFirst()
+                .orElseThrow();
     }
 
     private Node cellForRow(TableView<Transaction> table, int rowIndex) {

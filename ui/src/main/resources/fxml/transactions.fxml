@@ -25,7 +25,9 @@
                 <SplitPane fx:id="splitPane" orientation="VERTICAL" dividerPositions="1.0" VBox.vgrow="ALWAYS">
             <TableView fx:id="transactionTable" SplitPane.resizableWithParent="true">
                 <columns>
-                    <TableColumn fx:id="dateColumn" text="%col.date" minWidth="115" prefWidth="115" maxWidth="115"
+                    <TableColumn fx:id="bookingDateColumn" text="%col.bookingDate" minWidth="115" prefWidth="115" maxWidth="115"
+                                 resizable="false"/>
+                    <TableColumn fx:id="valueDateColumn" text="%col.valueDate" minWidth="115" prefWidth="115" maxWidth="115"
                                  resizable="false"/>
                     <TableColumn fx:id="payeeColumn" text="%col.payee" minWidth="100" prefWidth="140"/>
                     <TableColumn fx:id="accountColumn" text="%col.account" minWidth="110" prefWidth="150"/>
