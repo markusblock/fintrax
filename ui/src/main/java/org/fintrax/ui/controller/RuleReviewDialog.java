@@ -1,9 +1,13 @@
 package org.fintrax.ui.controller;
 
-import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.scene.control.*;
+import javafx.scene.control.cell.CheckBoxTableCell;
+import javafx.scene.input.ContextMenuEvent;
 import javafx.scene.layout.VBox;
 import javafx.stage.Window;
 import org.kordamp.ikonli.javafx.FontIcon;
@@ -23,7 +27,9 @@ import org.fintrax.ui.control.TableColumnConfig;
 import org.fintrax.ui.control.TableColumnVisibilityMenu;
 
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
@@ -31,9 +37,13 @@ import java.util.stream.Collectors;
 
 final class RuleReviewDialog {
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ISO_LOCAL_DATE;
+    private static final double SELECTION_COLUMN_WIDTH = 36;
 
     record Services(RuleService ruleService, AccountService accountService, CategoryService categoryService,
                     LabelService labelService, SettingsService settingsService) {}
+
+    private record PreviewElements(Label summary, Label multipleMatchWarning, Label emptyResult,
+                                   TableView<TransactionRulePreview> table) {}
 
     private final Window owner;
     private final RuleService ruleService;
@@ -59,6 +69,7 @@ final class RuleReviewDialog {
     void show() {
         Dialog<ButtonType> dialog = new Dialog<>();
         FintraxUI.configureDialog(dialog);
+        dialog.setResizable(true);
         dialog.setTitle(I18n.get("rules.review.title"));
         dialog.setHeaderText(I18n.get(selectedRuleOnly
                 ? "rules.review.single.header" : "rules.review.header"));
@@ -67,23 +78,30 @@ final class RuleReviewDialog {
         CheckBox onlyFillMissing = new CheckBox(I18n.get("rules.review.onlyFillMissing"));
         onlyFillMissing.setId("onlyFillMissingRules");
         onlyFillMissing.setSelected(true);
+        CheckBox selectAllCheckbox = new CheckBox();
+        selectAllCheckbox.setId("ruleReviewSelectAllCheckbox");
+        selectAllCheckbox.setAllowIndeterminate(true);
+        Tooltip selectAllTooltip = new Tooltip(I18n.get("button.selectAll"));
+        selectAllCheckbox.setTooltip(selectAllTooltip);
+        selectAllCheckbox.setAccessibleText(selectAllTooltip.getText());
 
         TableView<TransactionRulePreview> table = new TableView<>();
         table.setId("ruleReviewTable");
         table.getStyleClass().add("dense");
-        List<TableColumn<TransactionRulePreview, String>> columns = List.of(
+        table.setEditable(true);
+        table.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
+        List<TableColumn<TransactionRulePreview, ?>> columns = List.of(
                 column("rules.review.date", row -> row.bookingDate() == null
                         ? "—" : row.bookingDate().format(DATE_FORMAT), 100),
                 column("rules.review.payee", TransactionRulePreview::payee, 180),
                 column("rules.review.amount", row -> row.amount() == null
                         ? "—" : String.format("%,.2f EUR", row.amount().doubleValue()), 110),
                 column("rules.review.account", this::accountName, 140),
-                column("rules.review.category", row -> change(categoryName(row.currentCategoryId()),
-                        categoryName(row.proposedCategoryId())), 190),
-                column("rules.review.labels", row -> change(labels(row.currentLabelIds()),
-                        labels(row.proposedLabelIds())), 220),
-                column("rules.review.note", row -> change(display(row.currentNote()),
-                        display(row.proposedNote())), 220),
+                column("rules.review.currentCategory", row -> categoryName(row.currentCategoryId()), 150),
+                column("rules.review.categoryAfter", row -> categoryName(row.proposedCategoryId()), 150),
+                column("rules.review.currentLabel", row -> display(labels(row.currentLabelIds())), 160),
+                column("rules.review.labelAfter", row -> display(labels(row.proposedLabelIds())), 160),
+                column("rules.review.matchingRuleCount", row -> row.matchedRuleNames().size(), 50),
                 column("rules.review.matchedRules", this::matchedRules, 200));
         table.getColumns().setAll(columns);
 
@@ -105,10 +123,26 @@ final class RuleReviewDialog {
                         new TableColumnConfig("payee", columns.get(1)),
                         new TableColumnConfig("amount", columns.get(2)),
                         new TableColumnConfig("account", columns.get(3)),
-                        new TableColumnConfig("category", columns.get(4)),
-                        new TableColumnConfig("labels", columns.get(5)),
-                        new TableColumnConfig("note", columns.get(6)),
-                        new TableColumnConfig("matchedRules", columns.get(7))));
+                        new TableColumnConfig("currentCategory", columns.get(4)),
+                        new TableColumnConfig("categoryAfter", columns.get(5)),
+                        new TableColumnConfig("currentLabel", columns.get(6)),
+                        new TableColumnConfig("labelAfter", columns.get(7)),
+                        new TableColumnConfig("matchingRuleCount", columns.get(8)),
+                        new TableColumnConfig("matchedRules", columns.get(9))));
+        Map<Long, BooleanProperty> selectionByTransactionId = new HashMap<>();
+        table.setRowFactory(view -> createReviewRow(view, selectionByTransactionId));
+        TableColumn<TransactionRulePreview, Boolean> selectionColumn = new TableColumn<>();
+        selectionColumn.setMinWidth(SELECTION_COLUMN_WIDTH);
+        selectionColumn.setPrefWidth(SELECTION_COLUMN_WIDTH);
+        selectionColumn.setMaxWidth(SELECTION_COLUMN_WIDTH);
+        selectionColumn.setResizable(false);
+        selectionColumn.setSortable(false);
+        selectionColumn.setReorderable(false);
+        selectionColumn.setGraphic(selectAllCheckbox);
+        selectionColumn.setCellValueFactory(cell -> selectionByTransactionId.get(
+                cell.getValue().transactionId()));
+        selectionColumn.setCellFactory(CheckBoxTableCell.forTableColumn(selectionColumn));
+        table.getColumns().add(0, selectionColumn);
         TableCellTooltips.install(table);
 
         Label summary = new Label();
@@ -135,27 +169,12 @@ final class RuleReviewDialog {
         ObservableList<TransactionRulePreview> rows = FXCollections.observableArrayList();
         table.setItems(rows);
         AtomicReference<RuleApplicationPreview> currentPreview = new AtomicReference<>();
-
-        Runnable refreshPreview = () -> {
-            RuleApplicationPreview preview = previewProvider.apply(onlyFillMissing.isSelected());
-            currentPreview.set(preview);
-            List<TransactionRulePreview> changedRows = preview.transactionsWithChanges();
-            rows.setAll(changedRows);
-            applyButton.setDisable(changedRows.isEmpty());
-            summary.setText(I18n.get("rules.review.summary", changedRows.size(),
-                    preview.matchingTransactionsWithoutChanges()));
-            long multipleMatches = preview.matchingTransactions().stream()
-                    .filter(row -> row.matchedRuleNames().size() > 1).count();
-            multipleMatchWarning.setText(multipleMatches == 0 ? ""
-                    : I18n.get(selectedRuleOnly
-                    ? "rules.review.single.multipleMatches" : "rules.review.multipleMatches", multipleMatches));
-            multipleMatchWarning.setVisible(multipleMatches > 0);
-            multipleMatchWarning.setManaged(multipleMatches > 0);
-            emptyResult.setVisible(changedRows.isEmpty());
-            emptyResult.setManaged(changedRows.isEmpty());
-            table.setVisible(!changedRows.isEmpty());
-            table.setManaged(!changedRows.isEmpty());
-        };
+        PreviewElements previewElements = new PreviewElements(summary, multipleMatchWarning, emptyResult, table);
+        Runnable updateSelectionControls = () -> updateSelectionControls(rows, selectionByTransactionId,
+                applyButton, selectAllCheckbox, selectAllTooltip);
+        selectAllCheckbox.setOnAction(event -> toggleAllRows(rows, selectionByTransactionId));
+        Runnable refreshPreview = () -> updatePreview(onlyFillMissing.isSelected(), currentPreview, rows,
+                selectionByTransactionId, updateSelectionControls, previewElements);
         onlyFillMissing.selectedProperty().addListener((observable, oldValue, newValue) -> refreshPreview.run());
         refreshPreview.run();
 
@@ -163,22 +182,150 @@ final class RuleReviewDialog {
         content.getStyleClass().add("dialog-content");
         content.setMinWidth(1100);
         content.setPrefHeight(420);
-        dialog.getDialogPane().setContent(content);
+        ScrollPane contentScrollPane = new ScrollPane(content);
+        contentScrollPane.setFitToWidth(true);
+        contentScrollPane.setMinHeight(0);
+        contentScrollPane.setMinViewportHeight(0);
+        contentScrollPane.setPrefViewportHeight(420);
+        dialog.getDialogPane().setContent(contentScrollPane);
 
         dialog.setResultConverter(button -> button == applyButtonType ? applyButtonType : null);
 
         dialog.showAndWait().ifPresent(result -> {
             if (result == applyButtonType) {
-                ruleService.applyReviewedRules(currentPreview.get());
+                applySelectedChanges(currentPreview.get(), selectionByTransactionId);
             }
         });
     }
 
-    private <T> TableColumn<TransactionRulePreview, String> column(
-            String titleKey, Function<TransactionRulePreview, String> value, double width) {
-        TableColumn<TransactionRulePreview, String> column = new TableColumn<>(I18n.get(titleKey));
+    private void updateSelectionControls(ObservableList<TransactionRulePreview> rows,
+                                         Map<Long, BooleanProperty> selectionByTransactionId,
+                                         Button applyButton, CheckBox selectAllCheckbox,
+                                         Tooltip selectAllTooltip) {
+        boolean hasSelectedRows = rows.stream()
+                .anyMatch(row -> selectionByTransactionId.get(row.transactionId()).get());
+        boolean allRowsSelected = !rows.isEmpty() && rows.stream()
+                .allMatch(row -> selectionByTransactionId.get(row.transactionId()).get());
+        applyButton.setDisable(!hasSelectedRows);
+        selectAllCheckbox.setDisable(rows.isEmpty());
+        selectAllCheckbox.setSelected(allRowsSelected);
+        selectAllCheckbox.setIndeterminate(hasSelectedRows && !allRowsSelected);
+        String actionText = I18n.get(allRowsSelected ? "button.deselectAll" : "button.selectAll");
+        selectAllTooltip.setText(actionText);
+        selectAllCheckbox.setAccessibleText(actionText);
+    }
+
+    private void toggleAllRows(ObservableList<TransactionRulePreview> rows,
+                               Map<Long, BooleanProperty> selectionByTransactionId) {
+        boolean selectRows = rows.stream()
+                .anyMatch(row -> !selectionByTransactionId.get(row.transactionId()).get());
+        rows.forEach(row -> selectionByTransactionId.get(row.transactionId()).set(selectRows));
+    }
+
+    private TableRow<TransactionRulePreview> createReviewRow(
+            TableView<TransactionRulePreview> table,
+            Map<Long, BooleanProperty> selectionByTransactionId) {
+        TableRow<TransactionRulePreview> row = new TableRow<>();
+        row.setContextMenu(new ContextMenu(
+                selectionMenuItem("rules.review.selection.toggleSelection", table, row, selectionByTransactionId),
+                selectionMenuItem("rules.review.selection.select", table, row, selectionByTransactionId, true),
+                selectionMenuItem("rules.review.selection.deselect", table, row, selectionByTransactionId, false)));
+        row.addEventFilter(ContextMenuEvent.CONTEXT_MENU_REQUESTED, event -> {
+            if (row.isEmpty()) {
+                event.consume();
+            } else if (!row.isSelected()) {
+                table.getSelectionModel().clearAndSelect(row.getIndex());
+            }
+        });
+        return row;
+    }
+
+    private MenuItem selectionMenuItem(String titleKey, TableView<TransactionRulePreview> table,
+                                       TableRow<TransactionRulePreview> contextRow,
+                                       Map<Long, BooleanProperty> selectionByTransactionId) {
+        MenuItem item = new MenuItem(I18n.get(titleKey));
+        item.setOnAction(event -> contextMenuTargets(table, contextRow).forEach(row -> {
+            BooleanProperty selected = selectionByTransactionId.get(row.transactionId());
+            selected.set(!selected.get());
+        }));
+        return item;
+    }
+
+    private MenuItem selectionMenuItem(String titleKey, TableView<TransactionRulePreview> table,
+                                       TableRow<TransactionRulePreview> contextRow,
+                                       Map<Long, BooleanProperty> selectionByTransactionId,
+                                       boolean selected) {
+        MenuItem item = new MenuItem(I18n.get(titleKey));
+        item.setOnAction(event -> contextMenuTargets(table, contextRow).forEach(row ->
+                selectionByTransactionId.get(row.transactionId()).set(selected)));
+        return item;
+    }
+
+    private List<TransactionRulePreview> contextMenuTargets(TableView<TransactionRulePreview> table,
+                                                              TableRow<TransactionRulePreview> contextRow) {
+        return contextRow.isSelected()
+                ? List.copyOf(table.getSelectionModel().getSelectedItems())
+                : List.of(contextRow.getItem());
+    }
+
+    private void updatePreview(boolean onlyFillMissing,
+                               AtomicReference<RuleApplicationPreview> currentPreview,
+                               ObservableList<TransactionRulePreview> rows,
+                               Map<Long, BooleanProperty> selectionByTransactionId,
+                               Runnable updateSelectionControls, PreviewElements elements) {
+        RuleApplicationPreview preview = previewProvider.apply(onlyFillMissing);
+        currentPreview.set(preview);
+        List<TransactionRulePreview> changedRows = preview.transactionsWithChanges();
+        initializeRowSelections(changedRows, selectionByTransactionId, updateSelectionControls);
+        rows.setAll(changedRows);
+        updateSelectionControls.run();
+        updatePreviewSummary(preview, changedRows, elements);
+        updatePreviewVisibility(changedRows.isEmpty(), elements);
+    }
+
+    private void initializeRowSelections(List<TransactionRulePreview> rows,
+                                         Map<Long, BooleanProperty> selectionByTransactionId,
+                                         Runnable updateSelectionControls) {
+        rows.forEach(row -> selectionByTransactionId.computeIfAbsent(row.transactionId(), id -> {
+            BooleanProperty selected = new SimpleBooleanProperty(true);
+            selected.addListener((observable, wasSelected, isSelected) -> updateSelectionControls.run());
+            return selected;
+        }));
+    }
+
+    private void updatePreviewSummary(RuleApplicationPreview preview, List<TransactionRulePreview> changedRows,
+                                      PreviewElements elements) {
+        elements.summary().setText(I18n.get("rules.review.summary", changedRows.size(),
+                preview.matchingTransactionsWithoutChanges()));
+        long multipleMatches = preview.matchingTransactions().stream()
+                .filter(row -> row.matchedRuleNames().size() > 1).count();
+        elements.multipleMatchWarning().setText(multipleMatches == 0 ? ""
+                : I18n.get(selectedRuleOnly
+                ? "rules.review.single.multipleMatches" : "rules.review.multipleMatches", multipleMatches));
+        elements.multipleMatchWarning().setVisible(multipleMatches > 0);
+        elements.multipleMatchWarning().setManaged(multipleMatches > 0);
+    }
+
+    private void updatePreviewVisibility(boolean empty, PreviewElements elements) {
+        elements.emptyResult().setVisible(empty);
+        elements.emptyResult().setManaged(empty);
+        elements.table().setVisible(!empty);
+        elements.table().setManaged(!empty);
+    }
+
+    private void applySelectedChanges(RuleApplicationPreview preview,
+                                      Map<Long, BooleanProperty> selectionByTransactionId) {
+        List<TransactionRulePreview> selectedChanges = preview.transactionsWithChanges().stream()
+                .filter(row -> selectionByTransactionId.get(row.transactionId()).get())
+                .toList();
+        ruleService.applyReviewedRules(new RuleApplicationPreview(selectedChanges));
+    }
+
+    private <T> TableColumn<TransactionRulePreview, T> column(
+            String titleKey, Function<TransactionRulePreview, T> value, double width) {
+        TableColumn<TransactionRulePreview, T> column = new TableColumn<>(I18n.get(titleKey));
         column.setPrefWidth(width);
-        column.setCellValueFactory(cell -> new SimpleStringProperty(value.apply(cell.getValue())));
+        column.setCellValueFactory(cell -> new SimpleObjectProperty<>(value.apply(cell.getValue())));
         return column;
     }
 
@@ -215,10 +362,6 @@ final class RuleReviewDialog {
         return row.matchedRuleNames().size() > 1
                 ? I18n.get("rules.review.multipleRuleNames", row.matchedRuleNames().size(), names)
                 : names;
-    }
-
-    private String change(String current, String proposed) {
-        return current.equals(proposed) ? current : current + " → " + proposed;
     }
 
     private String display(String value) {
