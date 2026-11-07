@@ -8,6 +8,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ContextMenu;
+import javafx.scene.control.DialogPane;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TableColumn;
@@ -85,6 +86,8 @@ class RulesControllerTest extends AbstractUITest {
     @Test
     void applyingRulesShowsReviewAndCancelLeavesTransactionsUnchanged() {
         openReviewDialog();
+        DialogPane reviewDialogPane = lookup(".dialog-pane").query();
+        assertTrue(((Stage) reviewDialogPane.getScene().getWindow()).isResizable());
 
         CheckBox onlyFillMissing = lookup("#onlyFillMissingRules").query();
         assertTrue(onlyFillMissing.isSelected());
@@ -310,6 +313,8 @@ class RulesControllerTest extends AbstractUITest {
         interact(() -> ruleTable.getSelectionModel().select(selectedRule));
         Platform.runLater(() -> menuItem(row.getContextMenu(), I18n.get("button.edit")).fire());
         WaitForAsyncUtils.waitForFxEvents();
+        DialogPane editorDialogPane = lookup(".dialog-pane").query();
+        assertTrue(((Stage) editorDialogPane.getScene().getWindow()).isResizable());
         TextField nameField = lookup("#ruleNameField").query();
         String editedName = ruleName + " updated";
         interact(() -> nameField.setText(editedName));

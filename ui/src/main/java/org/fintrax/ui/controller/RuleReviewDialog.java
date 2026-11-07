@@ -68,6 +68,7 @@ final class RuleReviewDialog {
     void show() {
         Dialog<ButtonType> dialog = new Dialog<>();
         FintraxUI.configureDialog(dialog);
+        dialog.setResizable(true);
         dialog.setTitle(I18n.get("rules.review.title"));
         dialog.setHeaderText(I18n.get(selectedRuleOnly
                 ? "rules.review.single.header" : "rules.review.header"));
