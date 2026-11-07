@@ -22,7 +22,9 @@ import org.fintrax.ui.control.TableCellTooltips;
 import org.fintrax.ui.control.TableColumnConfig;
 import org.fintrax.ui.control.TableColumnVisibilityMenu;
 
+import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.time.format.FormatStyle;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
@@ -30,8 +32,6 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 final class RuleReviewDialog {
-    private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ISO_LOCAL_DATE;
-
     record Services(RuleService ruleService, AccountService accountService, CategoryService categoryService,
                     LabelService labelService, SettingsService settingsService) {}
 
@@ -71,9 +71,11 @@ final class RuleReviewDialog {
         TableView<TransactionRulePreview> table = new TableView<>();
         table.setId("ruleReviewTable");
         table.getStyleClass().add("dense");
+        DateTimeFormatter dateFormatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT)
+                .withLocale(I18n.getCurrentLocale());
         List<TableColumn<TransactionRulePreview, String>> columns = List.of(
-                column("rules.review.date", row -> row.bookingDate() == null
-                        ? "—" : row.bookingDate().format(DATE_FORMAT), 100),
+                column("col.bookingDate", row -> formatDate(row.bookingDate(), dateFormatter), 105),
+                column("col.valueDate", row -> formatDate(row.valueDate(), dateFormatter), 105),
                 column("rules.review.payee", TransactionRulePreview::payee, 180),
                 column("rules.review.amount", row -> row.amount() == null
                         ? "—" : String.format("%,.2f EUR", row.amount().doubleValue()), 110),
@@ -102,13 +104,14 @@ final class RuleReviewDialog {
         table.getColumns().add(menuColumn);
         TableColumnVisibilityMenu.install(table, columnMenuButton, "rules.review.columns", settingsService,
                 List.of(new TableColumnConfig("date", columns.get(0)),
-                        new TableColumnConfig("payee", columns.get(1)),
-                        new TableColumnConfig("amount", columns.get(2)),
-                        new TableColumnConfig("account", columns.get(3)),
-                        new TableColumnConfig("category", columns.get(4)),
-                        new TableColumnConfig("labels", columns.get(5)),
-                        new TableColumnConfig("note", columns.get(6)),
-                        new TableColumnConfig("matchedRules", columns.get(7))));
+                        new TableColumnConfig("valueDate", columns.get(1)),
+                        new TableColumnConfig("payee", columns.get(2)),
+                        new TableColumnConfig("amount", columns.get(3)),
+                        new TableColumnConfig("account", columns.get(4)),
+                        new TableColumnConfig("category", columns.get(5)),
+                        new TableColumnConfig("labels", columns.get(6)),
+                        new TableColumnConfig("note", columns.get(7)),
+                        new TableColumnConfig("matchedRules", columns.get(8))));
         TableCellTooltips.install(table);
 
         Label summary = new Label();
@@ -180,6 +183,10 @@ final class RuleReviewDialog {
         column.setPrefWidth(width);
         column.setCellValueFactory(cell -> new SimpleStringProperty(value.apply(cell.getValue())));
         return column;
+    }
+
+    private String formatDate(LocalDate date, DateTimeFormatter dateFormatter) {
+        return date == null ? "—" : date.format(dateFormatter);
     }
 
     private String accountName(TransactionRulePreview row) {

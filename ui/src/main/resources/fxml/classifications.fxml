@@ -30,7 +30,9 @@
                 <fx:include fx:id="transactionFilterPanel" source="transactionFilterPanel.fxml"/>
                 <TableView fx:id="classificationTransactionsTable" styleClass="dense" VBox.vgrow="ALWAYS">
                     <columns>
-                        <TableColumn fx:id="transactionDateColumn" text="%col.date" minWidth="105" prefWidth="105"
+                        <TableColumn fx:id="transactionDateColumn" text="%col.bookingDate" minWidth="105" prefWidth="105"
+                                     maxWidth="105" resizable="false" sortable="true"/>
+                        <TableColumn text="%col.valueDate" minWidth="105" prefWidth="105"
                                      maxWidth="105" resizable="false" sortable="true"/>
                         <TableColumn fx:id="transactionPayeeColumn" text="%col.payee" minWidth="85" prefWidth="115" sortable="true"/>
                         <TableColumn fx:id="transactionAccountColumn" text="%col.account" minWidth="90" prefWidth="120" sortable="true"/>

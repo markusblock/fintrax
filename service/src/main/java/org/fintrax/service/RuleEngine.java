@@ -130,7 +130,8 @@ public class RuleEngine {
         Set<Long> currentLabels = transaction.getLabelIds() == null
                 ? Set.of() : new HashSet<>(transaction.getLabelIds());
         if (matchedRules.isEmpty()) {
-            return new TransactionRulePreview(transaction.getId(), transaction.getBookingDate(), payee(transaction),
+            return new TransactionRulePreview(transaction.getId(), transaction.getBookingDate(),
+                    transaction.getValueDate(), payee(transaction),
                     transaction.getAmount(), transaction.getAccountId(), transaction.getCategoryId(),
                     transaction.getCategoryId(), currentLabels, currentLabels,
                     transaction.getNote(), transaction.getNote(), List.of());
@@ -156,7 +157,8 @@ public class RuleEngine {
                 .filter(Objects::nonNull)
                 .forEach(proposedLabels::add);
 
-        return new TransactionRulePreview(transaction.getId(), transaction.getBookingDate(), payee(transaction),
+        return new TransactionRulePreview(transaction.getId(), transaction.getBookingDate(),
+                transaction.getValueDate(), payee(transaction),
                 transaction.getAmount(), transaction.getAccountId(), transaction.getCategoryId(),
                 assignedCategoryId, currentLabels, proposedLabels, transaction.getNote(), proposedNote,
                 matchedRules.stream().map(Rule::getName).toList());
