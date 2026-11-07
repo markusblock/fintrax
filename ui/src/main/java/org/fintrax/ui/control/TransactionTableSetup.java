@@ -52,7 +52,7 @@ public final class TransactionTableSetup {
     }
 
     public void configure() {
-        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
+        TableViewResizePolicy.fitColumnsAndAllowHorizontalScrolling(table);
         setupDateColumn(dateColumn());
         payeeColumn().setCellValueFactory(cell -> new SimpleStringProperty(
                 Objects.toString(cell.getValue().getPayeeDisplay() != null
