@@ -27,6 +27,7 @@ import org.fintrax.ui.control.SingleLineText;
 import org.fintrax.ui.control.TableCellTooltips;
 import org.fintrax.ui.control.TableColumnConfig;
 import org.fintrax.ui.control.TableColumnVisibilityMenu;
+import org.fintrax.ui.control.TableViewResizePolicy;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
@@ -172,7 +173,7 @@ public class TransactionsController {
     }
 
     private void setupTableColumns() {
-        transactionTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
+        TableViewResizePolicy.fitColumnsAndAllowHorizontalScrolling(transactionTable);
         dateColumn.setCellValueFactory(cd -> new SimpleObjectProperty<>(cd.getValue().getBookingDate()));
         DateTimeFormatter dateFormatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT)
                 .withLocale(I18n.getCurrentLocale());

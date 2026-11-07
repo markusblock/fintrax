@@ -15,6 +15,7 @@ import org.fintrax.store.StoreManager;
 import org.fintrax.ui.control.TableCellTooltips;
 import org.fintrax.ui.control.TableColumnConfig;
 import org.fintrax.ui.control.TableColumnVisibilityMenu;
+import org.fintrax.ui.control.TableViewResizePolicy;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
@@ -63,7 +64,7 @@ public class ActivityLogController {
     public void initialize() {
         log.info("ActivityLogController initialized");
 
-        logTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
+        TableViewResizePolicy.fitColumnsAndAllowHorizontalScrolling(logTable);
         timestampColumn.setCellValueFactory(cd -> new SimpleObjectProperty<>(cd.getValue().getTimestamp()));
         timestampColumn.setCellFactory(col -> new TableCell<>() {
             @Override
