@@ -14,6 +14,7 @@ import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.SelectionMode;
+import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableColumnBase;
 import javafx.scene.control.TableRow;
@@ -417,12 +418,16 @@ class RulesControllerTest extends AbstractUITest {
         assertTrue(lookup("#ruleActionsSummary").queryLabeled().getText().contains(proposedCategory.getName()));
         TableView<Transaction> transactions = lookup("#ruleTransactionsTable").query();
         assertEquals(List.of(transaction.getId()), transactions.getItems().stream().map(Transaction::getId).toList());
-        assertEquals(formatDate(transaction.getBookingDate()), transactions.getColumns().stream()
+        TableColumn<?, ?> bookingDateColumn = transactions.getColumns().stream()
                 .filter(column -> I18n.get("col.bookingDate").equals(column.getText()))
-                .findFirst().orElseThrow().getCellData(transaction));
-        assertEquals(formatDate(transaction.getValueDate()), transactions.getColumns().stream()
+                .findFirst().orElseThrow();
+        TableColumn<?, ?> valueDateColumn = transactions.getColumns().stream()
                 .filter(column -> I18n.get("col.valueDate").equals(column.getText()))
-                .findFirst().orElseThrow().getCellData(transaction));
+                .findFirst().orElseThrow();
+        assertEquals(formatDate(transaction.getBookingDate()),
+                cellForTransaction(transactions, bookingDateColumn, transaction).getText());
+        assertEquals(formatDate(transaction.getValueDate()),
+                cellForTransaction(transactions, valueDateColumn, transaction).getText());
 
         TextField search = lookup("#searchField").query();
         interact(() -> search.setText("not a matching payee"));
@@ -465,6 +470,18 @@ class RulesControllerTest extends AbstractUITest {
     private String formatDate(LocalDate date) {
         return date.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT)
                 .withLocale(I18n.getCurrentLocale()));
+    }
+
+    private TableCell<?, ?> cellForTransaction(TableView<Transaction> table, TableColumn<?, ?> column,
+                                               Transaction transaction) {
+        return table.lookupAll(".table-cell").stream()
+                .filter(TableCell.class::isInstance)
+                .map(node -> (TableCell<?, ?>) node)
+                .filter(cell -> !cell.isEmpty() && cell.getTableColumn() == column
+                        && cell.getTableRow() != null && cell.getTableRow().getItem() instanceof Transaction row
+                        && transaction.getId().equals(row.getId()))
+                .findFirst()
+                .orElseThrow();
     }
 
     private TableRow<?> reviewRowFor(TableView<TransactionRulePreview> table, Long transactionId) {

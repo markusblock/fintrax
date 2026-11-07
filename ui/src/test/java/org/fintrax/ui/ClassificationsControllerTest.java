@@ -1,7 +1,6 @@
 package org.fintrax.ui;
 
 import javafx.application.Platform;
-import javafx.geometry.Orientation;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
@@ -11,7 +10,6 @@ import javafx.scene.control.ContextMenu;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SelectionMode;
-import javafx.scene.control.ScrollBar;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
@@ -444,6 +442,9 @@ class ClassificationsControllerTest extends AbstractUITest {
     void classificationTransactionColumnsCanBeShownAndHidden() throws Exception {
         MenuButton columnMenu = lookup("#columnMenuButton").query();
         TableView<Transaction> table = lookup("#classificationTransactionsTable").query();
+        Stage stage = (Stage) table.getScene().getWindow();
+        double originalWindowWidth = stage.getWidth();
+        interact(() -> stage.setWidth(Math.max(originalWindowWidth, 1280)));
         WaitForAsyncUtils.waitForFxEvents();
 
         assertSame(columnMenu, table.getColumns().getLast().getGraphic());
@@ -451,13 +452,8 @@ class ClassificationsControllerTest extends AbstractUITest {
                 .filter(TableColumn::isVisible)
                 .mapToDouble(TableColumn::getWidth)
                 .sum();
-        boolean horizontalScrollBarVisible = table.lookupAll(".scroll-bar").stream()
-                .filter(ScrollBar.class::isInstance)
-                .map(ScrollBar.class::cast)
-                .anyMatch(scrollBar -> scrollBar.getOrientation() == Orientation.HORIZONTAL
-                        && scrollBar.isVisible());
-        assertTrue(totalVisibleColumnWidth <= table.getWidth() + 1 || horizontalScrollBarVisible,
-                "all transaction columns should fit or allow horizontal scrolling");
+        assertTrue(totalVisibleColumnWidth <= table.getWidth() + 1,
+                "all transaction columns should fit in the widened test window");
         List<CheckMenuItem> columnItems = columnMenu.getItems().stream()
                 .filter(CheckMenuItem.class::isInstance)
                 .map(CheckMenuItem.class::cast)
@@ -469,7 +465,6 @@ class ClassificationsControllerTest extends AbstractUITest {
         assertEquals(I18n.get("button.columns.reset"), columnMenu.getItems().getLast().getText());
 
         var initialColumnOrder = List.copyOf(table.getColumns());
-        Stage stage = (Stage) table.getScene().getWindow();
         Parent originalRoot = table.getScene().getRoot();
         CheckMenuItem purposeItem = columnItems.stream()
                 .filter(item -> I18n.get("col.purpose").equals(item.getText()))
@@ -517,6 +512,7 @@ class ClassificationsControllerTest extends AbstractUITest {
                 purposeItem.setSelected(true);
                 table.getColumns().setAll(initialColumnOrder);
                 stage.getScene().setRoot(originalRoot);
+                stage.setWidth(originalWindowWidth);
             });
         }
     }
