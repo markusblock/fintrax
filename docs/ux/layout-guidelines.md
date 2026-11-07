@@ -1,10 +1,11 @@
 # Layout guidelines
 
-Use these rules for new screens, panels, dialogs, popups, and actions. Keep layouts clear, resizable, and consistent across light and dark themes.
+Use these rules for application views, panels, dialogs, popups, and actions. Keep layouts clear, resizable, and consistent across light and dark themes.
 
 ## Structure
 
-- Screen: header, primary work area, optional persistent footer. Keep one primary task per screen.
+- Application: place primary navigation in a collapsible menu on the left and the active view on the right. In the expanded state, show each navigation item with an icon and text; in the collapsed state, show icons only. Keep icon-only items accessible with names and tooltips where useful. Let the view use the remaining space.
+- View: the right-side content area of the application window. Structure each view with a header, primary work area, and optional persistent footer. Keep one primary task per view.
 - Header: title, optional short context, actions aligned at the trailing edge.
 - Panel: optional heading and actions, content, optional footer. Use panels to group related tasks; avoid decorative nesting.
 - Place secondary details in a supporting or collapsible area. Keep fixed headers and footers outside scrolling content.
@@ -23,14 +24,14 @@ Use a 4 px base. Choose from this scale; do not add one-off values.
 | 12 px | Form rows and grouped controls |
 | 16 px | Sections within a panel |
 | 20 px | Panel inset |
-| 24 px | Screen inset |
+| 24 px | View inset |
 | 40 px | Empty-state breathing room |
 
 ### Type and surfaces
 
-- Type sizes: 12 px supporting text, 13 px body, 16 px section heading, 24 px screen title. Use weight and size for hierarchy; keep essential instructions at body size or larger.
+- Type sizes: 12 px supporting text, 13 px body, 16 px section heading, 24 px view title. Use weight and size for hierarchy; keep essential instructions at body size or larger.
 - Corner radii: 4 px for compact controls, 8 px for panels, full rounding only for badges/chips. Use thin borders to define surfaces; reserve soft shadows for raised surfaces.
-- Surface roles: default for the screen, subtle for panels, default for controls. Text roles: default, muted, emphasis. Keep muted text for secondary content.
+- Surface roles: default for the view, subtle for panels, default for controls. Text roles: default, muted, emphasis. Keep muted text for secondary content.
 
 ### Color roles
 
@@ -38,7 +39,7 @@ Use semantic theme colors, never fixed colors for interface meaning.
 
 | Role | Use |
 | --- | --- |
-| Default / subtle surface | Screen / grouped panel backgrounds |
+| Default / subtle surface | View / grouped panel backgrounds |
 | Default / muted / emphasis text | Main content / secondary copy / titles and primary values |
 | Default border | Panel edges, separators, control boundaries |
 | Accent emphasis / subtle / muted | Primary action / selected state / hover or divider emphasis |
@@ -50,7 +51,7 @@ Use subtle status fills with matching status text. Pair status colors with text 
 
 ## Component rules
 
-### Screens and panels
+### Views and panels
 
 - Let the primary work area take remaining space. Keep header and footer content stable while the body grows or scrolls.
 - Use side-by-side panels only when both are useful together. At constrained widths, collapse secondary content before shrinking primary controls or labels.
@@ -67,7 +68,7 @@ Use subtle status fills with matching status text. Pair status colors with text 
 - Use a dialog for a focused decision, form, or review. Use an anchored popup for a short action on its source item; use a tooltip only for supplemental help.
 - Size dialogs by content: compact prompts/pickers target 420 px wide (350 px minimum); forms target 560 px; wide reviews use available width. Cap all widths at viewport minus 48 px.
 - Limit dialog height to viewport minus 48 px. Keep title and actions visible; scroll the body when content exceeds the limit. Allow resizing for substantial content.
-- Keep the dialog connected to the screen that opened it. Block the task only when a decision is required before continuing.
+- Keep the dialog connected to the view that opened it. Block the task only when a decision is required before continuing.
 - Order content as title/context, task controls, then actions. Put cancel/secondary actions before the primary action; keep destructive actions separate.
 - Start focus at the first useful control. Enter must not trigger an unsafe action; Escape cancels only when safe. Return focus to the opener on close.
 
