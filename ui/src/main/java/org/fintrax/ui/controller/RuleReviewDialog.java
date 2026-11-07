@@ -179,7 +179,12 @@ final class RuleReviewDialog {
         content.getStyleClass().add("dialog-content");
         content.setMinWidth(1100);
         content.setPrefHeight(420);
-        dialog.getDialogPane().setContent(content);
+        ScrollPane contentScrollPane = new ScrollPane(content);
+        contentScrollPane.setFitToWidth(true);
+        contentScrollPane.setMinHeight(0);
+        contentScrollPane.setMinViewportHeight(0);
+        contentScrollPane.setPrefViewportHeight(420);
+        dialog.getDialogPane().setContent(contentScrollPane);
 
         dialog.setResultConverter(button -> button == applyButtonType ? applyButtonType : null);
 

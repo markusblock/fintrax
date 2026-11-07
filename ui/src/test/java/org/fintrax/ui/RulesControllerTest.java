@@ -1,9 +1,10 @@
 package org.fintrax.ui;
 
-import javafx.beans.property.BooleanProperty;
-import javafx.scene.Scene;
-import javafx.scene.Parent;
 import javafx.application.Platform;
+import javafx.beans.property.BooleanProperty;
+import javafx.geometry.Bounds;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.CheckMenuItem;
@@ -11,6 +12,7 @@ import javafx.scene.control.ContextMenu;
 import javafx.scene.control.DialogPane;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableColumnBase;
 import javafx.scene.control.TableRow;
@@ -154,6 +156,30 @@ class RulesControllerTest extends AbstractUITest {
                 .getTransaction(transaction.getId()).orElseThrow();
         assertNotEquals(proposedCategory.getId(), unchanged.getCategoryId());
         assertEquals("Current note", unchanged.getNote());
+    }
+
+    @Test
+    void resizingReviewKeepsApplyAndCancelButtonsVisible() {
+        openReviewDialog();
+        DialogPane dialogPane = lookup(".dialog-pane").query();
+        assertInstanceOf(ScrollPane.class, dialogPane.getContent());
+        Stage dialogStage = (Stage) dialogPane.getScene().getWindow();
+        double initialHeight = dialogStage.getHeight();
+        Button applyButton = lookup("#applyReviewedRulesButton").query();
+        Button cancelButton = lookup("#cancelRuleReviewButton").query();
+
+        interact(() -> dialogStage.setHeight(420));
+        WaitForAsyncUtils.waitForFxEvents();
+
+        assertTrue(dialogStage.getHeight() < initialHeight);
+        Bounds dialogBounds = dialogPane.localToScene(dialogPane.getBoundsInLocal());
+        for (Button actionButton : List.of(applyButton, cancelButton)) {
+            Bounds actionBounds = actionButton.localToScene(actionButton.getBoundsInLocal());
+            assertTrue(actionButton.isVisible());
+            assertTrue(actionBounds.getMinY() >= dialogBounds.getMinY());
+            assertTrue(actionBounds.getMaxY() <= dialogBounds.getMaxY());
+        }
+        interact(cancelButton::fire);
     }
 
     @Test
