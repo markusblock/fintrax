@@ -238,6 +238,8 @@ class TransactionsControllerTest extends AbstractUITest {
         String expectedValueDate = DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT)
                 .withLocale(I18n.getCurrentLocale())
                 .format(transaction.getValueDate());
+        interact(() -> table.scrollTo(table.getItems().indexOf(transaction)));
+        WaitForAsyncUtils.waitForFxEvents();
 
         assertEquals(expectedDate, transactionCell(table, bookingDateColumn, transaction).getText());
         assertEquals(expectedValueDate, transactionCell(table, valueDateColumn, transaction).getText());
