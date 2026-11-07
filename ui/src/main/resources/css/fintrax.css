@@ -283,6 +283,13 @@
     -fx-background-color: -color-danger-subtle;
 }
 
+.account-action-button {
+    -fx-padding: 5;
+    -fx-min-width: 30;
+    -fx-min-height: 30;
+    -fx-alignment: CENTER;
+}
+
 .accent-button {
     -fx-background-color: -color-accent-emphasis;
     -fx-text-fill: -color-fg-emphasis;

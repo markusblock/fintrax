@@ -34,6 +34,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -84,6 +85,22 @@ class BankAccountsControllerTest extends AbstractUITest {
             Label holderLabel = lookup(".account-holder").query();
             assertEquals(Color.web("#8b949e"), holderLabel.getTextFill());
         });
+    }
+
+    @Test
+    void accountActionButtonsShowOnlyIconsAndRemainAccessible() {
+        List<Button> actionButtons = List.of(
+                lookup(".sync-button").query(),
+                lookup("#editAccountButton-" + account.getId()).query(),
+                lookup(".delete-button").query());
+
+        for (Button button : actionButtons) {
+            assertTrue(button.getText().isBlank());
+            assertNotNull(button.getGraphic());
+            assertNotNull(button.getTooltip());
+            assertFalse(button.getAccessibleText().isBlank());
+            assertEquals(button.getAccessibleText(), button.getTooltip().getText());
+        }
     }
 
     @Test
