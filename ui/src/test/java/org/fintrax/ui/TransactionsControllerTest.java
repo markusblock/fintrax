@@ -245,6 +245,44 @@ class TransactionsControllerTest extends AbstractUITest {
         assertEquals(expectedValueDate, transactionCell(table, valueDateColumn, transaction).getText());
     }
 
+    @Test
+    void doubleClickingTransactionDataCellOpensDetailsForThatTransaction() throws TimeoutException {
+        TableView<Transaction> table = lookup("#transactionTable").query();
+        int rowIndex = table.getItems().indexOf(testCategoryTransaction);
+        scrollToRow(table, rowIndex);
+        TableColumn<?, ?> payeeColumn = table.getColumns().stream()
+                .filter(column -> I18n.get("col.payee").equals(column.getText()))
+                .findFirst()
+                .orElseThrow();
+        TableCell<?, ?> payeeCell = transactionCell(table, payeeColumn, testCategoryTransaction);
+
+        assertFalse(lookup("#detailPanel").query().isVisible());
+        doubleClickOn(payeeCell);
+
+        assertTrue(lookup("#detailPanel").query().isVisible());
+        assertEquals("Display popup test", detailText("#payeeValue"));
+    }
+
+    @Test
+    void doubleClickingCategoryOrLabelCellsKeepsAssignmentDialogs() throws TimeoutException {
+        TableView<Transaction> table = lookup("#transactionTable").query();
+        int rowIndex = table.getItems().indexOf(testCategoryTransaction);
+        scrollToRow(table, rowIndex);
+
+        for (String columnKey : List.of("col.category", "col.labels")) {
+            TableColumn<?, ?> column = table.getColumns().stream()
+                    .filter(candidate -> I18n.get(columnKey).equals(candidate.getText()))
+                    .findFirst()
+                    .orElseThrow();
+            TableCell<?, ?> cell = transactionCell(table, column, testCategoryTransaction);
+
+            doubleClickOn(cell);
+            waitForPicker();
+            assertFalse(lookup("#detailPanel").query().isVisible());
+            interact(lookup("#pickerCancel").<Button>query()::fire);
+        }
+    }
+
     private TableCell<?, ?> transactionCell(TableView<Transaction> table, TableColumn<?, ?> column,
                                             Transaction transaction) {
         return table.lookupAll(".table-cell").stream()

@@ -8,6 +8,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.control.Label;
 import javafx.scene.control.*;
 import javafx.scene.input.MouseEvent;
@@ -165,6 +166,7 @@ public class TransactionsController {
                 clearDetail();
             }
         });
+        transactionTable.addEventFilter(MouseEvent.MOUSE_CLICKED, this::openDetailsOnDoubleClick);
         splitPane.heightProperty().addListener((observable, oldHeight, newHeight) -> {
             if (detailVisible) Platform.runLater(this::sizeDetailPanelToContent);
         });
@@ -306,6 +308,30 @@ public class TransactionsController {
         });
     }
 
+    private void openDetailsOnDoubleClick(MouseEvent event) {
+        if (event.getClickCount() != 2 || !(event.getTarget() instanceof Node target)) return;
+
+        TableCell<?, ?> clickedCell = findTableCell(target);
+        if (clickedCell == null || clickedCell.isEmpty()) return;
+        TableColumn<?, ?> clickedColumn = clickedCell.getTableColumn();
+        if (clickedColumn == null || clickedColumn == categoryColumn || clickedColumn == labelsColumn
+                || clickedColumn.getGraphic() instanceof MenuButton) {
+            return;
+        }
+
+        int rowIndex = clickedCell.getIndex();
+        if (rowIndex < 0 || rowIndex >= transactionTable.getItems().size()) return;
+        transactionTable.getSelectionModel().clearAndSelect(rowIndex);
+        setDetailVisible(true);
+    }
+
+    private TableCell<?, ?> findTableCell(Node target) {
+        for (Node current = target; current != null; current = current.getParent()) {
+            if (current instanceof TableCell<?, ?> cell) return cell;
+        }
+        return null;
+    }
+
     private void loadTransactions() {
         Optional<TransactionFilter> criteria = transactionFilterPanelController.getCriteria();
         if (criteria.isEmpty()) return;
@@ -332,7 +358,11 @@ public class TransactionsController {
 
     @FXML
     private void onToggleDetail() {
-        detailVisible = !detailVisible;
+        setDetailVisible(!detailVisible);
+    }
+
+    private void setDetailVisible(boolean visible) {
+        detailVisible = visible;
         detailPanel.setVisible(detailVisible);
         detailPanel.setManaged(detailVisible);
         if (detailVisible) {
