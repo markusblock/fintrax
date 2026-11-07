@@ -57,6 +57,11 @@ Use subtle status fills with matching status text. Pair status colors with text 
 - Add scrolling only to content that can exceed its region. Prefer vertical scrolling; wrap text before requiring horizontal scrolling.
 - Tables: protect essential columns, let descriptive columns grow, and provide column hiding or a way to inspect truncated values.
 
+### Search and filters
+
+- Every search field and filter group offers a clear/reset action. Clearing search restores all results; resetting filters returns controls to defaults and removes filtering.
+- Keep reset actions near their controls. Give icon-only reset actions an accessible name.
+
 ### Dialogs and popups
 
 - Use a dialog for a focused decision, form, or review. Use an anchored popup for a short action on its source item; use a tooltip only for supplemental help.

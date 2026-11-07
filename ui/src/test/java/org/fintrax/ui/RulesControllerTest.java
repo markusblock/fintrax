@@ -32,6 +32,7 @@ import org.testfx.util.WaitForAsyncUtils;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Locale;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -236,6 +237,36 @@ class RulesControllerTest extends AbstractUITest {
                         I18n.get("button.moveDown"), I18n.get("button.applyAll")),
                 lookup(".view-header .button").queryAll().stream()
                         .map(node -> ((Button) node).getText()).toList());
+    }
+
+    @Test
+    void rulesTableDefaultsToPrioritySortAndCanSortAndSearchByName() {
+        TableView<Rule> ruleTable = lookup("#ruleTable").query();
+        int totalRuleCount = ruleTable.getItems().size();
+        Button clearSearchButton = lookup("#ruleSearchClearButton").query();
+
+        assertEquals(ruleTable.getColumns().getFirst(), ruleTable.getSortOrder().getFirst());
+        assertTrue(ruleTable.getColumns().stream().allMatch(TableColumnBase::isSortable));
+        assertFalse(clearSearchButton.isVisible());
+        assertEquals(ruleTable.getItems().stream().map(Rule::getPriority).sorted().toList(),
+                ruleTable.getItems().stream().map(Rule::getPriority).toList());
+
+        interact(() -> {
+            ruleTable.getSortOrder().setAll(ruleTable.getColumns().get(1));
+            ruleTable.sort();
+        });
+        List<String> displayedNames = ruleTable.getItems().stream().map(Rule::getName).toList();
+        assertEquals(displayedNames.stream().sorted(String.CASE_INSENSITIVE_ORDER).toList(), displayedNames);
+
+        TextField searchField = lookup("#ruleSearchField").query();
+        interact(() -> searchField.setText(disabledRuleName.toUpperCase(Locale.ROOT)));
+        assertTrue(clearSearchButton.isVisible());
+        assertEquals(List.of(disabledRuleName), ruleTable.getItems().stream().map(Rule::getName).toList());
+
+        interact(clearSearchButton::fire);
+        assertEquals("", searchField.getText());
+        assertEquals(totalRuleCount, ruleTable.getItems().size());
+        assertFalse(clearSearchButton.isVisible());
     }
 
     @Test
