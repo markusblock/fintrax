@@ -161,13 +161,12 @@ class TransactionsControllerTest extends AbstractUITest {
     }
 
     @Test
-    void transactionTableShowsHorizontalScrollbarWhenColumnsDoNotFit() {
+    void transactionTableShowsHorizontalScrollbarWhenColumnsDoNotFit() throws TimeoutException {
         TableView<?> table = lookup("#transactionTable").query();
         double originalWindowWidth = table.getScene().getWindow().getWidth();
 
         try {
             interact(() -> table.getScene().getWindow().setWidth(640));
-            WaitForAsyncUtils.waitForFxEvents();
 
             ScrollBar horizontalScrollBar = table.lookupAll(".scroll-bar").stream()
                     .filter(ScrollBar.class::isInstance)
@@ -175,6 +174,7 @@ class TransactionsControllerTest extends AbstractUITest {
                     .filter(scrollBar -> scrollBar.getOrientation() == Orientation.HORIZONTAL)
                     .findFirst()
                     .orElseThrow();
+            WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS, horizontalScrollBar::isVisible);
             assertTrue(horizontalScrollBar.isVisible());
         } finally {
             interact(() -> table.getScene().getWindow().setWidth(originalWindowWidth));
