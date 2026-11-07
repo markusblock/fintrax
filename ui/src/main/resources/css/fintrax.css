@@ -283,6 +283,13 @@
     -fx-background-color: -color-danger-subtle;
 }
 
+.account-action-button {
+    -fx-padding: 5;
+    -fx-min-width: 30;
+    -fx-min-height: 30;
+    -fx-alignment: CENTER;
+}
+
 .accent-button {
     -fx-background-color: -color-accent-emphasis;
     -fx-text-fill: -color-fg-emphasis;
@@ -638,6 +645,17 @@
 .dialog-subtitle {
     -fx-font-size: 12px;
     -fx-text-fill: -color-fg-muted;
+}
+
+.read-only-field {
+    -fx-background-color: -color-bg-subtle;
+    -fx-text-fill: -color-fg-muted;
+}
+
+.account-edit-metadata {
+    -fx-padding: 10 12;
+    -fx-background-color: -color-bg-subtle;
+    -fx-background-radius: 6;
 }
 
 .rule-condition-row,

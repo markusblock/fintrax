@@ -4,8 +4,11 @@ import javafx.application.Platform;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TableView;
+import javafx.scene.control.TextArea;
+import javafx.scene.control.TextField;
 import javafx.scene.layout.BackgroundFill;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
@@ -25,10 +28,13 @@ import org.testfx.util.WaitForAsyncUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -79,6 +85,62 @@ class BankAccountsControllerTest extends AbstractUITest {
             Label holderLabel = lookup(".account-holder").query();
             assertEquals(Color.web("#8b949e"), holderLabel.getTextFill());
         });
+    }
+
+    @Test
+    void accountActionButtonsShowOnlyIconsAndRemainAccessible() {
+        List<Button> actionButtons = List.of(
+                lookup(".sync-button").query(),
+                lookup("#editAccountButton-" + account.getId()).query(),
+                lookup(".delete-button").query());
+
+        for (Button button : actionButtons) {
+            assertTrue(button.getText().isBlank());
+            assertNotNull(button.getGraphic());
+            assertNotNull(button.getTooltip());
+            assertFalse(button.getAccessibleText().isBlank());
+            assertEquals(button.getAccessibleText(), button.getTooltip().getText());
+        }
+    }
+
+    @Test
+    void editingAccountUpdatesDetailsAndPreservesIdentityAndImportedState() {
+        AccountService accountService = applicationContext.getBean(AccountService.class);
+        LocalDateTime balanceDate = LocalDateTime.of(2025, 1, 2, 3, 4);
+        LocalDateTime syncDate = LocalDateTime.of(2025, 2, 3, 4, 5);
+        accountService.updateBalance(account.getId(), new BigDecimal("42.50"), balanceDate);
+        accountService.updateLastSync(account.getId(), syncDate);
+        LocalDateTime createdAt = account.getCreatedAt();
+
+        clickOn("#editAccountButton-" + account.getId());
+
+        TextField ibanField = lookup("#ibanField").query();
+        TextField currencyField = lookup("#currencyField").query();
+        assertFalse(ibanField.isEditable());
+        assertFalse(currencyField.isEditable());
+        interact(() -> {
+            lookup("#bankNameField").<TextField>query().setText("Updated Bank");
+            lookup("#bicField").<TextField>query().setText("NEWBIC");
+            lookup("#accountHolderField").<TextField>query().setText("Updated holder");
+            lookup("#accountTypeCombo").<ComboBox<AccountType>>query().setValue(AccountType.SAVINGS);
+            lookup("#commentField").<TextArea>query().setText("Updated comment");
+        });
+        clickOn("#saveAccountButton");
+        WaitForAsyncUtils.waitForFxEvents();
+
+        BankAccount updated = accountService.getAccount(account.getId()).orElseThrow();
+        assertEquals("Updated Bank", updated.getBankName());
+        assertEquals("NEWBIC", updated.getBic());
+        assertEquals("Updated holder", updated.getAccountHolder());
+        assertEquals(AccountType.SAVINGS, updated.getAccountType());
+        assertEquals("Updated comment", updated.getComment());
+        assertEquals(account.getId(), updated.getId());
+        assertEquals("DE89370400440532013000", updated.getIban());
+        assertEquals("EUR", updated.getCurrency());
+        assertEquals(new BigDecimal("42.50"), updated.getBalance());
+        assertEquals(balanceDate, updated.getBalanceDate());
+        assertEquals(syncDate, updated.getLastSyncAt());
+        assertEquals(createdAt, updated.getCreatedAt());
     }
 
     @Test
