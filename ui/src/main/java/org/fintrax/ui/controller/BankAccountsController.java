@@ -44,6 +44,7 @@ import java.util.concurrent.Executors;
 @Scope("prototype")
 public class BankAccountsController {
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+    private static final String ACCOUNT_ACTION_BUTTON_STYLE_CLASS = "account-action-button";
 
     @FXML
     private BorderPane rootPane;
@@ -155,17 +156,29 @@ public class BankAccountsController {
         HBox buttonBox = new HBox(8);
         buttonBox.setAlignment(javafx.geometry.Pos.CENTER_RIGHT);
 
-        Button syncButton = new Button(I18n.get("button.sync"));
-        syncButton.getStyleClass().add("sync-button");
+        Button syncButton = new Button();
+        syncButton.getStyleClass().addAll("sync-button", ACCOUNT_ACTION_BUTTON_STYLE_CLASS);
         syncButton.setGraphic(icon("fth-refresh-cw", 14));
+        syncButton.setTooltip(new Tooltip(I18n.get("button.sync")));
+        syncButton.setAccessibleText(I18n.get("button.sync"));
         syncButton.setOnAction(e -> onSyncAccount(account.getId()));
 
-        Button deleteButton = new Button(I18n.get("button.delete"));
-        deleteButton.getStyleClass().add("delete-button");
+        Button editButton = new Button();
+        editButton.getStyleClass().addAll("button-outlined", ACCOUNT_ACTION_BUTTON_STYLE_CLASS);
+        editButton.setId("editAccountButton-" + account.getId());
+        editButton.setGraphic(icon("fth-edit-2", 14));
+        editButton.setTooltip(new Tooltip(I18n.get("button.edit")));
+        editButton.setAccessibleText(I18n.get("button.edit"));
+        editButton.setOnAction(e -> onEditAccount(account));
+
+        Button deleteButton = new Button();
+        deleteButton.getStyleClass().addAll("delete-button", ACCOUNT_ACTION_BUTTON_STYLE_CLASS);
         deleteButton.setGraphic(icon("fth-trash-2", 14));
+        deleteButton.setTooltip(new Tooltip(I18n.get("button.delete")));
+        deleteButton.setAccessibleText(I18n.get("button.delete"));
         deleteButton.setOnAction(e -> onDeleteAccount(account));
 
-        buttonBox.getChildren().addAll(syncButton, deleteButton);
+        buttonBox.getChildren().addAll(syncButton, editButton, deleteButton);
 
         card.getChildren().addAll(header, holderLabel, ibanLabel, balanceLabel, lastSyncLabel, buttonBox);
         return card;
@@ -200,6 +213,29 @@ public class BankAccountsController {
             loadAccounts();
         } catch (Exception e) {
             log.error("Failed to open add account dialog", e);
+            showError(I18n.get("error.dialog.open", e.getMessage()));
+        }
+    }
+
+    private void onEditAccount(BankAccount account) {
+        try {
+            Parent root = viewLoader.load("editAccountDialog");
+            EditAccountDialogController editController = (EditAccountDialogController) root.getProperties()
+                    .get(EditAccountDialogController.class.getName());
+            editController.setAccount(account);
+
+            Stage dialog = new Stage();
+            dialog.setTitle(I18n.get("dialog.editAccount.title"));
+            dialog.initModality(Modality.WINDOW_MODAL);
+            dialog.initOwner(rootPane.getScene().getWindow());
+            Scene dialogScene = new Scene(root, 500, 600);
+            FintraxUI.configureScene(dialogScene);
+            dialog.setScene(dialogScene);
+
+            dialog.showAndWait();
+            loadAccounts();
+        } catch (Exception e) {
+            log.error("Failed to open edit account dialog", e);
             showError(I18n.get("error.dialog.open", e.getMessage()));
         }
     }

@@ -62,6 +62,11 @@ An existing rule with the same payee condition, operator, pattern, and mapped ca
 **Pattern Match Mode**:
 The way a Category Rule evaluates its pattern: regex or contains matching.
 
+### Accounts
+
+**Fintrax Account Identity**:
+The stable identity of a Fintrax account: its internal account ID, associated with an IBAN when available. The IBAN identifies the bank account for sync and Hibiscus matching; it is not changed when editing account details.
+
 ### Account Import
 
 **Hibiscus Account**:
