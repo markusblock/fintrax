@@ -7,6 +7,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.CheckBoxTableCell;
+import javafx.scene.input.ContextMenuEvent;
 import javafx.scene.layout.VBox;
 import javafx.stage.Window;
 import org.kordamp.ikonli.javafx.FontIcon;
@@ -88,6 +89,7 @@ final class RuleReviewDialog {
         table.setId("ruleReviewTable");
         table.getStyleClass().add("dense");
         table.setEditable(true);
+        table.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
         List<TableColumn<TransactionRulePreview, ?>> columns = List.of(
                 column("rules.review.date", row -> row.bookingDate() == null
                         ? "—" : row.bookingDate().format(DATE_FORMAT), 100),
@@ -128,6 +130,7 @@ final class RuleReviewDialog {
                         new TableColumnConfig("matchingRuleCount", columns.get(8)),
                         new TableColumnConfig("matchedRules", columns.get(9))));
         Map<Long, BooleanProperty> selectionByTransactionId = new HashMap<>();
+        table.setRowFactory(view -> createReviewRow(view, selectionByTransactionId));
         TableColumn<TransactionRulePreview, Boolean> selectionColumn = new TableColumn<>();
         selectionColumn.setMinWidth(SELECTION_COLUMN_WIDTH);
         selectionColumn.setPrefWidth(SELECTION_COLUMN_WIDTH);
@@ -217,6 +220,52 @@ final class RuleReviewDialog {
         boolean selectRows = rows.stream()
                 .anyMatch(row -> !selectionByTransactionId.get(row.transactionId()).get());
         rows.forEach(row -> selectionByTransactionId.get(row.transactionId()).set(selectRows));
+    }
+
+    private TableRow<TransactionRulePreview> createReviewRow(
+            TableView<TransactionRulePreview> table,
+            Map<Long, BooleanProperty> selectionByTransactionId) {
+        TableRow<TransactionRulePreview> row = new TableRow<>();
+        row.setContextMenu(new ContextMenu(
+                selectionMenuItem("rules.review.selection.toggleSelection", table, row, selectionByTransactionId),
+                selectionMenuItem("rules.review.selection.select", table, row, selectionByTransactionId, true),
+                selectionMenuItem("rules.review.selection.deselect", table, row, selectionByTransactionId, false)));
+        row.addEventFilter(ContextMenuEvent.CONTEXT_MENU_REQUESTED, event -> {
+            if (row.isEmpty()) {
+                event.consume();
+            } else if (!row.isSelected()) {
+                table.getSelectionModel().clearAndSelect(row.getIndex());
+            }
+        });
+        return row;
+    }
+
+    private MenuItem selectionMenuItem(String titleKey, TableView<TransactionRulePreview> table,
+                                       TableRow<TransactionRulePreview> contextRow,
+                                       Map<Long, BooleanProperty> selectionByTransactionId) {
+        MenuItem item = new MenuItem(I18n.get(titleKey));
+        item.setOnAction(event -> contextMenuTargets(table, contextRow).forEach(row -> {
+            BooleanProperty selected = selectionByTransactionId.get(row.transactionId());
+            selected.set(!selected.get());
+        }));
+        return item;
+    }
+
+    private MenuItem selectionMenuItem(String titleKey, TableView<TransactionRulePreview> table,
+                                       TableRow<TransactionRulePreview> contextRow,
+                                       Map<Long, BooleanProperty> selectionByTransactionId,
+                                       boolean selected) {
+        MenuItem item = new MenuItem(I18n.get(titleKey));
+        item.setOnAction(event -> contextMenuTargets(table, contextRow).forEach(row ->
+                selectionByTransactionId.get(row.transactionId()).set(selected)));
+        return item;
+    }
+
+    private List<TransactionRulePreview> contextMenuTargets(TableView<TransactionRulePreview> table,
+                                                              TableRow<TransactionRulePreview> contextRow) {
+        return contextRow.isSelected()
+                ? List.copyOf(table.getSelectionModel().getSelectedItems())
+                : List.of(contextRow.getItem());
     }
 
     private void updatePreview(boolean onlyFillMissing,

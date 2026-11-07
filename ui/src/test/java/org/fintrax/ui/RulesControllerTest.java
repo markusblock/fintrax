@@ -13,6 +13,7 @@ import javafx.scene.control.DialogPane;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.control.SelectionMode;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableColumnBase;
 import javafx.scene.control.TableRow;
@@ -258,6 +259,54 @@ class RulesControllerTest extends AbstractUITest {
     }
 
     @Test
+    void reviewContextMenuActsOnSelectedRowsOrClickedRow() {
+        Transaction secondTransaction = applicationContext.getBean(TransactionService.class)
+                .createTransaction(Transaction.builder()
+                        .accountId(transaction.getAccountId())
+                        .originalPayee(transaction.getOriginalPayee())
+                        .amount(BigDecimal.ONE)
+                        .bookingDate(LocalDate.now())
+                        .valueDate(LocalDate.now())
+                        .categoryId(currentCategory.getId())
+                        .note("Second review note")
+                        .build());
+
+        openReviewDialog();
+        TableView<TransactionRulePreview> reviewTable = lookup("#ruleReviewTable").query();
+        assertEquals(SelectionMode.MULTIPLE, reviewTable.getSelectionModel().getSelectionMode());
+        BooleanProperty firstSelection = (BooleanProperty) reviewTable.getColumns().getFirst()
+                .getCellObservableValue(rowFor(reviewTable, transaction.getId()));
+        BooleanProperty secondSelection = (BooleanProperty) reviewTable.getColumns().getFirst()
+                .getCellObservableValue(rowFor(reviewTable, secondTransaction.getId()));
+        TableRow<?> firstRow = reviewRowFor(reviewTable, transaction.getId());
+        TableRow<?> secondRow = reviewRowFor(reviewTable, secondTransaction.getId());
+        ContextMenu contextMenu = firstRow.getContextMenu();
+
+        assertNotNull(contextMenu);
+        assertEquals(List.of(I18n.get("rules.review.selection.toggleSelection"),
+                        I18n.get("rules.review.selection.select"),
+                        I18n.get("rules.review.selection.deselect")), menuLabels(contextMenu));
+
+        interact(() -> reviewTable.getSelectionModel().selectIndices(firstRow.getIndex(), secondRow.getIndex()));
+        interact(menuItem(contextMenu, I18n.get("rules.review.selection.toggleSelection"))::fire);
+        assertFalse(firstSelection.get());
+        assertFalse(secondSelection.get());
+
+        interact(menuItem(contextMenu, I18n.get("rules.review.selection.select"))::fire);
+        assertTrue(firstSelection.get());
+        assertTrue(secondSelection.get());
+
+        interact(() -> {
+            firstSelection.set(false);
+            secondSelection.set(false);
+            reviewTable.getSelectionModel().clearAndSelect(firstRow.getIndex());
+        });
+        interact(menuItem(secondRow.getContextMenu(), I18n.get("rules.review.selection.select"))::fire);
+        assertFalse(firstSelection.get());
+        assertTrue(secondSelection.get());
+    }
+
+    @Test
     void rulesToolbarShowsActionsWithoutToggleButton() {
         assertEquals(List.of(I18n.get("button.addRule"), I18n.get("button.moveUp"),
                         I18n.get("button.moveDown"), I18n.get("button.applyAll")),
@@ -388,6 +437,15 @@ class RulesControllerTest extends AbstractUITest {
     private TransactionRulePreview rowFor(TableView<TransactionRulePreview> table, Long transactionId) {
         return table.getItems().stream()
                 .filter(row -> row.transactionId().equals(transactionId))
+                .findFirst().orElseThrow();
+    }
+
+    private TableRow<?> reviewRowFor(TableView<TransactionRulePreview> table, Long transactionId) {
+        return table.lookupAll(".table-row-cell").stream()
+                .filter(node -> node instanceof TableRow<?> row && !row.isEmpty()
+                        && row.getItem() instanceof TransactionRulePreview preview
+                        && preview.transactionId().equals(transactionId))
+                .map(node -> (TableRow<?>) node)
                 .findFirst().orElseThrow();
     }
 
