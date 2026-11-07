@@ -8,7 +8,6 @@ public final class TableViewResizePolicy {
     }
 
     public static <S> void fitColumnsAndAllowHorizontalScrolling(TableView<S> table) {
-        table.setColumnResizePolicy(features ->
-                TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN.call(features));
+        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN::call);
     }
 }
