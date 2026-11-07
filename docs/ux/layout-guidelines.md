@@ -56,7 +56,7 @@ Use subtle status fills with matching status text. Pair status colors with text 
 - Let the primary work area take remaining space. Keep header and footer content stable while the body grows or scrolls.
 - Use side-by-side panels only when both are useful together. At constrained widths, collapse secondary content before shrinking primary controls or labels.
 - Add scrolling only to content that can exceed its region. Prefer vertical scrolling; wrap text before requiring horizontal scrolling.
-- Tables: protect essential columns, let descriptive columns grow, and provide column hiding or a way to inspect truncated values.
+- Tables: give predictable, short-value columns (such as selection, date, and count) fixed widths; do not let them grow when the window widens. Let descriptive/text columns share the remaining space and expand with the window. Protect essential columns, and provide column hiding or a way to inspect truncated values.
 
 ### Search and filters
 
@@ -67,7 +67,7 @@ Use subtle status fills with matching status text. Pair status colors with text 
 
 - Use a dialog for a focused decision, form, or review. Use an anchored popup for a short action on its source item; use a tooltip only for supplemental help.
 - Size dialogs by content: compact prompts/pickers target 420 px wide (350 px minimum); forms target 560 px; wide reviews use available width. Cap all widths at viewport minus 48 px.
-- Limit dialog height to viewport minus 48 px. Keep title and actions visible; scroll the body when content exceeds the limit. Allow resizing for substantial content.
+- Limit dialog height to viewport minus 48 px. Keep title and actions visible; scroll the body when content exceeds the limit. Make advanced or dense dialogs (such as Apply Rules review) resizable.
 - Keep the dialog connected to the view that opened it. Block the task only when a decision is required before continuing.
 - Order content as title/context, task controls, then actions. Put cancel/secondary actions before the primary action; keep destructive actions separate.
 - Start focus at the first useful control. Enter must not trigger an unsafe action; Escape cancels only when safe. Return focus to the opener on close.
