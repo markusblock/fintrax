@@ -8,6 +8,7 @@ import java.util.Set;
 public record TransactionRulePreview(
         Long transactionId,
         LocalDate bookingDate,
+        LocalDate valueDate,
         String payee,
         BigDecimal amount,
         Long accountId,

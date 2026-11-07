@@ -26,7 +26,9 @@ import org.fintrax.ui.control.TableCellTooltips;
 import org.fintrax.ui.control.TableColumnConfig;
 import org.fintrax.ui.control.TableColumnVisibilityMenu;
 
+import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.time.format.FormatStyle;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -36,9 +38,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 final class RuleReviewDialog {
-    private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ISO_LOCAL_DATE;
     private static final double SELECTION_COLUMN_WIDTH = 36;
-
     record Services(RuleService ruleService, AccountService accountService, CategoryService categoryService,
                     LabelService labelService, SettingsService settingsService) {}
 
@@ -90,9 +90,11 @@ final class RuleReviewDialog {
         table.getStyleClass().add("dense");
         table.setEditable(true);
         table.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
+        DateTimeFormatter dateFormatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT)
+                .withLocale(I18n.getCurrentLocale());
         List<TableColumn<TransactionRulePreview, ?>> columns = List.of(
-                column("rules.review.date", row -> row.bookingDate() == null
-                        ? "—" : row.bookingDate().format(DATE_FORMAT), 100),
+                column("col.bookingDate", row -> formatDate(row.bookingDate(), dateFormatter), 105),
+                column("col.valueDate", row -> formatDate(row.valueDate(), dateFormatter), 105),
                 column("rules.review.payee", TransactionRulePreview::payee, 180),
                 column("rules.review.amount", row -> row.amount() == null
                         ? "—" : String.format("%,.2f EUR", row.amount().doubleValue()), 110),
@@ -120,15 +122,16 @@ final class RuleReviewDialog {
         table.getColumns().add(menuColumn);
         TableColumnVisibilityMenu.install(table, columnMenuButton, "rules.review.columns", settingsService,
                 List.of(new TableColumnConfig("date", columns.get(0)),
-                        new TableColumnConfig("payee", columns.get(1)),
-                        new TableColumnConfig("amount", columns.get(2)),
-                        new TableColumnConfig("account", columns.get(3)),
-                        new TableColumnConfig("currentCategory", columns.get(4)),
-                        new TableColumnConfig("categoryAfter", columns.get(5)),
-                        new TableColumnConfig("currentLabel", columns.get(6)),
-                        new TableColumnConfig("labelAfter", columns.get(7)),
-                        new TableColumnConfig("matchingRuleCount", columns.get(8)),
-                        new TableColumnConfig("matchedRules", columns.get(9))));
+                        new TableColumnConfig("valueDate", columns.get(1)),
+                        new TableColumnConfig("payee", columns.get(2)),
+                        new TableColumnConfig("amount", columns.get(3)),
+                        new TableColumnConfig("account", columns.get(4)),
+                        new TableColumnConfig("currentCategory", columns.get(5)),
+                        new TableColumnConfig("categoryAfter", columns.get(6)),
+                        new TableColumnConfig("currentLabel", columns.get(7)),
+                        new TableColumnConfig("labelAfter", columns.get(8)),
+                        new TableColumnConfig("matchingRuleCount", columns.get(9)),
+                        new TableColumnConfig("matchedRules", columns.get(10))));
         Map<Long, BooleanProperty> selectionByTransactionId = new HashMap<>();
         table.setRowFactory(view -> createReviewRow(view, selectionByTransactionId));
         TableColumn<TransactionRulePreview, Boolean> selectionColumn = new TableColumn<>();
@@ -327,6 +330,10 @@ final class RuleReviewDialog {
         column.setPrefWidth(width);
         column.setCellValueFactory(cell -> new SimpleObjectProperty<>(value.apply(cell.getValue())));
         return column;
+    }
+
+    private String formatDate(LocalDate date, DateTimeFormatter dateFormatter) {
+        return date == null ? "—" : date.format(dateFormatter);
     }
 
     private String accountName(TransactionRulePreview row) {

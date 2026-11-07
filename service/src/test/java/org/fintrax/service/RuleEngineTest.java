@@ -291,9 +291,11 @@ class RuleEngineTest {
                 RuleAction.builder().actionType(ActionType.ADD_LABEL).labelId(disabledLabel.getId()).build()));
         store.getRoot().getRules().addAll(List.of(firstRule, secondRule, disabledRule));
 
+        LocalDate bookingDate = LocalDate.of(2025, 2, 1);
+        LocalDate valueDate = bookingDate.plusDays(3);
         Transaction transaction = transactionService.createTransaction(Transaction.builder()
                 .accountId(account.getId()).originalPayee("SHOP purchase").amount(BigDecimal.ONE)
-                .bookingDate(LocalDate.now()).valueDate(LocalDate.now())
+                .bookingDate(bookingDate).valueDate(valueDate)
                 .categoryId(currentCategory.getId()).labelIds(new HashSet<>(Set.of(existingLabel.getId())))
                 .note("Existing note").build());
 
@@ -301,6 +303,8 @@ class RuleEngineTest {
 
         assertEquals(1, preview.matchingTransactions().size());
         TransactionRulePreview row = preview.matchingTransactions().get(0);
+        assertEquals(bookingDate, row.bookingDate());
+        assertEquals(valueDate, row.valueDate());
         assertEquals(currentCategory.getId(), row.proposedCategoryId());
         assertEquals(Set.of(existingLabel.getId(), firstLabel.getId(), secondLabel.getId()), row.proposedLabelIds());
         assertFalse(row.proposedLabelIds().contains(disabledLabel.getId()));

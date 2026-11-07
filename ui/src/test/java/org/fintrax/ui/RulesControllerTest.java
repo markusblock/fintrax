@@ -14,6 +14,7 @@ import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.SelectionMode;
+import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableColumnBase;
 import javafx.scene.control.TableRow;
@@ -34,6 +35,8 @@ import org.testfx.util.WaitForAsyncUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.FormatStyle;
 import java.util.List;
 import java.util.Locale;
 
@@ -79,7 +82,7 @@ class RulesControllerTest extends AbstractUITest {
         ruleService.toggleRule(disabledRule.getId());
         transaction = transactionService.createTransaction(Transaction.builder()
                 .accountId(account.getId()).originalPayee("REVIEW-" + suffix + " purchase").amount(BigDecimal.TEN)
-                .bookingDate(LocalDate.now()).valueDate(LocalDate.now())
+                .bookingDate(LocalDate.of(2025, 2, 1)).valueDate(LocalDate.of(2025, 2, 4))
                 .categoryId(currentCategory.getId()).note("Current note").build());
 
         Parent root = applicationContext.getBean(ViewLoader.class).load("rules");
@@ -98,13 +101,21 @@ class RulesControllerTest extends AbstractUITest {
         TableView<TransactionRulePreview> reviewTable = lookup("#ruleReviewTable").query();
         MenuButton reviewColumnMenu = lookup("#ruleReviewColumnMenuButton").query();
         assertSame(reviewColumnMenu, reviewTable.getColumns().getLast().getGraphic());
-        assertEquals(12, reviewColumnMenu.getItems().size());
+        assertEquals(13, reviewColumnMenu.getItems().size());
         assertEquals(I18n.get("button.columns.reset"), reviewColumnMenu.getItems().getLast().getText());
         assertTrue(reviewColumnMenu.getItems().stream()
                 .noneMatch(item -> "Note (current -> proposed)".equals(item.getText())));
         TransactionRulePreview initialRow = rowFor(reviewTable, transaction.getId());
         assertEquals(currentCategory.getId(), initialRow.proposedCategoryId());
         assertTrue(initialRow.proposedLabelIds().contains(proposedLabelId));
+        TableColumn<TransactionRulePreview, ?> bookingDateColumn = reviewTable.getColumns().stream()
+                .filter(column -> I18n.get("col.bookingDate").equals(column.getText()))
+                .findFirst().orElseThrow();
+        TableColumn<TransactionRulePreview, ?> valueDateColumn = reviewTable.getColumns().stream()
+                .filter(column -> I18n.get("col.valueDate").equals(column.getText()))
+                .findFirst().orElseThrow();
+        assertEquals(formatDate(transaction.getBookingDate()), bookingDateColumn.getCellData(initialRow));
+        assertEquals(formatDate(transaction.getValueDate()), valueDateColumn.getCellData(initialRow));
         assertEquals(currentCategory.getName(), reviewTable.getColumns().stream()
                 .filter(column -> column.getText().equals(I18n.get("rules.review.currentCategory")))
                 .findFirst().orElseThrow().getCellObservableValue(initialRow).getValue());
@@ -122,17 +133,23 @@ class RulesControllerTest extends AbstractUITest {
                 .findFirst().orElseThrow().getCellObservableValue(initialRow).getValue());
 
         var originalReviewColumnOrder = List.copyOf(reviewTable.getColumns());
-        CheckMenuItem currentCategoryItem = (CheckMenuItem) reviewColumnMenu.getItems().get(4);
+        CheckMenuItem currentCategoryItem = reviewColumnMenu.getItems().stream()
+                .filter(CheckMenuItem.class::isInstance)
+                .map(CheckMenuItem.class::cast)
+                .filter(item -> I18n.get("rules.review.currentCategory").equals(item.getText()))
+                .findFirst().orElseThrow();
         try {
             interact(() -> currentCategoryItem.setSelected(false));
-            assertFalse(reviewTable.getColumns().get(5).isVisible());
+            assertFalse(reviewTable.getColumns().stream()
+                    .filter(column -> I18n.get("rules.review.currentCategory").equals(column.getText()))
+                    .findFirst().orElseThrow().isVisible());
             assertTrue(applicationContext.getBean(SettingsService.class)
                     .getSettingValue("rules.review.columns").contains("currentCategory=false"));
             interact(() -> {
                 var dateColumn = reviewTable.getColumns().remove(1);
                 reviewTable.getColumns().add(2, dateColumn);
             });
-            assertEquals("payee,date,amount,account,currentCategory,categoryAfter,currentLabel,labelAfter,matchingRuleCount,matchedRules",
+            assertEquals("valueDate,date,payee,amount,account,currentCategory,categoryAfter,currentLabel,labelAfter,matchingRuleCount,matchedRules",
                     applicationContext.getBean(SettingsService.class)
                             .getSettingValue("rules.review.columns.order"));
         } finally {
@@ -401,6 +418,16 @@ class RulesControllerTest extends AbstractUITest {
         assertTrue(lookup("#ruleActionsSummary").queryLabeled().getText().contains(proposedCategory.getName()));
         TableView<Transaction> transactions = lookup("#ruleTransactionsTable").query();
         assertEquals(List.of(transaction.getId()), transactions.getItems().stream().map(Transaction::getId).toList());
+        TableColumn<?, ?> bookingDateColumn = transactions.getColumns().stream()
+                .filter(column -> I18n.get("col.bookingDate").equals(column.getText()))
+                .findFirst().orElseThrow();
+        TableColumn<?, ?> valueDateColumn = transactions.getColumns().stream()
+                .filter(column -> I18n.get("col.valueDate").equals(column.getText()))
+                .findFirst().orElseThrow();
+        assertEquals(formatDate(transaction.getBookingDate()),
+                cellForTransaction(transactions, bookingDateColumn, transaction).getText());
+        assertEquals(formatDate(transaction.getValueDate()),
+                cellForTransaction(transactions, valueDateColumn, transaction).getText());
 
         TextField search = lookup("#searchField").query();
         interact(() -> search.setText("not a matching payee"));
@@ -438,6 +465,23 @@ class RulesControllerTest extends AbstractUITest {
         return table.getItems().stream()
                 .filter(row -> row.transactionId().equals(transactionId))
                 .findFirst().orElseThrow();
+    }
+
+    private String formatDate(LocalDate date) {
+        return date.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT)
+                .withLocale(I18n.getCurrentLocale()));
+    }
+
+    private TableCell<?, ?> cellForTransaction(TableView<Transaction> table, TableColumn<?, ?> column,
+                                               Transaction transaction) {
+        return table.lookupAll(".table-cell").stream()
+                .filter(TableCell.class::isInstance)
+                .map(node -> (TableCell<?, ?>) node)
+                .filter(cell -> !cell.isEmpty() && cell.getTableColumn() == column
+                        && cell.getTableRow() != null && cell.getTableRow().getItem() instanceof Transaction row
+                        && transaction.getId().equals(row.getId()))
+                .findFirst()
+                .orElseThrow();
     }
 
     private TableRow<?> reviewRowFor(TableView<TransactionRulePreview> table, Long transactionId) {

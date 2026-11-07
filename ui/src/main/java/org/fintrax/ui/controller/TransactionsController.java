@@ -8,6 +8,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.control.Label;
 import javafx.scene.control.*;
 import javafx.scene.input.MouseEvent;
@@ -36,6 +37,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -63,7 +65,9 @@ public class TransactionsController {
     @FXML
     private MenuButton columnMenuButton;
     @FXML
-    private TableColumn<Transaction, LocalDate> dateColumn;
+    private TableColumn<Transaction, LocalDate> bookingDateColumn;
+    @FXML
+    private TableColumn<Transaction, LocalDate> valueDateColumn;
     @FXML
     private TableColumn<Transaction, String> payeeColumn;
     @FXML
@@ -163,6 +167,7 @@ public class TransactionsController {
                 clearDetail();
             }
         });
+        transactionTable.addEventFilter(MouseEvent.MOUSE_CLICKED, this::openDetailsOnDoubleClick);
         splitPane.heightProperty().addListener((observable, oldHeight, newHeight) -> {
             if (detailVisible) Platform.runLater(this::sizeDetailPanelToContent);
         });
@@ -174,16 +179,10 @@ public class TransactionsController {
 
     private void setupTableColumns() {
         TableViewResizePolicy.fitColumnsAndAllowHorizontalScrolling(transactionTable);
-        dateColumn.setCellValueFactory(cd -> new SimpleObjectProperty<>(cd.getValue().getBookingDate()));
         DateTimeFormatter dateFormatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT)
                 .withLocale(I18n.getCurrentLocale());
-        dateColumn.setCellFactory(col -> new TableCell<>() {
-            @Override
-            protected void updateItem(LocalDate item, boolean empty) {
-                super.updateItem(item, empty);
-                setText(empty || item == null ? null : item.format(dateFormatter));
-            }
-        });
+        setupDateColumn(bookingDateColumn, Transaction::getBookingDate, dateFormatter);
+        setupDateColumn(valueDateColumn, Transaction::getValueDate, dateFormatter);
 
         payeeColumn.setCellValueFactory(cd -> new SimpleStringProperty(
                 cd.getValue().getPayeeDisplay() != null ? cd.getValue().getPayeeDisplay() : cd.getValue().getOriginalPayee()));
@@ -247,6 +246,19 @@ public class TransactionsController {
         labelsColumn.setCellFactory(column -> createLabelChipCell(this::onSetLabels));
     }
 
+    private void setupDateColumn(TableColumn<Transaction, LocalDate> column,
+                                 Function<Transaction, LocalDate> dateFor,
+                                 DateTimeFormatter dateFormatter) {
+        column.setCellValueFactory(cell -> new SimpleObjectProperty<>(dateFor.apply(cell.getValue())));
+        column.setCellFactory(ignored -> new TableCell<>() {
+            @Override
+            protected void updateItem(LocalDate item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item.format(dateFormatter));
+            }
+        });
+    }
+
     private TableCell<Transaction, String> createAssignmentCell(Runnable openAssignmentDialog) {
         TableCell<Transaction, String> cell = new TableCell<>() {
             @Override
@@ -297,6 +309,30 @@ public class TransactionsController {
         });
     }
 
+    private void openDetailsOnDoubleClick(MouseEvent event) {
+        if (event.getClickCount() != 2 || !(event.getTarget() instanceof Node target)) return;
+
+        TableCell<?, ?> clickedCell = findTableCell(target);
+        if (clickedCell == null || clickedCell.isEmpty()) return;
+        TableColumn<?, ?> clickedColumn = clickedCell.getTableColumn();
+        if (clickedColumn == null || clickedColumn == categoryColumn || clickedColumn == labelsColumn
+                || clickedColumn.getGraphic() instanceof MenuButton) {
+            return;
+        }
+
+        int rowIndex = clickedCell.getIndex();
+        if (rowIndex < 0 || rowIndex >= transactionTable.getItems().size()) return;
+        transactionTable.getSelectionModel().clearAndSelect(rowIndex);
+        setDetailVisible(true);
+    }
+
+    private TableCell<?, ?> findTableCell(Node target) {
+        for (Node current = target; current != null; current = current.getParent()) {
+            if (current instanceof TableCell<?, ?> cell) return cell;
+        }
+        return null;
+    }
+
     private void loadTransactions() {
         Optional<TransactionFilter> criteria = transactionFilterPanelController.getCriteria();
         if (criteria.isEmpty()) return;
@@ -323,7 +359,11 @@ public class TransactionsController {
 
     @FXML
     private void onToggleDetail() {
-        detailVisible = !detailVisible;
+        setDetailVisible(!detailVisible);
+    }
+
+    private void setDetailVisible(boolean visible) {
+        detailVisible = visible;
         detailPanel.setVisible(detailVisible);
         detailPanel.setManaged(detailVisible);
         if (detailVisible) {
@@ -466,7 +506,8 @@ public class TransactionsController {
 
     private List<TableColumnConfig> columnConfigurations() {
         return List.of(
-                new TableColumnConfig("date", dateColumn),
+                new TableColumnConfig("date", bookingDateColumn),
+                new TableColumnConfig("valueDate", valueDateColumn),
                 new TableColumnConfig("payee", payeeColumn),
                 new TableColumnConfig("account", accountColumn),
                 new TableColumnConfig("purpose", purposeColumn),
