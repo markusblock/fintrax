@@ -19,6 +19,7 @@ import org.fintrax.ui.FintraxUI;
 import org.fintrax.ui.ViewLoader;
 import org.fintrax.ui.control.TableCellTooltips;
 import org.fintrax.ui.control.TransactionTableSetup;
+import org.fintrax.ui.control.TableViewResizePolicy;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
@@ -110,7 +111,7 @@ public class RulesController {
         ruleTable.setItems(sortedRules);
         ruleNumberColumn.setSortType(TableColumn.SortType.ASCENDING);
         ruleTable.getSortOrder().setAll(ruleNumberColumn);
-        ruleTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
+        TableViewResizePolicy.fitColumnsAndAllowHorizontalScrolling(ruleTable);
         TableCellTooltips.install(ruleTable);
         ruleTable.setRowFactory(table -> new TableRow<>() {
             @Override

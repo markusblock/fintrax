@@ -4,6 +4,7 @@ import javafx.application.Platform;
 import javafx.geometry.Bounds;
 import javafx.event.Event;
 import javafx.geometry.Insets;
+import javafx.geometry.Orientation;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
@@ -17,6 +18,7 @@ import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.OverrunStyle;
 import javafx.scene.control.SelectionMode;
+import javafx.scene.control.ScrollBar;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
@@ -156,6 +158,27 @@ class TransactionsControllerTest extends AbstractUITest {
         assertTrue(panel.getStyleClass().contains("content-panel"));
         assertEquals(filterBounds.getMinX(), tableBounds.getMinX(), 1.0);
         assertEquals(filterBounds.getMaxX(), tableBounds.getMaxX(), 1.0);
+    }
+
+    @Test
+    void transactionTableShowsHorizontalScrollbarWhenColumnsDoNotFit() throws TimeoutException {
+        TableView<?> table = lookup("#transactionTable").query();
+        double originalWindowWidth = table.getScene().getWindow().getWidth();
+
+        try {
+            interact(() -> table.getScene().getWindow().setWidth(640));
+
+            ScrollBar horizontalScrollBar = table.lookupAll(".scroll-bar").stream()
+                    .filter(ScrollBar.class::isInstance)
+                    .map(ScrollBar.class::cast)
+                    .filter(scrollBar -> scrollBar.getOrientation() == Orientation.HORIZONTAL)
+                    .findFirst()
+                    .orElseThrow();
+            WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS, horizontalScrollBar::isVisible);
+            assertTrue(horizontalScrollBar.isVisible());
+        } finally {
+            interact(() -> table.getScene().getWindow().setWidth(originalWindowWidth));
+        }
     }
 
     @Test
