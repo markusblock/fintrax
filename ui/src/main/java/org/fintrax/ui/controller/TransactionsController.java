@@ -35,6 +35,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -62,7 +63,9 @@ public class TransactionsController {
     @FXML
     private MenuButton columnMenuButton;
     @FXML
-    private TableColumn<Transaction, LocalDate> dateColumn;
+    private TableColumn<Transaction, LocalDate> bookingDateColumn;
+    @FXML
+    private TableColumn<Transaction, LocalDate> valueDateColumn;
     @FXML
     private TableColumn<Transaction, String> payeeColumn;
     @FXML
@@ -173,16 +176,10 @@ public class TransactionsController {
 
     private void setupTableColumns() {
         transactionTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
-        dateColumn.setCellValueFactory(cd -> new SimpleObjectProperty<>(cd.getValue().getBookingDate()));
         DateTimeFormatter dateFormatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT)
                 .withLocale(I18n.getCurrentLocale());
-        dateColumn.setCellFactory(col -> new TableCell<>() {
-            @Override
-            protected void updateItem(LocalDate item, boolean empty) {
-                super.updateItem(item, empty);
-                setText(empty || item == null ? null : item.format(dateFormatter));
-            }
-        });
+        setupDateColumn(bookingDateColumn, Transaction::getBookingDate, dateFormatter);
+        setupDateColumn(valueDateColumn, Transaction::getValueDate, dateFormatter);
 
         payeeColumn.setCellValueFactory(cd -> new SimpleStringProperty(
                 cd.getValue().getPayeeDisplay() != null ? cd.getValue().getPayeeDisplay() : cd.getValue().getOriginalPayee()));
@@ -244,6 +241,19 @@ public class TransactionsController {
             return new SimpleStringProperty(text);
         });
         labelsColumn.setCellFactory(column -> createLabelChipCell(this::onSetLabels));
+    }
+
+    private void setupDateColumn(TableColumn<Transaction, LocalDate> column,
+                                 Function<Transaction, LocalDate> dateFor,
+                                 DateTimeFormatter dateFormatter) {
+        column.setCellValueFactory(cell -> new SimpleObjectProperty<>(dateFor.apply(cell.getValue())));
+        column.setCellFactory(ignored -> new TableCell<>() {
+            @Override
+            protected void updateItem(LocalDate item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item.format(dateFormatter));
+            }
+        });
     }
 
     private TableCell<Transaction, String> createAssignmentCell(Runnable openAssignmentDialog) {
@@ -465,7 +475,8 @@ public class TransactionsController {
 
     private List<TableColumnConfig> columnConfigurations() {
         return List.of(
-                new TableColumnConfig("date", dateColumn),
+                new TableColumnConfig("date", bookingDateColumn),
+                new TableColumnConfig("valueDate", valueDateColumn),
                 new TableColumnConfig("payee", payeeColumn),
                 new TableColumnConfig("account", accountColumn),
                 new TableColumnConfig("purpose", purposeColumn),

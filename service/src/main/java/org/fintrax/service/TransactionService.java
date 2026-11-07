@@ -95,10 +95,9 @@ public class TransactionService {
 
         return transactions.stream()
                 .filter(t -> filter.accountId() == null || t.getAccountId().equals(filter.accountId()))
-                .filter(t -> filter.fromDate() == null || (t.getBookingDate() != null &&
-                        !t.getBookingDate().isBefore(filter.fromDate())))
-                .filter(t -> filter.toDate() == null || (t.getBookingDate() != null &&
-                        !t.getBookingDate().isAfter(filter.toDate())))
+                .filter(t -> (filter.fromDate() == null && filter.toDate() == null)
+                        || matchesDateRange(t.getBookingDate(), filter)
+                        || matchesDateRange(t.getValueDate(), filter))
                 .filter(t -> filter.categoryId() == null || matchingCategoryIds.contains(t.getCategoryId()))
                 .filter(t -> filter.labelIds() == null || filter.labelIds().isEmpty() ||
                         t.getLabelIds().containsAll(filter.labelIds()))
@@ -107,6 +106,12 @@ public class TransactionService {
                 .filter(t -> filter.searchText() == null || filter.searchText().isEmpty()
                         || matchesSearch(t, filter.searchText(), categoryNames, labelNames, searchDateFormatter))
                 .toList();
+    }
+
+    private boolean matchesDateRange(LocalDate date, TransactionFilter filter) {
+        return date != null
+                && (filter.fromDate() == null || !date.isBefore(filter.fromDate()))
+                && (filter.toDate() == null || !date.isAfter(filter.toDate()));
     }
 
     private boolean matchesSearch(Transaction transaction, String searchText,
