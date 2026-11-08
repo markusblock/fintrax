@@ -90,11 +90,13 @@ public class SyncService {
         try {
             List<Transaction> fetchedTransactions = bankingProtocol.fetchTransactions(account, pin);
             if (fetchedTransactions == null) {
-                throw new BankingException("Bank returned no complete transaction response.");
+                throw new BankingException(BankingException.FailureReason.INCOMPLETE_RESPONSE,
+                        "Bank returned no complete transaction response.");
             }
             for (Transaction fetched : fetchedTransactions) {
                 if (fetched == null || (fetched.getAccountId() != null && !accountId.equals(fetched.getAccountId()))) {
-                    throw new BankingException("Bank returned transaction data for an unexpected account.");
+                    throw new BankingException(BankingException.FailureReason.ACCOUNT_MISMATCH,
+                            "Bank returned transaction data for an unexpected account.");
                 }
                 fetched.setAccountId(accountId);
             }
@@ -145,8 +147,10 @@ public class SyncService {
             syncLog.setStatus(SyncStatus.FAILED);
             syncLog.setErrorMessage(safeFailureMessage(e));
             store.store(syncLog);
-            activityLogger.log(ActivityAction.SYNC, EntityType.ACCOUNT, accountId, "Bank sync failed");
-            log.warn("Bank sync failed for account {}", accountId);
+            activityLogger.log(ActivityAction.SYNC, EntityType.ACCOUNT, accountId,
+                    "Bank sync failed: " + safeFailureMessage(e));
+            log.error("Bank sync failed for account {} [{}]:\n{}", accountId, failureReason(e),
+                    redactedStackTrace(e));
         }
 
         return new SyncResult(syncLog, newTransactionIds);
@@ -179,11 +183,50 @@ public class SyncService {
     }
 
     private String safeFailureMessage(Exception exception) {
-        if (exception instanceof BankingException
-                && BankingException.TAN_REQUIRED_MESSAGE.equals(exception.getMessage())) {
-            return BankingException.TAN_REQUIRED_MESSAGE;
+        BankingException.FailureReason reason = failureReason(exception);
+        String causeType = rootCauseType(exception);
+        if (reason == BankingException.FailureReason.TAN_REQUIRED) {
+            return I18n.get("message.sync.tanRequiredDiagnostic", causeType);
         }
-        return I18n.get("message.sync.failedSafe");
+        return I18n.get("message.sync.failedDiagnostic", reason.name(), causeType);
+    }
+
+    private BankingException.FailureReason failureReason(Throwable error) {
+        return error instanceof BankingException bankingException
+                ? bankingException.getFailureReason() : BankingException.FailureReason.UNKNOWN;
+    }
+
+    private Throwable rootCause(Throwable error) {
+        Throwable cause = error;
+        Set<Throwable> seen = Collections.newSetFromMap(new IdentityHashMap<>());
+        while (cause.getCause() != null && seen.add(cause) && cause.getCause() != cause) {
+            cause = cause.getCause();
+        }
+        return cause;
+    }
+
+    private String rootCauseType(Throwable error) {
+        if (error instanceof BankingException && error.getCause() == null) {
+            return "BankResponse";
+        }
+        return rootCause(error).getClass().getSimpleName();
+    }
+
+    private String redactedStackTrace(Throwable error) {
+        StringBuilder stackTrace = new StringBuilder();
+        Set<Throwable> seen = Collections.newSetFromMap(new IdentityHashMap<>());
+        Throwable cause = error;
+        while (cause != null && seen.add(cause)) {
+            if (stackTrace.length() > 0) {
+                stackTrace.append("\nCaused by: ");
+            }
+            stackTrace.append(cause.getClass().getName());
+            for (StackTraceElement frame : cause.getStackTrace()) {
+                stackTrace.append("\n\tat ").append(frame);
+            }
+            cause = cause.getCause();
+        }
+        return stackTrace.toString();
     }
 
     public List<SyncLog> getSyncLogs(Long accountId) {
