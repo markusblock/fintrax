@@ -35,6 +35,10 @@ public class BankingException extends Exception {
         CONNECTION_FAILED,
         CREDENTIAL_VALIDATION_FAILED,
         ACCOUNT_MISMATCH,
+        INVALID_IBAN,
+        MISSING_ENDPOINT,
+        INVALID_ENDPOINT,
+        BANK_DIRECTORY_LOOKUP_FAILED,
         UNKNOWN
     }
 }

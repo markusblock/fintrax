@@ -67,6 +67,15 @@ The way a Category Rule evaluates its pattern: regex or contains matching.
 **Fintrax Account Identity**:
 The stable identity of a Fintrax account: its internal account ID, associated with an IBAN when available. The IBAN identifies the bank account for sync and Hibiscus matching; it is not changed when editing account details.
 
+**Bankleitzahl (BLZ)**:
+The German bank routing code encoded in a German IBAN and used to identify the bank for FinTS.
+
+**BIC**:
+A code identifying a financial institution; it is not a FinTS server address.
+
+**FinTS Server Address**:
+The HTTPS endpoint used to communicate with a bank through FinTS.
+
 ### Account Import
 
 **Hibiscus Account**:

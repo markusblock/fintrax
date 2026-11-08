@@ -16,6 +16,7 @@ public class BankAccount {
     private Long id;
     private String iban;
     private String bic;
+    private String fintsServerUrl;
     private String bankName;
     private String accountHolder;
     private AccountType accountType;

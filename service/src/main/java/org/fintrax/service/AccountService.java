@@ -31,10 +31,17 @@ public class AccountService {
 
     public BankAccount createAccount(String iban, String bic, String bankName, String accountHolder,
                                      AccountType accountType, String comment) {
+        return createAccount(iban, bic, null, bankName, accountHolder, accountType, comment);
+    }
+
+    public BankAccount createAccount(String iban, String bic, String fintsServerUrl,
+                                     String bankName, String accountHolder,
+                                     AccountType accountType, String comment) {
         BankAccount account = BankAccount.builder()
                 .id(nextId++)
                 .iban(iban)
                 .bic(bic)
+                .fintsServerUrl(fintsServerUrl)
                 .bankName(bankName)
                 .accountHolder(accountHolder)
                 .accountType(accountType)
@@ -67,9 +74,19 @@ public class AccountService {
         if (account == null) {
             throw new IllegalArgumentException("Account not found: " + id);
         }
+        return updateAccount(id, bankName, bic, account.getFintsServerUrl(), accountHolder, accountType, comment);
+    }
+
+    public BankAccount updateAccount(Long id, String bankName, String bic, String fintsServerUrl,
+                                     String accountHolder, AccountType accountType, String comment) {
+        BankAccount account = store.getAccount(id);
+        if (account == null) {
+            throw new IllegalArgumentException("Account not found: " + id);
+        }
 
         account.setBankName(bankName);
         account.setBic(bic);
+        account.setFintsServerUrl(fintsServerUrl);
         account.setAccountHolder(accountHolder);
         account.setAccountType(accountType);
         account.setComment(comment);

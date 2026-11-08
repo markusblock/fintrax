@@ -24,41 +24,57 @@
     <Label text="%dialog.addAccount.title" styleClass="dialog-title"/>
     <Label text="%dialog.addAccount.subtitle" styleClass="dialog-subtitle" wrapText="true"/>
 
-    <Separator/>
+    <VBox styleClass="editor-panel" spacing="10">
+        <Label text="%label.bankConnection" styleClass="section-title"/>
+        <GridPane hgap="10" vgap="10">
+            <columnConstraints>
+                <ColumnConstraints minWidth="120" prefWidth="140" halignment="RIGHT"/>
+                <ColumnConstraints hgrow="ALWAYS" fillWidth="true"/>
+            </columnConstraints>
 
-    <GridPane hgap="10" vgap="10">
-        <columnConstraints>
-            <ColumnConstraints minWidth="120" prefWidth="140" halignment="RIGHT"/>
-            <ColumnConstraints hgrow="ALWAYS" fillWidth="true"/>
-        </columnConstraints>
+            <Label text="%label.iban" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+            <TextField fx:id="ibanField" promptText="DE89 3704 0044 0532 0130 00"
+                       GridPane.rowIndex="0" GridPane.columnIndex="1"/>
 
-        <Label text="%label.iban" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
-        <TextField fx:id="ibanField" promptText="DE89 3704 0044 0532 0130 00"
-                   GridPane.rowIndex="0" GridPane.columnIndex="1"/>
+            <Label text="%label.bicOptional" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
+            <TextField fx:id="bicField" promptText="COBADEFFXXX"
+                       GridPane.rowIndex="1" GridPane.columnIndex="1"/>
 
-        <Label text="%label.bic" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
-        <TextField fx:id="bicField" promptText="COBADEFFXXX"
-                   GridPane.rowIndex="1" GridPane.columnIndex="1"/>
+            <Label text="%label.fintsServerUrl" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
+            <HBox spacing="8" alignment="CENTER_LEFT" GridPane.rowIndex="2" GridPane.columnIndex="1">
+                <TextField fx:id="fintsServerUrlField" HBox.hgrow="ALWAYS"/>
+                <Button fx:id="findFinTsServerButton" text="%button.findFinTsServer"
+                        onAction="#onFindFinTsServer" styleClass="button-outlined"/>
+            </HBox>
+        </GridPane>
+        <Label fx:id="fintsServerStatusLabel" text="%message.fints.lookupHint"
+               wrapText="true" styleClass="help-text"/>
+    </VBox>
 
-        <Label text="%label.bankName" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
-        <TextField fx:id="bankNameField"
-                   GridPane.rowIndex="2" GridPane.columnIndex="1"/>
+    <VBox styleClass="editor-panel" spacing="10">
+        <Label text="%label.accountDetails" styleClass="section-title"/>
+        <GridPane hgap="10" vgap="10">
+            <columnConstraints>
+                <ColumnConstraints minWidth="120" prefWidth="140" halignment="RIGHT"/>
+                <ColumnConstraints hgrow="ALWAYS" fillWidth="true"/>
+            </columnConstraints>
 
-        <Label text="%label.accountHolder" GridPane.rowIndex="3" GridPane.columnIndex="0"/>
-        <TextField fx:id="accountHolderField"
-                   GridPane.rowIndex="3" GridPane.columnIndex="1"/>
+            <Label text="%label.bankName" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+            <TextField fx:id="bankNameField" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
 
-        <Label text="%label.accountType" GridPane.rowIndex="4" GridPane.columnIndex="0"/>
-        <ComboBox fx:id="accountTypeCombo" GridPane.rowIndex="4" GridPane.columnIndex="1"/>
+            <Label text="%label.accountHolder" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
+            <TextField fx:id="accountHolderField" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
 
-        <Label text="%label.pin" GridPane.rowIndex="5" GridPane.columnIndex="0"/>
-        <PasswordField fx:id="pinField"
-                       GridPane.rowIndex="5" GridPane.columnIndex="1"/>
+            <Label text="%label.accountType" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
+            <ComboBox fx:id="accountTypeCombo" GridPane.rowIndex="2" GridPane.columnIndex="1"/>
 
-        <Label text="%label.comment" GridPane.rowIndex="6" GridPane.columnIndex="0"/>
-        <TextField fx:id="commentField"
-                   GridPane.rowIndex="6" GridPane.columnIndex="1"/>
-    </GridPane>
+            <Label text="%label.pin" GridPane.rowIndex="3" GridPane.columnIndex="0"/>
+            <PasswordField fx:id="pinField" GridPane.rowIndex="3" GridPane.columnIndex="1"/>
+
+            <Label text="%label.comment" GridPane.rowIndex="4" GridPane.columnIndex="0"/>
+            <TextField fx:id="commentField" GridPane.rowIndex="4" GridPane.columnIndex="1"/>
+        </GridPane>
+    </VBox>
 
     <Separator/>
 

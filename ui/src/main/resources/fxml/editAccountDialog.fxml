@@ -6,6 +6,7 @@
 <?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.ColumnConstraints?>
 <?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.control.TextArea?>
 <?import javafx.scene.control.ComboBox?>
@@ -24,53 +25,71 @@
     <Label text="%dialog.editAccount.title" styleClass="dialog-title"/>
     <Label text="%dialog.editAccount.subtitle" styleClass="dialog-subtitle" wrapText="true"/>
 
-    <Separator/>
+    <ScrollPane fitToWidth="true" hbarPolicy="NEVER" VBox.vgrow="ALWAYS">
+        <content>
+            <VBox spacing="14">
+                <VBox styleClass="editor-panel" spacing="10">
+                    <Label text="%label.bankConnection" styleClass="section-title"/>
+                    <GridPane hgap="10" vgap="10">
+                        <columnConstraints>
+                            <ColumnConstraints minWidth="120" prefWidth="140" halignment="RIGHT"/>
+                            <ColumnConstraints hgrow="ALWAYS" fillWidth="true"/>
+                        </columnConstraints>
+                        <Label text="%label.iban" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+                        <TextField fx:id="ibanField" editable="false" styleClass="read-only-field"
+                                   GridPane.rowIndex="0" GridPane.columnIndex="1"/>
+                        <Label text="%label.bic" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
+                        <TextField fx:id="bicField" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
+                        <Label text="%label.fintsServerUrl" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
+                        <HBox spacing="8" alignment="CENTER_LEFT" GridPane.rowIndex="2" GridPane.columnIndex="1">
+                            <TextField fx:id="fintsServerUrlField" HBox.hgrow="ALWAYS"/>
+                            <Button text="%button.findFinTsServer" onAction="#onFindFinTsServer"
+                                    styleClass="button-outlined"/>
+                        </HBox>
+                    </GridPane>
+                    <Label fx:id="fintsServerStatusLabel" text="%message.fints.lookupHint"
+                           wrapText="true" styleClass="help-text"/>
+                </VBox>
 
-    <GridPane hgap="10" vgap="10">
-        <columnConstraints>
-            <ColumnConstraints minWidth="120" prefWidth="140" halignment="RIGHT"/>
-            <ColumnConstraints hgrow="ALWAYS" fillWidth="true"/>
-        </columnConstraints>
+                <VBox styleClass="editor-panel" spacing="10">
+                    <Label text="%label.accountDetails" styleClass="section-title"/>
+                    <GridPane hgap="10" vgap="10">
+                        <columnConstraints>
+                            <ColumnConstraints minWidth="120" prefWidth="140" halignment="RIGHT"/>
+                            <ColumnConstraints hgrow="ALWAYS" fillWidth="true"/>
+                        </columnConstraints>
+                        <Label text="%label.bankName" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+                        <TextField fx:id="bankNameField" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
+                        <Label text="%label.accountHolder" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
+                        <TextField fx:id="accountHolderField" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
+                        <Label text="%label.accountType" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
+                        <ComboBox fx:id="accountTypeCombo" GridPane.rowIndex="2" GridPane.columnIndex="1"/>
+                        <Label text="%label.currency" GridPane.rowIndex="3" GridPane.columnIndex="0"/>
+                        <TextField fx:id="currencyField" editable="false" styleClass="read-only-field"
+                                   GridPane.rowIndex="3" GridPane.columnIndex="1"/>
+                        <Label text="%label.comment" GridPane.rowIndex="4" GridPane.columnIndex="0"/>
+                        <TextArea fx:id="commentField" wrapText="true" prefRowCount="2"
+                                  GridPane.rowIndex="4" GridPane.columnIndex="1"/>
+                    </GridPane>
+                </VBox>
 
-        <Label text="%label.bankName" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
-        <TextField fx:id="bankNameField" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
-
-        <Label text="%label.bic" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
-        <TextField fx:id="bicField" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
-
-        <Label text="%label.accountHolder" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
-        <TextField fx:id="accountHolderField" GridPane.rowIndex="2" GridPane.columnIndex="1"/>
-
-        <Label text="%label.accountType" GridPane.rowIndex="3" GridPane.columnIndex="0"/>
-        <ComboBox fx:id="accountTypeCombo" GridPane.rowIndex="3" GridPane.columnIndex="1"/>
-
-        <Label text="%label.iban" GridPane.rowIndex="4" GridPane.columnIndex="0"/>
-        <TextField fx:id="ibanField" editable="false" styleClass="read-only-field"
-                   GridPane.rowIndex="4" GridPane.columnIndex="1"/>
-
-        <Label text="%label.currency" GridPane.rowIndex="5" GridPane.columnIndex="0"/>
-        <TextField fx:id="currencyField" editable="false" styleClass="read-only-field"
-                   GridPane.rowIndex="5" GridPane.columnIndex="1"/>
-
-        <Label text="%label.comment" GridPane.rowIndex="6" GridPane.columnIndex="0"/>
-        <TextArea fx:id="commentField" wrapText="true" prefRowCount="2"
-                  GridPane.rowIndex="6" GridPane.columnIndex="1"/>
-    </GridPane>
-
-    <VBox styleClass="account-edit-metadata" spacing="5">
-        <HBox spacing="6">
-            <Label text="%label.balance" styleClass="secondary-text"/>
-            <Label fx:id="balanceValue" styleClass="secondary-text"/>
-        </HBox>
-        <HBox spacing="6">
-            <Label text="%label.balanceDate" styleClass="secondary-text"/>
-            <Label fx:id="balanceDateValue" styleClass="secondary-text"/>
-        </HBox>
-        <HBox spacing="6">
-            <Label text="%label.lastSync" styleClass="secondary-text"/>
-            <Label fx:id="lastSyncValue" styleClass="secondary-text"/>
-        </HBox>
-    </VBox>
+                <VBox styleClass="account-edit-metadata" spacing="5">
+                    <HBox spacing="6">
+                        <Label text="%label.balance" styleClass="secondary-text"/>
+                        <Label fx:id="balanceValue" styleClass="secondary-text"/>
+                    </HBox>
+                    <HBox spacing="6">
+                        <Label text="%label.balanceDate" styleClass="secondary-text"/>
+                        <Label fx:id="balanceDateValue" styleClass="secondary-text"/>
+                    </HBox>
+                    <HBox spacing="6">
+                        <Label text="%label.lastSync" styleClass="secondary-text"/>
+                        <Label fx:id="lastSyncValue" styleClass="secondary-text"/>
+                    </HBox>
+                </VBox>
+            </VBox>
+        </content>
+    </ScrollPane>
 
     <Separator/>
 
