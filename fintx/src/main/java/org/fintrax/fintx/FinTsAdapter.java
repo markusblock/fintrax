@@ -17,11 +17,13 @@ import org.kapott.hbci.structures.Konto;
 
 import java.io.File;
 import java.math.BigDecimal;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
+import java.nio.file.Files;
+import java.security.SecureRandom;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Date;
 import java.util.List;
 import java.util.Properties;
@@ -29,24 +31,26 @@ import java.util.Properties;
 @Slf4j
 public class FinTsAdapter implements BankingProtocol {
     private static final String PROTOCOL_NAME = "FinTS/HBCI";
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     @Override
-    public List<Transaction> fetchTransactions(BankAccount account, String pin) throws BankingException {
-        log.info("Fetching transactions for account {}", account.getIban());
+    public synchronized List<Transaction> fetchTransactions(BankAccount account, String pin) throws BankingException {
         List<Transaction> transactions = new ArrayList<>();
 
         HBCIPassport passport = null;
         HBCIHandler handle = null;
+        File passportFile = null;
+        SimpleCallback callback = new SimpleCallback(account, pin, newTemporaryPassphrase());
 
         try {
             Properties props = new Properties();
-            HBCIUtils.init(props, new SimpleCallback(account, pin));
+            HBCIUtils.init(props, callback);
 
             HBCIUtils.setParam("client.passport.default", "PinTan");
             HBCIUtils.setParam("client.passport.PinTan.init", "1");
+            HBCIUtils.setParam("client.passport.PinTan.checkcert", "1");
 
-            File passportFile = File.createTempFile("fintrax_passport_", ".dat");
-            passportFile.deleteOnExit();
+            passportFile = File.createTempFile("fintrax_passport_", ".dat");
             passport = AbstractHBCIPassport.getInstance(passportFile);
 
             passport.setCountry("DE");
@@ -62,62 +66,62 @@ public class FinTsAdapter implements BankingProtocol {
 
             HBCIJob umsatzJob = handle.newJob("KUmsAll");
             umsatzJob.setParam("my", konto);
+            // Let the bank enforce its advertised history limit; the full available range
+            // gives repeated syncs an overlap instead of risking a fixed-window gap.
             umsatzJob.addToQueue();
 
             HBCIExecStatus status = handle.execute();
 
             if (!status.isOK()) {
-                throw new BankingException("HBCI execution failed: " + status.toString());
+                throw new BankingException("Bank rejected the transaction sync request.");
             }
 
             GVRKUms result = (GVRKUms) umsatzJob.getJobResult();
 
             if (!result.isOK()) {
-                throw new BankingException("Transaction fetch failed: " + result.toString());
+                throw new BankingException("Bank did not return a complete transaction response.");
             }
 
-            List<UmsLine> buchungen = result.getFlatData();
-            for (UmsLine buchung : buchungen) {
-                Transaction tx = mapUmsLine(buchung, account.getId());
-                if (tx != null) {
-                    transactions.add(tx);
-                }
+            for (UmsLine line : result.getFlatData()) {
+                transactions.add(mapUmsLine(line, account.getId(), true));
+            }
+            for (UmsLine line : result.getFlatDataUnbooked()) {
+                transactions.add(mapUmsLine(line, account.getId(), false));
             }
 
         } catch (BankingException e) {
             throw e;
+        } catch (TanRequiredException e) {
+            throw new BankingException(BankingException.TAN_REQUIRED_MESSAGE, e);
         } catch (Exception e) {
-            log.error("Failed to fetch transactions for {}", account.getIban(), e);
-            throw new BankingException("Failed to fetch transactions: " + e.getMessage(), e);
+            if (containsTanRequired(e)) {
+                throw new BankingException(BankingException.TAN_REQUIRED_MESSAGE, e);
+            }
+            log.warn("Bank transaction sync could not be completed");
+            throw new BankingException("Bank transaction sync could not be completed.", e);
         } finally {
-            if (handle != null) {
-                handle.close();
-            }
-            if (passport != null) {
-                passport.close();
-            }
+            closeSession(handle, passport, passportFile);
         }
 
-        log.info("Fetched {} transactions for {}", transactions.size(), account.getIban());
         return transactions;
     }
 
     @Override
-    public boolean validatePin(BankAccount account, String pin) throws BankingException {
-        log.info("Validating PIN for account {}", account.getIban());
-
+    public synchronized boolean validatePin(BankAccount account, String pin) throws BankingException {
         HBCIPassport passport = null;
         HBCIHandler handle = null;
+        File passportFile = null;
+        SimpleCallback callback = new SimpleCallback(account, pin, newTemporaryPassphrase());
 
         try {
             Properties props = new Properties();
-            HBCIUtils.init(props, new SimpleCallback(account, pin));
+            HBCIUtils.init(props, callback);
 
             HBCIUtils.setParam("client.passport.default", "PinTan");
             HBCIUtils.setParam("client.passport.PinTan.init", "1");
+            HBCIUtils.setParam("client.passport.PinTan.checkcert", "1");
 
-            File passportFile = File.createTempFile("fintrax_passport_", ".dat");
-            passportFile.deleteOnExit();
+            passportFile = File.createTempFile("fintrax_passport_", ".dat");
             passport = AbstractHBCIPassport.getInstance(passportFile);
 
             passport.setCountry("DE");
@@ -139,16 +143,16 @@ public class FinTsAdapter implements BankingProtocol {
 
             return status.isOK();
 
+        } catch (TanRequiredException e) {
+            throw new BankingException(BankingException.TAN_REQUIRED_MESSAGE, e);
         } catch (Exception e) {
-            log.error("Failed to validate PIN for {}", account.getIban(), e);
-            throw new BankingException("Failed to validate PIN: " + e.getMessage(), e);
+            if (containsTanRequired(e)) {
+                throw new BankingException(BankingException.TAN_REQUIRED_MESSAGE, e);
+            }
+            log.warn("Bank credential validation could not be completed");
+            throw new BankingException("Bank credential validation could not be completed.", e);
         } finally {
-            if (handle != null) {
-                handle.close();
-            }
-            if (passport != null) {
-                passport.close();
-            }
+            closeSession(handle, passport, passportFile);
         }
     }
 
@@ -157,67 +161,119 @@ public class FinTsAdapter implements BankingProtocol {
         return PROTOCOL_NAME;
     }
 
-    private Transaction mapUmsLine(UmsLine line, Long accountId) {
+    private Transaction mapUmsLine(UmsLine line, Long accountId, boolean booked) throws BankingException {
         try {
-            LocalDate valuta = LocalDate.parse(line.valuta.toString());
-            BigDecimal amount = new BigDecimal(line.value.toString());
-
-            String payee = "Unknown";
-
-            String usage = "";
-            if (line.usage != null && !line.usage.isEmpty()) {
-                usage = String.join(" ", line.usage);
+            if (line == null || line.value == null) {
+                throw new IllegalArgumentException("Transaction amount is missing");
             }
-
-            String checksum = computeChecksum(valuta, amount, payee, usage);
+            LocalDate bookingDate = toLocalDate(line.bdate);
+            LocalDate valueDate = toLocalDate(line.valuta);
+            BigDecimal amount = line.value.getBigDecimalValue();
+            BigDecimal balanceAfter = booked && line.saldo != null && line.saldo.value != null
+                    ? line.saldo.value.getBigDecimalValue() : null;
+            String payee = line.other == null ? null : joinNonBlank(line.other.name, line.other.name2);
+            String purpose = line.usage == null ? "" : String.join(" ", line.usage).trim();
+            if (purpose.isBlank() && line.additional != null) {
+                purpose = line.additional.trim();
+            }
 
             return Transaction.builder()
                     .accountId(accountId)
                     .originalPayee(payee)
-                    .purpose(usage)
+                    .purpose(purpose)
                     .amount(amount)
-                    .bookingDate(valuta)
-                    .valueDate(valuta)
-                    .checksum(checksum)
-                    .booked(true)
+                    .bookingDate(bookingDate)
+                    .valueDate(valueDate)
+                    .balanceAfter(balanceAfter)
+                    .transactionType(line.text)
+                    .checksum(sourceChecksum(line))
+                    .endToEndId(line.endToEndId)
+                    .mandateId(line.mandateId)
+                    .creditorId(line.other == null ? null : line.other.creditorid)
+                    .booked(booked)
                     .createdAt(LocalDateTime.now())
                     .updatedAt(LocalDateTime.now())
                     .build();
         } catch (Exception e) {
-            log.warn("Failed to map UmsLine: {}", e.getMessage());
-            return null;
+            throw new BankingException("Bank returned a transaction that could not be mapped completely.", e);
         }
     }
 
-    private String computeChecksum(LocalDate date, BigDecimal amount, String payee, String usage) {
-        try {
-            String data = date + "|" + amount + "|" + payee + "|" + usage;
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(data.getBytes(StandardCharsets.UTF_8));
-            return bytesToHex(hash);
-        } catch (Exception e) {
-            String fallback = date + "|" + amount + "|" + payee + "|" + usage;
-            return String.valueOf(fallback.hashCode());
-        }
+    private LocalDate toLocalDate(Date date) {
+        return date == null ? null : date.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
     }
 
-    private String bytesToHex(byte[] hash) {
-        StringBuilder hexString = new StringBuilder();
-        for (byte b : hash) {
-            String hex = Integer.toHexString(0xff & b);
-            if (hex.length() == 1) hexString.append('0');
-            hexString.append(hex);
+    private String sourceChecksum(UmsLine line) {
+        String sourceId = firstNonBlank(line.id, line.instref, line.customerref);
+        return sourceId == null ? null : "fints:" + sourceId;
+    }
+
+    private String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value.trim();
+            }
         }
-        return hexString.toString();
+        return null;
+    }
+
+    private String joinNonBlank(String... values) {
+        return java.util.Arrays.stream(values)
+                .filter(value -> value != null && !value.isBlank())
+                .map(String::trim)
+                .collect(java.util.stream.Collectors.joining(" "));
+    }
+
+    private String newTemporaryPassphrase() {
+        byte[] randomBytes = new byte[32];
+        SECURE_RANDOM.nextBytes(randomBytes);
+        return Base64.getEncoder().encodeToString(randomBytes);
+    }
+
+    private boolean containsTanRequired(Throwable error) {
+        Throwable cause = error;
+        while (cause != null) {
+            if (cause instanceof TanRequiredException) {
+                return true;
+            }
+            cause = cause.getCause();
+        }
+        return false;
+    }
+
+    private void closeSession(HBCIHandler handle, HBCIPassport passport, File passportFile) {
+        if (handle != null) {
+            try {
+                handle.close();
+            } catch (Exception e) {
+                log.warn("Bank session handler could not be closed");
+            }
+        }
+        if (passport != null) {
+            try {
+                passport.close();
+            } catch (Exception e) {
+                log.warn("Bank session passport could not be closed");
+            }
+        }
+        if (passportFile != null) {
+            try {
+                Files.deleteIfExists(passportFile.toPath());
+            } catch (Exception e) {
+                log.warn("Temporary bank session file could not be removed");
+            }
+        }
     }
 
     private static class SimpleCallback extends AbstractHBCICallback {
         private final BankAccount account;
         private final String pin;
+        private final String temporaryPassphrase;
 
-        public SimpleCallback(BankAccount account, String pin) {
+        public SimpleCallback(BankAccount account, String pin, String temporaryPassphrase) {
             this.account = account;
             this.pin = pin;
+            this.temporaryPassphrase = temporaryPassphrase;
         }
 
         @Override
@@ -225,7 +281,7 @@ public class FinTsAdapter implements BankingProtocol {
             switch (reason) {
                 case NEED_PASSPHRASE_LOAD:
                 case NEED_PASSPHRASE_SAVE:
-                    retData.replace(0, retData.length(), "fintrax");
+                    retData.replace(0, retData.length(), temporaryPassphrase);
                     break;
                 case NEED_PT_PIN:
                     retData.replace(0, retData.length(), pin);
@@ -248,8 +304,12 @@ public class FinTsAdapter implements BankingProtocol {
                     }
                     break;
                 case NEED_PT_TAN:
-                    retData.replace(0, retData.length(), "");
-                    break;
+                case NEED_PT_TANMEDIA:
+                case NEED_PT_PHOTOTAN:
+                case NEED_PT_QRTAN:
+                case NEED_PT_DECOUPLED:
+                case NEED_PT_DECOUPLED_RETRY:
+                    throw new TanRequiredException();
                 default:
                     break;
             }
@@ -262,5 +322,8 @@ public class FinTsAdapter implements BankingProtocol {
         @Override
         public void log(String msg, int level, Date date, StackTraceElement trace) {
         }
+    }
+
+    private static final class TanRequiredException extends RuntimeException {
     }
 }

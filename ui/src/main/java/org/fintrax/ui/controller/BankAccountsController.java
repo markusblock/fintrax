@@ -245,10 +245,7 @@ public class BankAccountsController {
         List<BankAccount> accounts = accountService.getAllAccounts();
         Map<Long, String> accountPins = new LinkedHashMap<>();
         for (BankAccount account : accounts) {
-            String pin = pinStorage.retrievePin(String.valueOf(account.getId()));
-            if (pin == null) {
-                pin = showPinDialog(account.getId());
-            }
+            String pin = showPinDialog(account.getId());
             if (pin != null) {
                 accountPins.put(account.getId(), pin);
             }
@@ -262,10 +259,11 @@ public class BankAccountsController {
                 try {
                     results.add(syncService.syncAccount(accountId, pin));
                 } catch (Exception e) {
-                    log.error("Sync failed for account {}", accountId, e);
-                    failures.put(accountId, errorMessage(e));
+                    log.warn("Bank sync failed for account {}", accountId);
+                    failures.put(accountId, I18n.get("message.sync.failedSafe"));
                 }
             });
+            accountPins.clear();
             Platform.runLater(() -> {
                 loadAccounts();
                 loadSyncLogs();
@@ -275,12 +273,8 @@ public class BankAccountsController {
     }
 
     private void onSyncAccount(Long accountId) {
-        String pin = pinStorage.retrievePin(String.valueOf(accountId));
-
-        if (pin == null) {
-            pin = showPinDialog(accountId);
-            if (pin == null) return;
-        }
+        String pin = showPinDialog(accountId);
+        if (pin == null) return;
 
         final String finalPin = pin;
         executor.submit(() -> {
@@ -292,10 +286,11 @@ public class BankAccountsController {
                     showSyncReport(List.of(syncResult), Map.of());
                 });
             } catch (Exception e) {
-                log.error("Sync failed for account {}", accountId, e);
+                log.warn("Bank sync failed for account {}", accountId);
                 Platform.runLater(() -> {
                     loadSyncLogs();
-                    showSyncReport(List.of(), Map.of(accountId, errorMessage(e)));
+                    showSyncReport(List.of(), Map.of(accountId,
+                            I18n.get("message.sync.failedSafe")));
                 });
             }
         });
@@ -305,16 +300,25 @@ public class BankAccountsController {
         Optional<BankAccount> accountOpt = accountService.getAccount(accountId);
         if (accountOpt.isEmpty()) return null;
 
-        TextInputDialog dialog = new TextInputDialog();
+        Dialog<String> dialog = new Dialog<>();
         dialog.setTitle(I18n.get("dialog.pin.title"));
         dialog.setHeaderText(I18n.get("dialog.pin.header", accountOpt.get().getBankName()));
-        dialog.setContentText(I18n.get("dialog.pin.prompt"));
         dialog.initModality(Modality.APPLICATION_MODAL);
+        dialog.initOwner(rootPane.getScene().getWindow());
+
+        PasswordField pinField = new PasswordField();
+        pinField.setPromptText(I18n.get("dialog.pin.prompt"));
+        VBox content = new VBox(8, new Label(I18n.get("dialog.pin.prompt")), pinField);
+        content.setPadding(new Insets(10, 0, 0, 0));
+        dialog.getDialogPane().setContent(content);
+        ButtonType syncButton = new ButtonType(I18n.get("button.sync"), ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().setAll(syncButton, ButtonType.CANCEL);
+        dialog.setResultConverter(button -> button == syncButton ? pinField.getText() : null);
+        dialog.setOnHidden(event -> pinField.clear());
 
         FintraxUI.configureDialog(dialog);
 
-        Optional<String> result = dialog.showAndWait();
-        return result.orElse(null);
+        return dialog.showAndWait().filter(pin -> !pin.isBlank()).orElse(null);
     }
 
     private void onDeleteAccount(BankAccount account) {
@@ -465,10 +469,6 @@ public class BankAccountsController {
                     return label.isBlank() ? String.valueOf(accountId) : label;
                 })
                 .orElse(String.valueOf(accountId));
-    }
-
-    private String errorMessage(Exception exception) {
-        return exception.getMessage() == null ? exception.toString() : exception.getMessage();
     }
 
     @FXML

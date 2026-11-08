@@ -1,16 +1,22 @@
 package org.fintrax.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.fintrax.config.I18n;
 import org.fintrax.fintx.BankingException;
 import org.fintrax.fintx.BankingProtocol;
 import org.fintrax.fintx.PinStorage;
 import org.fintrax.model.*;
 import org.fintrax.store.StoreManager;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @Slf4j
@@ -21,20 +27,25 @@ public class SyncService {
     private final TransactionService transactionService;
     private final AccountService accountService;
     private final ActivityLogger activityLogger;
-    private final PinStorage pinStorage;
     private final AtomicInteger activeSyncs = new AtomicInteger();
     private long nextId = 1;
 
+    @Autowired
     public SyncService(StoreManager store, BankingProtocol bankingProtocol,
                        TransactionService transactionService, AccountService accountService,
-                       ActivityLogger activityLogger, PinStorage pinStorage) {
+                       ActivityLogger activityLogger) {
         this.store = store;
         this.bankingProtocol = bankingProtocol;
         this.transactionService = transactionService;
         this.accountService = accountService;
         this.activityLogger = activityLogger;
-        this.pinStorage = pinStorage;
         initializeNextId();
+    }
+
+    public SyncService(StoreManager store, BankingProtocol bankingProtocol,
+                       TransactionService transactionService, AccountService accountService,
+                       ActivityLogger activityLogger, PinStorage ignoredPinStorage) {
+        this(store, bankingProtocol, transactionService, accountService, activityLogger);
     }
 
     private void initializeNextId() {
@@ -44,7 +55,7 @@ public class SyncService {
                 .orElse(0) + 1;
     }
 
-    public SyncResult syncAccount(Long accountId, String pin) {
+    public synchronized SyncResult syncAccount(Long accountId, String pin) {
         activeSyncs.incrementAndGet();
         try {
             return syncAccountInternal(accountId, pin);
@@ -62,6 +73,9 @@ public class SyncService {
         if (account == null) {
             throw new IllegalArgumentException("Account not found: " + accountId);
         }
+        if (pin == null || pin.isBlank()) {
+            throw new IllegalArgumentException("A PIN is required for each bank sync.");
+        }
 
         SyncLog syncLog = SyncLog.builder()
                 .id(nextId++)
@@ -69,62 +83,112 @@ public class SyncService {
                 .startedAt(LocalDateTime.now())
                 .status(SyncStatus.PARTIAL)
                 .build();
-
         store.getRoot().getSyncLogs().add(syncLog);
         store.store(store.getRoot().getSyncLogs());
 
         List<Long> newTransactionIds = new ArrayList<>();
         try {
             List<Transaction> fetchedTransactions = bankingProtocol.fetchTransactions(account, pin);
+            if (fetchedTransactions == null) {
+                throw new BankingException("Bank returned no complete transaction response.");
+            }
+            for (Transaction fetched : fetchedTransactions) {
+                if (fetched == null || (fetched.getAccountId() != null && !accountId.equals(fetched.getAccountId()))) {
+                    throw new BankingException("Bank returned transaction data for an unexpected account.");
+                }
+                fetched.setAccountId(accountId);
+            }
 
+            List<Transaction> localTransactions = new ArrayList<>(transactionService.getTransactionsByAccount(accountId));
+            Set<Transaction> matchedTransactions = Collections.newSetFromMap(new IdentityHashMap<>());
             int newCount = 0;
             int skippedCount = 0;
 
             for (Transaction fetched : fetchedTransactions) {
-                boolean exists = store.getRoot().getTransactions().stream()
-                        .anyMatch(t -> t.getChecksum().equals(fetched.getChecksum()));
+                Transaction existing = localTransactions.stream()
+                        .filter(candidate -> !matchedTransactions.contains(candidate))
+                        .filter(candidate -> matches(candidate, fetched))
+                        .findFirst()
+                        .orElse(null);
 
-                if (!exists) {
+                if (existing == null) {
                     Transaction created = transactionService.createTransaction(fetched);
+                    localTransactions.add(created);
+                    matchedTransactions.add(created);
                     newTransactionIds.add(created.getId());
                     newCount++;
                 } else {
+                    transactionService.updateFromBank(existing, fetched);
+                    matchedTransactions.add(existing);
                     skippedCount++;
                 }
             }
 
-            syncLog.setCompletedAt(LocalDateTime.now());
+            List<Long> stalePendingIds = localTransactions.stream()
+                    .filter(transaction -> !transaction.isBooked())
+                    .filter(transaction -> !matchedTransactions.contains(transaction))
+                    .map(Transaction::getId)
+                    .filter(id -> id != null)
+                    .toList();
+            transactionService.deleteTransactions(stalePendingIds);
+
+            LocalDateTime completedAt = LocalDateTime.now();
+            syncLog.setCompletedAt(completedAt);
             syncLog.setStatus(SyncStatus.SUCCESS);
             syncLog.setNewCount(newCount);
             syncLog.setSkippedCount(skippedCount);
-
-            accountService.updateLastSync(accountId, LocalDateTime.now());
-
+            accountService.updateLastSync(accountId, completedAt);
             store.store(syncLog);
-
-            activityLogger.log(ActivityAction.SYNC, EntityType.ACCOUNT, accountId,
-                    String.format("Synced account: %d new, %d skipped", newCount, skippedCount));
-
-            log.info("Synced account {}: {} new, {} skipped", accountId, newCount, skippedCount);
-
-        } catch (BankingException e) {
+            activityLogger.log(ActivityAction.SYNC, EntityType.ACCOUNT, accountId, "Bank sync completed");
+        } catch (Exception e) {
             syncLog.setCompletedAt(LocalDateTime.now());
             syncLog.setStatus(SyncStatus.FAILED);
-            syncLog.setErrorMessage(e.getMessage());
+            syncLog.setErrorMessage(safeFailureMessage(e));
             store.store(syncLog);
-
-            activityLogger.log(ActivityAction.SYNC, EntityType.ACCOUNT, accountId,
-                    "Sync failed: " + e.getMessage());
-
-            log.error("Sync failed for account {}", accountId, e);
+            activityLogger.log(ActivityAction.SYNC, EntityType.ACCOUNT, accountId, "Bank sync failed");
+            log.warn("Bank sync failed for account {}", accountId);
         }
 
         return new SyncResult(syncLog, newTransactionIds);
     }
 
+    private boolean matches(Transaction stored, Transaction received) {
+        String storedChecksum = normalizeChecksum(stored.getChecksum());
+        String receivedChecksum = normalizeChecksum(received.getChecksum());
+        if (storedChecksum != null && receivedChecksum != null) {
+            return storedChecksum.equals(receivedChecksum);
+        }
+
+        return java.util.Objects.equals(stored.getBookingDate(), received.getBookingDate())
+                && stored.getAmount() != null
+                && received.getAmount() != null
+                && stored.getAmount().compareTo(received.getAmount()) == 0
+                && normalizeText(stored.getOriginalPayee()).equals(normalizeText(received.getOriginalPayee()))
+                && normalizeText(stored.getPurpose()).equals(normalizeText(received.getPurpose()));
+    }
+
+    private String normalizeChecksum(String checksum) {
+        if (checksum == null || checksum.isBlank()) {
+            return null;
+        }
+        return checksum.trim();
+    }
+
+    private String normalizeText(String value) {
+        return value == null ? "" : value.trim().replaceAll("\\s+", " ").toLowerCase(Locale.ROOT);
+    }
+
+    private String safeFailureMessage(Exception exception) {
+        if (exception instanceof BankingException
+                && BankingException.TAN_REQUIRED_MESSAGE.equals(exception.getMessage())) {
+            return BankingException.TAN_REQUIRED_MESSAGE;
+        }
+        return I18n.get("message.sync.failedSafe");
+    }
+
     public List<SyncLog> getSyncLogs(Long accountId) {
         return store.getRoot().getSyncLogs().stream()
-                .filter(l -> l.getBankAccountId().equals(accountId))
+                .filter(log -> log.getBankAccountId().equals(accountId))
                 .toList();
     }
 }

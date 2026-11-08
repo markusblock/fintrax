@@ -88,6 +88,15 @@ An association between an incoming Hibiscus Transaction and an existing Fintrax 
 **Transaction Details**:
 User-facing information describing a transaction, including its account, dates, payees, purpose, amount, balance, type, booking status, and bank references. Source checksums, internal identifiers, and audit timestamps are not transaction details.
 
+**Booked Transaction**:
+A transaction the financial institution confirms as booked.
+
+**Pending Transaction**:
+A transaction the financial institution reports as unbooked; it may later become a Booked Transaction.
+
+**Bank Transaction Sync**:
+An on-demand retrieval of transactions for a Fintrax Account from its financial institution.
+
 ### Data Reset
 
 **Data Reset**:
