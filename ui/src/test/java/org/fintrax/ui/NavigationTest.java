@@ -4,11 +4,15 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.DatePicker;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.DialogPane;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
+import javafx.scene.control.TextField;
+import javafx.scene.control.TreeItem;
+import javafx.scene.control.TreeView;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.layout.BackgroundFill;
@@ -16,13 +20,23 @@ import javafx.scene.layout.Region;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import org.fintrax.config.I18n;
+import org.fintrax.model.ActionType;
+import org.fintrax.model.Category;
+import org.fintrax.model.MatchField;
+import org.fintrax.model.Operator;
+import org.fintrax.model.Rule;
+import org.fintrax.model.RuleAction;
+import org.fintrax.model.RuleCondition;
 import org.fintrax.model.Transaction;
+import org.fintrax.service.CategoryService;
+import org.fintrax.service.RuleService;
 import org.fintrax.service.TransactionService;
 import org.kordamp.ikonli.javafx.FontIcon;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -64,6 +78,80 @@ class NavigationTest extends AbstractUITest {
             assertLoadedController(contentArea, target.getValue());
             assertTrue(navigationButton.getStyleClass().contains("active"));
         }
+    }
+
+    @Test
+    void filtersAndViewSelectionsSurviveNavigationForTheCurrentSession() {
+        String suffix = Long.toString(System.nanoTime());
+        Category category = applicationContext.getBean(CategoryService.class)
+                .createCategory("Session category " + suffix, null, null);
+        String ruleName = "Session rule " + suffix;
+        Rule rule = applicationContext.getBean(RuleService.class).createRule(ruleName,
+                List.of(RuleCondition.builder().matchField(MatchField.PAYEE_NAME)
+                        .operator(Operator.CONTAINS).value(suffix).build()),
+                List.of(RuleAction.builder().actionType(ActionType.ASSIGN_CATEGORY)
+                        .categoryId(category.getId()).build()));
+
+        interact(lookup("#transactionsButton").<Button>query()::fire);
+        interact(() -> {
+            lookup("#searchField").<TextField>query().setText("transaction filter " + suffix);
+            lookup("#minAmountField").<TextField>query().setText("12.50");
+            lookup("#maxAmountField").<TextField>query().setText("250.00");
+            lookup("#categoryFilter").<ComboBox<String>>query().setValue(category.getName());
+            ComboBox<?> datePresets = lookup("#datePresetFilter").query();
+            int customPresetIndex = datePresets.getItems().stream()
+                    .filter(preset -> "CUSTOM".equals(preset.toString()))
+                    .mapToInt(datePresets.getItems()::indexOf).findFirst().orElseThrow();
+            datePresets.getSelectionModel().select(customPresetIndex);
+            lookup("#fromDateFilter").<DatePicker>query().setValue(LocalDate.of(2025, 2, 1));
+            lookup("#toDateFilter").<DatePicker>query().setValue(LocalDate.of(2025, 2, 28));
+            lookup("#toggleAdditionalFiltersButton").<Button>query().fire();
+        });
+
+        interact(lookup("#classificationsButton").<Button>query()::fire);
+        TreeView<String> classificationTree = lookup("#classificationTree").query();
+        TreeItem<String> categoriesRoot = classificationTree.getRoot().getChildren().stream()
+                .filter(item -> I18n.get("classifications.categoriesRoot").equals(item.getValue()))
+                .findFirst().orElseThrow();
+        TreeItem<String> categoryItem = categoriesRoot.getChildren().stream()
+                .filter(item -> category.getName().equals(item.getValue()))
+                .findFirst().orElseThrow();
+        interact(() -> {
+            lookup("#searchField").<TextField>query().setText("classification filter " + suffix);
+            classificationTree.getSelectionModel().select(categoryItem);
+        });
+
+        interact(lookup("#rulesButton").<Button>query()::fire);
+        interact(() -> {
+            lookup("#searchField").<TextField>query().setText("rules transaction filter " + suffix);
+            lookup("#ruleSearchField").<TextField>query().setText(ruleName);
+            TableView<Rule> ruleTable = lookup("#ruleTable").query();
+            Rule displayedRule = ruleTable.getItems().stream()
+                    .filter(candidate -> rule.getId().equals(candidate.getId()))
+                    .findFirst().orElseThrow();
+            ruleTable.getSelectionModel().select(displayedRule);
+        });
+
+        interact(lookup("#transactionsButton").<Button>query()::fire);
+        assertEquals("transaction filter " + suffix, lookup("#searchField").<TextField>query().getText());
+        assertEquals("12.50", lookup("#minAmountField").<TextField>query().getText());
+        assertEquals("250.00", lookup("#maxAmountField").<TextField>query().getText());
+        assertEquals(category.getName(), lookup("#categoryFilter").<ComboBox<String>>query().getValue());
+        assertEquals(LocalDate.of(2025, 2, 1), lookup("#fromDateFilter").<DatePicker>query().getValue());
+        assertEquals(LocalDate.of(2025, 2, 28), lookup("#toDateFilter").<DatePicker>query().getValue());
+        assertTrue(lookup("#additionalFilters").query().isVisible());
+
+        interact(lookup("#classificationsButton").<Button>query()::fire);
+        TreeView<String> restoredClassificationTree = lookup("#classificationTree").query();
+        assertEquals("classification filter " + suffix, lookup("#searchField").<TextField>query().getText());
+        assertEquals(category.getName(), restoredClassificationTree.getSelectionModel()
+                .getSelectedItem().getValue());
+
+        interact(lookup("#rulesButton").<Button>query()::fire);
+        assertEquals("rules transaction filter " + suffix, lookup("#searchField").<TextField>query().getText());
+        assertEquals(ruleName, lookup("#ruleSearchField").<TextField>query().getText());
+        assertEquals(rule.getId(), lookup("#ruleTable").<TableView<Rule>>query()
+                .getSelectionModel().getSelectedItem().getId());
     }
 
     private void assertLoadedController(StackPane contentArea, String controllerClassName) {

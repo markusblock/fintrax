@@ -70,6 +70,7 @@ public class RulesController {
     private final TransactionService transactionService;
     private final TransactionTableActions transactionTableActions;
     private final ViewLoader viewLoader;
+    private final SessionViewState sessionViewState;
 
     private final ObservableList<Rule> ruleData = FXCollections.observableArrayList();
     private final ObservableList<Transaction> displayedTransactions = FXCollections.observableArrayList();
@@ -80,7 +81,8 @@ public class RulesController {
     public RulesController(RuleService ruleService, AccountService accountService,
                            CategoryService categoryService, LabelService labelService,
                            SettingsService settingsService, TransactionService transactionService,
-                           TransactionTableActions transactionTableActions, ViewLoader viewLoader) {
+                           TransactionTableActions transactionTableActions, ViewLoader viewLoader,
+                           SessionViewState sessionViewState) {
         this.ruleService = ruleService;
         this.accountService = accountService;
         this.categoryService = categoryService;
@@ -89,6 +91,7 @@ public class RulesController {
         this.transactionService = transactionService;
         this.transactionTableActions = transactionTableActions;
         this.viewLoader = viewLoader;
+        this.sessionViewState = sessionViewState;
     }
 
     @FXML
@@ -102,8 +105,13 @@ public class RulesController {
         ruleNameColumn.setSortable(true);
         ruleNameColumn.setComparator(String.CASE_INSENSITIVE_ORDER);
         FilteredList<Rule> filteredRules = new FilteredList<>(ruleData);
-        ruleSearchField.textProperty().addListener((observable, oldValue, newValue) ->
-                filteredRules.setPredicate(ruleNamePredicate(newValue)));
+        String previousSearch = sessionViewState.ruleSearchText();
+        ruleSearchField.setText(previousSearch);
+        filteredRules.setPredicate(ruleNamePredicate(previousSearch));
+        ruleSearchField.textProperty().addListener((observable, oldValue, newValue) -> {
+            filteredRules.setPredicate(ruleNamePredicate(newValue));
+            sessionViewState.setRuleSearchText(newValue);
+        });
         ruleSearchClearButton.visibleProperty().bind(ruleSearchField.textProperty().isNotEmpty());
         ruleSearchClearButton.managedProperty().bind(ruleSearchClearButton.visibleProperty());
         SortedList<Rule> sortedRules = new SortedList<>(filteredRules);
@@ -138,10 +146,11 @@ public class RulesController {
         transactionTableActions.installContextMenu(
                 ruleTransactionsTable, rootPane, this::reloadSelectedTransactionsKeepingSelection, null);
         transactionFilterPanelController.setCollapsible(true);
+        transactionFilterPanelController.restoreForView(SessionViewState.RULES_VIEW);
         transactionFilterPanelController.setOnFiltersChanged(this::refreshSelectedRuleTransactions);
         ruleTable.getSelectionModel().selectedItemProperty().addListener((obs, oldRule, newRule) ->
                 showSelectedRule(newRule));
-        clearSelectedRule();
+        restoreSelectedRule();
     }
 
     private void setupColumnMenu() {
@@ -210,6 +219,7 @@ public class RulesController {
             return;
         }
         selectedRuleId = rule.getId();
+        sessionViewState.setSelectedRuleId(selectedRuleId);
         ruleNameSummary.setText(rule.getName());
         ruleConditionsSummary.setText(I18n.get("rules.summary.conditions", rule.getConditions().stream()
                 .map(this::conditionSummary).collect(Collectors.joining(" · "))));
@@ -223,11 +233,25 @@ public class RulesController {
 
     private void clearSelectedRule() {
         selectedRuleId = null;
+        sessionViewState.setSelectedRuleId(null);
         selectedRuleTransactions = List.of();
         ruleNameSummary.setText(I18n.get("rules.selectRule"));
         ruleConditionsSummary.setText("");
         ruleActionsSummary.setText("");
         displayedTransactions.clear();
+    }
+
+    private void restoreSelectedRule() {
+        Long previousRuleId = sessionViewState.selectedRuleId();
+        Rule selectedRule = previousRuleId == null ? null : ruleData.stream()
+                .filter(rule -> Objects.equals(rule.getId(), previousRuleId))
+                .filter(ruleTable.getItems()::contains)
+                .findFirst().orElse(null);
+        if (selectedRule == null) {
+            clearSelectedRule();
+            return;
+        }
+        ruleTable.getSelectionModel().select(selectedRule);
     }
 
     private String conditionSummary(RuleCondition condition) {

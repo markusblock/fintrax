@@ -136,7 +136,7 @@ public class TransactionsController {
     public TransactionsController(TransactionService transactionService, AccountService accountService,
                                   CategoryService categoryService, LabelService labelService,
                                   SettingsService settingsService, RuleService ruleService,
-                                  ViewLoader viewLoader, TransactionTableActions transactionTableActions) {
+                                   ViewLoader viewLoader, TransactionTableActions transactionTableActions) {
         this.transactionService = transactionService;
         this.accountService = accountService;
         this.categoryService = categoryService;
@@ -155,6 +155,7 @@ public class TransactionsController {
         setupTableColumns();
         TableCellTooltips.install(transactionTable);
         transactionFilterPanelController.setCollapsible(true);
+        transactionFilterPanelController.restoreForView(SessionViewState.TRANSACTIONS_VIEW);
         transactionFilterPanelController.setOnFiltersChanged(this::loadTransactions);
         loadTransactions();
         setupColumnMenu();
