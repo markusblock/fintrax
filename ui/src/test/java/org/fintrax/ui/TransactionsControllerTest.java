@@ -188,10 +188,12 @@ class TransactionsControllerTest extends AbstractUITest {
         DatePicker toDate = lookup("#toDateFilter").query();
         LocalDate today = LocalDate.now();
 
-        int previousYearIndex = presets.getItems().indexOf(presets.getItems().stream()
-                .filter(preset -> preset.toString().equals("PREVIOUS_YEAR"))
-                .findFirst().orElseThrow());
-        interact(() -> presets.getSelectionModel().select(previousYearIndex));
+        interact(() -> {
+            int previousYearIndex = presets.getItems().indexOf(presets.getItems().stream()
+                    .filter(preset -> preset.toString().equals("PREVIOUS_YEAR"))
+                    .findFirst().orElseThrow());
+            presets.getSelectionModel().select(previousYearIndex);
+        });
 
         assertEquals(LocalDate.of(today.getYear() - 1, 1, 1), fromDate.getValue());
         assertEquals(LocalDate.of(today.getYear() - 1, 12, 31), toDate.getValue());
