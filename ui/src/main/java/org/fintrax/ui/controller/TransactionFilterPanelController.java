@@ -30,6 +30,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Optional;
 
 @Component
@@ -69,16 +70,20 @@ public class TransactionFilterPanelController {
 
     private final AccountService accountService;
     private final CategoryService categoryService;
+    private final SessionViewState sessionViewState;
     private List<Category> categoryOptions = List.of();
     private Runnable onFiltersChanged = () -> { };
     private boolean updatingDateFilters;
     private boolean updatingFilters;
     private boolean collapsible;
     private boolean additionalFiltersExpanded = true;
+    private String viewKey;
 
-    public TransactionFilterPanelController(AccountService accountService, CategoryService categoryService) {
+    public TransactionFilterPanelController(AccountService accountService, CategoryService categoryService,
+                                            SessionViewState sessionViewState) {
         this.accountService = accountService;
         this.categoryService = categoryService;
+        this.sessionViewState = sessionViewState;
     }
 
     @FXML
@@ -94,6 +99,7 @@ public class TransactionFilterPanelController {
         if (!collapsible) return;
         additionalFiltersExpanded = !additionalFiltersExpanded;
         updateAdditionalFiltersVisibility();
+        saveSessionState();
     }
 
     public void setOnFiltersChanged(Runnable onFiltersChanged) {
@@ -103,6 +109,33 @@ public class TransactionFilterPanelController {
     public void setCollapsible(boolean collapsible) {
         this.collapsible = collapsible;
         additionalFiltersExpanded = !collapsible;
+        updateAdditionalFiltersVisibility();
+    }
+
+    public void restoreForView(String viewKey) {
+        this.viewKey = viewKey;
+        SessionViewState.TransactionFilterPanelState state = sessionViewState.transactionFilters(viewKey);
+        if (state == null) {
+            datePresetFilter.setValue(TransactionDateFilters.Preset.THIS_YEAR);
+            return;
+        }
+
+        updatingFilters = true;
+        try {
+            selectAccount(state.accountId());
+            selectCategory(state.categoryId());
+            searchField.setText(state.searchText());
+            minAmountField.setText(state.minAmountText());
+            maxAmountField.setText(state.maxAmountText());
+            datePresetFilter.setValue(state.datePreset());
+            updatingDateFilters = true;
+            restoreDate(fromDateFilter, state.fromDate(), state.invalidFromDateText());
+            restoreDate(toDateFilter, state.toDate(), state.invalidToDateText());
+            additionalFiltersExpanded = state.additionalFiltersExpanded();
+        } finally {
+            updatingDateFilters = false;
+            updatingFilters = false;
+        }
         updateAdditionalFiltersVisibility();
     }
 
@@ -159,6 +192,7 @@ public class TransactionFilterPanelController {
             updatingFilters = false;
         }
         updateCollapsedFilterSummary();
+        saveSessionState();
         onFiltersChanged.run();
     }
 
@@ -232,9 +266,9 @@ public class TransactionFilterPanelController {
         });
 
         fromDateFilter.getEditor().textProperty().addListener((observable, oldText, newText) ->
-                onDateTextChanged());
+                onDateTextChanged(fromDateFilter));
         toDateFilter.getEditor().textProperty().addListener((observable, oldText, newText) ->
-                onDateTextChanged());
+                onDateTextChanged(toDateFilter));
     }
 
     private void setupFilterListeners() {
@@ -255,8 +289,61 @@ public class TransactionFilterPanelController {
     private void applyChangedFilters() {
         if (!updatingFilters && !updatingDateFilters) {
             updateCollapsedFilterSummary();
+            saveSessionState();
             onFiltersChanged.run();
         }
+    }
+
+    private void saveSessionState() {
+        if (viewKey == null) return;
+        DateValue fromDate = captureDate(fromDateFilter);
+        DateValue toDate = captureDate(toDateFilter);
+        sessionViewState.saveTransactionFilters(viewKey, new SessionViewState.TransactionFilterPanelState(
+                getSelectedAccountId(), getSelectedCategoryId(), searchField.getText(),
+                minAmountField.getText(), maxAmountField.getText(), datePresetFilter.getValue(),
+                fromDate.value(), fromDate.invalidText(), toDate.value(), toDate.invalidText(),
+                additionalFiltersExpanded));
+    }
+
+    private DateValue captureDate(DatePicker datePicker) {
+        String text = datePicker.getEditor().getText();
+        try {
+            return new DateValue(TransactionDateFilters.parseDate(text, I18n.getCurrentLocale()), null);
+        } catch (DateTimeParseException e) {
+            return new DateValue(datePicker.getValue(), text);
+        }
+    }
+
+    private void restoreDate(DatePicker datePicker, LocalDate value, String invalidText) {
+        datePicker.setValue(value);
+        if (invalidText != null) datePicker.getEditor().setText(invalidText);
+    }
+
+    private void selectAccount(Long accountId) {
+        int index = 0;
+        if (accountId != null) {
+            List<BankAccount> accounts = accountService.getAllAccounts();
+            for (int accountIndex = 0; accountIndex < accounts.size(); accountIndex++) {
+                if (accountId.equals(accounts.get(accountIndex).getId())) {
+                    index = accountIndex + 1;
+                    break;
+                }
+            }
+        }
+        accountFilter.getSelectionModel().select(index);
+    }
+
+    private void selectCategory(Long categoryId) {
+        int index = 0;
+        if (categoryId != null) {
+            for (int categoryIndex = 0; categoryIndex < categoryOptions.size(); categoryIndex++) {
+                if (categoryId.equals(categoryOptions.get(categoryIndex).getId())) {
+                    index = categoryIndex + 1;
+                    break;
+                }
+            }
+        }
+        categoryFilter.getSelectionModel().select(index);
     }
 
     private void updateAdditionalFiltersVisibility() {
@@ -301,11 +388,26 @@ public class TransactionFilterPanelController {
         }
     }
 
-    private void onDateTextChanged() {
+    private void onDateTextChanged(DatePicker datePicker) {
         setDateFieldInvalid(fromDateFilter, false);
         setDateFieldInvalid(toDateFilter, false);
-        if (!updatingDateFilters) {
+        if (!updatingDateFilters && !matchesSelectedDatePreset(datePicker)) {
             datePresetFilter.setValue(TransactionDateFilters.Preset.CUSTOM);
+        }
+    }
+
+    private boolean matchesSelectedDatePreset(DatePicker datePicker) {
+        TransactionDateFilters.Preset preset = datePresetFilter.getValue();
+        if (preset == null || preset == TransactionDateFilters.Preset.CUSTOM) return false;
+        TransactionDateFilters.Range range = TransactionDateFilters.rangeFor(
+                preset, LocalDate.now(ZoneId.systemDefault()));
+        LocalDate expectedDate = datePicker == fromDateFilter ? range.fromDate() : range.toDate();
+        try {
+            LocalDate enteredDate = TransactionDateFilters.parseDate(
+                    datePicker.getEditor().getText(), I18n.getCurrentLocale());
+            return Objects.equals(expectedDate, enteredDate);
+        } catch (DateTimeParseException e) {
+            return false;
         }
     }
 
@@ -344,5 +446,8 @@ public class TransactionFilterPanelController {
     private String maskIban(String iban) {
         if (iban == null || iban.length() < 8) return iban != null ? iban : "";
         return iban.substring(0, 4) + "****" + iban.substring(iban.length() - 4);
+    }
+
+    private record DateValue(LocalDate value, String invalidText) {
     }
 }

@@ -155,6 +155,7 @@ public class TransactionsController {
         setupTableColumns();
         TableCellTooltips.install(transactionTable);
         transactionFilterPanelController.setCollapsible(true);
+        transactionFilterPanelController.restoreForView(SessionViewState.TRANSACTIONS_VIEW);
         transactionFilterPanelController.setOnFiltersChanged(this::loadTransactions);
         loadTransactions();
         setupColumnMenu();

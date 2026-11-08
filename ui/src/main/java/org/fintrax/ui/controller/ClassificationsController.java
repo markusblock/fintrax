@@ -70,6 +70,7 @@ public class ClassificationsController {
     private final TransactionService transactionService;
     private final AccountService accountService;
     private final TransactionTableActions transactionTableActions;
+    private final SessionViewState sessionViewState;
     private final Map<Long, TreeItem<String>> categoryItemsById = new HashMap<>();
     private final Map<Long, TreeItem<String>> labelItemsById = new HashMap<>();
     private final ObservableList<Transaction> displayedTransactions = FXCollections.observableArrayList();
@@ -89,13 +90,15 @@ public class ClassificationsController {
                                   SettingsService settingsService,
                                   TransactionService transactionService,
                                   AccountService accountService,
-                                  TransactionTableActions transactionTableActions) {
+                                  TransactionTableActions transactionTableActions,
+                                  SessionViewState sessionViewState) {
         this.categoryService = categoryService;
         this.labelService = labelService;
         this.settingsService = settingsService;
         this.transactionService = transactionService;
         this.accountService = accountService;
         this.transactionTableActions = transactionTableActions;
+        this.sessionViewState = sessionViewState;
     }
 
     @FXML
@@ -118,10 +121,13 @@ public class ClassificationsController {
         transactionTableActions.installContextMenu(
                 classificationTransactionsTable, rootPane, this::reloadSelectedTransactionsKeepingSelection, null);
         transactionFilterPanelController.setCollapsible(true);
+        transactionFilterPanelController.restoreForView(SessionViewState.CLASSIFICATIONS_VIEW);
         transactionFilterPanelController.setOnFiltersChanged(this::reloadSelectedTransactionsKeepingSelection);
         classificationTree.getSelectionModel().selectedItemProperty().addListener((obs, oldItem, newItem) -> {
+            saveClassificationSelection(newItem);
             loadSelectedNodeTransactions(true);
         });
+        restoreClassificationSelection();
     }
 
     private void setupColumnMenu() {
@@ -241,6 +247,29 @@ public class ClassificationsController {
         } else {
             displayedTransactions.clear();
         }
+    }
+
+    private void saveClassificationSelection(TreeItem<String> item) {
+        Long categoryId = item == null ? null : findCategoryIdByItem(item);
+        Long labelId = item == null ? null : findLabelIdByItem(item);
+        sessionViewState.setClassificationSelection(categoryId == null && labelId == null
+                ? null
+                : new SessionViewState.ClassificationSelection(categoryId, labelId));
+    }
+
+    private void restoreClassificationSelection() {
+        SessionViewState.ClassificationSelection selection = sessionViewState.classificationSelection();
+        if (selection == null) return;
+
+        TreeItem<String> item = selection.categoryId() != null
+                ? categoryItemsById.get(selection.categoryId())
+                : labelItemsById.get(selection.labelId());
+        if (item == null) {
+            sessionViewState.setClassificationSelection(null);
+            return;
+        }
+        if (selection.categoryId() != null) expandPathToCategory(selection.categoryId());
+        classificationTree.getSelectionModel().select(item);
     }
 
     private void sortTransactionsIfNeeded() {

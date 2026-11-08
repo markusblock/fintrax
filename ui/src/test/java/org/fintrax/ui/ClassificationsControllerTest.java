@@ -58,6 +58,7 @@ class ClassificationsControllerTest extends AbstractUITest {
         Parent root = applicationContext.getBean(ViewLoader.class).load("classifications");
         stage.setScene(new Scene(root, 1024, 768));
         stage.show();
+        useAllTimeDatePreset(root);
     }
 
     @Test

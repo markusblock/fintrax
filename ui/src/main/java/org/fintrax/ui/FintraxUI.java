@@ -11,6 +11,7 @@ import javafx.stage.Stage;
 import lombok.extern.slf4j.Slf4j;
 import org.fintrax.config.I18n;
 import org.fintrax.service.SettingsService;
+import org.fintrax.ui.controller.SessionViewState;
 import org.springframework.context.ApplicationContext;
 
 @Slf4j
@@ -30,6 +31,7 @@ public class FintraxUI extends Application {
         log.info("Starting Fintrax UI");
 
         SettingsService settingsService = getApplicationContext().getBean(SettingsService.class);
+        getApplicationContext().getBean(SessionViewState.class).clear();
         I18n.setLocale(settingsService.getLocale());
 
         Parent root = getApplicationContext().getBean(ViewLoader.class).load("main");
@@ -43,6 +45,8 @@ public class FintraxUI extends Application {
         primaryStage.setScene(scene);
         primaryStage.setMinWidth(MIN_WIDTH);
         primaryStage.setMinHeight(MIN_HEIGHT);
+        WindowGeometry.restore(primaryStage, settingsService);
+        primaryStage.setOnCloseRequest(event -> WindowGeometry.save(primaryStage, settingsService));
         primaryStage.show();
 
         log.info("Fintrax UI started");
