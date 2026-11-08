@@ -449,7 +449,7 @@ public class ClassificationsController {
         int remainingComparison = Integer.compare(left.length() - leftIndex, right.length() - rightIndex);
         if (remainingComparison != 0) return remainingComparison;
         int caseInsensitiveComparison = String.CASE_INSENSITIVE_ORDER.compare(left, right);
-        return caseInsensitiveComparison != 0 ? caseInsensitiveComparison : left.compareTo(right);
+        return caseInsensitiveComparison == 0 ? left.compareTo(right) : caseInsensitiveComparison;
     }
 
     private int nextSegmentEnd(String value, int start, boolean digits) {
