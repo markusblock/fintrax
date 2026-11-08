@@ -32,13 +32,19 @@ Run the full UI test suite:
 ./scripts/ui-tests-podman.sh all
 ```
 
-Every test command starts an authenticated, view-only VNC server on the host loopback interface. On macOS, the script automatically opens a separate Screen Sharing instance with the one-time password embedded in its connection URL, then closes only that instance when tests finish. Existing Screen Sharing windows remain open. The password is also printed for use with other VNC clients. Set `FINTRAX_UI_VNC_PORT` to select another local port if `5900` is occupied. If automatic launch is unavailable, macOS users can open it manually:
+Every test command starts an authenticated, view-only VNC server on the host loopback interface. The selected host port is printed. On macOS, the script automatically opens a separate Screen Sharing instance with the one-time password embedded in its connection URL, then closes only that instance when tests finish. Existing Screen Sharing windows remain open. The password is also printed for use with other VNC clients. `FINTRAX_UI_VNC_PORT` selects a fixed port (default `5900`); set it to `random` to let Podman choose an available host port and have the script discover it:
+
+```sh
+FINTRAX_UI_VNC_PORT=random ./scripts/ui-tests-podman.sh all
+```
+
+If automatic launch is unavailable, use the reported port in the manual connection. For example, when the reported port is `5900`, macOS users can run:
 
 ```sh
 open vnc://localhost:5900
 ```
 
-On other systems, connect with a VNC client to `localhost:5900`.
+On other systems, connect with a VNC client to `localhost:<reported-port>`.
 
 The focused mode runs `ClassificationsControllerTest.transactionFiltersStartCollapsedInClassificationsView`; `test` runs the supplied method/class/package patterns; `all` runs the complete UI suite. A Gradle init script forces Test tasks to execute on each invocation while leaving compilation outputs cached. Failed UI tests save a PNG of the Xvfb display under `ui/build/test-failures/`; screenshots are generated only by Podman runs and remain ignored build output. The script builds and runs a `linux/amd64` Java 21 image on a private Xvfb display, matching the architecture used by CI. On Apple Silicon, Podman emulates amd64; this is slower than native execution but avoids requesting OpenJFX `linux-aarch64` artifacts unavailable for the project's JavaFX 21.0.2. Gradle uses a 384 MiB daemon heap, a test-JVM heap capped at 14% of container memory, two reported processors, and one worker to fit the default 2 GiB Podman machine. Its user-home cache is kept in the checkout at `.gradle-podman/`; UI test reports and other build outputs remain in that checkout's normal `ui/build/` directory.
 
