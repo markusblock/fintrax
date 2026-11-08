@@ -93,17 +93,25 @@ if ! podman info >/dev/null 2>&1; then
     exit 1
 fi
 
-vnc_port="${FINTRAX_UI_VNC_PORT:-5900}"
-if [[ ! "$vnc_port" =~ ^[0-9]+$ ]]; then
-    echo "FINTRAX_UI_VNC_PORT must be a port number between 1 and 65535." >&2
-    exit 2
+vnc_port_setting="${FINTRAX_UI_VNC_PORT:-5900}"
+use_random_vnc_port=false
+container_name=""
+if [[ "$vnc_port_setting" == "random" ]]; then
+    use_random_vnc_port=true
+    container_name="fintrax-ui-tests-$$"
+    vnc_port=""
+else
+    if [[ ! "$vnc_port_setting" =~ ^[0-9]+$ ]]; then
+        echo "FINTRAX_UI_VNC_PORT must be 'random' or a port number between 1 and 65535." >&2
+        exit 2
+    fi
+    vnc_port_number=$((10#$vnc_port_setting))
+    if ((vnc_port_number < 1 || vnc_port_number > 65535)); then
+        echo "FINTRAX_UI_VNC_PORT must be 'random' or a port number between 1 and 65535." >&2
+        exit 2
+    fi
+    vnc_port="$vnc_port_number"
 fi
-vnc_port_number=$((10#$vnc_port))
-if ((vnc_port_number < 1 || vnc_port_number > 65535)); then
-    echo "FINTRAX_UI_VNC_PORT must be a port number between 1 and 65535." >&2
-    exit 2
-fi
-vnc_port="$vnc_port_number"
 vnc_password="$(openssl rand -hex 4)"
 
 podman_args=(
@@ -117,7 +125,11 @@ podman_args=(
     --env "JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=14 -XX:ActiveProcessorCount=2"
     --env "FINTRAX_UI_VNC_PASSWORD=$vnc_password"
 )
-podman_args+=(--publish "127.0.0.1:${vnc_port}:5900")
+if [[ "$use_random_vnc_port" == true ]]; then
+    podman_args+=(--name "$container_name" --publish "127.0.0.1::5900")
+else
+    podman_args+=(--publish "127.0.0.1:${vnc_port}:5900")
+fi
 
 image="fintrax-ui-tests:local"
 podman build \
@@ -135,8 +147,30 @@ test_runner_args+=(--vnc)
 podman run "${podman_args[@]}" "$image" "${test_runner_args[@]}" &
 container_pid=$!
 
+if [[ "$use_random_vnc_port" == true ]]; then
+    for _ in {1..50}; do
+        if ! kill -0 "$container_pid" 2>/dev/null; then
+            break
+        fi
+        port_mapping="$(podman port "$container_name" 5900/tcp 2>/dev/null || true)"
+        candidate_port="${port_mapping##*:}"
+        if [[ "$candidate_port" =~ ^[0-9]+$ ]]; then
+            candidate_port_number=$((10#$candidate_port))
+            if ((candidate_port_number >= 1 && candidate_port_number <= 65535)); then
+                vnc_port="$candidate_port_number"
+                break
+            fi
+        fi
+        sleep 0.2
+    done
+fi
+
+if [[ -n "$vnc_port" ]]; then
+    echo "VNC host port: ${vnc_port}"
+fi
+
 vnc_ready=false
-if command -v nc >/dev/null 2>&1; then
+if [[ -n "$vnc_port" ]] && command -v nc >/dev/null 2>&1; then
     for _ in {1..50}; do
         if ! kill -0 "$container_pid" 2>/dev/null; then
             break
@@ -156,7 +190,11 @@ if [[ "$vnc_ready" == true ]]; then
         open_screen_sharing
     fi
 else
-    echo "VNC did not become ready on localhost:${vnc_port}; UI tests are still running." >&2
+    if [[ -n "$vnc_port" ]]; then
+        echo "VNC did not become ready on localhost:${vnc_port}; UI tests are still running." >&2
+    else
+        echo "Could not determine the random VNC port; UI tests are still running." >&2
+    fi
 fi
 
 set +e
