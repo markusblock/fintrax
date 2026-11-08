@@ -126,8 +126,13 @@ podman build \
     --tag "$image" \
     "$repo_root/tools/ui-tests"
 
-podman run "${podman_args[@]}" "$image" \
-    /usr/local/bin/run-ui-tests "$mode" "${mode_args[@]}" --vnc &
+test_runner_args=(/usr/local/bin/run-ui-tests "$mode")
+if [[ ${#mode_args[@]} -gt 0 ]]; then
+    test_runner_args+=("${mode_args[@]}")
+fi
+test_runner_args+=(--vnc)
+
+podman run "${podman_args[@]}" "$image" "${test_runner_args[@]}" &
 container_pid=$!
 
 vnc_ready=false

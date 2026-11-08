@@ -96,8 +96,7 @@ public class TransactionService {
         return transactions.stream()
                 .filter(t -> filter.accountId() == null || t.getAccountId().equals(filter.accountId()))
                 .filter(t -> (filter.fromDate() == null && filter.toDate() == null)
-                        || matchesDateRange(t.getBookingDate(), filter)
-                        || matchesDateRange(t.getValueDate(), filter))
+                        || matchesDateRange(t.getBookingDate(), filter))
                 .filter(t -> filter.categoryId() == null || matchingCategoryIds.contains(t.getCategoryId()))
                 .filter(t -> filter.labelIds() == null || filter.labelIds().isEmpty() ||
                         t.getLabelIds().containsAll(filter.labelIds()))
