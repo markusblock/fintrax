@@ -136,7 +136,7 @@ public class TransactionsController {
     public TransactionsController(TransactionService transactionService, AccountService accountService,
                                   CategoryService categoryService, LabelService labelService,
                                   SettingsService settingsService, RuleService ruleService,
-                                   ViewLoader viewLoader, TransactionTableActions transactionTableActions) {
+                                  ViewLoader viewLoader, TransactionTableActions transactionTableActions) {
         this.transactionService = transactionService;
         this.accountService = accountService;
         this.categoryService = categoryService;
