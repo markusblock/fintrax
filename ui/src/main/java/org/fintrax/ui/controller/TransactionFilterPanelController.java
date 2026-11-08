@@ -116,9 +116,7 @@ public class TransactionFilterPanelController {
         this.viewKey = viewKey;
         SessionViewState.TransactionFilterPanelState state = sessionViewState.transactionFilters(viewKey);
         if (state == null) {
-            if (SessionViewState.TRANSACTIONS_VIEW.equals(viewKey)) {
-                datePresetFilter.setValue(TransactionDateFilters.Preset.THIS_YEAR);
-            }
+            datePresetFilter.setValue(TransactionDateFilters.Preset.THIS_YEAR);
             return;
         }
 

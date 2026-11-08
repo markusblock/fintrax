@@ -1,21 +1,22 @@
 package org.fintrax.ui;
 
+import javafx.scene.Parent;
+import javafx.scene.control.ComboBox;
+import javafx.stage.Stage;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.fintrax.fintx.FintxConfiguration;
 import org.fintrax.service.ServiceConfiguration;
 import org.fintrax.store.StoreConfiguration;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.extension.RegisterExtension;
-import org.testfx.framework.junit5.ApplicationTest;
-
-import javafx.stage.Stage;
 import org.springframework.core.env.MapPropertySource;
+import org.testfx.framework.junit5.ApplicationTest;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Map;
 import java.util.Comparator;
+import java.util.Map;
 
 public abstract class AbstractUITest extends ApplicationTest {
     @RegisterExtension
@@ -56,5 +57,15 @@ public abstract class AbstractUITest extends ApplicationTest {
 
     @Override
     public void start(Stage stage) throws Exception {
+    }
+
+    protected void useAllTimeDatePreset(Parent root) {
+        root.applyCss();
+        ComboBox<?> datePresetFilter = (ComboBox<?>) root.lookup("#datePresetFilter");
+        int allTimeIndex = datePresetFilter.getItems().stream()
+                .filter(preset -> "ALL_TIME".equals(preset.toString()))
+                .mapToInt(datePresetFilter.getItems()::indexOf)
+                .findFirst().orElseThrow();
+        datePresetFilter.getSelectionModel().select(allTimeIndex);
     }
 }

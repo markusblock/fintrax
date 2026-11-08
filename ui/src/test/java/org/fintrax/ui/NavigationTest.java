@@ -81,18 +81,19 @@ class NavigationTest extends AbstractUITest {
     }
 
     @Test
-    void transactionViewDefaultsToCurrentYearWhenNoDateRangeIsSaved() {
-        interact(lookup("#transactionsButton").<Button>query()::fire);
-
+    void allTransactionViewsDefaultToCurrentYearWhenNoDateRangeIsSaved() {
         LocalDate today = LocalDate.now();
-        assertEquals("THIS_YEAR", lookup("#datePresetFilter").<ComboBox<?>>query().getValue().toString());
-        assertEquals(LocalDate.of(today.getYear(), 1, 1), lookup("#fromDateFilter").<DatePicker>query().getValue());
-        assertEquals(LocalDate.of(today.getYear(), 12, 31), lookup("#toDateFilter").<DatePicker>query().getValue());
+        for (String navigationButton : List.of("#transactionsButton", "#classificationsButton", "#rulesButton")) {
+            interact(lookup(navigationButton).<Button>query()::fire);
+            assertDateFilter("THIS_YEAR", LocalDate.of(today.getYear(), 1, 1),
+                    LocalDate.of(today.getYear(), 12, 31));
+        }
     }
 
     @Test
     void filtersAndViewSelectionsSurviveNavigationForTheCurrentSession() {
         String suffix = Long.toString(System.nanoTime());
+        LocalDate today = LocalDate.now();
         Category category = applicationContext.getBean(CategoryService.class)
                 .createCategory("Session category " + suffix, null, null);
         String ruleName = "Session rule " + suffix;
@@ -129,6 +130,7 @@ class NavigationTest extends AbstractUITest {
         interact(() -> {
             lookup("#searchField").<TextField>query().setText("classification filter " + suffix);
             classificationTree.getSelectionModel().select(categoryItem);
+            selectDatePreset("PREVIOUS_YEAR");
         });
 
         interact(lookup("#rulesButton").<Button>query()::fire);
@@ -140,6 +142,7 @@ class NavigationTest extends AbstractUITest {
                     .filter(candidate -> rule.getId().equals(candidate.getId()))
                     .findFirst().orElseThrow();
             ruleTable.getSelectionModel().select(displayedRule);
+            selectDatePreset("THIS_MONTH");
         });
 
         interact(lookup("#transactionsButton").<Button>query()::fire);
@@ -147,6 +150,7 @@ class NavigationTest extends AbstractUITest {
         assertEquals("12.50", lookup("#minAmountField").<TextField>query().getText());
         assertEquals("250.00", lookup("#maxAmountField").<TextField>query().getText());
         assertEquals(category.getName(), lookup("#categoryFilter").<ComboBox<String>>query().getValue());
+        assertEquals("CUSTOM", lookup("#datePresetFilter").<ComboBox<?>>query().getValue().toString());
         assertEquals(LocalDate.of(2025, 2, 1), lookup("#fromDateFilter").<DatePicker>query().getValue());
         assertEquals(LocalDate.of(2025, 2, 28), lookup("#toDateFilter").<DatePicker>query().getValue());
         assertTrue(lookup("#additionalFilters").query().isVisible());
@@ -156,12 +160,30 @@ class NavigationTest extends AbstractUITest {
         assertEquals("classification filter " + suffix, lookup("#searchField").<TextField>query().getText());
         assertEquals(category.getName(), restoredClassificationTree.getSelectionModel()
                 .getSelectedItem().getValue());
+        assertDateFilter("PREVIOUS_YEAR", LocalDate.of(today.getYear() - 1, 1, 1),
+                LocalDate.of(today.getYear() - 1, 12, 31));
 
         interact(lookup("#rulesButton").<Button>query()::fire);
         assertEquals("rules transaction filter " + suffix, lookup("#searchField").<TextField>query().getText());
         assertEquals(ruleName, lookup("#ruleSearchField").<TextField>query().getText());
         assertEquals(rule.getId(), lookup("#ruleTable").<TableView<Rule>>query()
                 .getSelectionModel().getSelectedItem().getId());
+        assertDateFilter("THIS_MONTH", today.withDayOfMonth(1), today.withDayOfMonth(today.lengthOfMonth()));
+    }
+
+    private void assertDateFilter(String preset, LocalDate fromDate, LocalDate toDate) {
+        assertEquals(preset, lookup("#datePresetFilter").<ComboBox<?>>query().getValue().toString());
+        assertEquals(fromDate, lookup("#fromDateFilter").<DatePicker>query().getValue());
+        assertEquals(toDate, lookup("#toDateFilter").<DatePicker>query().getValue());
+    }
+
+    private void selectDatePreset(String presetName) {
+        ComboBox<?> presets = lookup("#datePresetFilter").query();
+        int presetIndex = presets.getItems().stream()
+                .filter(preset -> presetName.equals(preset.toString()))
+                .mapToInt(presets.getItems()::indexOf)
+                .findFirst().orElseThrow();
+        presets.getSelectionModel().select(presetIndex);
     }
 
     private void assertLoadedController(StackPane contentArea, String controllerClassName) {
