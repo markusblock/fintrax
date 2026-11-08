@@ -56,6 +56,33 @@ public class TransactionService {
         return transaction;
     }
 
+    public Transaction updateFromBank(Transaction stored, Transaction received) {
+        stored.setAccountId(received.getAccountId());
+        if (received.getOriginalPayee() != null) stored.setOriginalPayee(received.getOriginalPayee());
+        if (received.getPurpose() != null && !received.getPurpose().isBlank()) stored.setPurpose(received.getPurpose());
+        if (received.getAmount() != null) stored.setAmount(received.getAmount());
+        if (received.getBookingDate() != null) stored.setBookingDate(received.getBookingDate());
+        if (received.getValueDate() != null) stored.setValueDate(received.getValueDate());
+        if (received.getBalanceAfter() != null) stored.setBalanceAfter(received.getBalanceAfter());
+        if (received.getTransactionType() != null) stored.setTransactionType(received.getTransactionType());
+        if (received.getChecksum() != null) stored.setChecksum(received.getChecksum());
+        if (received.getEndToEndId() != null) stored.setEndToEndId(received.getEndToEndId());
+        if (received.getMandateId() != null) stored.setMandateId(received.getMandateId());
+        if (received.getCreditorId() != null) stored.setCreditorId(received.getCreditorId());
+        stored.setBooked(stored.isBooked() || received.isBooked());
+        stored.setUpdatedAt(LocalDateTime.now());
+        store.store(stored);
+        return stored;
+    }
+
+    public void deleteTransactions(Collection<Long> transactionIds) {
+        if (transactionIds.isEmpty()) {
+            return;
+        }
+        store.getRoot().getTransactions().removeIf(transaction -> transactionIds.contains(transaction.getId()));
+        store.store(store.getRoot().getTransactions());
+    }
+
     public Optional<Transaction> getTransaction(Long id) {
         return Optional.ofNullable(store.getTransaction(id));
     }

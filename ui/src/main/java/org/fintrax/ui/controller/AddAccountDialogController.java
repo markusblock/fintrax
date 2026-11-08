@@ -12,6 +12,7 @@ import org.fintrax.model.AccountType;
 import org.fintrax.model.BankAccount;
 import org.fintrax.service.AccountService;
 import org.fintrax.ui.FintraxUI;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
@@ -38,13 +39,16 @@ public class AddAccountDialogController {
 
     private final AccountService accountService;
     private final BankingProtocol bankingProtocol;
-    private final PinStorage pinStorage;
 
-    public AddAccountDialogController(AccountService accountService, BankingProtocol bankingProtocol,
-                                      PinStorage pinStorage) {
+    @Autowired
+    public AddAccountDialogController(AccountService accountService, BankingProtocol bankingProtocol) {
         this.accountService = accountService;
         this.bankingProtocol = bankingProtocol;
-        this.pinStorage = pinStorage;
+    }
+
+    public AddAccountDialogController(AccountService accountService, BankingProtocol bankingProtocol,
+                                      PinStorage ignoredPinStorage) {
+        this(accountService, bankingProtocol);
     }
 
     @FXML
@@ -55,6 +59,7 @@ public class AddAccountDialogController {
 
     @FXML
     private void onCancel() {
+        pinField.clear();
         close();
     }
 
@@ -84,6 +89,7 @@ public class AddAccountDialogController {
         BankAccount tempAccount = BankAccount.builder()
                 .iban(iban)
                 .bic(bic)
+                .accountHolder(accountHolder)
                 .build();
 
         try {
@@ -93,13 +99,16 @@ public class AddAccountDialogController {
                 return;
             }
         } catch (BankingException e) {
-            log.warn("PIN validation failed (non-fatal, saving anyway): {}", e.getMessage());
+            log.warn("Bank credential validation failed");
+            showError(BankingException.TAN_REQUIRED_MESSAGE.equals(e.getMessage())
+                    ? e.getMessage() : I18n.get("validation.pin.connectionFailed"));
+            return;
         }
 
         BankAccount account = accountService.createAccount(iban, bic, bankName, accountHolder, accountType, comment);
-        pinStorage.storePin(String.valueOf(account.getId()), pin);
 
-        log.info("Added account {} ({})", bankName, iban);
+        log.info("Added bank account");
+        pinField.clear();
         close();
     }
 

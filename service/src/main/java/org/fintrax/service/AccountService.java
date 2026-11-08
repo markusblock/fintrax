@@ -47,9 +47,9 @@ public class AccountService {
         store.store(store.getRoot().getAccounts());
 
         activityLogger.log(ActivityAction.CREATE, EntityType.ACCOUNT, account.getId(),
-                "Created account: " + bankName + " (" + iban + ")");
+                "Created bank account");
 
-        log.info("Created account {} with IBAN {}", account.getId(), iban);
+        log.info("Created bank account {}", account.getId());
         return account;
     }
 
