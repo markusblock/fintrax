@@ -3,10 +3,8 @@ package org.fintrax.ui;
 import org.fintrax.fintx.FintxConfiguration;
 import org.fintrax.service.ServiceConfiguration;
 import org.fintrax.store.StoreConfiguration;
-import org.fintrax.ui.controller.SessionViewState;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.testfx.framework.junit5.ApplicationTest;
@@ -23,6 +21,9 @@ public abstract class AbstractUITest extends ApplicationTest {
     @RegisterExtension
     protected static final UiTestFailureScreenshotExtension screenshotOnFailure =
             new UiTestFailureScreenshotExtension();
+    @RegisterExtension
+    protected static final SessionViewStateResetExtension resetSessionViewState =
+            new SessionViewStateResetExtension();
 
     private static Path tempDir;
     protected static AnnotationConfigApplicationContext applicationContext;
@@ -36,11 +37,6 @@ public abstract class AbstractUITest extends ApplicationTest {
         applicationContext.register(StoreConfiguration.class, FintxConfiguration.class,
                 ServiceConfiguration.class, UiModule.class);
         applicationContext.refresh();
-    }
-
-    @BeforeEach
-    void clearSessionViewState() {
-        applicationContext.getBean(SessionViewState.class).clear();
     }
 
     @AfterAll
