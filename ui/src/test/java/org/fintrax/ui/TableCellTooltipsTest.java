@@ -3,10 +3,12 @@ package org.fintrax.ui;
 import javafx.geometry.Pos;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.control.Button;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
 import javafx.stage.Stage;
 import org.fintrax.model.ActivityAction;
 import org.fintrax.model.ActivityLog;
@@ -105,7 +107,8 @@ class TableCellTooltipsTest extends AbstractUITest {
             protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
                 setText(null);
-                setGraphic(empty || item == null ? null : LabelChipFactory.createAll(labels));
+                setGraphic(empty || item == null ? null
+                        : new HBox(4, LabelChipFactory.createAll(labels), new Button("▾")));
             }
         });
         table.getColumns().add(chipsColumn);
