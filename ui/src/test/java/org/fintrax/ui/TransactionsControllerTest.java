@@ -54,6 +54,7 @@ import org.junit.jupiter.api.Test;
 import org.testfx.util.WaitForAsyncUtils;
 
 import java.math.BigDecimal;
+import java.text.Collator;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
@@ -197,6 +198,20 @@ class TransactionsControllerTest extends AbstractUITest {
 
         assertEquals(LocalDate.of(today.getYear() - 1, 1, 1), fromDate.getValue());
         assertEquals(LocalDate.of(today.getYear() - 1, 12, 31), toDate.getValue());
+    }
+
+    @Test
+    void categoryFilterOptionsAreSortedByCurrentLocale() {
+        ComboBox<String> categoryFilter = lookup("#categoryFilter").query();
+
+        interact(() -> {
+            assertEquals(I18n.get("filter.allCategories"), categoryFilter.getItems().get(0));
+            List<String> categories = List.copyOf(
+                    categoryFilter.getItems().subList(1, categoryFilter.getItems().size()));
+            assertEquals(categories.stream()
+                    .sorted(Collator.getInstance(I18n.getCurrentLocale()))
+                    .toList(), categories);
+        });
     }
 
     @Test
@@ -478,7 +493,8 @@ class TransactionsControllerTest extends AbstractUITest {
         assertEquals("", searchField.getText());
         assertEquals("", minAmountField.getText());
         assertEquals("", lookup("#maxAmountField").<TextField>query().getText());
-        assertEquals(0, lookup("#datePresetFilter").<ComboBox<?>>query().getSelectionModel().getSelectedIndex());
+        interact(() -> assertEquals("ALL_TIME",
+                lookup("#datePresetFilter").<ComboBox<?>>query().getValue().toString()));
         assertNull(lookup("#fromDateFilter").<DatePicker>query().getValue());
         assertNull(lookup("#toDateFilter").<DatePicker>query().getValue());
         assertEquals("", lookup("#collapsedFilterSummary").<TextField>query().getText());

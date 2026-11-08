@@ -81,7 +81,9 @@ class TransactionDateFiltersTest {
     @Test
     void presetsStayCompactAndGroupedByCalendarPeriod() {
         assertEquals(List.of(
-                        TransactionDateFilters.Preset.ALL_TIME,
+                        TransactionDateFilters.Preset.LAST_7_DAYS,
+                        TransactionDateFilters.Preset.LAST_30_DAYS,
+                        TransactionDateFilters.Preset.LAST_12_MONTHS,
                         TransactionDateFilters.Preset.THIS_MONTH,
                         TransactionDateFilters.Preset.PREVIOUS_MONTH,
                         TransactionDateFilters.Preset.TWO_MONTHS_AGO,
@@ -91,9 +93,7 @@ class TransactionDateFiltersTest {
                         TransactionDateFilters.Preset.THIS_YEAR,
                         TransactionDateFilters.Preset.PREVIOUS_YEAR,
                         TransactionDateFilters.Preset.TWO_YEARS_AGO,
-                        TransactionDateFilters.Preset.LAST_7_DAYS,
-                        TransactionDateFilters.Preset.LAST_30_DAYS,
-                        TransactionDateFilters.Preset.LAST_12_MONTHS,
+                        TransactionDateFilters.Preset.ALL_TIME,
                         TransactionDateFilters.Preset.CUSTOM),
                 List.of(TransactionDateFilters.Preset.values()));
     }

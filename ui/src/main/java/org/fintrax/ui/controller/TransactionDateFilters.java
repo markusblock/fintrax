@@ -16,7 +16,9 @@ final class TransactionDateFilters {
     }
 
     enum Preset {
-        ALL_TIME,
+        LAST_7_DAYS,
+        LAST_30_DAYS,
+        LAST_12_MONTHS,
         THIS_MONTH,
         PREVIOUS_MONTH,
         TWO_MONTHS_AGO,
@@ -26,9 +28,7 @@ final class TransactionDateFilters {
         THIS_YEAR,
         PREVIOUS_YEAR,
         TWO_YEARS_AGO,
-        LAST_7_DAYS,
-        LAST_30_DAYS,
-        LAST_12_MONTHS,
+        ALL_TIME,
         CUSTOM
     }
 
