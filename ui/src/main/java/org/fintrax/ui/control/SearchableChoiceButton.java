@@ -104,7 +104,9 @@ public final class SearchableChoiceButton extends Button {
     }
 
     public void setChoices(Collection<String> choices) {
-        this.choices = List.copyOf(choices);
+        this.choices = choices.stream()
+                .sorted(NaturalOrder.comparator(I18n.getCurrentLocale()))
+                .toList();
         if (getValue() != null && !this.choices.contains(getValue())) setValue(null);
         updateChoices();
     }
