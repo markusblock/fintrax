@@ -9,7 +9,7 @@ plugins {
     id("org.springframework.boot") apply false
 }
 
-val jacocoVersion = "0.8.15"
+val jacocoVersion = "0.8.16"
 
 extensions.configure<JacocoPluginExtension> {
     toolVersion = jacocoVersion
