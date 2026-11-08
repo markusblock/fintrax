@@ -609,35 +609,82 @@
     -fx-text-fill: -color-warning-fg;
 }
 
-.assignment-picker-button {
+.assignment-cell {
     -fx-alignment: CENTER_LEFT;
+    -fx-spacing: 4;
 }
 
-.searchable-picker-dialog .list-view {
+.assignment-picker-button {
+    -fx-alignment: CENTER;
+    -fx-min-width: 24;
+    -fx-pref-width: 24;
+    -fx-max-width: 24;
+    -fx-min-height: 24;
+    -fx-pref-height: 24;
+    -fx-max-height: 24;
+    -fx-padding: 0;
+    -fx-background-color: transparent;
+    -fx-text-fill: -color-fg-muted;
+}
+
+.assignment-picker-button:hover {
+    -fx-background-color: -color-neutral-muted;
+}
+
+.searchable-dropdown-popup {
+    -fx-background-color: -color-bg-default;
+    -fx-border-color: -color-border-default;
+    -fx-border-radius: 6;
+    -fx-background-radius: 6;
+    -fx-effect: dropshadow(gaussian, -color-shadow-default, 8, 0, 0, 2);
+}
+
+.searchable-dropdown-popup .text-field {
+    -fx-pref-height: 34px;
+}
+
+.searchable-dropdown-popup .list-view {
     -fx-fixed-cell-size: 2.6em;
 }
 
-.searchable-picker-dialog .list-cell {
+.searchable-dropdown-popup .list-cell {
     -fx-padding: 4 8;
 }
 
-.searchable-picker-dialog .error-message {
+.searchable-dropdown-popup .list-cell:selected {
+    -fx-background-color: -color-accent-subtle;
+    -fx-text-fill: -color-accent-fg;
+}
+
+.picker-current-marker {
+    -fx-min-width: 12;
+    -fx-pref-width: 12;
+    -fx-max-width: 12;
+    -fx-text-fill: -color-accent-fg;
+    -fx-font-weight: bold;
+}
+
+.searchable-dropdown-popup .error-message {
     -fx-text-fill: -color-danger-fg;
 }
 
-.selection-chip {
-    -fx-alignment: CENTER_LEFT;
-    -fx-padding: 2 4 2 8;
-    -fx-background-color: -fx-control-inner-background;
-    -fx-background-radius: 14;
-    -fx-border-color: -fx-box-border;
-    -fx-border-radius: 14;
+.picker-keyboard-help {
+    -fx-font-size: 11px;
+    -fx-text-fill: -color-fg-muted;
 }
 
-.selection-chip .button {
-    -fx-padding: 0 4;
-    -fx-background-color: transparent;
-    -fx-font-weight: bold;
+.searchable-dropdown-actions {
+    -fx-alignment: CENTER_RIGHT;
+}
+
+.picker-search-clear {
+    -fx-min-width: 30;
+    -fx-pref-width: 30;
+    -fx-max-width: 30;
+    -fx-min-height: 30;
+    -fx-pref-height: 30;
+    -fx-max-height: 30;
+    -fx-padding: 0;
 }
 
 .dialog-content {

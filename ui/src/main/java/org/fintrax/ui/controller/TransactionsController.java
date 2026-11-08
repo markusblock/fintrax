@@ -151,7 +151,7 @@ public class TransactionsController {
     public void initialize() {
         log.info("TransactionsController initialized");
         transactionTableActions.installContextMenu(
-                transactionTable, rootPane, this::reloadTransactionsKeepingSelection, this::createRuleFromTransaction);
+                transactionTable, this::reloadTransactionsKeepingSelection, this::createRuleFromTransaction);
         setupTableColumns();
         TableCellTooltips.install(transactionTable);
         transactionFilterPanelController.setCollapsible(true);
@@ -259,54 +259,79 @@ public class TransactionsController {
         });
     }
 
-    private TableCell<Transaction, String> createAssignmentCell(Runnable openAssignmentDialog) {
-        TableCell<Transaction, String> cell = new TableCell<>() {
-            @Override
-            protected void updateItem(String item, boolean empty) {
-                super.updateItem(item, empty);
-                setText(empty ? null : item);
-            }
-        };
-        installAssignmentHandler(cell, openAssignmentDialog);
-        return cell;
-    }
-
-    private TableCell<Transaction, String> createLabelChipCell(Runnable openAssignmentDialog) {
+    private TableCell<Transaction, String> createAssignmentCell(java.util.function.Consumer<Node> openAssignment) {
         TableCell<Transaction, String> cell = new TableCell<>() {
             @Override
             protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
                 setText(null);
                 if (getGraphic() instanceof HBox previous) previous.prefWidthProperty().unbind();
+                if (empty) {
+                    setGraphic(null);
+                    return;
+                }
+                Label value = new Label(item == null || item.isBlank()
+                        ? I18n.get("picker.category.choose") : item);
+                value.setMaxWidth(Double.MAX_VALUE);
+                HBox control = new HBox(4, value, createAssignmentButton(
+                        "picker.category.accessible", openAssignment));
+                control.getStyleClass().add("assignment-cell");
+                control.prefWidthProperty().bind(Bindings.max(0, categoryColumn.widthProperty().subtract(12)));
+                HBox.setHgrow(value, javafx.scene.layout.Priority.ALWAYS);
+                setGraphic(control);
+            }
+        };
+        return cell;
+    }
+
+    private TableCell<Transaction, String> createLabelChipCell(java.util.function.Consumer<Node> openAssignment) {
+        TableCell<Transaction, String> cell = new TableCell<>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(null);
                 Transaction transaction = getTableRow() == null ? null : getTableRow().getItem();
-                if (empty || transaction == null || transaction.getLabelIds() == null) {
+                if (getGraphic() instanceof HBox previous) previous.prefWidthProperty().unbind();
+                if (empty || transaction == null) {
                     setGraphic(null);
                     return;
                 }
 
-                List<org.fintrax.model.Label> labels = transaction.getLabelIds().stream()
+                List<org.fintrax.model.Label> labels = transaction.getLabelIds() == null ? List.of()
+                        : transaction.getLabelIds().stream()
                         .map(labelService::getLabel)
                         .flatMap(Optional::stream)
                         .toList();
                 HBox chips = LabelChipFactory.createAll(labels);
-                chips.prefWidthProperty().bind(Bindings.max(0, labelsColumn.widthProperty().subtract(12)));
-                setGraphic(chips.getChildren().isEmpty() ? null : chips);
+                if (labels.isEmpty()) {
+                    Label prompt = new Label(I18n.get("picker.labels.choose"));
+                    prompt.setMaxWidth(Double.MAX_VALUE);
+                    chips.getChildren().add(prompt);
+                }
+                HBox control = new HBox(4, chips, createAssignmentButton(
+                        "picker.labels.accessible", openAssignment));
+                control.getStyleClass().add("assignment-cell");
+                control.prefWidthProperty().bind(Bindings.max(0, labelsColumn.widthProperty().subtract(12)));
+                HBox.setHgrow(chips, javafx.scene.layout.Priority.ALWAYS);
+                setGraphic(control);
             }
         };
-        installAssignmentHandler(cell, openAssignmentDialog);
         return cell;
     }
 
-    private void installAssignmentHandler(TableCell<Transaction, String> cell,
-                                          Runnable openAssignmentDialog) {
-        cell.addEventFilter(MouseEvent.MOUSE_CLICKED, event -> {
-            if (event.getClickCount() == 2 && !cell.isEmpty()) {
-                if (!transactionTable.getSelectionModel().isSelected(cell.getIndex())) {
-                    transactionTable.getSelectionModel().clearAndSelect(cell.getIndex());
-                }
-                openAssignmentDialog.run();
+    private Button createAssignmentButton(String accessibleTextKey,
+                                          java.util.function.Consumer<Node> openAssignment) {
+        Button button = new Button("▾");
+        button.setAccessibleText(I18n.get(accessibleTextKey));
+        button.getStyleClass().add("assignment-picker-button");
+        button.setOnAction(event -> {
+            TableCell<?, ?> cell = findTableCell(button);
+            if (cell != null && !transactionTable.getSelectionModel().isSelected(cell.getIndex())) {
+                transactionTable.getSelectionModel().clearAndSelect(cell.getIndex());
             }
+            openAssignment.accept(button);
         });
+        return button;
     }
 
     private void openDetailsOnDoubleClick(MouseEvent event) {
@@ -480,15 +505,15 @@ public class TransactionsController {
     }
 
     @FXML
-    private void onBulkCategory() {
+    private void onBulkCategory(Node anchor) {
         transactionTableActions.setCategory(
-                transactionTable, rootPane, this::reloadTransactionsKeepingSelection);
+                transactionTable, anchor, this::reloadTransactionsKeepingSelection);
     }
 
     @FXML
-    private void onSetLabels() {
+    private void onSetLabels(Node anchor) {
         transactionTableActions.setLabels(
-                transactionTable, rootPane, this::reloadTransactionsKeepingSelection);
+                transactionTable, anchor, this::reloadTransactionsKeepingSelection);
     }
 
     private void createRuleFromTransaction(Transaction transaction) {

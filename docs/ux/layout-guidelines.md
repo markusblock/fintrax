@@ -62,6 +62,11 @@ Use subtle status fills with matching status text. Pair status colors with text 
 
 - Every search field and filter group offers a clear/reset action. Clearing search restores all results; resetting filters returns controls to defaults and removes filtering.
 - Keep reset actions near their controls. Give icon-only reset actions an accessible name.
+- Searchable dropdowns open at their source, focus the search field, and preselect the first filtered result. Up/Down move the preselection; Enter applies and closes. In multi-select dropdowns, Space toggles the focused option and Enter applies the selection. Escape cancels without applying changes and returns focus to the opener.
+
+### Sorting
+
+- Default to natural, locale-aware order for sorted values across the application, including tables, lists, and dropdown options. Compare digit runs numerically (for example, “Item 2” before “Item 10”) and ignore case for names unless the task requires a different domain order.
 
 ### Dialogs and popups
 

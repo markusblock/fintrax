@@ -136,7 +136,7 @@ public class RulesController {
                 updateTransactionTotal());
         updateTransactionTotal();
         transactionTableActions.installContextMenu(
-                ruleTransactionsTable, rootPane, this::reloadSelectedTransactionsKeepingSelection, null);
+                ruleTransactionsTable, this::reloadSelectedTransactionsKeepingSelection, null);
         transactionFilterPanelController.setCollapsible(true);
         transactionFilterPanelController.setOnFiltersChanged(this::refreshSelectedRuleTransactions);
         ruleTable.getSelectionModel().selectedItemProperty().addListener((obs, oldRule, newRule) ->
