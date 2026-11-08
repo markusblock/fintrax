@@ -7,6 +7,7 @@ import org.kapott.hbci.GV.HBCIJob;
 import org.kapott.hbci.GV_Result.GVRKUms;
 import org.kapott.hbci.GV_Result.GVRKUms.UmsLine;
 import org.kapott.hbci.callback.AbstractHBCICallback;
+import org.kapott.hbci.manager.BankInfo;
 import org.kapott.hbci.manager.HBCIHandler;
 import org.kapott.hbci.manager.HBCIUtils;
 import org.kapott.hbci.manager.HBCIVersion;
@@ -17,6 +18,8 @@ import org.kapott.hbci.structures.Konto;
 
 import java.io.File;
 import java.math.BigDecimal;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.security.SecureRandom;
 import java.time.LocalDate;
@@ -26,6 +29,7 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.Properties;
 
 @Slf4j
@@ -40,28 +44,28 @@ public class FinTsAdapter implements BankingProtocol {
         HBCIPassport passport = null;
         HBCIHandler handle = null;
         File passportFile = null;
-        SimpleCallback callback = new SimpleCallback(account, pin, newTemporaryPassphrase());
+        GermanBankIdentity bankIdentity = germanBankIdentity(account.getIban());
 
         try {
-            Properties props = new Properties();
-            HBCIUtils.init(props, callback);
-
-            HBCIUtils.setParam("client.passport.default", "PinTan");
-            HBCIUtils.setParam("client.passport.PinTan.init", "1");
-            HBCIUtils.setParam("client.passport.PinTan.checkcert", "1");
+            SimpleCallback callback = initializeHBCI(account, pin, bankIdentity,
+                    BankingException.FailureReason.CONNECTION_FAILED);
+            Endpoint endpoint = resolveEndpoint(account, bankIdentity);
+            callback.setEndpoint(endpoint);
 
             passportFile = File.createTempFile("fintrax_passport_", ".dat");
             passport = AbstractHBCIPassport.getInstance(passportFile);
 
             passport.setCountry("DE");
-            passport.setHost(account.getBic());
-            passport.setPort(443);
+            passport.setBLZ(bankIdentity.bankCode());
+            passport.setHost(endpoint.hostAndPath());
+            passport.setPort(endpoint.port());
             passport.setFilterType("Base64");
 
             handle = new HBCIHandler(HBCIVersion.HBCI_300.getId(), passport);
 
-            Konto konto = new Konto();
-            konto.iban = account.getIban();
+            Konto konto = new Konto(bankIdentity.bankCode(), bankIdentity.accountNumber());
+            konto.country = "DE";
+            konto.iban = bankIdentity.iban();
             konto.bic = account.getBic();
 
             HBCIJob umsatzJob = handle.newJob("KUmsAll");
@@ -115,28 +119,28 @@ public class FinTsAdapter implements BankingProtocol {
         HBCIPassport passport = null;
         HBCIHandler handle = null;
         File passportFile = null;
-        SimpleCallback callback = new SimpleCallback(account, pin, newTemporaryPassphrase());
+        GermanBankIdentity bankIdentity = germanBankIdentity(account.getIban());
 
         try {
-            Properties props = new Properties();
-            HBCIUtils.init(props, callback);
-
-            HBCIUtils.setParam("client.passport.default", "PinTan");
-            HBCIUtils.setParam("client.passport.PinTan.init", "1");
-            HBCIUtils.setParam("client.passport.PinTan.checkcert", "1");
+            SimpleCallback callback = initializeHBCI(account, pin, bankIdentity,
+                    BankingException.FailureReason.CONNECTION_FAILED);
+            Endpoint endpoint = resolveEndpoint(account, bankIdentity);
+            callback.setEndpoint(endpoint);
 
             passportFile = File.createTempFile("fintrax_passport_", ".dat");
             passport = AbstractHBCIPassport.getInstance(passportFile);
 
             passport.setCountry("DE");
-            passport.setHost(account.getBic());
-            passport.setPort(443);
+            passport.setBLZ(bankIdentity.bankCode());
+            passport.setHost(endpoint.hostAndPath());
+            passport.setPort(endpoint.port());
             passport.setFilterType("Base64");
 
             handle = new HBCIHandler(HBCIVersion.HBCI_300.getId(), passport);
 
-            Konto konto = new Konto();
-            konto.iban = account.getIban();
+            Konto konto = new Konto(bankIdentity.bankCode(), bankIdentity.accountNumber());
+            konto.country = "DE";
+            konto.iban = bankIdentity.iban();
             konto.bic = account.getBic();
 
             HBCIJob saldoJob = handle.newJob("SaldoReq");
@@ -147,6 +151,8 @@ public class FinTsAdapter implements BankingProtocol {
 
             return status.isOK();
 
+        } catch (BankingException e) {
+            throw e;
         } catch (TanRequiredException e) {
             throw new BankingException(BankingException.FailureReason.TAN_REQUIRED,
                     BankingException.TAN_REQUIRED_MESSAGE, e);
@@ -166,6 +172,91 @@ public class FinTsAdapter implements BankingProtocol {
     @Override
     public String getProtocolName() {
         return PROTOCOL_NAME;
+    }
+
+    @Override
+    public synchronized String lookupPinTanUrl(BankAccount account) throws BankingException {
+        GermanBankIdentity bankIdentity = germanBankIdentity(account.getIban());
+        try {
+            initializeHBCI(account, null, bankIdentity, BankingException.FailureReason.BANK_DIRECTORY_LOOKUP_FAILED);
+            BankInfo bankInfo = HBCIUtils.getBankInfo(bankIdentity.bankCode());
+            String pinTanAddress = bankInfo == null ? null : firstNonBlank(bankInfo.getPinTanAddress());
+            if (pinTanAddress != null) {
+                endpoint(pinTanAddress);
+            }
+            return pinTanAddress;
+        } catch (BankingException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new BankingException(BankingException.FailureReason.BANK_DIRECTORY_LOOKUP_FAILED,
+                    "Bank directory lookup could not be completed.", e);
+        } finally {
+            HBCIUtils.doneThread();
+        }
+    }
+
+    private SimpleCallback initializeHBCI(BankAccount account, String pin, GermanBankIdentity bankIdentity,
+                                          BankingException.FailureReason failureReason) throws BankingException {
+        SimpleCallback callback = new SimpleCallback(account, pin, newTemporaryPassphrase(), bankIdentity.bankCode());
+        try {
+            HBCIUtils.init(new Properties(), callback);
+            HBCIUtils.setParam("client.passport.default", "PinTan");
+            HBCIUtils.setParam("client.passport.PinTan.init", "1");
+            HBCIUtils.setParam("client.passport.PinTan.checkcert", "1");
+        } catch (Exception e) {
+            throw new BankingException(failureReason, "FinTS protocol initialization failed.", e);
+        }
+        return callback;
+    }
+
+    private GermanBankIdentity germanBankIdentity(String iban) throws BankingException {
+        String normalizedIban = iban == null ? "" : iban.replaceAll("\\s+", "").toUpperCase(Locale.ROOT);
+        if (!normalizedIban.matches("DE[0-9]{20}") || !HBCIUtils.checkIBANCRC(normalizedIban)) {
+            throw new BankingException(BankingException.FailureReason.INVALID_IBAN,
+                    "A valid German IBAN is required to derive BLZ and account number.");
+        }
+        return new GermanBankIdentity(normalizedIban, normalizedIban.substring(4, 12),
+                normalizedIban.substring(12, 22));
+    }
+
+    private Endpoint resolveEndpoint(BankAccount account, GermanBankIdentity bankIdentity) throws BankingException {
+        String url = firstNonBlank(account.getFintsServerUrl());
+        if (url == null) {
+            BankInfo bankInfo = HBCIUtils.getBankInfo(bankIdentity.bankCode());
+            url = bankInfo == null ? null : firstNonBlank(bankInfo.getPinTanAddress());
+        }
+        if (url == null) {
+            throw new BankingException(BankingException.FailureReason.MISSING_ENDPOINT,
+                    "No FinTS server address was found for this bank.");
+        }
+        return endpoint(url);
+    }
+
+    private Endpoint endpoint(String address) throws BankingException {
+        String normalized = address.trim();
+        if (!normalized.contains("://")) {
+            normalized = "https://" + normalized;
+        }
+        try {
+            URI uri = new URI(normalized);
+            if (!"https".equalsIgnoreCase(uri.getScheme()) || uri.getHost() == null
+                    || uri.getUserInfo() != null || uri.getFragment() != null) {
+                throw new URISyntaxException(normalized, "Expected a plain HTTPS server address");
+            }
+            int port = uri.getPort() < 0 ? 443 : uri.getPort();
+            if (port < 1 || port > 65535) {
+                throw new URISyntaxException(normalized, "Invalid server port");
+            }
+            String path = uri.getRawPath() == null ? "" : uri.getRawPath();
+            if (path.isEmpty() && uri.getRawQuery() != null) {
+                path = "/";
+            }
+            String query = uri.getRawQuery() == null ? "" : "?" + uri.getRawQuery();
+            return new Endpoint(uri.getHost() + path + query, port);
+        } catch (URISyntaxException e) {
+            throw new BankingException(BankingException.FailureReason.INVALID_ENDPOINT,
+                    "FinTS server URL must be a valid HTTPS address.", e);
+        }
     }
 
     private Transaction mapUmsLine(UmsLine line, Long accountId, boolean booked) throws BankingException {
@@ -271,17 +362,25 @@ public class FinTsAdapter implements BankingProtocol {
                 log.warn("Temporary bank session file could not be removed");
             }
         }
+        HBCIUtils.doneThread();
     }
 
     private static class SimpleCallback extends AbstractHBCICallback {
         private final BankAccount account;
         private final String pin;
         private final String temporaryPassphrase;
+        private final String bankCode;
+        private Endpoint endpoint;
 
-        public SimpleCallback(BankAccount account, String pin, String temporaryPassphrase) {
+        public SimpleCallback(BankAccount account, String pin, String temporaryPassphrase, String bankCode) {
             this.account = account;
             this.pin = pin;
             this.temporaryPassphrase = temporaryPassphrase;
+            this.bankCode = bankCode;
+        }
+
+        public void setEndpoint(Endpoint endpoint) {
+            this.endpoint = endpoint;
         }
 
         @Override
@@ -295,7 +394,17 @@ public class FinTsAdapter implements BankingProtocol {
                     retData.replace(0, retData.length(), pin);
                     break;
                 case NEED_BLZ:
-                    retData.replace(0, retData.length(), "");
+                    retData.replace(0, retData.length(), bankCode);
+                    break;
+                case NEED_HOST:
+                    if (endpoint != null) {
+                        retData.replace(0, retData.length(), endpoint.hostAndPath());
+                    }
+                    break;
+                case NEED_PORT:
+                    if (endpoint != null) {
+                        retData.replace(0, retData.length(), String.valueOf(endpoint.port()));
+                    }
                     break;
                 case NEED_USERID:
                 case NEED_CUSTOMERID:
@@ -334,4 +443,8 @@ public class FinTsAdapter implements BankingProtocol {
 
     private static final class TanRequiredException extends RuntimeException {
     }
+
+    private record GermanBankIdentity(String iban, String bankCode, String accountNumber) {}
+
+    private record Endpoint(String hostAndPath, int port) {}
 }

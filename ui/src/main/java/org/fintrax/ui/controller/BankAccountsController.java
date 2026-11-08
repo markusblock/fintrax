@@ -202,7 +202,7 @@ public class BankAccountsController {
             Stage dialog = new Stage();
             dialog.setTitle(I18n.get("dialog.addAccount.title"));
             dialog.initModality(Modality.WINDOW_MODAL);
-            Scene dialogScene = new Scene(root, 450, 500);
+            Scene dialogScene = new Scene(root, 560, 680);
             FintraxUI.configureScene(dialogScene);
             dialog.setScene(dialogScene);
 
@@ -228,7 +228,7 @@ public class BankAccountsController {
             dialog.setTitle(I18n.get("dialog.editAccount.title"));
             dialog.initModality(Modality.WINDOW_MODAL);
             dialog.initOwner(rootPane.getScene().getWindow());
-            Scene dialogScene = new Scene(root, 500, 600);
+            Scene dialogScene = new Scene(root, 560, 680);
             FintraxUI.configureScene(dialogScene);
             dialog.setScene(dialogScene);
 

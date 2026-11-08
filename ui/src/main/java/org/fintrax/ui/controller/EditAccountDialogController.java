@@ -4,6 +4,8 @@ import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.stage.Stage;
 import org.fintrax.config.I18n;
+import org.fintrax.fintx.BankingException;
+import org.fintrax.fintx.BankingProtocol;
 import org.fintrax.model.AccountType;
 import org.fintrax.model.BankAccount;
 import org.fintrax.service.AccountService;
@@ -21,6 +23,10 @@ public class EditAccountDialogController {
     private TextField bankNameField;
     @FXML
     private TextField bicField;
+    @FXML
+    private TextField fintsServerUrlField;
+    @FXML
+    private Label fintsServerStatusLabel;
     @FXML
     private TextField accountHolderField;
     @FXML
@@ -41,10 +47,12 @@ public class EditAccountDialogController {
     private Button saveButton;
 
     private final AccountService accountService;
+    private final BankingProtocol bankingProtocol;
     private BankAccount account;
 
-    public EditAccountDialogController(AccountService accountService) {
+    public EditAccountDialogController(AccountService accountService, BankingProtocol bankingProtocol) {
         this.accountService = accountService;
+        this.bankingProtocol = bankingProtocol;
     }
 
     @FXML
@@ -56,6 +64,7 @@ public class EditAccountDialogController {
         this.account = account;
         bankNameField.setText(valueOrEmpty(account.getBankName()));
         bicField.setText(valueOrEmpty(account.getBic()));
+        fintsServerUrlField.setText(valueOrEmpty(account.getFintsServerUrl()));
         accountHolderField.setText(valueOrEmpty(account.getAccountHolder()));
         accountTypeCombo.setValue(account.getAccountType());
         ibanField.setText(valueOrEmpty(account.getIban()));
@@ -69,14 +78,43 @@ public class EditAccountDialogController {
     }
 
     @FXML
+    private void onFindFinTsServer() {
+        try {
+            String url = bankingProtocol.lookupPinTanUrl(account);
+            if (url == null || url.isBlank()) {
+                String messageKey = fintsServerUrlField.getText().isBlank()
+                        ? "message.fints.lookupNotFound" : "message.fints.lookupNotFoundManual";
+                showEndpointStatus(I18n.get(messageKey), "warning-copy");
+                return;
+            }
+            boolean hasManualUrl = !fintsServerUrlField.getText().isBlank();
+            if (!hasManualUrl) {
+                fintsServerUrlField.setText(url);
+            }
+            String messageKey = hasManualUrl
+                    ? "message.fints.lookupFoundManual" : "message.fints.lookupFound";
+            showEndpointStatus(I18n.get(messageKey), "success-copy");
+        } catch (BankingException e) {
+            String messageKey = switch (e.getFailureReason()) {
+                case INVALID_IBAN -> "message.sync.invalidIban";
+                case INVALID_ENDPOINT -> "message.sync.endpointInvalid";
+                default -> "message.fints.lookupFailed";
+            };
+            showEndpointStatus(I18n.get(messageKey), "warning-copy");
+        }
+    }
+
+    @FXML
     private void onCancel() {
         close();
     }
 
     @FXML
     private void onSave() {
-        accountService.updateAccount(account.getId(), bankNameField.getText().trim(), bicField.getText().trim(),
-                accountHolderField.getText().trim(), accountTypeCombo.getValue(), commentField.getText().trim());
+        String bic = bicField.getText().trim();
+        accountService.updateAccount(account.getId(), bankNameField.getText().trim(), bic.isBlank() ? null : bic,
+                fintsServerUrlField.getText().trim(), accountHolderField.getText().trim(),
+                accountTypeCombo.getValue(), commentField.getText().trim());
         close();
     }
 
@@ -88,6 +126,12 @@ public class EditAccountDialogController {
 
     private String valueOrEmpty(String value) {
         return value == null ? "" : value;
+    }
+
+    private void showEndpointStatus(String message, String styleClass) {
+        fintsServerStatusLabel.setText(message);
+        fintsServerStatusLabel.getStyleClass().removeAll("success-copy", "warning-copy", "danger-copy");
+        fintsServerStatusLabel.getStyleClass().add(styleClass);
     }
 
     private void close() {

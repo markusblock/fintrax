@@ -25,6 +25,10 @@ public class AddAccountDialogController {
     @FXML
     private TextField bicField;
     @FXML
+    private TextField fintsServerUrlField;
+    @FXML
+    private Label fintsServerStatusLabel;
+    @FXML
     private TextField bankNameField;
     @FXML
     private TextField accountHolderField;
@@ -58,6 +62,39 @@ public class AddAccountDialogController {
     }
 
     @FXML
+    private void onFindFinTsServer() {
+        String iban = normalizeIban(ibanField.getText());
+        BankAccount account = BankAccount.builder()
+                .iban(iban)
+                .bic(emptyToNull(bicField.getText()))
+                .accountHolder(accountHolderField.getText().trim())
+                .build();
+        try {
+            String url = bankingProtocol.lookupPinTanUrl(account);
+            if (url == null || url.isBlank()) {
+                String messageKey = fintsServerUrlField.getText().isBlank()
+                        ? "message.fints.lookupNotFound" : "message.fints.lookupNotFoundManual";
+                showEndpointStatus(I18n.get(messageKey), "warning-copy");
+                return;
+            }
+            boolean hasManualUrl = !fintsServerUrlField.getText().isBlank();
+            if (!hasManualUrl) {
+                fintsServerUrlField.setText(url);
+            }
+            String messageKey = hasManualUrl
+                    ? "message.fints.lookupFoundManual" : "message.fints.lookupFound";
+            showEndpointStatus(I18n.get(messageKey), "success-copy");
+        } catch (BankingException e) {
+            String messageKey = switch (e.getFailureReason()) {
+                case INVALID_IBAN -> "message.sync.invalidIban";
+                case INVALID_ENDPOINT -> "message.sync.endpointInvalid";
+                default -> "message.fints.lookupFailed";
+            };
+            showEndpointStatus(I18n.get(messageKey), "warning-copy");
+        }
+    }
+
+    @FXML
     private void onCancel() {
         pinField.clear();
         close();
@@ -65,8 +102,9 @@ public class AddAccountDialogController {
 
     @FXML
     private void onSave() {
-        String iban = ibanField.getText().trim().replaceAll("\\s+", "");
-        String bic = bicField.getText().trim();
+        String iban = normalizeIban(ibanField.getText());
+        String bic = emptyToNull(bicField.getText());
+        String fintsServerUrl = emptyToNull(fintsServerUrlField.getText());
         String bankName = bankNameField.getText().trim();
         String accountHolder = accountHolderField.getText().trim();
         String pin = pinField.getText();
@@ -77,10 +115,6 @@ public class AddAccountDialogController {
             showError(I18n.get("validation.iban.required"));
             return;
         }
-        if (bic.isEmpty()) {
-            showError(I18n.get("validation.bic.required"));
-            return;
-        }
         if (pin == null || pin.isEmpty()) {
             showError(I18n.get("validation.pin.required"));
             return;
@@ -89,6 +123,7 @@ public class AddAccountDialogController {
         BankAccount tempAccount = BankAccount.builder()
                 .iban(iban)
                 .bic(bic)
+                .fintsServerUrl(fintsServerUrl)
                 .accountHolder(accountHolder)
                 .build();
 
@@ -100,12 +135,11 @@ public class AddAccountDialogController {
             }
         } catch (BankingException e) {
             log.warn("Bank credential validation failed");
-            showError(BankingException.TAN_REQUIRED_MESSAGE.equals(e.getMessage())
-                    ? e.getMessage() : I18n.get("validation.pin.connectionFailed"));
+            showError(safeValidationMessage(e));
             return;
         }
 
-        BankAccount account = accountService.createAccount(iban, bic, bankName, accountHolder, accountType, comment);
+        accountService.createAccount(iban, bic, fintsServerUrl, bankName, accountHolder, accountType, comment);
 
         log.info("Added bank account");
         pinField.clear();
@@ -123,5 +157,30 @@ public class AddAccountDialogController {
         alert.setContentText(message);
         FintraxUI.configureDialog(alert);
         alert.showAndWait();
+    }
+
+    private String safeValidationMessage(BankingException exception) {
+        return switch (exception.getFailureReason()) {
+            case TAN_REQUIRED -> BankingException.TAN_REQUIRED_MESSAGE;
+            case INVALID_IBAN -> I18n.get("message.sync.invalidIban");
+            case MISSING_ENDPOINT -> I18n.get("message.sync.endpointMissing");
+            case INVALID_ENDPOINT -> I18n.get("message.sync.endpointInvalid");
+            case BANK_DIRECTORY_LOOKUP_FAILED -> I18n.get("message.fints.lookupFailed");
+            default -> I18n.get("validation.pin.connectionFailed");
+        };
+    }
+
+    private void showEndpointStatus(String message, String styleClass) {
+        fintsServerStatusLabel.setText(message);
+        fintsServerStatusLabel.getStyleClass().removeAll("success-copy", "warning-copy", "danger-copy");
+        fintsServerStatusLabel.getStyleClass().add(styleClass);
+    }
+
+    private String normalizeIban(String iban) {
+        return iban == null ? "" : iban.trim().replaceAll("\\s+", "").toUpperCase(java.util.Locale.ROOT);
+    }
+
+    private String emptyToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 }

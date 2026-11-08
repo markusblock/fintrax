@@ -91,6 +91,10 @@
     -fx-font-weight: bold;
 }
 
+.success-copy {
+    -fx-text-fill: -color-success-fg;
+}
+
 .warning-copy {
     -fx-text-fill: -color-warning-fg;
     -fx-font-weight: bold;

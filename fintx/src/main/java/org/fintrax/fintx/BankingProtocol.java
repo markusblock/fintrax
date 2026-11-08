@@ -6,6 +6,11 @@ import org.fintrax.model.Transaction;
 import java.util.List;
 
 public interface BankingProtocol {
+    /** Looks up a local PIN/TAN endpoint from the account's German IBAN; returns null when absent. */
+    default String lookupPinTanUrl(BankAccount account) throws BankingException {
+        return null;
+    }
+
     /**
      * Fetches the complete transaction set for the bank-supported history window.
      * Implementations must throw rather than return partial or unmappable data.
