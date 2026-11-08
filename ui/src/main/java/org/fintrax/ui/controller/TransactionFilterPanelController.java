@@ -214,7 +214,7 @@ public class TransactionFilterPanelController {
         datePresetFilter.valueProperty().addListener((observable, oldPreset, preset) -> {
             if (preset == null || preset == TransactionDateFilters.Preset.CUSTOM) return;
             TransactionDateFilters.Range range = TransactionDateFilters.rangeFor(
-                    preset, LocalDate.now(ZoneId.systemDefault()), locale);
+                    preset, LocalDate.now(ZoneId.systemDefault()));
             updatingDateFilters = true;
             fromDateFilter.setValue(range.fromDate());
             toDateFilter.setValue(range.toDate());

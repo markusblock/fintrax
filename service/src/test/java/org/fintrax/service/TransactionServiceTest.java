@@ -92,7 +92,7 @@ class TransactionServiceTest {
     }
 
     @Test
-    void dateRangeMatchesEitherBookingDateOrValueDateInclusively() {
+    void dateRangeMatchesOnlyBookingDateInclusively() {
         LocalDate fromDate = LocalDate.of(2024, 1, 1);
         LocalDate toDate = LocalDate.of(2024, 2, 1);
         transactionService.createTransaction(Transaction.builder()
@@ -110,7 +110,7 @@ class TransactionServiceTest {
         List<Transaction> filtered = transactionService.filterTransactions(new TransactionFilter(
                 null, fromDate, toDate, null, null, null, null, null));
 
-        assertEquals(List.of("booking date match", "value date match"),
+        assertEquals(List.of("booking date match"),
                 filtered.stream().map(Transaction::getOriginalPayee).toList());
     }
 
