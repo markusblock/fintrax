@@ -144,7 +144,7 @@ public class RulesController {
                 updateTransactionTotal());
         updateTransactionTotal();
         transactionTableActions.installContextMenu(
-                ruleTransactionsTable, rootPane, this::reloadSelectedTransactionsKeepingSelection, null);
+                ruleTransactionsTable, this::reloadSelectedTransactionsKeepingSelection, null);
         transactionFilterPanelController.setCollapsible(true);
         transactionFilterPanelController.restoreForView(SessionViewState.RULES_VIEW);
         transactionFilterPanelController.setOnFiltersChanged(this::refreshSelectedRuleTransactions);

@@ -1,11 +1,13 @@
 package org.fintrax.ui.controller;
 
+import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
+import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
@@ -119,7 +121,7 @@ public class ClassificationsController {
                 updateTransactionTotal());
         updateTransactionTotal();
         transactionTableActions.installContextMenu(
-                classificationTransactionsTable, rootPane, this::reloadSelectedTransactionsKeepingSelection, null);
+                classificationTransactionsTable, this::reloadSelectedTransactionsKeepingSelection, null);
         transactionFilterPanelController.setCollapsible(true);
         transactionFilterPanelController.restoreForView(SessionViewState.CLASSIFICATIONS_VIEW);
         transactionFilterPanelController.setOnFiltersChanged(this::reloadSelectedTransactionsKeepingSelection);
@@ -138,11 +140,11 @@ public class ClassificationsController {
         transactionTableSetup = new TransactionTableSetup(classificationTransactionsTable,
                 accountService, categoryService, labelService);
         transactionTableSetup.configure();
-        transactionTableSetup.categoryColumn().setCellFactory(column -> createAssignmentCell(() ->
-                transactionTableActions.setCategory(classificationTransactionsTable, rootPane,
+        transactionTableSetup.categoryColumn().setCellFactory(column -> createAssignmentCell(anchor ->
+                transactionTableActions.setCategory(classificationTransactionsTable, anchor,
                         this::reloadSelectedTransactionsKeepingSelection)));
-        transactionTableSetup.labelsColumn().setCellFactory(column -> createLabelChipCell(() ->
-                transactionTableActions.setLabels(classificationTransactionsTable, rootPane,
+        transactionTableSetup.labelsColumn().setCellFactory(column -> createLabelChipCell(anchor ->
+                transactionTableActions.setLabels(classificationTransactionsTable, anchor,
                         this::reloadSelectedTransactionsKeepingSelection)));
     }
 
@@ -162,19 +164,32 @@ public class ClassificationsController {
         return String.format("%,.2f EUR", amount);
     }
 
-    private TableCell<Transaction, String> createAssignmentCell(Runnable openSelection) {
+    private TableCell<Transaction, String> createAssignmentCell(java.util.function.Consumer<Node> openSelection) {
         TableCell<Transaction, String> cell = new TableCell<>() {
             @Override
             protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
-                setText(empty ? null : item);
+                setText(null);
+                if (getGraphic() instanceof HBox previous) previous.prefWidthProperty().unbind();
+                if (empty) {
+                    setGraphic(null);
+                    return;
+                }
+                Label value = new Label(item == null ? "" : item);
+                value.setMaxWidth(Double.MAX_VALUE);
+                HBox control = new HBox(4, value, createAssignmentButton(this, "picker.category.accessible",
+                        openSelection));
+                control.getStyleClass().add("assignment-cell");
+                control.prefWidthProperty().bind(Bindings.max(0,
+                        transactionTableSetup.categoryColumn().widthProperty().subtract(12)));
+                HBox.setHgrow(value, javafx.scene.layout.Priority.ALWAYS);
+                setGraphic(control);
             }
         };
-        installAssignmentHandler(cell, openSelection);
         return cell;
     }
 
-    private TableCell<Transaction, String> createLabelChipCell(Runnable openSelection) {
+    private TableCell<Transaction, String> createLabelChipCell(java.util.function.Consumer<Node> openSelection) {
         TableCell<Transaction, String> cell = new TableCell<>() {
             @Override
             protected void updateItem(String item, boolean empty) {
@@ -195,25 +210,31 @@ public class ClassificationsController {
                             .toList();
                 }
                 HBox chips = LabelChipFactory.createAll(labels);
-                chips.prefWidthProperty().bind(Bindings.max(0,
+                HBox control = new HBox(4, chips, createAssignmentButton(this, "picker.labels.accessible",
+                        openSelection));
+                control.getStyleClass().add("assignment-cell");
+                control.prefWidthProperty().bind(Bindings.max(0,
                         transactionTableSetup.labelsColumn().widthProperty().subtract(12)));
-                setGraphic(chips.getChildren().isEmpty() ? null : chips);
+                HBox.setHgrow(chips, javafx.scene.layout.Priority.ALWAYS);
+                setGraphic(control);
             }
         };
-        installAssignmentHandler(cell, openSelection);
         return cell;
     }
 
-    private void installAssignmentHandler(TableCell<Transaction, String> cell, Runnable openSelection) {
-        cell.addEventFilter(MouseEvent.MOUSE_CLICKED, event -> {
-            if (event.getButton() != MouseButton.PRIMARY || event.getClickCount() != 2 || cell.isEmpty()) {
-                return;
-            }
+    private Button createAssignmentButton(TableCell<Transaction, String> cell, String accessibleTextKey,
+                                          java.util.function.Consumer<Node> openSelection) {
+        Button button = new Button("▾");
+        button.setAccessibleText(I18n.get(accessibleTextKey));
+        button.getStyleClass().add("assignment-picker-button");
+        button.setOnAction(event -> {
             if (!classificationTransactionsTable.getSelectionModel().isSelected(cell.getIndex())) {
                 classificationTransactionsTable.getSelectionModel().clearAndSelect(cell.getIndex());
             }
-            openSelection.run();
+            Node anchor = cell.getTableRow() == null ? cell : cell.getTableRow();
+            Platform.runLater(() -> openSelection.accept(anchor));
         });
+        return button;
     }
 
     private void loadCategoryTransactions(Long categoryId, boolean clearWhenCriteriaInvalid) {

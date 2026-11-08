@@ -13,7 +13,8 @@ import org.fintrax.model.Transaction;
 import org.fintrax.service.CategoryService;
 import org.fintrax.service.LabelService;
 import org.fintrax.service.TransactionService;
-import org.fintrax.ui.control.SearchableListPicker;
+import org.fintrax.ui.control.CategoryHierarchy;
+import org.fintrax.ui.control.SearchableDropdownPicker;
 import org.kordamp.ikonli.javafx.FontIcon;
 import org.springframework.stereotype.Component;
 
@@ -38,12 +39,11 @@ public class TransactionTableActions {
         this.labelService = labelService;
     }
 
-    public void installContextMenu(TableView<Transaction> table, Node owner, Runnable afterEdit,
+    public void installContextMenu(TableView<Transaction> table, Runnable afterEdit,
                                    Consumer<Transaction> createRule) {
         table.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
         table.setRowFactory(view -> new TableRow<>() {
-            private final ContextMenu contextMenu = createContextMenu(
-                    this, table, owner, afterEdit, createRule);
+            private final ContextMenu contextMenu = createContextMenu(this, table, afterEdit, createRule);
 
             {
                 setOnMousePressed(event -> {
@@ -63,14 +63,14 @@ public class TransactionTableActions {
     }
 
     private ContextMenu createContextMenu(TableRow<Transaction> row, TableView<Transaction> table,
-                                          Node owner, Runnable afterEdit, Consumer<Transaction> createRule) {
+                                          Runnable afterEdit, Consumer<Transaction> createRule) {
         MenuItem setCategoryItem = new MenuItem(I18n.get("contextMenu.setCategory"));
         setCategoryItem.setGraphic(icon("fth-tag", 14));
-        setCategoryItem.setOnAction(event -> setCategory(table, owner, afterEdit));
+        setCategoryItem.setOnAction(event -> setCategory(table, row, afterEdit));
 
         MenuItem setLabelsItem = new MenuItem(I18n.get("contextMenu.setLabels"));
         setLabelsItem.setGraphic(icon("fth-plus", 14));
-        setLabelsItem.setOnAction(event -> setLabels(table, owner, afterEdit));
+        setLabelsItem.setOnAction(event -> setLabels(table, row, afterEdit));
 
         List<MenuItem> items = new ArrayList<>(List.of(setCategoryItem, setLabelsItem));
         if (createRule != null) {
@@ -85,30 +85,27 @@ public class TransactionTableActions {
         return new ContextMenu(items.toArray(MenuItem[]::new));
     }
 
-    public void setCategory(TableView<Transaction> table, Node owner, Runnable afterEdit) {
+    public void setCategory(TableView<Transaction> table, Node anchor, Runnable afterEdit) {
         List<Transaction> selected = selectedTransactions(table);
         if (selected.isEmpty()) return;
 
-        String title = I18n.get("dialog.bulkCategory.header", selected.size());
         Long selectedCategoryId = selected.get(0).getCategoryId();
         boolean sameCategory = selected.stream()
                 .allMatch(transaction -> java.util.Objects.equals(selectedCategoryId, transaction.getCategoryId()));
         Category initiallySelected = sameCategory && selectedCategoryId != null
                 ? categoryService.getCategory(selectedCategoryId).orElse(null)
                 : null;
-        SearchableListPicker.chooseOne(owner.getScene().getWindow(), title,
-                categoryService.getAllCategories(), initiallySelected,
-                Category::getName,
-                "picker.category.create", name -> categoryService.createCategory(name, null, null))
-                .ifPresent(choice -> {
-                    Long categoryId = choice.isEmpty() ? null : choice.get(0).getId();
-                    transactionService.bulkUpdateCategory(
-                            selected.stream().map(Transaction::getId).toList(), categoryId);
+        List<Category> categories = categoryService.getAllCategories();
+        SearchableDropdownPicker.showOne(anchor, categories, initiallySelected,
+                CategoryHierarchy.displayPaths(categories), "picker.category.create",
+                name -> categoryService.createCategory(name, null, null), choice -> {
+                    transactionService.bulkUpdateCategory(selected.stream().map(Transaction::getId).toList(),
+                            choice == null ? null : choice.getId());
                     afterEdit.run();
                 });
     }
 
-    public void setLabels(TableView<Transaction> table, Node owner, Runnable afterEdit) {
+    public void setLabels(TableView<Transaction> table, Node anchor, Runnable afterEdit) {
         List<Transaction> selected = selectedTransactions(table);
         if (selected.isEmpty()) return;
 
@@ -119,11 +116,9 @@ public class TransactionTableActions {
         List<org.fintrax.model.Label> originalLabels = labelService.getAllLabels().stream()
                 .filter(label -> originalIds.contains(label.getId()))
                 .toList();
-        SearchableListPicker.chooseMany(owner.getScene().getWindow(),
-                I18n.get("dialog.bulkLabel.header", selected.size()),
-                labelService.getAllLabels(), originalLabels, org.fintrax.model.Label::getName,
-                "picker.labels.create", name -> labelService.createLabel(name, "#1976d2", null))
-                .ifPresent(chosenLabels -> {
+        SearchableDropdownPicker.showMany(anchor, labelService.getAllLabels(), originalLabels,
+                org.fintrax.model.Label::getName, "picker.labels.create",
+                name -> labelService.createLabel(name, "#1976d2", null), chosenLabels -> {
                     Set<Long> chosenIds = chosenLabels.stream()
                             .map(org.fintrax.model.Label::getId)
                             .collect(Collectors.toSet());

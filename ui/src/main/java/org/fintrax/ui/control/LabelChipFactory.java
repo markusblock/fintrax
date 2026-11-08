@@ -29,7 +29,9 @@ public final class LabelChipFactory {
 
     /** Whether the strip hides chips behind the overflow indicator. */
     public static boolean isTruncated(javafx.scene.Node graphic) {
-        return graphic instanceof LabelChipStrip strip && strip.isOverflowVisible();
+        if (graphic instanceof LabelChipStrip strip) return strip.isOverflowVisible();
+        return graphic instanceof HBox container
+                && container.getChildren().stream().anyMatch(LabelChipFactory::isTruncated);
     }
 
     /** Creates one chip using the label's configured color. */

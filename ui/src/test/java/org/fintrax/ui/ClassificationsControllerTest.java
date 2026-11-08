@@ -1,6 +1,7 @@
 package org.fintrax.ui;
 
 import javafx.application.Platform;
+import javafx.event.Event;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
@@ -21,6 +22,10 @@ import javafx.scene.control.TableView;
 import javafx.scene.control.ColorPicker;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
+import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
+import javafx.scene.input.PickResult;
+import javafx.scene.input.KeyCode;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.stage.Stage;
@@ -615,36 +620,49 @@ class ClassificationsControllerTest extends AbstractUITest {
     }
 
     @Test
-    void doubleClickingTransactionCategoryOpensCategoryPicker() throws Exception {
-        Category category = categoryService().createCategory("Double click " + System.nanoTime(), null, null);
+    void clickingTransactionCategoryPickerPreselectsCurrentCategory() throws Exception {
+        String suffix = Long.toString(System.nanoTime());
+        Category parent = categoryService().createCategory("Picker parent " + suffix, null, null);
+        Category category = categoryService().createCategory("Picker child " + suffix, parent.getId(), null);
         createTransaction(category.getId(), "Category picker transaction", "20", LocalDate.of(2025, 2, 1));
         reloadClassificationsView();
 
         TreeView<String> tree = lookup("#classificationTree").query();
-        interact(() -> tree.getSelectionModel().select(categoryTreeItem(tree, category.getName())));
+        interact(() -> tree.getSelectionModel().select(categoryTreeItem(tree, parent.getName())));
         TableView<Transaction> table = lookup("#classificationTransactionsTable").query();
         TableColumn<?, ?> categoryColumn = table.getColumns().stream()
                 .filter(column -> I18n.get("col.category").equals(column.getText()))
                 .findFirst()
                 .orElseThrow();
-        Node categoryCell = table.lookupAll(".table-cell").stream()
-                .filter(node -> node instanceof TableCell<?, ?>)
+        TableCell<?, ?> categoryCell = table.lookupAll(".table-cell").stream()
+                .filter(TableCell.class::isInstance)
                 .map(node -> (TableCell<?, ?>) node)
                 .filter(cell -> !cell.isEmpty() && cell.getTableColumn() == categoryColumn)
                 .findFirst()
                 .orElseThrow();
 
-        doubleClickOn(categoryCell);
+        Button pickerButton = (Button) categoryCell.lookup(".assignment-picker-button");
+        assertEquals(category.getName(), ((javafx.scene.control.Label)
+                ((HBox) categoryCell.getGraphic()).getChildren().getFirst()).getText());
+        interact(pickerButton::fire);
         WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS,
                 () -> lookup("#pickerSearch").tryQuery().isPresent());
-        assertEquals(category.getId(), lookup("#pickerList")
-                .<javafx.scene.control.ListView<Category>>query().getSelectionModel()
-                .getSelectedItem().getId());
-        interact(lookup("#pickerCancel").<Button>query()::fire);
+        javafx.scene.control.ListView<Category> options = lookup("#pickerList").query();
+        assertEquals(category.getId(), options.getSelectionModel().getSelectedItem().getId());
+        interact(() -> options.scrollTo(options.getItems().indexOf(category)));
+        WaitForAsyncUtils.waitForFxEvents();
+        javafx.scene.control.ListCell<Category> selectedCell = options.lookupAll(".list-cell").stream()
+                .filter(javafx.scene.control.ListCell.class::isInstance)
+                .map(node -> (javafx.scene.control.ListCell<Category>) node)
+                .filter(cell -> !cell.isEmpty() && category.getId().equals(cell.getItem().getId()))
+                .findFirst().orElseThrow();
+        assertEquals(parent.getName() + " → " + category.getName(), ((javafx.scene.control.Label)
+                ((HBox) selectedCell.getGraphic()).getChildren().get(1)).getText());
+        press(KeyCode.ESCAPE);
     }
 
     @Test
-    void doubleClickingTransactionLabelsOpensLabelPicker() throws Exception {
+    void clickingTransactionLabelsPickerShowsCurrentLabelsSelected() throws Exception {
         Label label = labelService().createLabel("Picker label " + System.nanoTime(), "#1976d2", null);
         Category category = categoryService().createCategory("Picker category " + System.nanoTime(), null, null);
         Transaction transaction = createTransaction(category.getId(), "Label picker transaction", "20",
@@ -659,21 +677,26 @@ class ClassificationsControllerTest extends AbstractUITest {
                 .filter(column -> I18n.get("col.labels").equals(column.getText()))
                 .findFirst()
                 .orElseThrow();
-        Node labelsCell = table.lookupAll(".table-cell").stream()
-                .filter(node -> node instanceof TableCell<?, ?>)
+        TableCell<?, ?> labelsCell = table.lookupAll(".table-cell").stream()
+                .filter(TableCell.class::isInstance)
                 .map(node -> (TableCell<?, ?>) node)
                 .filter(cell -> !cell.isEmpty() && cell.getTableColumn() == labelsColumn)
                 .findFirst()
                 .orElseThrow();
 
-        doubleClickOn(labelsCell);
+        Button pickerButton = (Button) labelsCell.lookup(".assignment-picker-button");
+        interact(pickerButton::fire);
         WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS,
-                () -> lookup("#selectedLabelsPane").tryQuery().isPresent());
-        FlowPane selectedLabels = lookup("#selectedLabelsPane").query();
-        assertEquals(1, selectedLabels.getChildren().size());
-        assertEquals(label.getName(), ((javafx.scene.control.Label)
-                ((HBox) selectedLabels.getChildren().getFirst()).getChildren().getFirst()).getText());
-        interact(lookup("#pickerCancel").<Button>query()::fire);
+                () -> lookup("#pickerList").tryQuery().isPresent());
+        javafx.scene.control.ListView<Label> options = lookup("#pickerList").query();
+        javafx.scene.control.ListCell<Label> optionCell = options.lookupAll(".list-cell").stream()
+                .filter(javafx.scene.control.ListCell.class::isInstance)
+                .map(node -> (javafx.scene.control.ListCell<Label>) node)
+                .filter(cell -> !cell.isEmpty() && label.getId().equals(cell.getItem().getId()))
+                .findFirst().orElseThrow();
+        assertTrue(((javafx.scene.control.CheckBox)
+                ((HBox) optionCell.getGraphic()).getChildren().getFirst()).isSelected());
+        press(KeyCode.ESCAPE);
     }
 
     @Test
@@ -715,7 +738,8 @@ class ClassificationsControllerTest extends AbstractUITest {
                 .findFirst()
                 .orElseThrow();
         assertTrue(labelsCell.getGraphic() instanceof HBox);
-        HBox labelChips = (HBox) labelsCell.getGraphic();
+        HBox control = (HBox) labelsCell.getGraphic();
+        HBox labelChips = (HBox) control.getChildren().getFirst();
         javafx.scene.control.Label chip = (javafx.scene.control.Label) labelChips.getChildren().getFirst();
         assertEquals(label.getName(), chip.getText());
         assertEquals(javafx.scene.paint.Color.web(label.getColor()),
@@ -741,7 +765,11 @@ class ClassificationsControllerTest extends AbstractUITest {
         assertEquals(javafx.scene.paint.Color.web(label.getColor()),
                 labelChip.getBackground().getFills().getFirst().getFill());
 
-        doubleClickOn(labelCell);
+        interact(() -> Event.fireEvent(labelCell, new MouseEvent(MouseEvent.MOUSE_CLICKED,
+                1, 1, 1, 1, MouseButton.PRIMARY, 2,
+                false, false, false, false,
+                false, false, false, true, false, true,
+                new PickResult(labelCell, 1, 1))));
         WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS,
                 () -> lookup("#labelNameField").tryQuery().isPresent());
         TextField nameField = lookup("#labelNameField").query();

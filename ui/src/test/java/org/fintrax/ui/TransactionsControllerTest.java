@@ -3,7 +3,6 @@ package org.fintrax.ui;
 import javafx.application.Platform;
 import javafx.geometry.Bounds;
 import javafx.event.Event;
-import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.scene.Node;
 import javafx.scene.Parent;
@@ -27,6 +26,9 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.ListView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
+import javafx.scene.input.PickResult;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
@@ -139,11 +141,41 @@ class TransactionsControllerTest extends AbstractUITest {
                 .orElseThrow();
 
         assertTrue(labelsCell.getGraphic() instanceof HBox);
+        HBox control = (HBox) labelsCell.getGraphic();
         javafx.scene.control.Label chip = (javafx.scene.control.Label)
-                ((HBox) labelsCell.getGraphic()).getChildren().getFirst();
+                ((HBox) control.getChildren().getFirst()).getChildren().getFirst();
         assertEquals(label.getName(), chip.getText());
         assertEquals(javafx.scene.paint.Color.web(label.getColor()),
                 chip.getBackground().getFills().getFirst().getFill());
+    }
+
+    @Test
+    void unassignedCategoryAndLabelCellsHaveNoPlaceholderText() throws TimeoutException {
+        TableView<Transaction> table = lookup("#transactionTable").query();
+        TableColumn<?, ?> categoryColumn = table.getColumns().stream()
+                .filter(column -> I18n.get("col.category").equals(column.getText()))
+                .findFirst().orElseThrow();
+        TableColumn<?, ?> labelsColumn = table.getColumns().stream()
+                .filter(column -> I18n.get("col.labels").equals(column.getText()))
+                .findFirst().orElseThrow();
+        int rowIndex = table.getItems().indexOf(detailSparseTransaction);
+        assertTrue(rowIndex >= 0);
+        scrollToRow(table, rowIndex);
+        TableCell<?, ?> categoryCell = transactionCell(table, categoryColumn, detailSparseTransaction);
+        TableCell<?, ?> labelsCell = transactionCell(table, labelsColumn, detailSparseTransaction);
+
+        HBox categoryControl = (HBox) categoryCell.getGraphic();
+        assertEquals("", ((javafx.scene.control.Label) categoryControl.getChildren().getFirst()).getText());
+        assertTrue(categoryControl.getChildren().getLast() instanceof Button);
+
+        HBox labelsControl = (HBox) labelsCell.getGraphic();
+        HBox chips = (HBox) labelsControl.getChildren().getFirst();
+        assertTrue(chips.getChildren().stream()
+                .filter(Labeled.class::isInstance)
+                .map(Labeled.class::cast)
+                .filter(Node::isVisible)
+                .allMatch(label -> label.getText() == null || label.getText().isBlank()));
+        assertTrue(labelsControl.getChildren().getLast() instanceof Button);
     }
 
     @Test
@@ -285,14 +317,19 @@ class TransactionsControllerTest extends AbstractUITest {
         TableCell<?, ?> payeeCell = transactionCell(table, payeeColumn, testCategoryTransaction);
 
         assertFalse(lookup("#detailPanel").query().isVisible());
-        doubleClickOn(payeeCell);
+        interact(() -> Event.fireEvent(payeeCell, new MouseEvent(MouseEvent.MOUSE_CLICKED,
+                1, 1, 1, 1, MouseButton.PRIMARY, 2,
+                false, false, false, false,
+                false, false, false, true, false, true,
+                new PickResult(payeeCell, 1, 1))));
+        WaitForAsyncUtils.waitForFxEvents();
 
         assertTrue(lookup("#detailPanel").query().isVisible());
         assertEquals("Display popup test", detailText("#payeeValue"));
     }
 
     @Test
-    void doubleClickingCategoryOrLabelCellsKeepsAssignmentDialogs() throws TimeoutException {
+    void clickingCategoryOrLabelPickerButtonsOpensDropdowns() throws TimeoutException {
         TableView<Transaction> table = lookup("#transactionTable").query();
         int rowIndex = table.getItems().indexOf(testCategoryTransaction);
         scrollToRow(table, rowIndex);
@@ -304,10 +341,19 @@ class TransactionsControllerTest extends AbstractUITest {
                     .orElseThrow();
             TableCell<?, ?> cell = transactionCell(table, column, testCategoryTransaction);
 
-            doubleClickOn(cell);
+            Button pickerButton = (Button) cell.lookup(".assignment-picker-button");
+            assertNotNull(pickerButton.getScene(), "picker button should be attached to the transaction table");
+            assertNotNull(pickerButton.localToScreen(pickerButton.getBoundsInLocal()),
+                    "picker button should have screen coordinates");
+            interact(pickerButton::fire);
+            assertTrue(table.getSelectionModel().getSelectedItems().stream()
+                    .anyMatch(transaction -> transaction.getId().equals(testCategoryTransaction.getId())),
+                    "picker button should select its transaction");
             waitForPicker();
             assertFalse(lookup("#detailPanel").query().isVisible());
-            interact(lookup("#pickerCancel").<Button>query()::fire);
+            press(KeyCode.ESCAPE);
+            WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS,
+                    () -> lookup("#pickerSearch").tryQuery().isEmpty());
         }
     }
 
@@ -516,7 +562,7 @@ class TransactionsControllerTest extends AbstractUITest {
         openPickerFromContextMenu(table, rowIndex, 0);
 
         assertNotNull(lookup("#pickerSearch").query());
-        assertTrue(lookup("#pickerClearSelection").tryQuery().isEmpty());
+        assertTrue(lookup("#pickerClear").<Button>query().isVisible());
         assertEquals(selected.getCategoryId(), lookup("#pickerList").<javafx.scene.control.ListView<Category>>query()
                 .getSelectionModel().getSelectedItem().getId());
         fireEnterOnPicker();
@@ -534,19 +580,6 @@ class TransactionsControllerTest extends AbstractUITest {
         openPickerFromContextMenu(table, selectedIndex, 1);
 
         assertNotNull(lookup("#pickerSearch").query());
-        FlowPane selectedPane = lookup("#selectedLabelsPane").query();
-        assertTrue(selectedPane.getChildren().size() > 0);
-        assertEquals(2, selectedPane.getHgap());
-        assertEquals(2, selectedPane.getVgap());
-        HBox selectedChip = (HBox) selectedPane.getChildren().getFirst();
-        assertEquals(1, selectedChip.getSpacing());
-        javafx.scene.control.Label selectedLabelChip =
-                (javafx.scene.control.Label) selectedChip.getChildren().getFirst();
-        assertEquals(label.getName(), selectedLabelChip.getText());
-        assertEquals(new Insets(2, 7, 2, 7), selectedLabelChip.getPadding());
-        assertEquals(javafx.scene.paint.Color.web(label.getColor()),
-                selectedLabelChip.getBackground().getFills().getFirst().getFill());
-
         interact(() -> lookup("#pickerSearch").<javafx.scene.control.TextField>query().setText(label.getName()));
         javafx.scene.control.ListView<org.fintrax.model.Label> options = lookup("#pickerList").query();
         WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS, () -> options.getItems().size() == 1);
@@ -557,12 +590,12 @@ class TransactionsControllerTest extends AbstractUITest {
                 .findFirst()
                 .orElseThrow();
         HBox optionContent = (HBox) optionCell.getGraphic();
-        javafx.scene.control.Label optionLabelChip =
-                (javafx.scene.control.Label) optionContent.getChildren().get(1);
-        assertEquals(label.getName(), optionLabelChip.getText());
-        assertEquals(javafx.scene.paint.Color.web(label.getColor()),
-                optionLabelChip.getBackground().getFills().getFirst().getFill());
-        interact(lookup("#pickerCancel").<Button>query()::fire);
+        javafx.scene.control.CheckBox optionCheckBox =
+                (javafx.scene.control.CheckBox) optionContent.getChildren().getFirst();
+        assertTrue(optionCheckBox.isSelected());
+        assertEquals(label.getName(), ((javafx.scene.control.Label)
+                optionContent.getChildren().get(1)).getText());
+        press(KeyCode.ESCAPE);
     }
 
     @Test
@@ -697,7 +730,7 @@ class TransactionsControllerTest extends AbstractUITest {
         javafx.scene.control.ListView<Category> categoryList = lookup("#pickerList").query();
         WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS, () -> !categoryList.getItems().isEmpty());
         interact(() -> categoryList.getSelectionModel().select(0));
-        acceptBulkEditDialog();
+        fireEnterOnPicker();
 
         assertEquals(selectedIds, table.getSelectionModel().getSelectedItems().stream()
                 .map(Transaction::getId)
@@ -724,9 +757,9 @@ class TransactionsControllerTest extends AbstractUITest {
                 .orElseThrow();
         Platform.runLater(setLabelsItem::fire);
         WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS,
-                () -> lookup("#selectedLabelsPane").tryQuery().isPresent());
+                () -> lookup("#pickerSave").tryQuery().isPresent());
         assertNotNull(lookup("#pickerSearch").query());
-        acceptBulkEditDialog();
+        saveLabelSelection();
 
         assertEquals(selectedIds, table.getSelectionModel().getSelectedItems().stream()
                 .map(Transaction::getId)
@@ -890,7 +923,6 @@ class TransactionsControllerTest extends AbstractUITest {
                         && lookup("#pickerCreateButton").<Button>query().isVisible());
         assertTrue(lookup("#pickerCreateButton").<Button>query().isVisible());
         interact(lookup("#pickerCreateButton").<Button>query()::fire);
-        interact(lookup("#pickerSave").<Button>query()::fire);
         WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS, () ->
                 applicationContext.getBean(CategoryService.class).getAllCategories().stream()
                         .anyMatch(category -> category.getName().equals(name)));
@@ -925,22 +957,33 @@ class TransactionsControllerTest extends AbstractUITest {
     }
 
     @Test
-    void removingSelectedLabelChipRemovesLabelFromTransaction() throws TimeoutException {
+    void spaceTogglingSelectedLabelRemovesLabelFromTransaction() throws TimeoutException {
         TableView<Transaction> table = lookup("#transactionTable").query();
         Transaction selected = table.getItems().get(0);
         Set<Long> originalIds = Set.copyOf(selected.getLabelIds());
         assertFalse(originalIds.isEmpty());
 
         openPickerFromContextMenu(table, 0, 1);
-        FlowPane selectedPane = lookup("#selectedLabelsPane").query();
-        HBox firstChip = (HBox) selectedPane.getChildren().get(0);
-        String removedName = ((javafx.scene.control.Label) firstChip.getChildren().get(0)).getText();
-        org.fintrax.model.Label removedLabel = applicationContext.getBean(LabelService.class).getAllLabels().stream()
-                .filter(label -> label.getName().equals(removedName)).findFirst().orElseThrow();
-        Button removeButton = (Button) firstChip.getChildren().get(1);
-
-        interact(removeButton::fire);
-        acceptBulkEditDialog();
+        Long removedId = originalIds.iterator().next();
+        org.fintrax.model.Label removedLabel = applicationContext.getBean(LabelService.class)
+                .getLabel(removedId).orElseThrow();
+        interact(() -> lookup("#pickerSearch").<TextField>query().setText(removedLabel.getName()));
+        javafx.scene.control.ListView<org.fintrax.model.Label> options = lookup("#pickerList").query();
+        WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS, () -> options.getItems().size() == 1);
+        interact(() -> {
+            options.getSelectionModel().select(removedLabel);
+            options.requestFocus();
+            Event.fireEvent(options, new KeyEvent(KeyEvent.KEY_PRESSED, "", "", KeyCode.SPACE,
+                    false, false, false, false));
+        });
+        WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS, () -> options.lookupAll(".list-cell").stream()
+                .filter(javafx.scene.control.ListCell.class::isInstance)
+                .map(node -> (javafx.scene.control.ListCell<org.fintrax.model.Label>) node)
+                .filter(cell -> !cell.isEmpty() && removedId.equals(cell.getItem().getId()))
+                .anyMatch(cell -> cell.getGraphic() instanceof HBox graphic
+                        && !((javafx.scene.control.CheckBox) graphic.getChildren().getFirst()).isSelected()));
+        interact(() -> Event.fireEvent(options, new KeyEvent(KeyEvent.KEY_PRESSED, "", "", KeyCode.ENTER,
+                false, false, false, false)));
 
         Set<Long> updatedIds = applicationContext.getBean(TransactionService.class)
                 .getTransaction(selected.getId()).orElseThrow().getLabelIds();
@@ -949,7 +992,6 @@ class TransactionsControllerTest extends AbstractUITest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     void categoryPickerCanClearAssignment() throws TimeoutException {
         TableView<Transaction> table = lookup("#transactionTable").query();
         int selectedIndex = indexOfTransactionWithCategory(table);
@@ -958,19 +1000,8 @@ class TransactionsControllerTest extends AbstractUITest {
         javafx.scene.control.ListView<Category> categoryList = lookup("#pickerList").query();
         Category currentCategory = applicationContext.getBean(CategoryService.class)
                 .getCategory(selected.getCategoryId()).orElseThrow();
-        interact(() -> lookup("#pickerSearch").<javafx.scene.control.TextField>query()
-                .setText(currentCategory.getName()));
-        WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS,
-                () -> categoryList.getItems().size() == 1);
-        javafx.scene.control.ListCell<Category> selectedCell = categoryList.lookupAll(".list-cell").stream()
-                .filter(node -> node instanceof javafx.scene.control.ListCell<?> cell
-                        && cell.getItem() != null
-                        && currentCategory.getId().equals(((Category) cell.getItem()).getId()))
-                .map(node -> (javafx.scene.control.ListCell<Category>) node)
-                .findFirst().orElseThrow();
-        clickOn(selectedCell);
-        assertNull(categoryList.getSelectionModel().getSelectedItem());
-        press(KeyCode.ENTER);
+        assertEquals(currentCategory.getId(), categoryList.getSelectionModel().getSelectedItem().getId());
+        interact(lookup("#pickerClear").<Button>query()::fire);
 
         assertNull(applicationContext.getBean(TransactionService.class)
                 .getTransaction(selected.getId()).orElseThrow().getCategoryId());
@@ -992,7 +1023,6 @@ class TransactionsControllerTest extends AbstractUITest {
                         && target.getId().equals(lookup("#pickerList")
                         .<javafx.scene.control.ListView<Category>>query()
                         .getSelectionModel().getSelectedItem().getId()));
-        assertTrue(lookup("#pickerSave").<Button>query().isDefaultButton());
         fireEnterOnPicker();
 
         assertEquals(target.getId(), applicationContext.getBean(TransactionService.class)
@@ -1149,7 +1179,7 @@ class TransactionsControllerTest extends AbstractUITest {
 
     private void waitForPicker() throws TimeoutException {
         WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS,
-                () -> lookup("#pickerSearch").tryQuery().isPresent());
+                () -> lookup("#searchableDropdownPicker").tryQuery().isPresent());
     }
 
     private void scrollToRow(TableView<Transaction> table, int rowIndex) throws TimeoutException {
@@ -1217,7 +1247,7 @@ class TransactionsControllerTest extends AbstractUITest {
         interact(() -> {
             KeyEvent enter = new KeyEvent(KeyEvent.KEY_PRESSED, "", "", KeyCode.ENTER,
                     false, false, false, false);
-            Event.fireEvent(lookup("#pickerSave").<Button>query().getScene().getRoot(), enter);
+            Event.fireEvent(lookup("#pickerSearch").<TextField>query(), enter);
         });
     }
 
@@ -1236,7 +1266,7 @@ class TransactionsControllerTest extends AbstractUITest {
         throw new AssertionError("Expected transaction with labels");
     }
 
-    private void acceptBulkEditDialog() {
+    private void saveLabelSelection() {
         interact(lookup("#pickerSave").<Button>query()::fire);
     }
 
