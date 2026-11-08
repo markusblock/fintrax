@@ -72,15 +72,37 @@ class NavigationTest extends AbstractUITest {
     }
 
     @Test
-    void testSidebarToggle() {
+    void sidebarToggleShowsIconsWithoutLabelsAndRestoresThem() {
         VBox sidebar = lookup("#sidebar").query();
         Button toggleButton = lookup("#toggleSidebarButton").query();
         double initialWidth = sidebar.getPrefWidth();
         assertEquals(200.0, initialWidth);
 
         interact(() -> toggleButton.fire());
-        double newWidth = sidebar.getPrefWidth();
-        assertEquals(60.0, newWidth);
+        assertEquals(60.0, sidebar.getPrefWidth());
+
+        Map<String, String> navigationLabels = Map.of(
+                "#bankAccountsButton", "view.bankAccounts",
+                "#transactionsButton", "view.transactions",
+                "#classificationsButton", "view.classifications",
+                "#rulesButton", "view.rules",
+                "#activityLogButton", "view.activityLog",
+                "#settingsButton", "view.settings");
+        for (Map.Entry<String, String> entry : navigationLabels.entrySet()) {
+            Button button = lookup(entry.getKey()).query();
+            assertEquals("", button.getText());
+            assertEquals(I18n.get(entry.getValue()), button.getAccessibleText());
+            assertEquals(I18n.get(entry.getValue()), button.getTooltip().getText());
+            assertTrue(button.getGraphic() instanceof FontIcon);
+        }
+
+        interact(() -> toggleButton.fire());
+        assertEquals(200.0, sidebar.getPrefWidth());
+        for (Map.Entry<String, String> entry : navigationLabels.entrySet()) {
+            Button button = lookup(entry.getKey()).query();
+            assertEquals(I18n.get(entry.getValue()), button.getText());
+            assertNull(button.getTooltip());
+        }
     }
 
     @Test
