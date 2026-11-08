@@ -81,6 +81,16 @@ class NavigationTest extends AbstractUITest {
     }
 
     @Test
+    void transactionViewDefaultsToCurrentYearWhenNoDateRangeIsSaved() {
+        interact(lookup("#transactionsButton").<Button>query()::fire);
+
+        LocalDate today = LocalDate.now();
+        assertEquals("THIS_YEAR", lookup("#datePresetFilter").<ComboBox<?>>query().getValue().toString());
+        assertEquals(LocalDate.of(today.getYear(), 1, 1), lookup("#fromDateFilter").<DatePicker>query().getValue());
+        assertEquals(LocalDate.of(today.getYear(), 12, 31), lookup("#toDateFilter").<DatePicker>query().getValue());
+    }
+
+    @Test
     void filtersAndViewSelectionsSurviveNavigationForTheCurrentSession() {
         String suffix = Long.toString(System.nanoTime());
         Category category = applicationContext.getBean(CategoryService.class)

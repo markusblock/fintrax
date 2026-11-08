@@ -30,6 +30,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Optional;
 
 @Component
@@ -114,7 +115,12 @@ public class TransactionFilterPanelController {
     public void restoreForView(String viewKey) {
         this.viewKey = viewKey;
         SessionViewState.TransactionFilterPanelState state = sessionViewState.transactionFilters(viewKey);
-        if (state == null) return;
+        if (state == null) {
+            if (SessionViewState.TRANSACTIONS_VIEW.equals(viewKey)) {
+                datePresetFilter.setValue(TransactionDateFilters.Preset.THIS_YEAR);
+            }
+            return;
+        }
 
         updatingFilters = true;
         try {
@@ -262,9 +268,9 @@ public class TransactionFilterPanelController {
         });
 
         fromDateFilter.getEditor().textProperty().addListener((observable, oldText, newText) ->
-                onDateTextChanged());
+                onDateTextChanged(fromDateFilter));
         toDateFilter.getEditor().textProperty().addListener((observable, oldText, newText) ->
-                onDateTextChanged());
+                onDateTextChanged(toDateFilter));
     }
 
     private void setupFilterListeners() {
@@ -384,11 +390,26 @@ public class TransactionFilterPanelController {
         }
     }
 
-    private void onDateTextChanged() {
+    private void onDateTextChanged(DatePicker datePicker) {
         setDateFieldInvalid(fromDateFilter, false);
         setDateFieldInvalid(toDateFilter, false);
-        if (!updatingDateFilters) {
+        if (!updatingDateFilters && !matchesSelectedDatePreset(datePicker)) {
             datePresetFilter.setValue(TransactionDateFilters.Preset.CUSTOM);
+        }
+    }
+
+    private boolean matchesSelectedDatePreset(DatePicker datePicker) {
+        TransactionDateFilters.Preset preset = datePresetFilter.getValue();
+        if (preset == null || preset == TransactionDateFilters.Preset.CUSTOM) return false;
+        TransactionDateFilters.Range range = TransactionDateFilters.rangeFor(
+                preset, LocalDate.now(ZoneId.systemDefault()));
+        LocalDate expectedDate = datePicker == fromDateFilter ? range.fromDate() : range.toDate();
+        try {
+            LocalDate enteredDate = TransactionDateFilters.parseDate(
+                    datePicker.getEditor().getText(), I18n.getCurrentLocale());
+            return Objects.equals(expectedDate, enteredDate);
+        } catch (DateTimeParseException e) {
+            return false;
         }
     }
 
