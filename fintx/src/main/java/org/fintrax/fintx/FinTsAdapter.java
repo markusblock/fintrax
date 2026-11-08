@@ -73,13 +73,15 @@ public class FinTsAdapter implements BankingProtocol {
             HBCIExecStatus status = handle.execute();
 
             if (!status.isOK()) {
-                throw new BankingException("Bank rejected the transaction sync request.");
+                throw new BankingException(BankingException.FailureReason.BANK_REJECTED,
+                        "Bank rejected the transaction sync request.");
             }
 
             GVRKUms result = (GVRKUms) umsatzJob.getJobResult();
 
             if (!result.isOK()) {
-                throw new BankingException("Bank did not return a complete transaction response.");
+                throw new BankingException(BankingException.FailureReason.INCOMPLETE_RESPONSE,
+                        "Bank did not return a complete transaction response.");
             }
 
             for (UmsLine line : result.getFlatData()) {
@@ -92,13 +94,15 @@ public class FinTsAdapter implements BankingProtocol {
         } catch (BankingException e) {
             throw e;
         } catch (TanRequiredException e) {
-            throw new BankingException(BankingException.TAN_REQUIRED_MESSAGE, e);
+            throw new BankingException(BankingException.FailureReason.TAN_REQUIRED,
+                    BankingException.TAN_REQUIRED_MESSAGE, e);
         } catch (Exception e) {
             if (containsTanRequired(e)) {
-                throw new BankingException(BankingException.TAN_REQUIRED_MESSAGE, e);
+                throw new BankingException(BankingException.FailureReason.TAN_REQUIRED,
+                        BankingException.TAN_REQUIRED_MESSAGE, e);
             }
-            log.warn("Bank transaction sync could not be completed");
-            throw new BankingException("Bank transaction sync could not be completed.", e);
+            throw new BankingException(BankingException.FailureReason.CONNECTION_FAILED,
+                    "Bank transaction sync could not be completed.", e);
         } finally {
             closeSession(handle, passport, passportFile);
         }
@@ -144,13 +148,16 @@ public class FinTsAdapter implements BankingProtocol {
             return status.isOK();
 
         } catch (TanRequiredException e) {
-            throw new BankingException(BankingException.TAN_REQUIRED_MESSAGE, e);
+            throw new BankingException(BankingException.FailureReason.TAN_REQUIRED,
+                    BankingException.TAN_REQUIRED_MESSAGE, e);
         } catch (Exception e) {
             if (containsTanRequired(e)) {
-                throw new BankingException(BankingException.TAN_REQUIRED_MESSAGE, e);
+                throw new BankingException(BankingException.FailureReason.TAN_REQUIRED,
+                        BankingException.TAN_REQUIRED_MESSAGE, e);
             }
             log.warn("Bank credential validation could not be completed");
-            throw new BankingException("Bank credential validation could not be completed.", e);
+            throw new BankingException(BankingException.FailureReason.CREDENTIAL_VALIDATION_FAILED,
+                    "Bank credential validation could not be completed.", e);
         } finally {
             closeSession(handle, passport, passportFile);
         }
@@ -195,7 +202,8 @@ public class FinTsAdapter implements BankingProtocol {
                     .updatedAt(LocalDateTime.now())
                     .build();
         } catch (Exception e) {
-            throw new BankingException("Bank returned a transaction that could not be mapped completely.", e);
+            throw new BankingException(BankingException.FailureReason.MAPPING_FAILED,
+                    "Bank returned a transaction that could not be mapped completely.", e);
         }
     }
 
