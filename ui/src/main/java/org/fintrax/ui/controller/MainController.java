@@ -2,10 +2,11 @@ package org.fintrax.ui.controller;
 
 import javafx.fxml.FXML;
 import javafx.scene.Node;
+import javafx.scene.control.Button;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
-import javafx.scene.control.Button;
 import lombok.extern.slf4j.Slf4j;
 import org.fintrax.config.I18n;
 import org.fintrax.ui.ViewLoader;
@@ -57,22 +58,29 @@ public class MainController {
     }
 
     public void refreshLocale() {
-        bankAccountsButton.setText(I18n.get("view.bankAccounts"));
-        transactionsButton.setText(I18n.get("view.transactions"));
-        classificationsButton.setText(I18n.get("view.classifications"));
-        rulesButton.setText(I18n.get("view.rules"));
-        activityLogButton.setText(I18n.get("view.activityLog"));
-        settingsButton.setText(I18n.get("view.settings"));
+        setNavigationLabel(bankAccountsButton, I18n.get("view.bankAccounts"));
+        setNavigationLabel(transactionsButton, I18n.get("view.transactions"));
+        setNavigationLabel(classificationsButton, I18n.get("view.classifications"));
+        setNavigationLabel(rulesButton, I18n.get("view.rules"));
+        setNavigationLabel(activityLogButton, I18n.get("view.activityLog"));
+        setNavigationLabel(settingsButton, I18n.get("view.settings"));
     }
 
     @FXML
     private void onToggleSidebar() {
         sidebarExpanded = !sidebarExpanded;
-        if (sidebarExpanded) {
-            sidebar.setPrefWidth(200);
-        } else {
-            sidebar.setPrefWidth(60);
+        sidebar.setPrefWidth(sidebarExpanded ? 200 : 60);
+        sidebar.getStyleClass().remove("collapsed");
+        if (!sidebarExpanded) {
+            sidebar.getStyleClass().add("collapsed");
         }
+        refreshLocale();
+    }
+
+    private void setNavigationLabel(Button button, String label) {
+        button.setAccessibleText(label);
+        button.setText(sidebarExpanded ? label : "");
+        button.setTooltip(sidebarExpanded ? null : new Tooltip(label));
     }
 
     @FXML

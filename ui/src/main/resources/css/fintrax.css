@@ -150,6 +150,16 @@
     -fx-font-weight: bold;
 }
 
+.sidebar-panel.collapsed .sidebar-button {
+    -fx-padding: 10 0;
+    -fx-alignment: CENTER;
+}
+
+.sidebar-panel.collapsed .sidebar-toggle {
+    -fx-padding: 8 0;
+    -fx-alignment: CENTER;
+}
+
 .sidebar-toggle {
     -fx-alignment: CENTER_LEFT;
     -fx-background-color: transparent;
