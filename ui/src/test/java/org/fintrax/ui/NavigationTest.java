@@ -78,7 +78,7 @@ class NavigationTest extends AbstractUITest {
         double initialWidth = sidebar.getPrefWidth();
         assertEquals(200.0, initialWidth);
 
-        interact(() -> toggleButton.fire());
+        interact(toggleButton::fire);
         assertEquals(60.0, sidebar.getPrefWidth());
 
         Map<String, String> navigationLabels = Map.of(
@@ -96,7 +96,7 @@ class NavigationTest extends AbstractUITest {
             assertTrue(button.getGraphic() instanceof FontIcon);
         }
 
-        interact(() -> toggleButton.fire());
+        interact(toggleButton::fire);
         assertEquals(200.0, sidebar.getPrefWidth());
         for (Map.Entry<String, String> entry : navigationLabels.entrySet()) {
             Button button = lookup(entry.getKey()).query();
