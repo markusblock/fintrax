@@ -1,6 +1,7 @@
 package org.fintrax.ui.controller;
 
 import java.time.LocalDate;
+import java.time.Month;
 import java.time.chrono.IsoEra;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
@@ -75,7 +76,7 @@ final class TransactionDateFilters {
 
     private static Range calendarYear(LocalDate today, int yearsAgo) {
         int year = today.getYear() - yearsAgo;
-        return new Range(LocalDate.of(year, 1, 1), LocalDate.of(year, 12, 31));
+        return new Range(LocalDate.of(year, Month.JANUARY, 1), LocalDate.of(year, Month.DECEMBER, 31));
     }
 
     static DateTimeFormatter formatter(Locale locale) {
