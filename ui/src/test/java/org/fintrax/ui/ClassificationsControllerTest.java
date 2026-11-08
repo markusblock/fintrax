@@ -330,6 +330,22 @@ class ClassificationsControllerTest extends AbstractUITest {
     }
 
     @Test
+    void transactionCategoryFilterOptionsAreSortedAlphabetically() throws Exception {
+        String suffix = Long.toString(System.nanoTime());
+        Category zulu = categoryService().createCategory("Zulu sort " + suffix, null, null);
+        Category alpha = categoryService().createCategory("Alpha sort " + suffix, null, null);
+
+        reloadClassificationsView();
+        ComboBox<String> categoryFilter = lookup("#categoryFilter").query();
+
+        interact(() -> {
+            assertEquals(I18n.get("filter.allCategories"), categoryFilter.getItems().get(0));
+            assertTrue(categoryFilter.getItems().indexOf(alpha.getName())
+                    < categoryFilter.getItems().indexOf(zulu.getName()));
+        });
+    }
+
+    @Test
     void classificationTransactionFooterShowsSumOfFilteredAmounts() throws Exception {
         Category category = categoryService().createCategory("Amount total " + System.nanoTime(), null, null);
         Category otherCategory = categoryService().createCategory("Other total " + System.nanoTime(), null, null);
