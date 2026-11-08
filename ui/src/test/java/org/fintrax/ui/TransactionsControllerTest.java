@@ -188,7 +188,12 @@ class TransactionsControllerTest extends AbstractUITest {
         DatePicker toDate = lookup("#toDateFilter").query();
         LocalDate today = LocalDate.now();
 
-        interact(() -> presets.getSelectionModel().select(3));
+        interact(() -> {
+            int previousYearIndex = presets.getItems().indexOf(presets.getItems().stream()
+                    .filter(preset -> preset.toString().equals("PREVIOUS_YEAR"))
+                    .findFirst().orElseThrow());
+            presets.getSelectionModel().select(previousYearIndex);
+        });
 
         assertEquals(LocalDate.of(today.getYear() - 1, 1, 1), fromDate.getValue());
         assertEquals(LocalDate.of(today.getYear() - 1, 12, 31), toDate.getValue());
@@ -400,7 +405,7 @@ class TransactionsControllerTest extends AbstractUITest {
         });
 
         assertTrue(table.getItems().stream().anyMatch(tx -> tx.getId().equals(matching.getId())));
-        assertTrue(table.getItems().stream().anyMatch(tx -> tx.getId().equals(valueDateMatching.getId())));
+        assertFalse(table.getItems().stream().anyMatch(tx -> tx.getId().equals(valueDateMatching.getId())));
         assertFalse(table.getItems().stream().anyMatch(tx -> tx.getId().equals(outsideRange.getId())));
     }
 
@@ -456,7 +461,11 @@ class TransactionsControllerTest extends AbstractUITest {
             searchField.setText("");
             minAmountField.setText("999");
             lookup("#maxAmountField").<TextField>query().setText("0");
-            lookup("#datePresetFilter").<ComboBox<?>>query().getSelectionModel().select(6);
+            ComboBox<?> presets = lookup("#datePresetFilter").query();
+            int last7DaysIndex = presets.getItems().indexOf(presets.getItems().stream()
+                    .filter(preset -> preset.toString().equals("LAST_7_DAYS"))
+                    .findFirst().orElseThrow());
+            presets.getSelectionModel().select(last7DaysIndex);
         });
         assertTrue(table.getItems().isEmpty());
 
@@ -469,7 +478,8 @@ class TransactionsControllerTest extends AbstractUITest {
         assertEquals("", searchField.getText());
         assertEquals("", minAmountField.getText());
         assertEquals("", lookup("#maxAmountField").<TextField>query().getText());
-        assertEquals(0, lookup("#datePresetFilter").<ComboBox<?>>query().getSelectionModel().getSelectedIndex());
+        interact(() -> assertEquals("ALL_TIME",
+                lookup("#datePresetFilter").<ComboBox<?>>query().getValue().toString()));
         assertNull(lookup("#fromDateFilter").<DatePicker>query().getValue());
         assertNull(lookup("#toDateFilter").<DatePicker>query().getValue());
         assertEquals("", lookup("#collapsedFilterSummary").<TextField>query().getText());

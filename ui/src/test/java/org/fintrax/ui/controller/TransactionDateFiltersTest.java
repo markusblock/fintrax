@@ -15,54 +15,87 @@ class TransactionDateFiltersTest {
     private static final LocalDate TODAY = LocalDate.of(2024, 3, 13);
 
     @Test
-    void previousCalendarYearCoversWholePriorYear() {
+    void yearPresetsCoverThisPreviousAndSecondPreviousCalendarYears() {
+        assertEquals(new TransactionDateFilters.Range(
+                        LocalDate.of(2024, 1, 1), LocalDate.of(2024, 12, 31)),
+                TransactionDateFilters.rangeFor(TransactionDateFilters.Preset.THIS_YEAR, TODAY));
         assertEquals(new TransactionDateFilters.Range(
                         LocalDate.of(2023, 1, 1), LocalDate.of(2023, 12, 31)),
                 TransactionDateFilters.rangeFor(TransactionDateFilters.Preset.PREVIOUS_YEAR,
-                        TODAY, Locale.US));
+                        TODAY));
+        assertEquals(new TransactionDateFilters.Range(
+                        LocalDate.of(2022, 1, 1), LocalDate.of(2022, 12, 31)),
+                TransactionDateFilters.rangeFor(TransactionDateFilters.Preset.TWO_YEARS_AGO, TODAY));
     }
 
     @Test
-    void previousCalendarMonthCoversWholePriorMonth() {
+    void monthPresetsCoverThisPreviousAndSecondPreviousCalendarMonths() {
+        assertEquals(new TransactionDateFilters.Range(
+                        LocalDate.of(2024, 3, 1), LocalDate.of(2024, 3, 31)),
+                TransactionDateFilters.rangeFor(TransactionDateFilters.Preset.THIS_MONTH, TODAY));
         assertEquals(new TransactionDateFilters.Range(
                         LocalDate.of(2024, 2, 1), LocalDate.of(2024, 2, 29)),
                 TransactionDateFilters.rangeFor(TransactionDateFilters.Preset.PREVIOUS_MONTH,
-                        TODAY, Locale.US));
+                        TODAY));
+        assertEquals(new TransactionDateFilters.Range(
+                        LocalDate.of(2024, 1, 1), LocalDate.of(2024, 1, 31)),
+                TransactionDateFilters.rangeFor(TransactionDateFilters.Preset.TWO_MONTHS_AGO, TODAY));
     }
 
     @Test
-    void previousCalendarWeekUsesLocaleWeekStart() {
+    void quarterPresetsCoverThisPreviousAndSecondPreviousCalendarQuarters() {
         assertEquals(new TransactionDateFilters.Range(
-                        LocalDate.of(2024, 3, 3), LocalDate.of(2024, 3, 9)),
-                TransactionDateFilters.rangeFor(TransactionDateFilters.Preset.PREVIOUS_WEEK,
-                        TODAY, Locale.US));
+                        LocalDate.of(2024, 1, 1), LocalDate.of(2024, 3, 31)),
+                TransactionDateFilters.rangeFor(TransactionDateFilters.Preset.THIS_QUARTER, TODAY));
         assertEquals(new TransactionDateFilters.Range(
-                        LocalDate.of(2024, 3, 4), LocalDate.of(2024, 3, 10)),
-                TransactionDateFilters.rangeFor(TransactionDateFilters.Preset.PREVIOUS_WEEK,
-                        TODAY, Locale.GERMANY));
+                        LocalDate.of(2023, 10, 1), LocalDate.of(2023, 12, 31)),
+                TransactionDateFilters.rangeFor(TransactionDateFilters.Preset.PREVIOUS_QUARTER, TODAY));
+        assertEquals(new TransactionDateFilters.Range(
+                        LocalDate.of(2023, 7, 1), LocalDate.of(2023, 9, 30)),
+                TransactionDateFilters.rangeFor(TransactionDateFilters.Preset.TWO_QUARTERS_AGO, TODAY));
     }
 
     @Test
-    void rollingPresetsIncludeTodayAndRequestedNumberOfDays() {
+    void rollingPresetsIncludeTodayAndRequestedDuration() {
         assertEquals(new TransactionDateFilters.Range(
                         LocalDate.of(2024, 3, 7), TODAY),
                 TransactionDateFilters.rangeFor(TransactionDateFilters.Preset.LAST_7_DAYS,
-                        TODAY, Locale.US));
+                        TODAY));
         assertEquals(new TransactionDateFilters.Range(
-                        LocalDate.of(2024, 2, 15), TODAY),
-                TransactionDateFilters.rangeFor(TransactionDateFilters.Preset.LAST_4_WEEKS,
-                        TODAY, Locale.US));
+                        LocalDate.of(2024, 2, 13), TODAY),
+                TransactionDateFilters.rangeFor(TransactionDateFilters.Preset.LAST_30_DAYS,
+                        TODAY));
         assertEquals(new TransactionDateFilters.Range(
                         LocalDate.of(2023, 3, 13), TODAY),
                 TransactionDateFilters.rangeFor(TransactionDateFilters.Preset.LAST_12_MONTHS,
-                        TODAY, Locale.US));
+                        TODAY));
     }
 
     @Test
     void allTimePresetHasNoDateBounds() {
         assertEquals(new TransactionDateFilters.Range(null, null),
                 TransactionDateFilters.rangeFor(TransactionDateFilters.Preset.ALL_TIME,
-                        TODAY, Locale.US));
+                        TODAY));
+    }
+
+    @Test
+    void presetsStayCompactAndGroupedByCalendarPeriod() {
+        assertEquals(List.of(
+                        TransactionDateFilters.Preset.LAST_7_DAYS,
+                        TransactionDateFilters.Preset.LAST_30_DAYS,
+                        TransactionDateFilters.Preset.LAST_12_MONTHS,
+                        TransactionDateFilters.Preset.THIS_MONTH,
+                        TransactionDateFilters.Preset.PREVIOUS_MONTH,
+                        TransactionDateFilters.Preset.TWO_MONTHS_AGO,
+                        TransactionDateFilters.Preset.THIS_QUARTER,
+                        TransactionDateFilters.Preset.PREVIOUS_QUARTER,
+                        TransactionDateFilters.Preset.TWO_QUARTERS_AGO,
+                        TransactionDateFilters.Preset.THIS_YEAR,
+                        TransactionDateFilters.Preset.PREVIOUS_YEAR,
+                        TransactionDateFilters.Preset.TWO_YEARS_AGO,
+                        TransactionDateFilters.Preset.ALL_TIME,
+                        TransactionDateFilters.Preset.CUSTOM),
+                List.of(TransactionDateFilters.Preset.values()));
     }
 
     @Test

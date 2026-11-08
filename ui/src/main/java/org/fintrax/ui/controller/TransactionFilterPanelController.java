@@ -20,12 +20,14 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.text.Collator;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -67,6 +69,7 @@ public class TransactionFilterPanelController {
 
     private final AccountService accountService;
     private final CategoryService categoryService;
+    private List<Category> categoryOptions = List.of();
     private Runnable onFiltersChanged = () -> { };
     private boolean updatingDateFilters;
     private boolean updatingFilters;
@@ -171,7 +174,12 @@ public class TransactionFilterPanelController {
 
         categoryFilter.getItems().clear();
         categoryFilter.getItems().add(I18n.get("filter.allCategories"));
-        for (Category category : categoryService.getAllCategories()) {
+        Collator collator = Collator.getInstance(I18n.getCurrentLocale());
+        categoryOptions = categoryService.getAllCategories().stream()
+                .sorted(Comparator.comparing(category -> category.getName() == null ? "" : category.getName(),
+                        collator))
+                .toList();
+        for (Category category : categoryOptions) {
             categoryFilter.getItems().add(category.getName());
         }
         categoryFilter.getSelectionModel().selectFirst();
@@ -214,7 +222,7 @@ public class TransactionFilterPanelController {
         datePresetFilter.valueProperty().addListener((observable, oldPreset, preset) -> {
             if (preset == null || preset == TransactionDateFilters.Preset.CUSTOM) return;
             TransactionDateFilters.Range range = TransactionDateFilters.rangeFor(
-                    preset, LocalDate.now(ZoneId.systemDefault()), locale);
+                    preset, LocalDate.now(ZoneId.systemDefault()));
             updatingDateFilters = true;
             fromDateFilter.setValue(range.fromDate());
             toDateFilter.setValue(range.toDate());
@@ -321,8 +329,7 @@ public class TransactionFilterPanelController {
     private Long getSelectedCategoryId() {
         int index = categoryFilter.getSelectionModel().getSelectedIndex();
         if (index <= 0) return null;
-        List<Category> categories = categoryService.getAllCategories();
-        return index - 1 < categories.size() ? categories.get(index - 1).getId() : null;
+        return index - 1 < categoryOptions.size() ? categoryOptions.get(index - 1).getId() : null;
     }
 
     private BigDecimal parseAmount(String text) {
