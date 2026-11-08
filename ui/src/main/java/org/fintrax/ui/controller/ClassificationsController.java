@@ -35,6 +35,7 @@ import org.fintrax.ui.control.TransactionTableSetup;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
+import java.text.Collator;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.*;
@@ -52,6 +53,10 @@ public class ClassificationsController {
     private BorderPane rootPane;
     @FXML
     private TreeView<String> classificationTree;
+    @FXML
+    private TextField classificationSearchField;
+    @FXML
+    private Button classificationSearchClearButton;
     @FXML
     private TableView<Transaction> classificationTransactionsTable;
     @FXML
@@ -76,6 +81,8 @@ public class ClassificationsController {
     private final MenuItem deleteNodeMenuItem = new MenuItem();
     private TreeItem<String> categoriesRoot;
     private TreeItem<String> labelsRoot;
+    private List<Category> allCategories = List.of();
+    private List<org.fintrax.model.Label> allLabels = List.of();
 
     public ClassificationsController(CategoryService categoryService,
                                   LabelService labelService,
@@ -94,6 +101,10 @@ public class ClassificationsController {
     @FXML
     public void initialize() {
         log.info("ClassificationsController initialized");
+        classificationSearchClearButton.visibleProperty().bind(
+                classificationSearchField.textProperty().isNotEmpty());
+        classificationSearchClearButton.managedProperty().bind(classificationSearchClearButton.visibleProperty());
+        classificationSearchField.textProperty().addListener((observable, oldValue, newValue) -> rebuildTree(newValue));
         loadTree();
         configureContextMenu();
         classificationTree.setCellFactory(this::createClassificationCell);
@@ -331,9 +342,21 @@ public class ClassificationsController {
     }
 
     private void loadTree() {
+        allCategories = categoryService.getAllCategories();
+        allLabels = labelService.getAllLabels();
+        displayedTransactions.clear();
+        rebuildTree(classificationSearchField.getText());
+    }
+
+    private void rebuildTree(String searchText) {
+        TreeItem<String> selectedItem = classificationTree.getSelectionModel().getSelectedItem();
+        Long selectedCategoryId = selectedItem == null ? null : findCategoryIdByItem(selectedItem);
+        Long selectedLabelId = selectedItem == null ? null : findLabelIdByItem(selectedItem);
+        boolean categoriesRootSelected = selectedItem == categoriesRoot;
+        boolean labelsRootSelected = selectedItem == labelsRoot;
+        String query = searchText == null ? "" : searchText.trim().toLowerCase(Locale.ROOT);
         categoryItemsById.clear();
         labelItemsById.clear();
-        displayedTransactions.clear();
 
         TreeItem<String> root = new TreeItem<>("");
         root.setExpanded(true);
@@ -343,32 +366,116 @@ public class ClassificationsController {
         labelsRoot.setExpanded(true);
         root.getChildren().addAll(categoriesRoot, labelsRoot);
 
-        List<Category> allCategories = categoryService.getAllCategories();
+        Comparator<String> naturalOrder = naturalOrderComparator();
         Map<Long, List<Category>> childrenMap = allCategories.stream()
                 .collect(Collectors.groupingBy(c -> c.getParentId() != null ? c.getParentId() : -1L));
 
-        buildTree(categoriesRoot, childrenMap.getOrDefault(-1L, List.of()), childrenMap);
-        for (org.fintrax.model.Label label : labelService.getAllLabels()) {
-            TreeItem<String> item = new TreeItem<>(label.getName());
-            labelsRoot.getChildren().add(item);
-            labelItemsById.put(label.getId(), item);
-        }
+        childrenMap.getOrDefault(-1L, List.of()).stream()
+                .sorted(Comparator.comparing(Category::getName, naturalOrder))
+                .map(category -> buildCategoryTreeItem(category, childrenMap, query, naturalOrder))
+                .filter(Objects::nonNull)
+                .forEach(categoriesRoot.getChildren()::add);
+        allLabels.stream()
+                .filter(label -> matchesSearch(label.getName(), query))
+                .sorted(Comparator.comparing(org.fintrax.model.Label::getName, naturalOrder))
+                .forEach(label -> {
+                    TreeItem<String> item = new TreeItem<>(label.getName());
+                    labelsRoot.getChildren().add(item);
+                    labelItemsById.put(label.getId(), item);
+                });
 
         classificationTree.setShowRoot(false);
         classificationTree.setRoot(root);
+        classificationTree.getSelectionModel().clearSelection();
+        if (selectedCategoryId != null && categoryItemsById.containsKey(selectedCategoryId)) {
+            classificationTree.getSelectionModel().select(categoryItemsById.get(selectedCategoryId));
+        } else if (selectedLabelId != null && labelItemsById.containsKey(selectedLabelId)) {
+            classificationTree.getSelectionModel().select(labelItemsById.get(selectedLabelId));
+        } else if (categoriesRootSelected) {
+            classificationTree.getSelectionModel().select(categoriesRoot);
+        } else if (labelsRootSelected) {
+            classificationTree.getSelectionModel().select(labelsRoot);
+        }
     }
 
-    private void buildTree(TreeItem<String> parent, List<Category> children, Map<Long, List<Category>> childrenMap) {
-        for (Category cat : children) {
-            TreeItem<String> item = new TreeItem<>(cat.getName());
-            parent.getChildren().add(item);
-            categoryItemsById.put(cat.getId(), item);
-
-            List<Category> subChildren = childrenMap.getOrDefault(cat.getId(), List.of());
-            if (!subChildren.isEmpty()) {
-                buildTree(item, subChildren, childrenMap);
-            }
+    private TreeItem<String> buildCategoryTreeItem(Category category, Map<Long, List<Category>> childrenMap,
+                                                    String query, Comparator<String> naturalOrder) {
+        TreeItem<String> item = new TreeItem<>(category.getName());
+        List<Category> children = childrenMap.getOrDefault(category.getId(), List.of()).stream()
+                .sorted(Comparator.comparing(Category::getName, naturalOrder))
+                .toList();
+        for (Category child : children) {
+            TreeItem<String> childItem = buildCategoryTreeItem(child, childrenMap, query, naturalOrder);
+            if (childItem != null) item.getChildren().add(childItem);
         }
+        if (!matchesSearch(category.getName(), query) && item.getChildren().isEmpty()) return null;
+
+        item.setExpanded(!query.isEmpty() && !item.getChildren().isEmpty());
+        categoryItemsById.put(category.getId(), item);
+        return item;
+    }
+
+    private boolean matchesSearch(String name, String query) {
+        return query.isEmpty() || name.toLowerCase(Locale.ROOT).contains(query);
+    }
+
+    private Comparator<String> naturalOrderComparator() {
+        Collator collator = Collator.getInstance(I18n.getCurrentLocale());
+        collator.setStrength(Collator.PRIMARY);
+        return (left, right) -> compareNaturally(left, right, collator);
+    }
+
+    private int compareNaturally(String left, String right, Collator collator) {
+        int leftIndex = 0;
+        int rightIndex = 0;
+
+        while (leftIndex < left.length() && rightIndex < right.length()) {
+            boolean leftDigit = Character.isDigit(left.charAt(leftIndex));
+            boolean rightDigit = Character.isDigit(right.charAt(rightIndex));
+            int leftEnd = nextSegmentEnd(left, leftIndex, leftDigit);
+            int rightEnd = nextSegmentEnd(right, rightIndex, rightDigit);
+            int comparison;
+            if (leftDigit && rightDigit) {
+                comparison = compareDigitSegments(left, leftIndex, leftEnd, right, rightIndex, rightEnd);
+            } else {
+                comparison = collator.compare(left.substring(leftIndex, leftEnd),
+                        right.substring(rightIndex, rightEnd));
+            }
+            if (comparison != 0) return comparison;
+            leftIndex = leftEnd;
+            rightIndex = rightEnd;
+        }
+
+        int remainingComparison = Integer.compare(left.length() - leftIndex, right.length() - rightIndex);
+        if (remainingComparison != 0) return remainingComparison;
+        int caseInsensitiveComparison = String.CASE_INSENSITIVE_ORDER.compare(left, right);
+        return caseInsensitiveComparison != 0 ? caseInsensitiveComparison : left.compareTo(right);
+    }
+
+    private int nextSegmentEnd(String value, int start, boolean digits) {
+        int end = start + 1;
+        while (end < value.length() && Character.isDigit(value.charAt(end)) == digits) end++;
+        return end;
+    }
+
+    private int compareDigitSegments(String left, int leftStart, int leftEnd,
+                                     String right, int rightStart, int rightEnd) {
+        while (leftStart < leftEnd - 1 && Character.digit(left.charAt(leftStart), 10) == 0) leftStart++;
+        while (rightStart < rightEnd - 1 && Character.digit(right.charAt(rightStart), 10) == 0) rightStart++;
+        int lengthComparison = Integer.compare(leftEnd - leftStart, rightEnd - rightStart);
+        if (lengthComparison != 0) return lengthComparison;
+        for (int offset = 0; offset < leftEnd - leftStart; offset++) {
+            int comparison = Integer.compare(Character.digit(left.charAt(leftStart + offset), 10),
+                    Character.digit(right.charAt(rightStart + offset), 10));
+            if (comparison != 0) return comparison;
+        }
+        return 0;
+    }
+
+    @FXML
+    private void onClearClassificationSearch() {
+        classificationSearchField.clear();
+        classificationSearchField.requestFocus();
     }
 
     private Long findCategoryIdByItem(TreeItem<String> item) {

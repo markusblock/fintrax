@@ -109,6 +109,86 @@ class ClassificationsControllerTest extends AbstractUITest {
     }
 
     @Test
+    void classificationTreeNaturallySortsCategoriesLabelsAndSubcategories() throws Exception {
+        String suffix = Long.toString(System.nanoTime());
+        Category category2 = categoryService().createCategory("Natural root 2 " + suffix, null, null);
+        Category category10 = categoryService().createCategory("Natural root 10 " + suffix, null, null);
+        Category child10 = categoryService().createCategory("Natural child 10 " + suffix, category2.getId(), null);
+        Category child2 = categoryService().createCategory("Natural child 2 " + suffix, category2.getId(), null);
+        Category nested10 = categoryService().createCategory("Natural nested 10 " + suffix, child2.getId(), null);
+        Category nested2 = categoryService().createCategory("Natural nested 2 " + suffix, child2.getId(), null);
+        Label label10 = labelService().createLabel("Natural label 10 " + suffix, "#1976d2", null);
+        Label label2 = labelService().createLabel("Natural label 2 " + suffix, "#cc4400", null);
+
+        reloadClassificationsView();
+        TreeView<String> tree = lookup("#classificationTree").query();
+        TreeItem<String> categoriesRoot = treeItem(tree.getRoot(), I18n.get("classifications.categoriesRoot"));
+        TreeItem<String> parentItem = treeItem(categoriesRoot, category2.getName());
+        TreeItem<String> labelsRoot = treeItem(tree.getRoot(), I18n.get("classifications.labelsRoot"));
+
+        assertEquals(List.of(category2.getName(), category10.getName()), categoriesRoot.getChildren().stream()
+                .map(TreeItem::getValue)
+                .filter(name -> name.startsWith("Natural root "))
+                .toList());
+        assertEquals(List.of(child2.getName(), child10.getName()), parentItem.getChildren().stream()
+                .map(TreeItem::getValue)
+                .toList());
+        assertEquals(List.of(nested2.getName(), nested10.getName()), treeItem(parentItem, child2.getName())
+                .getChildren().stream()
+                .map(TreeItem::getValue)
+                .toList());
+        assertEquals(List.of(label2.getName(), label10.getName()), labelsRoot.getChildren().stream()
+                .map(TreeItem::getValue)
+                .filter(name -> name.startsWith("Natural label "))
+                .toList());
+    }
+
+    @Test
+    void classificationSearchFindsCategoriesLabelsAndShowsMatchingSubcategoryParents() throws Exception {
+        String suffix = Long.toString(System.nanoTime());
+        Category parent = categoryService().createCategory("Search parent " + suffix, null, null);
+        Category matchingChild = categoryService().createCategory("Target child " + suffix, parent.getId(), null);
+        categoryService().createCategory("Unmatched child " + suffix, parent.getId(), null);
+        Label matchingLabel = labelService().createLabel("Target label " + suffix, "#1976d2", null);
+        Label unmatchedLabel = labelService().createLabel("Unmatched label " + suffix, "#cc4400", null);
+
+        reloadClassificationsView();
+        TreeView<String> tree = lookup("#classificationTree").query();
+        TextField searchField = lookup("#classificationSearchField").query();
+        Button clearButton = lookup("#classificationSearchClearButton").query();
+
+        interact(() -> searchField.setText("TARGET"));
+
+        TreeItem<String> displayedCategoriesRoot = treeItem(
+                tree.getRoot(), I18n.get("classifications.categoriesRoot"));
+        TreeItem<String> displayedLabelsRoot = treeItem(tree.getRoot(), I18n.get("classifications.labelsRoot"));
+        TreeItem<String> displayedParent = treeItem(displayedCategoriesRoot, parent.getName());
+        assertTrue(displayedCategoriesRoot.isExpanded());
+        assertTrue(displayedParent.isExpanded());
+        assertEquals(List.of(matchingChild.getName()), displayedParent.getChildren().stream()
+                .map(TreeItem::getValue)
+                .toList());
+        assertEquals(List.of(matchingLabel.getName()), displayedLabelsRoot.getChildren().stream()
+                .map(TreeItem::getValue)
+                .filter(name -> name.startsWith("Target label "))
+                .toList());
+        assertFalse(displayedLabelsRoot.getChildren().stream()
+                .anyMatch(item -> item.getValue().equals(unmatchedLabel.getName())));
+        assertTrue(clearButton.isVisible());
+
+        interact(clearButton::fire);
+
+        assertEquals("", searchField.getText());
+        TreeItem<String> restoredCategoriesRoot = treeItem(
+                tree.getRoot(), I18n.get("classifications.categoriesRoot"));
+        TreeItem<String> restoredLabelsRoot = treeItem(tree.getRoot(), I18n.get("classifications.labelsRoot"));
+        assertEquals(parent.getName(), treeItem(restoredCategoriesRoot, parent.getName()).getValue());
+        assertTrue(restoredLabelsRoot.getChildren().stream()
+                .anyMatch(item -> item.getValue().startsWith("Unmatched label ")));
+        assertFalse(clearButton.isVisible());
+    }
+
+    @Test
     void categoryEditorMovesCategoryToSelectedParentAndOffersTopLevel() throws Exception {
         Category oldParent = categoryService().createCategory("Old parent " + System.nanoTime(), null, null);
         Category newParent = categoryService().createCategory("New parent " + System.nanoTime(), null, null);
