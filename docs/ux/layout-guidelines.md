@@ -62,7 +62,8 @@ Use subtle status fills with matching status text. Pair status colors with text 
 
 - Every search field and filter group offers a clear/reset action. Clearing search restores all results; resetting filters returns controls to defaults and removes filtering.
 - Keep reset actions near their controls. Give icon-only reset actions an accessible name.
-- Searchable dropdowns open at their source, focus the search field, and preselect the first filtered result. Up/Down move the preselection; Enter applies and closes. In multi-select dropdowns, Space toggles the focused option and Enter applies the selection. Escape cancels without applying changes and returns focus to the opener.
+- Searchable dropdowns open at their source and focus the search field. For single-select categories, preselect the current assignment on open (fall back to the first result when unassigned); after the query changes, preselect the first filtered result. Up/Down move the preselection; Enter applies and closes. In multi-select dropdowns, Space toggles the focused option and Enter applies the selection. Escape cancels without applying changes and returns focus to the opener.
+- In classification tables, show only the category name in its cell; preserve parent paths in category dropdown options. Leave unassigned category and label cells blank apart from their dropdown affordance.
 
 ### Sorting
 

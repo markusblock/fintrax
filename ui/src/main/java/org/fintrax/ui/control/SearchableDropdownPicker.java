@@ -10,7 +10,9 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
+import javafx.scene.control.OverrunStyle;
 import javafx.scene.control.TextField;
+import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.HBox;
@@ -24,6 +26,7 @@ import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -117,7 +120,7 @@ public final class SearchableDropdownPicker {
             VBox content = new VBox(7, searchRow, optionsList, keyboardHelp, createButton, errorLabel);
             content.getStyleClass().add("searchable-dropdown-popup");
             content.setPadding(new Insets(8));
-            content.setPrefWidth(Math.max(240, Math.min(360, anchor.getBoundsInLocal().getWidth())));
+            content.setPrefWidth(Math.max(320, Math.min(420, anchor.getBoundsInLocal().getWidth())));
 
             HBox actions = new HBox(8);
             actions.getStyleClass().add("searchable-dropdown-actions");
@@ -143,7 +146,7 @@ public final class SearchableDropdownPicker {
                 errorLabel.setText("");
                 errorLabel.setVisible(false);
                 errorLabel.setManaged(false);
-                updateOptions();
+                updateOptions(false);
             });
             searchField.addEventFilter(KeyEvent.KEY_PRESSED, this::handleSearchKey);
             optionsList.addEventFilter(KeyEvent.KEY_TYPED, this::handleListTyping);
@@ -166,7 +169,7 @@ public final class SearchableDropdownPicker {
             clearButton.setOnAction(event -> save(List.of()));
             saveButton.setOnAction(event -> save(List.copyOf(selected)));
 
-            updateOptions();
+            updateOptions(true);
             Bounds bounds = anchor.localToScreen(anchor.getBoundsInLocal());
             if (bounds == null || anchor.getScene() == null) return;
             popup.show(anchor.getScene().getWindow(), bounds.getMinX(), bounds.getMaxY());
@@ -182,31 +185,50 @@ public final class SearchableDropdownPicker {
                     if (empty || item == null) {
                         setText(null);
                         setGraphic(null);
+                        setTooltip(null);
                         return;
                     }
                     setText(null);
+                    setTooltip(new Tooltip(displayText.apply(item)));
                     if (multiple) {
                         CheckBox checkBox = new CheckBox();
                         checkBox.setSelected(selected.contains(item));
                         checkBox.setFocusTraversable(false);
-                        setGraphic(new HBox(8, checkBox, new Label(displayText.apply(item))));
+                        Label text = new Label(displayText.apply(item));
+                        text.setMaxWidth(Double.MAX_VALUE);
+                        text.setTextOverrun(OverrunStyle.ELLIPSIS);
+                        HBox option = new HBox(8, checkBox, text);
+                        HBox.setHgrow(text, Priority.ALWAYS);
+                        setGraphic(option);
                     } else {
                         Label marker = new Label(selected.contains(item) ? "✓" : "");
                         marker.getStyleClass().add("picker-current-marker");
-                        setGraphic(new HBox(8, marker, new Label(displayText.apply(item))));
+                        Label text = new Label(displayText.apply(item));
+                        text.setMaxWidth(Double.MAX_VALUE);
+                        text.setTextOverrun(OverrunStyle.ELLIPSIS);
+                        HBox option = new HBox(8, marker, text);
+                        HBox.setHgrow(text, Priority.ALWAYS);
+                        setGraphic(option);
                     }
                 }
             };
         }
 
-        private void updateOptions() {
+        private void updateOptions(boolean preferCurrent) {
             String query = searchField.getText() == null ? "" : searchField.getText().trim();
             String normalizedQuery = query.toLowerCase(Locale.ROOT);
             List<T> filtered = options.stream()
                     .filter(item -> displayText.apply(item).toLowerCase(Locale.ROOT).contains(normalizedQuery))
                     .toList();
             optionsList.setItems(FXCollections.observableArrayList(filtered));
-            optionsList.getSelectionModel().selectFirst();
+            T current = selected.stream().findFirst().orElse(null);
+            T currentMatch = current == null ? null
+                    : filtered.stream().filter(item -> Objects.equals(item, current)).findFirst().orElse(null);
+            if (!multiple && preferCurrent && currentMatch != null) {
+                optionsList.getSelectionModel().select(currentMatch);
+            } else {
+                optionsList.getSelectionModel().selectFirst();
+            }
             optionsList.setPrefHeight(Math.min(MAX_LIST_HEIGHT, Math.max(58, filtered.size() * 29.0)));
 
             boolean exactMatch = options.stream()

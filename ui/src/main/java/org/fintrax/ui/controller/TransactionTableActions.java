@@ -13,6 +13,7 @@ import org.fintrax.model.Transaction;
 import org.fintrax.service.CategoryService;
 import org.fintrax.service.LabelService;
 import org.fintrax.service.TransactionService;
+import org.fintrax.ui.control.CategoryHierarchy;
 import org.fintrax.ui.control.SearchableDropdownPicker;
 import org.kordamp.ikonli.javafx.FontIcon;
 import org.springframework.stereotype.Component;
@@ -94,8 +95,9 @@ public class TransactionTableActions {
         Category initiallySelected = sameCategory && selectedCategoryId != null
                 ? categoryService.getCategory(selectedCategoryId).orElse(null)
                 : null;
-        SearchableDropdownPicker.showOne(anchor, categoryService.getAllCategories(), initiallySelected,
-                Category::getName, "picker.category.create",
+        List<Category> categories = categoryService.getAllCategories();
+        SearchableDropdownPicker.showOne(anchor, categories, initiallySelected,
+                CategoryHierarchy.displayPaths(categories), "picker.category.create",
                 name -> categoryService.createCategory(name, null, null), choice -> {
                     transactionService.bulkUpdateCategory(selected.stream().map(Transaction::getId).toList(),
                             choice == null ? null : choice.getId());

@@ -168,8 +168,7 @@ public class ClassificationsController {
                     setGraphic(null);
                     return;
                 }
-                Label value = new Label(item == null || item.isBlank()
-                        ? I18n.get("picker.category.choose") : item);
+                Label value = new Label(item == null ? "" : item);
                 value.setMaxWidth(Double.MAX_VALUE);
                 HBox control = new HBox(4, value, createAssignmentButton(this, "picker.category.accessible",
                         openSelection));
@@ -204,11 +203,6 @@ public class ClassificationsController {
                             .toList();
                 }
                 HBox chips = LabelChipFactory.createAll(labels);
-                if (labels.isEmpty()) {
-                    Label prompt = new Label(I18n.get("picker.labels.choose"));
-                    prompt.setMaxWidth(Double.MAX_VALUE);
-                    chips.getChildren().add(prompt);
-                }
                 HBox control = new HBox(4, chips, createAssignmentButton(this, "picker.labels.accessible",
                         openSelection));
                 control.getStyleClass().add("assignment-cell");
