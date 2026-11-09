@@ -4,6 +4,7 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.Label;
 import javafx.stage.Stage;
 import org.fintrax.config.I18n;
 import org.fintrax.ui.AbstractUITest;
@@ -67,6 +68,8 @@ class RulesControllerTest extends AbstractUITest {
                 lookup("#addRuleActionButton").query().getParent());
         assertEquals(lookup(".rule-action-group").query(),
                 lookup("#ruleEditorThenLabel").query().getParent());
+        assertEquals(lookup("#ruleEditorConditionHeading").<Label>query().getFont(),
+                lookup("#ruleEditorThenLabel").<Label>query().getFont());
 
         Button cancelButton = lookup("#createRuleCancel").query();
         interact(cancelButton::fire);
