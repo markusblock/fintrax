@@ -417,7 +417,7 @@ public class TransactionFilterPanelController {
         if (categoryFilter.getSelectionModel().getSelectedIndex() > 0) {
             addSummaryItem(activeFilters, I18n.get("filter.category"), categoryFilter.getValue());
         }
-        List<String> selectedLabelNames = selectedLabels().stream().map(Label::getName).toList();
+        List<String> selectedLabelNames = labelNames(selectedLabels());
         if (!selectedLabelNames.isEmpty()) {
             addSummaryItem(activeFilters, I18n.get("filter.labels"), String.join(", ", selectedLabelNames));
         }
@@ -493,6 +493,10 @@ public class TransactionFilterPanelController {
                 .toList();
     }
 
+    private List<String> labelNames(List<Label> labels) {
+        return labels.stream().map(Label::getName).toList();
+    }
+
     private void updateLabelFilterButton() {
         List<Label> labels = selectedLabels();
         HBox content = new HBox(6);
@@ -509,10 +513,10 @@ public class TransactionFilterPanelController {
         content.getChildren().setAll(selectedContent, new javafx.scene.control.Label("▾"));
         labelFilterButton.setText("");
         labelFilterButton.setGraphic(content);
-        String selectedLabelNames = labels.stream().map(Label::getName).collect(Collectors.joining(", "));
+        String selectedNames = String.join(", ", labelNames(labels));
         labelFilterButton.setAccessibleText(labels.isEmpty()
                 ? I18n.get("filter.labels")
-                : I18n.get("filter.labels") + ": " + selectedLabelNames);
+                : I18n.get("filter.labels") + ": " + selectedNames);
     }
 
     private BigDecimal parseAmount(String text) {
