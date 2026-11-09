@@ -121,9 +121,7 @@ public class RuleEditorController {
     }
 
     public void clear() {
-        clearContents();
-        addConditionRow(null);
-        addActionRow(null);
+        prepareNewRule();
     }
 
     private void clearContents() {
