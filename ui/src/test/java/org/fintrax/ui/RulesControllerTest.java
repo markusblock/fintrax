@@ -6,6 +6,7 @@ import javafx.geometry.Bounds;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ContextMenu;
@@ -452,14 +453,20 @@ class RulesControllerTest extends AbstractUITest {
         TextField nameField = lookup("#ruleNameField").query();
         String editedName = ruleName + " updated";
         interact(() -> nameField.setText(editedName));
+        ComboBox<String> matchMode = lookup("#conditionMatchModeCombo").query();
+        interact(() -> matchMode.setValue(I18n.get("ruleEditor.matchMode.any")));
         Button saveButton = lookup("#editRuleSave").query();
         assertFalse(saveButton.isDisabled());
         interact(saveButton::fire);
         WaitForAsyncUtils.waitForFxEvents();
 
-        assertEquals(editedName, applicationContext.getBean(RuleService.class)
-                .getRule(selectedRule.getId()).orElseThrow().getName());
+        Rule updatedRule = applicationContext.getBean(RuleService.class)
+                .getRule(selectedRule.getId()).orElseThrow();
+        assertEquals(editedName, updatedRule.getName());
+        assertEquals(org.fintrax.model.RuleMatchMode.ANY, updatedRule.getMatchMode());
         assertTrue(lookup("#ruleNameSummary").queryLabeled().getText().contains(editedName));
+        assertTrue(lookup("#ruleConditionsSummary").queryLabeled().getText()
+                .startsWith(I18n.get("rules.summary.conditionsAny", "")));
     }
 
     private TransactionRulePreview rowFor(TableView<TransactionRulePreview> table, Long transactionId) {

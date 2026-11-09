@@ -7,6 +7,7 @@ Category rules can overlap. Applying them to existing transactions without showi
 Decision:
 
 - Evaluate enabled rules in ascending priority order.
+- Within a rule, conditions match using its configured all/any mode; missing mode on existing rules means all. Text condition operators are case-insensitive, including regular expressions.
 - The highest-priority matching rule supplies the category action for a transaction.
 - Add labels from every matching rule, retaining existing labels and avoiding duplicates.
 - Category Rules cannot set or overwrite transaction notes; existing notes remain unchanged.

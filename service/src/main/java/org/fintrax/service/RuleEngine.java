@@ -9,9 +9,11 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 @Slf4j
 @Service
@@ -92,17 +94,26 @@ public class RuleEngine {
     }
 
     private boolean matchesRule(Transaction transaction, Rule rule) {
-        return rule.getConditions().stream()
-                .allMatch(condition -> matchesCondition(transaction, condition));
+        if (rule.getMatchMode() == RuleMatchMode.ANY) {
+            return rule.getConditions().stream().anyMatch(condition -> matchesCondition(transaction, condition));
+        }
+        return rule.getConditions().stream().allMatch(condition -> matchesCondition(transaction, condition));
     }
 
     private boolean matchesCondition(Transaction transaction, RuleCondition condition) {
         String value = getFieldValue(transaction, condition.getMatchField());
 
         return switch (condition.getOperator()) {
-            case CONTAINS -> value != null && value.toLowerCase().contains(condition.getValue().toLowerCase());
-            case REGEX -> value != null && Pattern.matches(condition.getValue(), value);
-            case EQUALS -> value != null && value.equals(condition.getValue());
+            case CONTAINS -> value != null && condition.getValue() != null
+                    && containsIgnoreCase(value, condition.getValue());
+            case CONTAINS_NOT -> value != null && condition.getValue() != null
+                    && !containsIgnoreCase(value, condition.getValue());
+            case REGEX -> regexMatches(value, condition.getValue(), false);
+            case NOT_REGEX -> regexMatches(value, condition.getValue(), true);
+            case EQUALS -> value != null && condition.getValue() != null
+                    && value.equalsIgnoreCase(condition.getValue());
+            case NOT_EQUALS -> value != null && condition.getValue() != null
+                    && !value.equalsIgnoreCase(condition.getValue());
             case AMOUNT_RANGE -> {
                 BigDecimal amount = transaction.getAmount();
                 BigDecimal min = condition.getAmountMin();
@@ -111,6 +122,22 @@ public class RuleEngine {
                         (max == null || amount.compareTo(max) <= 0);
             }
         };
+    }
+
+    private boolean containsIgnoreCase(String value, String searchTerm) {
+        return value.toLowerCase(Locale.ROOT).contains(searchTerm.toLowerCase(Locale.ROOT));
+    }
+
+    private boolean regexMatches(String value, String regex, boolean negate) {
+        if (value == null || regex == null) return false;
+        try {
+            boolean matches = Pattern.compile(regex, Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE)
+                    .matcher(value).matches();
+            return negate != matches;
+        } catch (PatternSyntaxException exception) {
+            log.warn("Invalid regular expression in stored rule condition", exception);
+            return false;
+        }
     }
 
     private String getFieldValue(Transaction transaction, MatchField field) {

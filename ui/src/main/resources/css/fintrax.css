@@ -717,13 +717,58 @@
 
 .rule-condition-row,
 .rule-action-row {
-    -fx-spacing: 8;
     -fx-alignment: CENTER_LEFT;
-    -fx-padding: 6 8;
-    -fx-background-color: -color-bg-default;
+    -fx-padding: 7 0;
+}
+
+.rule-condition-group,
+.rule-action-group {
+    -fx-padding: 12;
+    -fx-background-color: -color-bg-subtle;
     -fx-border-color: -color-border-default;
-    -fx-border-radius: 7;
-    -fx-background-radius: 7;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+}
+
+.rule-condition-group {
+    -fx-border-color: -color-accent-muted;
+}
+
+.rule-action-group {
+    -fx-border-color: -color-success-fg;
+}
+
+.rule-sentence-heading {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -color-fg-default;
+}
+
+.rule-then-label {
+    -fx-padding: 2 0;
+}
+
+.rule-match-mode {
+    -fx-pref-width: 128px;
+    -fx-font-weight: bold;
+}
+
+.rule-row-separator {
+    -fx-padding: 0;
+}
+
+.rule-row-separator .line {
+    -fx-border-color: -color-border-default;
+    -fx-border-width: 1 0 0 0;
+}
+
+.rule-row-control {
+    -fx-pref-height: 36px;
+}
+
+.group-add-button {
+    -fx-alignment: CENTER_LEFT;
+    -fx-padding: 5 8;
 }
 
 .icon-button {

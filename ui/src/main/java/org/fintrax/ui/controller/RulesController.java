@@ -221,7 +221,9 @@ public class RulesController {
         selectedRuleId = rule.getId();
         sessionViewState.setSelectedRuleId(selectedRuleId);
         ruleNameSummary.setText(rule.getName());
-        ruleConditionsSummary.setText(I18n.get("rules.summary.conditions", rule.getConditions().stream()
+        String conditionSummaryKey = rule.getMatchMode() == RuleMatchMode.ANY
+                ? "rules.summary.conditionsAny" : "rules.summary.conditionsAll";
+        ruleConditionsSummary.setText(I18n.get(conditionSummaryKey, rule.getConditions().stream()
                 .map(this::conditionSummary).collect(Collectors.joining(" · "))));
         ruleActionsSummary.setText(I18n.get("rules.summary.actions", rule.getActions().stream()
                 .map(this::actionSummary)
@@ -258,7 +260,29 @@ public class RulesController {
         String value = condition.getOperator() == Operator.AMOUNT_RANGE
                 ? amountRangeSummary(condition)
                 : Objects.toString(condition.getValue(), "");
-        return condition.getMatchField().name() + " " + condition.getOperator().name() + " " + value;
+        return fieldText(condition.getMatchField()) + " " + operatorText(condition.getOperator()) + " " + value;
+    }
+
+    private String fieldText(MatchField field) {
+        return I18n.get("ruleEditor.field." + switch (field) {
+            case PAYEE_NAME -> "payeeName";
+            case PURPOSE -> "purpose";
+            case AMOUNT -> "amount";
+            case ACCOUNT -> "account";
+            case TRANSACTION_TYPE -> "transactionType";
+        });
+    }
+
+    private String operatorText(Operator operator) {
+        return I18n.get("ruleEditor.operator." + switch (operator) {
+            case CONTAINS -> "contains";
+            case CONTAINS_NOT -> "containsNot";
+            case EQUALS -> "is";
+            case NOT_EQUALS -> "isNot";
+            case REGEX -> "matchesRegex";
+            case NOT_REGEX -> "doesNotMatchRegex";
+            case AMOUNT_RANGE -> "amountRange";
+        });
     }
 
     private String amountRangeSummary(RuleCondition condition) {
@@ -329,7 +353,8 @@ public class RulesController {
                         "dialog.newRule.title", "dialog.newRule.header",
                         "createRuleSave", "createRuleCancel", RuleEditorController::prepareNewRule)
                 .ifPresent(input -> {
-                    Rule created = ruleService.createRule(input.name(), input.conditions(), input.actions());
+                    Rule created = ruleService.createRule(input.name(), input.conditions(), input.actions(),
+                            input.matchMode());
                     reloadRulesAndSelect(created.getId());
                 });
     }
@@ -338,9 +363,11 @@ public class RulesController {
         RuleEditorDialog.show(rootPane.getScene().getWindow(), viewLoader,
                         "dialog.editRule.title", "dialog.editRule.header",
                         "editRuleSave", "editRuleCancel",
-                        editor -> editor.setRule(rule.getName(), rule.getConditions(), rule.getActions()))
+                        editor -> editor.setRule(rule.getName(), rule.getMatchMode(),
+                                rule.getConditions(), rule.getActions()))
                 .ifPresent(input -> {
-                    ruleService.updateRule(rule.getId(), input.name(), input.conditions(), input.actions());
+                    ruleService.updateRule(rule.getId(), input.name(), input.conditions(), input.actions(),
+                            input.matchMode());
                     reloadRulesAndSelect(rule.getId());
                 });
     }

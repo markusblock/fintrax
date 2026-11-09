@@ -10,6 +10,7 @@ import javafx.stage.Window;
 import org.fintrax.config.I18n;
 import org.fintrax.model.RuleAction;
 import org.fintrax.model.RuleCondition;
+import org.fintrax.model.RuleMatchMode;
 import org.fintrax.ui.FintraxUI;
 import org.fintrax.ui.ViewLoader;
 
@@ -55,8 +56,10 @@ final class RuleEditorDialog {
 
         editor.setOnChange(() -> saveButton.setDisable(!editor.isValid()));
         if (dialog.showAndWait().filter(saveType::equals).isEmpty()) return Optional.empty();
-        return Optional.of(new RuleInput(editor.getRuleName(), editor.getConditions(), editor.getActions()));
+        return Optional.of(new RuleInput(editor.getRuleName(), editor.getMatchMode(),
+                editor.getConditions(), editor.getActions()));
     }
 
-    record RuleInput(String name, List<RuleCondition> conditions, List<RuleAction> actions) {}
+    record RuleInput(String name, RuleMatchMode matchMode,
+                     List<RuleCondition> conditions, List<RuleAction> actions) {}
 }
