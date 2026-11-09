@@ -5,6 +5,7 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 @Component
 public class SessionViewState {
@@ -56,7 +57,7 @@ public class SessionViewState {
         this.classificationSelection = classificationSelection;
     }
 
-    record TransactionFilterPanelState(Long accountId, Long categoryId, String searchText,
+    record TransactionFilterPanelState(Long accountId, Long categoryId, Set<Long> labelIds, String searchText,
                                        String minAmountText, String maxAmountText,
                                        TransactionDateFilters.Preset datePreset,
                                        LocalDate fromDate, String invalidFromDateText,

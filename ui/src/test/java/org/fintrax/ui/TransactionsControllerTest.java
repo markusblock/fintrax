@@ -8,6 +8,7 @@ import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.ComboBox;
@@ -64,6 +65,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -191,6 +193,44 @@ class TransactionsControllerTest extends AbstractUITest {
         assertTrue(panel.getStyleClass().contains("content-panel"));
         assertEquals(filterBounds.getMinX(), tableBounds.getMinX(), 1.0);
         assertEquals(filterBounds.getMaxX(), tableBounds.getMaxX(), 1.0);
+    }
+
+    @Test
+    void additionalFilterRowsPlaceCategoryAndLabelsAboveAccountAndAmounts() {
+        GridPane filters = lookup("#additionalFilters").query();
+
+        assertEquals(0, GridPane.getRowIndex(lookup("#categoryFilter").query()));
+        assertEquals(0, GridPane.getRowIndex(lookup("#labelFilterButton").query()));
+        assertEquals(1, GridPane.getRowIndex(lookup("#accountFilter").query()));
+        assertEquals(1, GridPane.getRowIndex(lookup("#minAmountField").query()));
+        assertEquals(1, GridPane.getRowIndex(lookup("#maxAmountField").query()));
+        assertEquals(0, GridPane.getColumnIndex(lookup("#categoryFilter").query()));
+        assertEquals(1, GridPane.getColumnIndex(lookup("#labelFilterButton").query()));
+        assertEquals(2, GridPane.getColumnSpan(lookup("#labelFilterButton").query()));
+        assertEquals(3, filters.getColumnConstraints().size());
+    }
+
+    @Test
+    void labelFilterButtonMatchesCategoryHeightAndTogglesOnePicker() throws TimeoutException {
+        interact(lookup("#toggleAdditionalFiltersButton").<Button>query()::fire);
+        Button labelFilter = lookup("#labelFilterButton").query();
+        ComboBox<?> categoryFilter = lookup("#categoryFilter").query();
+        WaitForAsyncUtils.waitForFxEvents();
+
+        assertEquals(categoryFilter.getHeight(), labelFilter.getHeight(), 0.5);
+        Node dropdownIcon = ((HBox) labelFilter.getGraphic()).getChildren().getLast();
+        Bounds buttonBounds = labelFilter.localToScene(labelFilter.getBoundsInLocal());
+        Bounds iconBounds = dropdownIcon.localToScene(dropdownIcon.getBoundsInLocal());
+        assertTrue(buttonBounds.getMaxX() - iconBounds.getMaxX() < 20,
+                "dropdown icon should be right-aligned within the label filter button");
+
+        interact(labelFilter::fire);
+        waitForPicker();
+        assertEquals(1, lookup("#searchableDropdownPicker").queryAll().size());
+
+        interact(labelFilter::fire);
+        WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS,
+                () -> lookup("#searchableDropdownPicker").tryQuery().isEmpty());
     }
 
     @Test
@@ -537,6 +577,62 @@ class TransactionsControllerTest extends AbstractUITest {
     }
 
     @Test
+    void selectedLabelFilterUsesMultiSelectChipsFiltersTransactionsAndClears() throws Exception {
+        String suffix = String.valueOf(System.nanoTime());
+        Label urgent = applicationContext.getBean(LabelService.class)
+                .createLabel("Filter urgent " + suffix, "#1976d2", null);
+        Label travel = applicationContext.getBean(LabelService.class)
+                .createLabel("Filter travel " + suffix, "#cc4400", null);
+        Transaction matching = applicationContext.getBean(TransactionService.class).createTransaction(
+                Transaction.builder().originalPayee("filter-both-" + suffix)
+                        .bookingDate(LocalDate.now())
+                        .labelIds(Set.of(urgent.getId(), travel.getId())).build());
+        Transaction partialMatch = applicationContext.getBean(TransactionService.class).createTransaction(
+                Transaction.builder().originalPayee("filter-one-" + suffix)
+                        .bookingDate(LocalDate.now())
+                        .labelIds(Set.of(urgent.getId())).build());
+
+        interact(lookup("#toggleAdditionalFiltersButton").<Button>query()::fire);
+        Button labelFilter = lookup("#labelFilterButton").query();
+        interact(labelFilter::fire);
+        waitForPicker();
+        selectLabelInPicker(urgent.getName());
+        selectLabelInPicker(travel.getName());
+        saveLabelSelection();
+
+        TableView<Transaction> table = lookup("#transactionTable").query();
+        assertEquals(List.of(matching.getId()), table.getItems().stream().map(Transaction::getId).toList());
+        assertFalse(table.getItems().stream().anyMatch(transaction -> transaction.getId().equals(partialMatch.getId())));
+        assertEquals(Set.of(urgent.getName(), travel.getName()), labelFilter.lookupAll(".label-chip").stream()
+                .filter(Labeled.class::isInstance)
+                .map(Labeled.class::cast)
+                .map(Labeled::getText)
+                .collect(Collectors.toSet()));
+
+        Stage stage = (Stage) table.getScene().getWindow();
+        Parent restoredView = applicationContext.getBean(ViewLoader.class).load("transactions");
+        interact(() -> stage.getScene().setRoot(restoredView));
+        labelFilter = lookup("#labelFilterButton").query();
+        assertEquals(Set.of(urgent.getName(), travel.getName()), labelFilter.lookupAll(".label-chip").stream()
+                .filter(Labeled.class::isInstance)
+                .map(Labeled.class::cast)
+                .map(Labeled::getText)
+                .collect(Collectors.toSet()));
+        table = lookup("#transactionTable").query();
+        assertEquals(List.of(matching.getId()), table.getItems().stream().map(Transaction::getId).toList());
+
+        interact(lookup("#toggleAdditionalFiltersButton").<Button>query()::fire);
+        TextField summary = lookup("#collapsedFilterSummary").query();
+        assertTrue(summary.isVisible());
+        assertTrue(summary.getText().contains(urgent.getName()));
+        assertTrue(summary.getText().contains(travel.getName()));
+
+        interact(lookup("#clearFiltersButton").<Button>query()::fire);
+        assertTrue(table.getItems().stream().anyMatch(transaction -> transaction.getId().equals(partialMatch.getId())));
+        assertTrue(labelFilter.lookupAll(".label-chip").isEmpty());
+    }
+
+    @Test
     void searchFieldMatchesCategoryLabelAmountAndDisplayedDate() {
         TableView<Transaction> table = lookup("#transactionTable").query();
         TextField searchField = lookup("#searchField").query();
@@ -581,9 +677,16 @@ class TransactionsControllerTest extends AbstractUITest {
         openPickerFromContextMenu(table, selectedIndex, 1);
 
         assertNotNull(lookup("#pickerSearch").query());
-        interact(() -> lookup("#pickerSearch").<javafx.scene.control.TextField>query().setText(label.getName()));
+        Button selectButton = lookup("#pickerSave").query();
+        Button selectAllButton = lookup("#pickerToggleAll").query();
+        assertEquals(I18n.get("picker.select"), selectButton.getText());
+        assertEquals(I18n.get("picker.labels.selectAll"), selectAllButton.getText());
+        interact(selectAllButton::fire);
+        assertEquals(I18n.get("picker.labels.deselectAll"), selectAllButton.getText());
+        interact(selectAllButton::fire);
+        assertEquals(I18n.get("picker.labels.selectAll"), selectAllButton.getText());
+        selectLabelInPicker(label.getName());
         javafx.scene.control.ListView<org.fintrax.model.Label> options = lookup("#pickerList").query();
-        WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS, () -> options.getItems().size() == 1);
         javafx.scene.control.ListCell<org.fintrax.model.Label> optionCell = options.lookupAll(".list-cell").stream()
                 .filter(javafx.scene.control.ListCell.class::isInstance)
                 .map(node -> (javafx.scene.control.ListCell<org.fintrax.model.Label>) node)
@@ -597,6 +700,29 @@ class TransactionsControllerTest extends AbstractUITest {
         assertEquals(label.getName(), ((javafx.scene.control.Label)
                 optionContent.getChildren().get(1)).getText());
         press(KeyCode.ESCAPE);
+    }
+
+    @Test
+    void selectedLabelFilterCanDeselectItsLastLabel() throws TimeoutException {
+        String suffix = String.valueOf(System.nanoTime());
+        Label onlyLabel = applicationContext.getBean(LabelService.class)
+                .createLabel("Filter only label " + suffix, "#1976d2", null);
+        Transaction labeled = applicationContext.getBean(TransactionService.class).createTransaction(
+                Transaction.builder().originalPayee("labeled-" + suffix).bookingDate(LocalDate.now())
+                        .labelIds(Set.of(onlyLabel.getId())).build());
+        Transaction unlabeled = applicationContext.getBean(TransactionService.class).createTransaction(
+                Transaction.builder().originalPayee("unlabeled-" + suffix).bookingDate(LocalDate.now()).build());
+
+        interact(lookup("#toggleAdditionalFiltersButton").<Button>query()::fire);
+        Button labelFilter = lookup("#labelFilterButton").query();
+        selectLabelForFilter(labelFilter, onlyLabel.getName());
+        TableView<Transaction> table = lookup("#transactionTable").query();
+        assertEquals(List.of(labeled.getId()), table.getItems().stream().map(Transaction::getId).toList());
+
+        selectLabelForFilter(labelFilter, onlyLabel.getName());
+
+        assertTrue(table.getItems().stream().anyMatch(transaction -> transaction.getId().equals(unlabeled.getId())));
+        assertTrue(labelFilter.lookupAll(".label-chip").isEmpty());
     }
 
     @Test
@@ -1256,6 +1382,37 @@ class TransactionsControllerTest extends AbstractUITest {
                     false, false, false, false);
             Event.fireEvent(lookup("#pickerSearch").<TextField>query(), enter);
         });
+    }
+
+    private void selectLabelInPicker(String name) throws TimeoutException {
+        TextField search = lookup("#pickerSearch").query();
+        ListView<?> options = lookup("#pickerList").query();
+        interact(() -> search.setText(name));
+        WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS, () -> options.getItems().size() == 1);
+        interact(() -> Event.fireEvent(options, new KeyEvent(KeyEvent.KEY_PRESSED, "", "", KeyCode.SPACE,
+                false, false, false, false)));
+    }
+
+    private void selectLabelForFilter(Button labelFilter, String name) throws TimeoutException {
+        interact(labelFilter::fire);
+        waitForPicker();
+        clickLabelInPicker(name);
+        saveLabelSelection();
+    }
+
+    private void clickLabelInPicker(String name) throws TimeoutException {
+        TextField search = lookup("#pickerSearch").query();
+        ListView<?> options = lookup("#pickerList").query();
+        interact(() -> search.setText(name));
+        WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS, () -> options.getItems().size() == 1);
+        javafx.scene.control.ListCell<?> optionCell = options.lookupAll(".list-cell").stream()
+                .filter(javafx.scene.control.ListCell.class::isInstance)
+                .map(node -> (javafx.scene.control.ListCell<?>) node)
+                .filter(cell -> !cell.isEmpty())
+                .findFirst()
+                .orElseThrow();
+        CheckBox checkBox = (CheckBox) ((HBox) optionCell.getGraphic()).getChildren().getFirst();
+        clickOn(checkBox);
     }
 
     private int indexOfTransactionWithCategory(TableView<Transaction> table) {
