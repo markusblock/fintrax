@@ -71,6 +71,8 @@
                     <Label fx:id="ruleNameSummary" styleClass="section-heading"/>
                     <Label fx:id="ruleConditionsSummary" wrapText="true"/>
                     <Label fx:id="ruleActionsSummary" wrapText="true"/>
+                    <Label fx:id="ruleMatchSummary" styleClass="secondary-text"/>
+                    <Label fx:id="ruleConflictSummary" wrapText="true"/>
                 </VBox>
                 <Label text="%view.transactions" styleClass="section-heading"/>
                 <fx:include fx:id="transactionFilterPanel" source="transactionFilterPanel.fxml"/>
@@ -86,6 +88,10 @@
                         <TableColumn fx:id="transactionAmountColumn" text="%col.amount" minWidth="80" prefWidth="95" sortable="true"/>
                         <TableColumn fx:id="transactionCategoryColumn" text="%col.category" minWidth="95" prefWidth="115" sortable="true"/>
                         <TableColumn fx:id="transactionLabelsColumn" text="%col.labels" minWidth="90" prefWidth="120" sortable="true"/>
+                        <TableColumn fx:id="transactionRuleCountColumn" text="%rules.matchingRuleCountColumn"
+                                     minWidth="42" prefWidth="48" sortable="true"/>
+                        <TableColumn fx:id="transactionMatchedRulesColumn" text="%rules.matchingRulesColumn"
+                                     minWidth="150" prefWidth="190" sortable="true"/>
                         <TableColumn minWidth="17" prefWidth="17" maxWidth="17"
                                      resizable="false" sortable="false" reorderable="false">
                             <graphic>

@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Slf4j
@@ -158,6 +159,18 @@ public class RuleService {
             throw new IllegalArgumentException("Rule not found: " + ruleId);
         }
         return ruleEngine.countMatchingTransactions(rule);
+    }
+
+    public RuleMatchSummary getMatchSummary(Long ruleId) {
+        Rule rule = store.getRule(ruleId);
+        if (rule == null) {
+            throw new IllegalArgumentException("Rule not found: " + ruleId);
+        }
+        return ruleEngine.getMatchSummary(rule);
+    }
+
+    public Map<Long, List<RuleMatchSummary.MatchingRule>> getMatchingRulesForTransactions(List<Long> transactionIds) {
+        return ruleEngine.getMatchingRulesForTransactions(transactionIds);
     }
 
     public List<Transaction> getMatchingTransactions(Long ruleId) {

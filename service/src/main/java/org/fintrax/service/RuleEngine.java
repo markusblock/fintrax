@@ -7,8 +7,10 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -185,6 +187,52 @@ public class RuleEngine {
         return (int) store.getRoot().getTransactions().stream()
                 .filter(transaction -> matchesRule(transaction, rule))
                 .count();
+    }
+
+    public RuleMatchSummary getMatchSummary(Rule rule) {
+        List<Rule> otherRules = store.getRoot().getRules().stream()
+                .filter(candidate -> !Objects.equals(candidate.getId(), rule.getId()))
+                .sorted((first, second) -> Integer.compare(first.getPriority(), second.getPriority()))
+                .toList();
+        int matchingTransactions = 0;
+        int conflictingTransactions = 0;
+        Set<Long> conflictingRuleIds = new HashSet<>();
+        for (Transaction transaction : store.getRoot().getTransactions()) {
+            if (!matchesRule(transaction, rule)) continue;
+            matchingTransactions++;
+            List<Rule> matchedOtherRules = otherRules.stream()
+                    .filter(otherRule -> matchesRule(transaction, otherRule))
+                    .toList();
+            if (!matchedOtherRules.isEmpty()) {
+                conflictingTransactions++;
+                matchedOtherRules.stream().map(Rule::getId).forEach(conflictingRuleIds::add);
+            }
+        }
+        List<RuleMatchSummary.MatchingRule> conflicts = otherRules.stream()
+                .filter(otherRule -> conflictingRuleIds.contains(otherRule.getId()))
+                .map(otherRule -> new RuleMatchSummary.MatchingRule(
+                        otherRule.getName(), otherRule.getPriority()))
+                .toList();
+        return new RuleMatchSummary(matchingTransactions, conflictingTransactions, conflicts);
+    }
+
+    public Map<Long, List<RuleMatchSummary.MatchingRule>> getMatchingRulesForTransactions(List<Long> transactionIds) {
+        Set<Long> requestedIds = Set.copyOf(transactionIds);
+        List<Rule> rules = store.getRoot().getRules().stream()
+                .sorted((first, second) -> Integer.compare(first.getPriority(), second.getPriority()))
+                .toList();
+        Map<Long, List<RuleMatchSummary.MatchingRule>> matchingRulesByTransaction = new HashMap<>();
+        for (Transaction transaction : store.getRoot().getTransactions()) {
+            if (requestedIds.contains(transaction.getId())) {
+                List<RuleMatchSummary.MatchingRule> matchingRules = rules.stream()
+                        .filter(candidate -> matchesRule(transaction, candidate))
+                        .map(candidate -> new RuleMatchSummary.MatchingRule(
+                                candidate.getName(), candidate.getPriority()))
+                        .toList();
+                matchingRulesByTransaction.put(transaction.getId(), matchingRules);
+            }
+        }
+        return Map.copyOf(matchingRulesByTransaction);
     }
 
 }
