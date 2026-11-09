@@ -128,9 +128,11 @@ class RuleEngineTest {
     @Test
     void ruleServiceRejectsInvalidRegularExpressions() {
         RuleCondition invalidRegex = condition(MatchField.PURPOSE, Operator.REGEX, "[");
+        List<RuleCondition> conditions = List.of(invalidRegex);
+        List<RuleAction> actions = List.of();
 
         assertThrows(IllegalArgumentException.class,
-                () -> ruleService.createRule("Invalid regex", List.of(invalidRegex), List.of()));
+                () -> ruleService.createRule("Invalid regex", conditions, actions));
         assertTrue(store.getRoot().getRules().isEmpty());
     }
 

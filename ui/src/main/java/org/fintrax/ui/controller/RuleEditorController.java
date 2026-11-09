@@ -37,6 +37,7 @@ import java.util.regex.PatternSyntaxException;
 @Scope("prototype")
 public class RuleEditorController {
     private static final String DEFAULT_LABEL_COLOR = "#1976d2";
+    private static final String RULE_ROW_CONTROL_STYLE_CLASS = "rule-row-control";
 
     @FXML
     private TextField ruleNameField;
@@ -272,19 +273,24 @@ public class RuleEditorController {
         row.targetCombo.setValue(null);
         row.targetCombo.setCreateChoice(null, null);
         row.targetCombo.setDisable(type == null);
-        if (type == ActionType.ASSIGN_CATEGORY) {
-            row.targetCombo.setCreateChoice("picker.category.create", name ->
-                    categoryService.createCategory(name, null, null).getName());
-            row.targetCombo.setChoices(categoryService.getAllCategories()
-                    .stream().map(Category::getName).toList());
-        } else if (type == ActionType.ADD_LABEL) {
-            row.targetCombo.setCreateChoice("picker.labels.create", name ->
-                    labelService.createLabel(name, DEFAULT_LABEL_COLOR, null).getName());
-            row.targetCombo.setChoices(labelService.getAllLabels()
-                    .stream().map(org.fintrax.model.Label::getName).toList());
-        } else {
+        if (type == null) {
             row.targetCombo.setChoices(List.of());
+            return;
         }
+        List<String> choices = switch (type) {
+            case ASSIGN_CATEGORY -> {
+                row.targetCombo.setCreateChoice("picker.category.create", name ->
+                        categoryService.createCategory(name, null, null).getName());
+                yield categoryService.getAllCategories().stream().map(Category::getName).toList();
+            }
+            case ADD_LABEL -> {
+                row.targetCombo.setCreateChoice("picker.labels.create", name ->
+                        labelService.createLabel(name, DEFAULT_LABEL_COLOR, null).getName());
+                yield labelService.getAllLabels().stream().map(org.fintrax.model.Label::getName).toList();
+            }
+            case SET_NOTE -> List.of();
+        };
+        row.targetCombo.setChoices(choices);
     }
 
     private void notifyChanged() {
@@ -364,9 +370,9 @@ public class RuleEditorController {
 
         private ConditionRow() {
             grid.getStyleClass().add("rule-condition-row");
-            fieldCombo.getStyleClass().add("rule-row-control");
-            operatorCombo.getStyleClass().add("rule-row-control");
-            valueField.getStyleClass().add("rule-row-control");
+            fieldCombo.getStyleClass().add(RULE_ROW_CONTROL_STYLE_CLASS);
+            operatorCombo.getStyleClass().add(RULE_ROW_CONTROL_STYLE_CLASS);
+            valueField.getStyleClass().add(RULE_ROW_CONTROL_STYLE_CLASS);
             fieldCombo.setMaxWidth(Double.MAX_VALUE);
             operatorCombo.setMaxWidth(Double.MAX_VALUE);
             valueField.setMaxWidth(Double.MAX_VALUE);
@@ -400,10 +406,10 @@ public class RuleEditorController {
 
         private ActionRow() {
             grid.getStyleClass().add("rule-action-row");
-            typeCombo.getStyleClass().add("rule-row-control");
+            typeCombo.getStyleClass().add(RULE_ROW_CONTROL_STYLE_CLASS);
             typeCombo.setMaxWidth(Double.MAX_VALUE);
             targetCombo.setMaxWidth(Double.MAX_VALUE);
-            targetCombo.getStyleClass().add("rule-row-control");
+            targetCombo.getStyleClass().add(RULE_ROW_CONTROL_STYLE_CLASS);
             targetCombo.setDisable(true);
             separator.getStyleClass().add("rule-row-separator");
             grid.add(typeCombo, 0, 0);
