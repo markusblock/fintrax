@@ -51,7 +51,6 @@ final class RuleEditorDialog {
 
         ScrollPane editorScrollPane = new ScrollPane(editorView);
         editorScrollPane.setFitToWidth(true);
-        editorScrollPane.setPrefViewportHeight(560);
         dialog.getDialogPane().setContent(editorScrollPane);
 
         editor.setOnChange(() -> saveButton.setDisable(!editor.isValid()));

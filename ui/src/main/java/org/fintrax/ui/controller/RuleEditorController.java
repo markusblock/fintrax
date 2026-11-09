@@ -80,12 +80,14 @@ public class RuleEditorController {
 
     public void setRule(String name, RuleMatchMode matchMode,
                         List<RuleCondition> conditions, List<RuleAction> actions) {
-        clear();
+        clearContents();
         ruleNameField.setText(name == null ? "" : name);
         conditionMatchModeCombo.setValue(matchModeText(matchMode == null ? RuleMatchMode.ALL : matchMode));
         conditions.forEach(this::addConditionRow);
         actions.stream().filter(action -> action.getActionType() != ActionType.SET_NOTE)
                 .forEach(this::addActionRow);
+        if (conditionRows.isEmpty()) addConditionRow(null);
+        if (actionRows.isEmpty()) addActionRow(null);
         notifyChanged();
     }
 
@@ -115,11 +117,16 @@ public class RuleEditorController {
         }
 
         setRule(name, RuleMatchMode.ALL, conditions, actions);
-        if (conditionRows.isEmpty()) addConditionRow(null);
         notifyChanged();
     }
 
     public void clear() {
+        clearContents();
+        addConditionRow(null);
+        addActionRow(null);
+    }
+
+    private void clearContents() {
         ruleNameField.clear();
         conditionMatchModeCombo.setValue(matchModeText(RuleMatchMode.ALL));
         conditionsContainer.getChildren().clear();
@@ -130,7 +137,7 @@ public class RuleEditorController {
     }
 
     public void prepareNewRule() {
-        clear();
+        clearContents();
         addConditionRow(null);
         addActionRow(null);
     }
@@ -228,6 +235,13 @@ public class RuleEditorController {
         row.operatorCombo.valueProperty().addListener((observable, oldValue, newValue) -> notifyChanged());
         row.valueField.textProperty().addListener((observable, oldValue, newValue) -> notifyChanged());
         row.removeButton.setOnAction(event -> {
+            if (conditionRows.size() == 1) {
+                row.fieldCombo.setValue(null);
+                row.operatorCombo.setValue(null);
+                row.valueField.clear();
+                notifyChanged();
+                return;
+            }
             conditionsContainer.getChildren().removeAll(row.grid, row.separator);
             conditionRows.remove(row);
             notifyChanged();
@@ -259,6 +273,12 @@ public class RuleEditorController {
         }
         row.targetCombo.valueProperty().addListener((observable, oldValue, newValue) -> notifyChanged());
         row.removeButton.setOnAction(event -> {
+            if (actionRows.size() == 1) {
+                row.typeCombo.setValue(null);
+                onActionTypeChanged(row);
+                notifyChanged();
+                return;
+            }
             actionsContainer.getChildren().removeAll(row.grid, row.separator);
             actionRows.remove(row);
             notifyChanged();

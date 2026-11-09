@@ -881,11 +881,10 @@ class TransactionsControllerTest extends AbstractUITest {
         WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS,
                 () -> lookup("#createRuleSave").tryQuery().isPresent());
         assertTrue(lookup("#createRuleSave").<Button>query().isDisabled());
-        assertTrue(rows(".rule-action-row").isEmpty());
+        assertEquals(1, rows(".rule-action-row").size());
 
         String categoryName = "Created category action " + System.nanoTime();
         String labelName = "Created label action " + System.nanoTime();
-        interact(lookup("#addRuleActionButton").<Button>query()::fire);
         GridPane categoryAction = rows(".rule-action-row").get(0);
         interact(() -> comboBoxAt(categoryAction, 0)
                 .setValue(I18n.get("ruleEditor.action.assignCategory")));
