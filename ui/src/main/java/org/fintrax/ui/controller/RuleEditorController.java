@@ -38,6 +38,7 @@ import java.util.regex.PatternSyntaxException;
 public class RuleEditorController {
     private static final String DEFAULT_LABEL_COLOR = "#1976d2";
     private static final String RULE_ROW_CONTROL_STYLE_CLASS = "rule-row-control";
+    private static final double ACTION_TYPE_COMBO_WIDTH = 190;
 
     @FXML
     private TextField ruleNameField;
@@ -416,7 +417,7 @@ public class RuleEditorController {
     }
 
     private static final class ActionRow {
-        private final GridPane grid = rowGrid(25, 27, 38, 10);
+        private final GridPane grid = rowGrid(35, 25, 30, 10);
         private final ComboBox<String> typeCombo = new ComboBox<>();
         private final SearchableChoiceButton targetCombo = new SearchableChoiceButton();
         private final Button removeButton = removeButton();
@@ -425,6 +426,8 @@ public class RuleEditorController {
         private ActionRow() {
             grid.getStyleClass().add("rule-action-row");
             typeCombo.getStyleClass().add(RULE_ROW_CONTROL_STYLE_CLASS);
+            typeCombo.setMinWidth(ACTION_TYPE_COMBO_WIDTH);
+            typeCombo.setPrefWidth(ACTION_TYPE_COMBO_WIDTH);
             typeCombo.setMaxWidth(Double.MAX_VALUE);
             targetCombo.setMaxWidth(Double.MAX_VALUE);
             targetCombo.getStyleClass().add(RULE_ROW_CONTROL_STYLE_CLASS);
