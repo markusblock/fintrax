@@ -81,13 +81,15 @@ class NavigationTest extends AbstractUITest {
     }
 
     @Test
-    void allTransactionViewsDefaultToCurrentYearWhenNoDateRangeIsSaved() {
+    void transactionViewsUseViewSpecificDefaultRangesWhenNoneAreSaved() {
         LocalDate today = LocalDate.now();
-        for (String navigationButton : List.of("#transactionsButton", "#classificationsButton", "#rulesButton")) {
+        for (String navigationButton : List.of("#transactionsButton", "#classificationsButton")) {
             interact(lookup(navigationButton).<Button>query()::fire);
             assertDateFilter("THIS_YEAR", LocalDate.of(today.getYear(), 1, 1),
                     LocalDate.of(today.getYear(), 12, 31));
         }
+        interact(lookup("#rulesButton").<Button>query()::fire);
+        assertDateFilter("ALL_TIME", null, null);
     }
 
     @Test
