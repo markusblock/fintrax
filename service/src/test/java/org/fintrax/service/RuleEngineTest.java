@@ -86,6 +86,14 @@ class RuleEngineTest {
     }
 
     @Test
+    void operatorOrdinalsRemainCompatibleWithPersistedRules() {
+        assertEquals(0, Operator.CONTAINS.ordinal());
+        assertEquals(1, Operator.REGEX.ordinal());
+        assertEquals(2, Operator.EQUALS.ordinal());
+        assertEquals(3, Operator.AMOUNT_RANGE.ordinal());
+    }
+
+    @Test
     void anyMatchModeMatchesWhenOneConditionMatchesAndDefaultsToAllOtherwise() {
         BankAccount account = accountService.createAccount(
                 "DE89370400440532013000", null, "Bank", "User", AccountType.GIRO, null);
