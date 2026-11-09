@@ -533,8 +533,10 @@
 }
 
 .filter-label-arrow {
-    -fx-text-fill: -color-fg-muted;
-    -fx-font-size: 10px;
+    -fx-background-color: -fx-mark-highlight-color, -fx-mark-color;
+    -fx-background-insets: 0 0 -1 0, 0;
+    -fx-padding: 0.166667em 0.333333em;
+    -fx-shape: "M 0 0 h 7 l -3.5 4 z";
 }
 
 .filter-panel .text-field.invalid-date {

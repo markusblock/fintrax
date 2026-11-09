@@ -511,7 +511,7 @@ public class TransactionFilterPanelController {
         }
         HBox.setHgrow(selectedContent, Priority.ALWAYS);
         ((Region) selectedContent).setMaxWidth(Double.MAX_VALUE);
-        javafx.scene.control.Label dropdownIcon = new javafx.scene.control.Label("▾");
+        Region dropdownIcon = new Region();
         dropdownIcon.getStyleClass().add("filter-label-arrow");
         dropdownIcon.setMouseTransparent(true);
         content.getChildren().setAll(selectedContent, dropdownIcon);
