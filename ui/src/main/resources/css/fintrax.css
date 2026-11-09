@@ -526,6 +526,11 @@
     -fx-pref-height: 36px;
 }
 
+.filter-label-button {
+    -fx-alignment: CENTER_LEFT;
+    -fx-padding: 4 8;
+}
+
 .filter-panel .text-field.invalid-date {
     -fx-border-color: -color-danger-fg;
     -fx-border-width: 1;

@@ -1,6 +1,7 @@
 package org.fintrax.ui.controller;
 
 import javafx.fxml.FXML;
+import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
@@ -8,14 +9,21 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.util.StringConverter;
 import org.kordamp.ikonli.javafx.FontIcon;
 import org.fintrax.config.I18n;
 import org.fintrax.model.BankAccount;
 import org.fintrax.model.Category;
+import org.fintrax.model.Label;
 import org.fintrax.service.AccountService;
 import org.fintrax.service.CategoryService;
+import org.fintrax.service.LabelService;
 import org.fintrax.service.TransactionFilter;
+import org.fintrax.ui.control.LabelChipFactory;
+import org.fintrax.ui.control.NaturalOrder;
+import org.fintrax.ui.control.SearchableDropdownPicker;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
@@ -28,10 +36,13 @@ import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Component
 @Scope("prototype")
@@ -43,6 +54,8 @@ public class TransactionFilterPanelController {
     private ComboBox<String> accountFilter;
     @FXML
     private ComboBox<String> categoryFilter;
+    @FXML
+    private Button labelFilterButton;
     @FXML
     private TextField searchField;
     @FXML
@@ -70,8 +83,11 @@ public class TransactionFilterPanelController {
 
     private final AccountService accountService;
     private final CategoryService categoryService;
+    private final LabelService labelService;
     private final SessionViewState sessionViewState;
     private List<Category> categoryOptions = List.of();
+    private List<Label> labelOptions = List.of();
+    private final Set<Long> selectedLabelIds = new LinkedHashSet<>();
     private Runnable onFiltersChanged = () -> { };
     private boolean updatingDateFilters;
     private boolean updatingFilters;
@@ -80,9 +96,10 @@ public class TransactionFilterPanelController {
     private String viewKey;
 
     public TransactionFilterPanelController(AccountService accountService, CategoryService categoryService,
-                                            SessionViewState sessionViewState) {
+                                            LabelService labelService, SessionViewState sessionViewState) {
         this.accountService = accountService;
         this.categoryService = categoryService;
+        this.labelService = labelService;
         this.sessionViewState = sessionViewState;
     }
 
@@ -90,6 +107,7 @@ public class TransactionFilterPanelController {
     public void initialize() {
         setupDateFilters();
         loadFilterOptions();
+        updateLabelFilterButton();
         setupFilterListeners();
         updateCollapsedFilterSummary();
     }
@@ -128,6 +146,8 @@ public class TransactionFilterPanelController {
         try {
             selectAccount(state.accountId());
             selectCategory(state.categoryId());
+            selectedLabelIds.clear();
+            if (state.labelIds() != null) selectedLabelIds.addAll(state.labelIds());
             searchField.setText(state.searchText());
             minAmountField.setText(state.minAmountText());
             maxAmountField.setText(state.maxAmountText());
@@ -140,6 +160,7 @@ public class TransactionFilterPanelController {
             updatingDateFilters = false;
             updatingFilters = false;
         }
+        updateLabelFilterButton();
         updateAdditionalFiltersVisibility();
     }
 
@@ -169,9 +190,28 @@ public class TransactionFilterPanelController {
 
         String search = searchField.getText().trim();
         return Optional.of(new TransactionFilter(
-                getSelectedAccountId(), fromDate, toDate, getSelectedCategoryId(), null,
+                getSelectedAccountId(), fromDate, toDate, getSelectedCategoryId(),
+                selectedLabelIds.isEmpty() ? null : Set.copyOf(selectedLabelIds),
                 parseAmount(minAmountField.getText()), parseAmount(maxAmountField.getText()),
                 search.isEmpty() ? null : search));
+    }
+
+    @FXML
+    private void onOpenLabelFilter() {
+        labelOptions = labelService.getAllLabels();
+        Set<Long> availableIds = labelOptions.stream()
+                .map(Label::getId)
+                .collect(Collectors.toSet());
+        if (selectedLabelIds.retainAll(availableIds)) applyChangedFilters();
+        updateLabelFilterButton();
+        SearchableDropdownPicker.showMany(labelFilterButton, labelOptions, selectedLabels(), Label::getName,
+                "picker.labels.create", name -> labelService.createLabel(name, "#1976d2", null), labels -> {
+                    selectedLabelIds.clear();
+                    labels.stream().map(Label::getId).forEach(selectedLabelIds::add);
+                    labelOptions = labelService.getAllLabels();
+                    updateLabelFilterButton();
+                    applyChangedFilters();
+                });
     }
 
     @FXML
@@ -180,6 +220,8 @@ public class TransactionFilterPanelController {
         try {
             accountFilter.getSelectionModel().selectFirst();
             categoryFilter.getSelectionModel().selectFirst();
+            selectedLabelIds.clear();
+            updateLabelFilterButton();
             searchField.clear();
             minAmountField.clear();
             maxAmountField.clear();
@@ -221,6 +263,7 @@ public class TransactionFilterPanelController {
             categoryFilter.getItems().add(category.getName());
         }
         categoryFilter.getSelectionModel().selectFirst();
+        labelOptions = labelService.getAllLabels();
     }
 
     private void setupDateFilters() {
@@ -303,7 +346,7 @@ public class TransactionFilterPanelController {
         DateValue fromDate = captureDate(fromDateFilter);
         DateValue toDate = captureDate(toDateFilter);
         sessionViewState.saveTransactionFilters(viewKey, new SessionViewState.TransactionFilterPanelState(
-                getSelectedAccountId(), getSelectedCategoryId(), searchField.getText(),
+                getSelectedAccountId(), getSelectedCategoryId(), Set.copyOf(selectedLabelIds), searchField.getText(),
                 minAmountField.getText(), maxAmountField.getText(), datePresetFilter.getValue(),
                 fromDate.value(), fromDate.invalidText(), toDate.value(), toDate.invalidText(),
                 additionalFiltersExpanded));
@@ -374,6 +417,10 @@ public class TransactionFilterPanelController {
         if (categoryFilter.getSelectionModel().getSelectedIndex() > 0) {
             addSummaryItem(activeFilters, I18n.get("filter.category"), categoryFilter.getValue());
         }
+        List<String> selectedLabelNames = selectedLabels().stream().map(Label::getName).toList();
+        if (!selectedLabelNames.isEmpty()) {
+            addSummaryItem(activeFilters, I18n.get("filter.labels"), String.join(", ", selectedLabelNames));
+        }
         addSummaryItem(activeFilters, I18n.get("filter.minAmount"), minAmountField.getText());
         addSummaryItem(activeFilters, I18n.get("filter.maxAmount"), maxAmountField.getText());
 
@@ -436,6 +483,36 @@ public class TransactionFilterPanelController {
         int index = categoryFilter.getSelectionModel().getSelectedIndex();
         if (index <= 0) return null;
         return index - 1 < categoryOptions.size() ? categoryOptions.get(index - 1).getId() : null;
+    }
+
+    private List<Label> selectedLabels() {
+        Comparator<String> labelOrder = NaturalOrder.comparator(I18n.getCurrentLocale());
+        return labelOptions.stream()
+                .filter(label -> selectedLabelIds.contains(label.getId()))
+                .sorted(Comparator.comparing(Label::getName, labelOrder))
+                .toList();
+    }
+
+    private void updateLabelFilterButton() {
+        List<Label> labels = selectedLabels();
+        HBox content = new HBox(6);
+        content.setAlignment(Pos.CENTER_LEFT);
+        content.setMaxWidth(Double.MAX_VALUE);
+        javafx.scene.Node selectedContent;
+        if (labels.isEmpty()) {
+            selectedContent = new javafx.scene.control.Label(I18n.get("filter.labels"));
+        } else {
+            selectedContent = LabelChipFactory.createAll(labels);
+            HBox.setHgrow(selectedContent, Priority.ALWAYS);
+            ((Region) selectedContent).setMaxWidth(Double.MAX_VALUE);
+        }
+        content.getChildren().setAll(selectedContent, new javafx.scene.control.Label("▾"));
+        labelFilterButton.setText("");
+        labelFilterButton.setGraphic(content);
+        String selectedLabelNames = labels.stream().map(Label::getName).collect(Collectors.joining(", "));
+        labelFilterButton.setAccessibleText(labels.isEmpty()
+                ? I18n.get("filter.labels")
+                : I18n.get("filter.labels") + ": " + selectedLabelNames);
     }
 
     private BigDecimal parseAmount(String text) {

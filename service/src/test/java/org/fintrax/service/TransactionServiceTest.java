@@ -138,6 +138,24 @@ class TransactionServiceTest {
     }
 
     @Test
+    void labelFilterRequiresEverySelectedLabel() {
+        org.fintrax.model.Label urgent = labelService.createLabel("Urgent", "#1976d2", null);
+        org.fintrax.model.Label travel = labelService.createLabel("Travel", "#cc4400", null);
+        transactionService.createTransaction(Transaction.builder()
+                .originalPayee("both labels").labelIds(Set.of(urgent.getId(), travel.getId())).build());
+        transactionService.createTransaction(Transaction.builder()
+                .originalPayee("urgent only").labelIds(Set.of(urgent.getId())).build());
+        transactionService.createTransaction(Transaction.builder()
+                .originalPayee("travel only").labelIds(Set.of(travel.getId())).build());
+        transactionService.createTransaction(Transaction.builder().originalPayee("no labels").build());
+
+        List<Transaction> filtered = transactionService.filterTransactions(new TransactionFilter(
+                null, null, null, null, Set.of(urgent.getId(), travel.getId()), null, null, null));
+
+        assertEquals(List.of("both labels"), filtered.stream().map(Transaction::getOriginalPayee).toList());
+    }
+
+    @Test
     void dateRangeExcludesTransactionsWithoutBookingDate() {
         transactionService.createTransaction(Transaction.builder()
                 .originalPayee("dated").amount(BigDecimal.ONE)
