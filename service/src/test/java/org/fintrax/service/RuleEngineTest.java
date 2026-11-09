@@ -201,6 +201,46 @@ class RuleEngineTest {
     }
 
     @Test
+    void matchSummaryCountsMatchingTransactionsAndUniqueOverlapsAcrossAllRules() {
+        BankAccount account = accountService.createAccount(
+                "DE89370400440532013000", null, "Bank", "User", AccountType.GIRO, null);
+        Rule selectedRule = rule(1L, "Selected", 1, true, "SHOP", List.of());
+        Rule enabledOverlap = rule(2L, "Enabled overlap", 2, true, "MARKET", List.of());
+        Rule disabledOverlap = rule(3L, "Disabled overlap", 3, false, "SHOP", List.of());
+        store.getRoot().getRules().addAll(List.of(selectedRule, enabledOverlap, disabledOverlap));
+        transactionService.createTransaction(Transaction.builder().accountId(account.getId())
+                .originalPayee("SHOP MARKET").amount(BigDecimal.ONE)
+                .bookingDate(LocalDate.now()).valueDate(LocalDate.now()).build());
+        transactionService.createTransaction(Transaction.builder().accountId(account.getId())
+                .originalPayee("SHOP ONLINE").amount(BigDecimal.ONE)
+                .bookingDate(LocalDate.now()).valueDate(LocalDate.now()).build());
+        transactionService.createTransaction(Transaction.builder().accountId(account.getId())
+                .originalPayee("GROCERY").amount(BigDecimal.ONE)
+                .bookingDate(LocalDate.now()).valueDate(LocalDate.now()).build());
+
+        RuleMatchSummary summary = ruleService.getMatchSummary(selectedRule.getId());
+
+        assertEquals(2, summary.matchingTransactionCount());
+        assertEquals(2, summary.conflictingTransactionCount());
+    }
+
+    @Test
+    void matchSummaryReportsZeroForEmptyMatchesAndNoOverlaps() {
+        BankAccount account = accountService.createAccount(
+                "DE89370400440532013000", null, "Bank", "User", AccountType.GIRO, null);
+        Rule selectedRule = rule(1L, "Selected", 1, true, "UNKNOWN", List.of());
+        store.getRoot().getRules().add(selectedRule);
+        transactionService.createTransaction(Transaction.builder().accountId(account.getId())
+                .originalPayee("SHOP").amount(BigDecimal.ONE)
+                .bookingDate(LocalDate.now()).valueDate(LocalDate.now()).build());
+
+        RuleMatchSummary summary = ruleService.getMatchSummary(selectedRule.getId());
+
+        assertEquals(0, summary.matchingTransactionCount());
+        assertEquals(0, summary.conflictingTransactionCount());
+    }
+
+    @Test
     void testDisabledRuleSkipped() {
         BankAccount account = accountService.createAccount(
                 "DE89370400440532013000", null, "Bank", "User", AccountType.GIRO, null);

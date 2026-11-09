@@ -56,6 +56,10 @@ public class RulesController {
     @FXML
     private Label ruleActionsSummary;
     @FXML
+    private Label ruleMatchSummary;
+    @FXML
+    private Label ruleConflictSummary;
+    @FXML
     private TableView<Transaction> ruleTransactionsTable;
     @FXML
     private Label ruleTransactionsTotalAmount;
@@ -227,6 +231,7 @@ public class RulesController {
                 .map(this::actionSummary)
                 .filter(Objects::nonNull)
                 .collect(Collectors.joining(" · "))));
+        updateRuleMatchSummary(rule);
         selectedRuleTransactions = ruleService.getMatchingTransactions(rule.getId());
         refreshSelectedRuleTransactions();
     }
@@ -238,7 +243,26 @@ public class RulesController {
         ruleNameSummary.setText(I18n.get("rules.selectRule"));
         ruleConditionsSummary.setText("");
         ruleActionsSummary.setText("");
+        ruleMatchSummary.setText("");
+        ruleConflictSummary.setText("");
+        ruleConflictSummary.getStyleClass().remove("warning-copy");
         displayedTransactions.clear();
+    }
+
+    private void updateRuleMatchSummary(Rule rule) {
+        RuleMatchSummary summary = ruleService.getMatchSummary(rule.getId());
+        ruleMatchSummary.setText(I18n.get("rules.matchCount", summary.matchingTransactionCount()));
+        boolean hasConflicts = summary.conflictingTransactionCount() > 0;
+        ruleConflictSummary.setText(hasConflicts
+                ? I18n.get("rules.conflictCount", summary.conflictingTransactionCount())
+                : I18n.get("rules.noConflicts"));
+        if (hasConflicts) {
+            if (!ruleConflictSummary.getStyleClass().contains("warning-copy")) {
+                ruleConflictSummary.getStyleClass().add("warning-copy");
+            }
+        } else {
+            ruleConflictSummary.getStyleClass().remove("warning-copy");
+        }
     }
 
     private void restoreSelectedRule() {

@@ -71,6 +71,8 @@
                     <Label fx:id="ruleNameSummary" styleClass="section-heading"/>
                     <Label fx:id="ruleConditionsSummary" wrapText="true"/>
                     <Label fx:id="ruleActionsSummary" wrapText="true"/>
+                    <Label fx:id="ruleMatchSummary" styleClass="secondary-text"/>
+                    <Label fx:id="ruleConflictSummary" wrapText="true"/>
                 </VBox>
                 <Label text="%view.transactions" styleClass="section-heading"/>
                 <fx:include fx:id="transactionFilterPanel" source="transactionFilterPanel.fxml"/>

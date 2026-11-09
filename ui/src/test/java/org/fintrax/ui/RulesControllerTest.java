@@ -417,6 +417,9 @@ class RulesControllerTest extends AbstractUITest {
 
         assertTrue(lookup("#ruleConditionsSummary").queryLabeled().getText().contains("REVIEW-"));
         assertTrue(lookup("#ruleActionsSummary").queryLabeled().getText().contains(proposedCategory.getName()));
+        assertEquals(I18n.get("rules.matchCount", 1), lookup("#ruleMatchSummary").queryLabeled().getText());
+        assertEquals(I18n.get("rules.conflictCount", 1),
+                lookup("#ruleConflictSummary").queryLabeled().getText());
         TableView<Transaction> transactions = lookup("#ruleTransactionsTable").query();
         assertEquals(List.of(transaction.getId()), transactions.getItems().stream().map(Transaction::getId).toList());
         TableColumn<?, ?> bookingDateColumn = transactions.getColumns().stream()
@@ -452,6 +455,8 @@ class RulesControllerTest extends AbstractUITest {
         TextField nameField = lookup("#ruleNameField").query();
         String editedName = ruleName + " updated";
         interact(() -> nameField.setText(editedName));
+        TextField conditionValue = lookup(".rule-condition-row .text-field").query();
+        interact(() -> conditionValue.setText("NO-MATCH-" + System.nanoTime()));
         Button saveButton = lookup("#editRuleSave").query();
         assertFalse(saveButton.isDisabled());
         interact(saveButton::fire);
@@ -460,6 +465,8 @@ class RulesControllerTest extends AbstractUITest {
         assertEquals(editedName, applicationContext.getBean(RuleService.class)
                 .getRule(selectedRule.getId()).orElseThrow().getName());
         assertTrue(lookup("#ruleNameSummary").queryLabeled().getText().contains(editedName));
+        assertEquals(I18n.get("rules.matchCount", 0), lookup("#ruleMatchSummary").queryLabeled().getText());
+        assertEquals(I18n.get("rules.noConflicts"), lookup("#ruleConflictSummary").queryLabeled().getText());
     }
 
     private TransactionRulePreview rowFor(TableView<TransactionRulePreview> table, Long transactionId) {

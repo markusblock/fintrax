@@ -187,4 +187,20 @@ public class RuleEngine {
                 .count();
     }
 
+    public RuleMatchSummary getMatchSummary(Rule rule) {
+        List<Rule> otherRules = store.getRoot().getRules().stream()
+                .filter(candidate -> !Objects.equals(candidate.getId(), rule.getId()))
+                .toList();
+        int matchingTransactions = 0;
+        int conflictingTransactions = 0;
+        for (Transaction transaction : store.getRoot().getTransactions()) {
+            if (!matchesRule(transaction, rule)) continue;
+            matchingTransactions++;
+            if (otherRules.stream().anyMatch(otherRule -> matchesRule(transaction, otherRule))) {
+                conflictingTransactions++;
+            }
+        }
+        return new RuleMatchSummary(matchingTransactions, conflictingTransactions);
+    }
+
 }
