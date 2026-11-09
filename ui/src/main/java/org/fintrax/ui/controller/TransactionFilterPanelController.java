@@ -113,10 +113,14 @@ public class TransactionFilterPanelController {
     }
 
     public void restoreForView(String viewKey) {
+        restoreForView(viewKey, TransactionDateFilters.Preset.THIS_YEAR);
+    }
+
+    void restoreForView(String viewKey, TransactionDateFilters.Preset defaultDatePreset) {
         this.viewKey = viewKey;
         SessionViewState.TransactionFilterPanelState state = sessionViewState.transactionFilters(viewKey);
         if (state == null) {
-            datePresetFilter.setValue(TransactionDateFilters.Preset.THIS_YEAR);
+            datePresetFilter.setValue(defaultDatePreset);
             return;
         }
 

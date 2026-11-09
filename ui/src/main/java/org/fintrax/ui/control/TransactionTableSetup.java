@@ -18,6 +18,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -36,7 +37,6 @@ public final class TransactionTableSetup {
     private static final int AMOUNT_COLUMN = 5;
     private static final int CATEGORY_COLUMN = 6;
     private static final int LABELS_COLUMN = 7;
-    private static final int COLUMN_MENU = 8;
     private static final String AMOUNT_POSITIVE_STYLE = "amount-positive";
     private static final String AMOUNT_NEGATIVE_STYLE = "amount-negative";
 
@@ -95,10 +95,19 @@ public final class TransactionTableSetup {
     }
 
     public void installColumnMenu(String configKey, SettingsService settingsService) {
-        if (!(table.getColumns().get(COLUMN_MENU).getGraphic() instanceof MenuButton columnMenuButton)) {
-            throw new IllegalStateException("Transaction table must have a menu button in its last column");
-        }
-        TableColumnVisibilityMenu.install(table, columnMenuButton, configKey, settingsService, List.of(
+        installColumnMenu(configKey, settingsService, List.of());
+    }
+
+    public void installColumnMenu(String configKey, SettingsService settingsService,
+                                  List<TableColumnConfig> additionalColumns) {
+        MenuButton columnMenuButton = table.getColumns().stream()
+                .map(TableColumn::getGraphic)
+                .filter(MenuButton.class::isInstance)
+                .map(MenuButton.class::cast)
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException(
+                        "Transaction table must have a column menu button"));
+        List<TableColumnConfig> columns = new ArrayList<>(List.of(
                 new TableColumnConfig("date", bookingDateColumn()),
                 new TableColumnConfig("valueDate", valueDateColumn()),
                 new TableColumnConfig("payee", payeeColumn()),
@@ -107,6 +116,8 @@ public final class TransactionTableSetup {
                 new TableColumnConfig("amount", amountColumn()),
                 new TableColumnConfig("category", categoryColumn()),
                 new TableColumnConfig("labels", labelsColumn())));
+        columns.addAll(additionalColumns);
+        TableColumnVisibilityMenu.install(table, columnMenuButton, configKey, settingsService, columns);
     }
 
     public TableColumn<Transaction, String> categoryColumn() {

@@ -77,7 +77,9 @@ class RulesControllerTest extends AbstractUITest {
                                 .labelId(proposedLabelId).build()));
         disabledRuleName = "Disabled review rule " + suffix;
         Rule disabledRule = ruleService.createRule(disabledRuleName, List.of(RuleCondition.builder()
-                        .matchField(MatchField.PAYEE_NAME).operator(Operator.CONTAINS).value("REVIEW-" + suffix).build()),
+                        .matchField(MatchField.PAYEE_NAME).operator(Operator.CONTAINS).value("REVIEW-" + suffix).build(),
+                        RuleCondition.builder().matchField(MatchField.PAYEE_NAME)
+                                .operator(Operator.CONTAINS).value("purchase").build()),
                 List.of(RuleAction.builder().actionType(ActionType.ASSIGN_CATEGORY)
                         .categoryId(proposedCategory.getId()).build()));
         ruleService.toggleRule(disabledRule.getId());
@@ -85,11 +87,9 @@ class RulesControllerTest extends AbstractUITest {
                 .accountId(account.getId()).originalPayee("REVIEW-" + suffix + " purchase").amount(BigDecimal.TEN)
                 .bookingDate(LocalDate.of(2025, 2, 1)).valueDate(LocalDate.of(2025, 2, 4))
                 .categoryId(currentCategory.getId()).note("Current note").build());
-
         Parent root = applicationContext.getBean(ViewLoader.class).load("rules");
         stage.setScene(new Scene(root, 1024, 768));
         stage.show();
-        useAllTimeDatePreset(root);
     }
 
     @Test
@@ -413,13 +413,49 @@ class RulesControllerTest extends AbstractUITest {
         TableView<Rule> ruleTable = lookup("#ruleTable").query();
         Rule selectedRule = ruleTable.getItems().stream()
                 .filter(rule -> rule.getName().equals(ruleName)).findFirst().orElseThrow();
+        Transaction nonConflictingTransaction = applicationContext.getBean(TransactionService.class)
+                .createTransaction(Transaction.builder().accountId(transaction.getAccountId())
+                        .originalPayee(transaction.getOriginalPayee().replace("purchase", "groceries"))
+                        .amount(BigDecimal.ONE).bookingDate(LocalDate.of(2025, 2, 2))
+                        .valueDate(LocalDate.of(2025, 2, 2)).build());
 
         interact(() -> ruleTable.getSelectionModel().select(selectedRule));
 
         assertTrue(lookup("#ruleConditionsSummary").queryLabeled().getText().contains("REVIEW-"));
         assertTrue(lookup("#ruleActionsSummary").queryLabeled().getText().contains(proposedCategory.getName()));
+        assertEquals("ALL_TIME", lookup("#datePresetFilter").<ComboBox<?>>query().getValue().toString());
+        assertEquals(I18n.get("rules.matchCount", 2), lookup("#ruleMatchSummary").queryLabeled().getText());
+        Rule conflictingRule = applicationContext.getBean(RuleService.class).getAllRules().stream()
+                .filter(rule -> rule.getName().equals(disabledRuleName)).findFirst().orElseThrow();
+        String conflictName = I18n.get("rules.ruleReference", conflictingRule.getName(), conflictingRule.getPriority());
+        String selectedRuleName = I18n.get("rules.ruleReference", selectedRule.getName(), selectedRule.getPriority());
+        assertEquals(I18n.get("rules.conflictCount", 1, conflictName),
+                lookup("#ruleConflictSummary").queryLabeled().getText());
         TableView<Transaction> transactions = lookup("#ruleTransactionsTable").query();
-        assertEquals(List.of(transaction.getId()), transactions.getItems().stream().map(Transaction::getId).toList());
+        assertEquals(List.of(transaction.getId(), nonConflictingTransaction.getId()),
+                transactions.getItems().stream().map(Transaction::getId).toList());
+        TableColumn<Transaction, ?> matchedRuleCountColumn = transactions.getColumns().stream()
+                .filter(column -> I18n.get("rules.matchingRuleCountColumn").equals(column.getText()))
+                .findFirst().orElseThrow();
+        TableColumn<Transaction, ?> matchedRulesColumn = transactions.getColumns().stream()
+                .filter(column -> I18n.get("rules.matchingRulesColumn").equals(column.getText()))
+                .findFirst().orElseThrow();
+        assertEquals(48, matchedRuleCountColumn.getPrefWidth());
+        assertTrue(matchedRuleCountColumn.isResizable());
+        assertTrue(matchedRuleCountColumn.getMaxWidth() > matchedRuleCountColumn.getPrefWidth());
+        assertTrue(matchedRuleCountColumn.isSortable());
+        assertEquals(2, matchedRuleCountColumn.getCellData(transaction));
+        assertEquals(1, matchedRuleCountColumn.getCellData(nonConflictingTransaction));
+        assertEquals(selectedRuleName + ", " + conflictName,
+                matchedRulesColumn.getCellData(transaction));
+        assertEquals(selectedRuleName, matchedRulesColumn.getCellData(nonConflictingTransaction));
+        interact(() -> {
+            matchedRuleCountColumn.setSortType(TableColumn.SortType.DESCENDING);
+            transactions.getSortOrder().setAll(matchedRuleCountColumn);
+            transactions.sort();
+        });
+        assertEquals(List.of(transaction.getId(), nonConflictingTransaction.getId()),
+                transactions.getItems().stream().map(Transaction::getId).toList());
         TableColumn<?, ?> bookingDateColumn = transactions.getColumns().stream()
                 .filter(column -> I18n.get("col.bookingDate").equals(column.getText()))
                 .findFirst().orElseThrow();
@@ -435,7 +471,8 @@ class RulesControllerTest extends AbstractUITest {
         interact(() -> search.setText("not a matching payee"));
         assertTrue(transactions.getItems().isEmpty());
         interact(() -> search.setText("REVIEW-"));
-        assertEquals(List.of(transaction.getId()), transactions.getItems().stream().map(Transaction::getId).toList());
+        assertEquals(List.of(transaction.getId(), nonConflictingTransaction.getId()),
+                transactions.getItems().stream().map(Transaction::getId).toList());
     }
 
     @Test
@@ -444,6 +481,10 @@ class RulesControllerTest extends AbstractUITest {
         Rule selectedRule = ruleTable.getItems().stream()
                 .filter(rule -> rule.getName().equals(ruleName)).findFirst().orElseThrow();
         TableRow<?> row = rowForRule(ruleTable, ruleName);
+        String editedCondition = "EDITED-" + System.nanoTime();
+        applicationContext.getBean(TransactionService.class).createTransaction(Transaction.builder()
+                .accountId(transaction.getAccountId()).originalPayee(editedCondition).amount(BigDecimal.ONE)
+                .bookingDate(LocalDate.of(2025, 2, 3)).valueDate(LocalDate.of(2025, 2, 3)).build());
 
         interact(() -> ruleTable.getSelectionModel().select(selectedRule));
         Platform.runLater(() -> menuItem(row.getContextMenu(), I18n.get("button.edit")).fire());
@@ -453,8 +494,12 @@ class RulesControllerTest extends AbstractUITest {
         TextField nameField = lookup("#ruleNameField").query();
         String editedName = ruleName + " updated";
         interact(() -> nameField.setText(editedName));
+        TextField conditionValue = lookup(".rule-condition-row .text-field").query();
         ComboBox<String> matchMode = lookup("#conditionMatchModeCombo").query();
-        interact(() -> matchMode.setValue(I18n.get("ruleEditor.matchMode.any")));
+        interact(() -> {
+            conditionValue.setText(editedCondition);
+            matchMode.setValue(I18n.get("ruleEditor.matchMode.any"));
+        });
         Button saveButton = lookup("#editRuleSave").query();
         assertFalse(saveButton.isDisabled());
         interact(saveButton::fire);
@@ -467,6 +512,9 @@ class RulesControllerTest extends AbstractUITest {
         assertTrue(lookup("#ruleNameSummary").queryLabeled().getText().contains(editedName));
         assertTrue(lookup("#ruleConditionsSummary").queryLabeled().getText()
                 .startsWith(I18n.get("rules.summary.conditionsAny", "")));
+        assertEquals(I18n.get("rules.matchCount", 1), lookup("#ruleMatchSummary").queryLabeled().getText());
+        assertEquals("", lookup("#ruleConflictSummary").queryLabeled().getText());
+        assertFalse(lookup("#ruleConflictSummary").query().isVisible());
     }
 
     private TransactionRulePreview rowFor(TableView<TransactionRulePreview> table, Long transactionId) {
