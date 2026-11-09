@@ -522,13 +522,19 @@
 
 .filter-panel .text-field,
 .filter-panel .combo-box,
-.filter-panel .date-picker {
+.filter-panel .date-picker,
+.filter-panel .filter-label-button {
     -fx-pref-height: 36px;
 }
 
 .filter-label-button {
     -fx-alignment: CENTER_LEFT;
     -fx-padding: 4 8;
+}
+
+.filter-label-arrow {
+    -fx-text-fill: -color-fg-muted;
+    -fx-font-size: 10px;
 }
 
 .filter-panel .text-field.invalid-date {

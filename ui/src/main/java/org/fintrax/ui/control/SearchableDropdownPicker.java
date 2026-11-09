@@ -34,6 +34,8 @@ import java.util.function.Function;
 
 /** Searchable dropdown picker for one or many values, anchored to its source control. */
 public final class SearchableDropdownPicker {
+    private static Picker<?> activePicker;
+
     private SearchableDropdownPicker() {}
 
     public static <T> void showOne(Node anchor, Collection<T> options, T initiallySelected,
@@ -67,6 +69,7 @@ public final class SearchableDropdownPicker {
         private final ListView<T> optionsList = new ListView<>();
         private final Button createButton = new Button();
         private final Button clearButton = new Button();
+        private final Button toggleAllButton = new Button();
         private final Button saveButton = new Button();
         private final Label errorLabel = new Label();
         private final Label keyboardHelp = new Label();
@@ -88,6 +91,16 @@ public final class SearchableDropdownPicker {
         }
 
         private void show() {
+            if (activePicker != null) {
+                Picker<?> current = activePicker;
+                boolean sameAnchor = current.anchor == anchor;
+                if (current.popup.isShowing()) current.popup.hide();
+                activePicker = null;
+                if (sameAnchor) return;
+            }
+            if (anchor.getScene() == null) return;
+            activePicker = this;
+
             searchField.setId("pickerSearch");
             searchField.setPromptText(I18n.get("picker.search.prompt"));
             searchField.setAccessibleText(I18n.get("picker.search.accessible"));
@@ -101,8 +114,10 @@ public final class SearchableDropdownPicker {
             createButton.getStyleClass().add("button-outlined");
             clearButton.setId("pickerClear");
             clearButton.setText(I18n.get("picker.category.clear"));
+            toggleAllButton.setId("pickerToggleAll");
+            toggleAllButton.getStyleClass().add("button-outlined");
             saveButton.setId("pickerSave");
-            saveButton.setText(I18n.get("button.save"));
+            saveButton.setText(I18n.get("picker.select"));
             saveButton.setDefaultButton(true);
             errorLabel.getStyleClass().add("error-message");
             errorLabel.setVisible(false);
@@ -127,7 +142,7 @@ public final class SearchableDropdownPicker {
             HBox actions = new HBox(8);
             actions.getStyleClass().add("searchable-dropdown-actions");
             if (multiple) {
-                actions.getChildren().add(saveButton);
+                actions.getChildren().addAll(toggleAllButton, saveButton);
                 HBox.setHgrow(saveButton, Priority.ALWAYS);
                 saveButton.setMaxWidth(Double.MAX_VALUE);
                 content.getChildren().add(actions);
@@ -141,6 +156,7 @@ public final class SearchableDropdownPicker {
             popup.setAutoHide(true);
             popup.setHideOnEscape(false);
             popup.setOnHidden(event -> Platform.runLater(() -> {
+                if (activePicker == this) activePicker = null;
                 if (anchor.getScene() != null) anchor.requestFocus();
             }));
 
@@ -157,6 +173,7 @@ public final class SearchableDropdownPicker {
                 T clicked = listItemAt(event.getTarget());
                 if (clicked == null) return;
                 if (multiple) {
+                    if (isInsideCheckBox(event.getTarget())) return;
                     toggle(clicked);
                 } else {
                     selectOne(clicked);
@@ -169,10 +186,10 @@ public final class SearchableDropdownPicker {
             });
             createButton.setOnAction(event -> createFromSearch());
             clearButton.setOnAction(event -> save(List.of()));
+            toggleAllButton.setOnAction(event -> toggleAll());
             saveButton.setOnAction(event -> save(List.copyOf(selected)));
 
             updateOptions(true);
-            if (anchor.getScene() == null) return;
             popup.show(anchor, Side.BOTTOM, 0, 0);
             popup.getScene().getStylesheets().setAll(anchor.getScene().getStylesheets());
             Platform.runLater(searchField::requestFocus);
@@ -195,6 +212,7 @@ public final class SearchableDropdownPicker {
                         CheckBox checkBox = new CheckBox();
                         checkBox.setSelected(selected.contains(item));
                         checkBox.setFocusTraversable(false);
+                        checkBox.setOnAction(event -> toggle(item));
                         Label text = new Label(displayText.apply(item));
                         text.setMaxWidth(Double.MAX_VALUE);
                         text.setTextOverrun(OverrunStyle.ELLIPSIS);
@@ -239,6 +257,7 @@ public final class SearchableDropdownPicker {
             createButton.setVisible(canCreate);
             createButton.setManaged(canCreate);
             optionsList.refresh();
+            updateToggleAllButton();
         }
 
         private void handleSearchKey(KeyEvent event) {
@@ -300,6 +319,34 @@ public final class SearchableDropdownPicker {
         private void toggle(T item) {
             if (!selected.add(item)) selected.remove(item);
             optionsList.refresh();
+            updateToggleAllButton();
+        }
+
+        private boolean isInsideCheckBox(Object target) {
+            if (!(target instanceof Node node)) return false;
+            while (node != null) {
+                if (node instanceof CheckBox) return true;
+                if (node instanceof ListCell<?>) return false;
+                node = node.getParent();
+            }
+            return false;
+        }
+
+        private void toggleAll() {
+            if (selected.containsAll(options)) {
+                selected.removeAll(options);
+            } else {
+                selected.addAll(options);
+            }
+            optionsList.refresh();
+            updateToggleAllButton();
+        }
+
+        private void updateToggleAllButton() {
+            boolean allSelected = !options.isEmpty() && selected.containsAll(options);
+            toggleAllButton.setText(I18n.get(allSelected
+                    ? "picker.labels.deselectAll" : "picker.labels.selectAll"));
+            toggleAllButton.setDisable(options.isEmpty());
         }
 
         private void createFromSearch() {

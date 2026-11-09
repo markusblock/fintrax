@@ -49,6 +49,7 @@ import java.util.stream.Collectors;
 public class TransactionFilterPanelController {
     private static final String INVALID_DATE_STYLE_CLASS = "invalid-date";
     private static final String FILTER_SUMMARY_SEPARATOR = " · ";
+    private static final String LABEL_FILTER_I18N_KEY = "filter.labels";
 
     @FXML
     private ComboBox<String> accountFilter;
@@ -419,7 +420,7 @@ public class TransactionFilterPanelController {
         }
         List<String> selectedLabelNames = labelNames(selectedLabels());
         if (!selectedLabelNames.isEmpty()) {
-            addSummaryItem(activeFilters, I18n.get("filter.labels"), String.join(", ", selectedLabelNames));
+            addSummaryItem(activeFilters, I18n.get(LABEL_FILTER_I18N_KEY), String.join(", ", selectedLabelNames));
         }
         addSummaryItem(activeFilters, I18n.get("filter.minAmount"), minAmountField.getText());
         addSummaryItem(activeFilters, I18n.get("filter.maxAmount"), maxAmountField.getText());
@@ -504,19 +505,22 @@ public class TransactionFilterPanelController {
         content.setMaxWidth(Double.MAX_VALUE);
         javafx.scene.Node selectedContent;
         if (labels.isEmpty()) {
-            selectedContent = new javafx.scene.control.Label(I18n.get("filter.labels"));
+            selectedContent = new javafx.scene.control.Label(I18n.get(LABEL_FILTER_I18N_KEY));
         } else {
             selectedContent = LabelChipFactory.createAll(labels);
-            HBox.setHgrow(selectedContent, Priority.ALWAYS);
-            ((Region) selectedContent).setMaxWidth(Double.MAX_VALUE);
         }
-        content.getChildren().setAll(selectedContent, new javafx.scene.control.Label("▾"));
+        HBox.setHgrow(selectedContent, Priority.ALWAYS);
+        ((Region) selectedContent).setMaxWidth(Double.MAX_VALUE);
+        javafx.scene.control.Label dropdownIcon = new javafx.scene.control.Label("▾");
+        dropdownIcon.getStyleClass().add("filter-label-arrow");
+        dropdownIcon.setMouseTransparent(true);
+        content.getChildren().setAll(selectedContent, dropdownIcon);
         labelFilterButton.setText("");
         labelFilterButton.setGraphic(content);
         String selectedNames = String.join(", ", labelNames(labels));
         labelFilterButton.setAccessibleText(labels.isEmpty()
-                ? I18n.get("filter.labels")
-                : I18n.get("filter.labels") + ": " + selectedNames);
+                ? I18n.get(LABEL_FILTER_I18N_KEY)
+                : I18n.get(LABEL_FILTER_I18N_KEY) + ": " + selectedNames);
     }
 
     private BigDecimal parseAmount(String text) {
