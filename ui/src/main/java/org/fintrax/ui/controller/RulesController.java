@@ -36,6 +36,7 @@ public class RulesController {
     private static final String AMOUNT_POSITIVE_STYLE = "amount-positive";
     private static final String AMOUNT_NEGATIVE_STYLE = "amount-negative";
     private static final String DISABLED_RULE_ROW_CLASS = "disabled-rule-row";
+    private static final String WARNING_COPY_STYLE = "warning-copy";
 
     @FXML
     private BorderPane rootPane;
@@ -245,7 +246,7 @@ public class RulesController {
         ruleActionsSummary.setText("");
         ruleMatchSummary.setText("");
         ruleConflictSummary.setText("");
-        ruleConflictSummary.getStyleClass().remove("warning-copy");
+        ruleConflictSummary.getStyleClass().remove(WARNING_COPY_STYLE);
         displayedTransactions.clear();
     }
 
@@ -257,11 +258,11 @@ public class RulesController {
                 ? I18n.get("rules.conflictCount", summary.conflictingTransactionCount())
                 : I18n.get("rules.noConflicts"));
         if (hasConflicts) {
-            if (!ruleConflictSummary.getStyleClass().contains("warning-copy")) {
-                ruleConflictSummary.getStyleClass().add("warning-copy");
+            if (!ruleConflictSummary.getStyleClass().contains(WARNING_COPY_STYLE)) {
+                ruleConflictSummary.getStyleClass().add(WARNING_COPY_STYLE);
             }
         } else {
-            ruleConflictSummary.getStyleClass().remove("warning-copy");
+            ruleConflictSummary.getStyleClass().remove(WARNING_COPY_STYLE);
         }
     }
 
