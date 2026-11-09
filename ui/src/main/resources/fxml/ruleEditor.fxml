@@ -28,7 +28,7 @@
         </Button>
     </VBox>
     <VBox spacing="8" styleClass="rule-action-group">
-        <Label text="%ruleEditor.thenDo" styleClass="rule-sentence-heading rule-then-label"/>
+        <Label fx:id="ruleEditorThenLabel" text="%ruleEditor.thenDo" styleClass="rule-sentence-heading"/>
         <VBox fx:id="actionsContainer" spacing="0" styleClass="rule-rows"/>
         <Button fx:id="addRuleActionButton" text="%button.addAction"
                 onAction="#onAddAction" styleClass="button-outlined group-add-button">
