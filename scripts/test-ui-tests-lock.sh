@@ -26,6 +26,10 @@ run_locked_section() {
     touch "$ready_dir/$name"
     while [[ ! -e "$start_file" ]]; do sleep 0.05; done
     bash "$repo_root/scripts/ui-tests-lock.sh" "$lock_file" bash -c '
+        if [[ "${FINTRAX_UI_TEST_LOCK_OWNER_PID:-}" != "$$" ]]; then
+            echo "UI test lock owner marker did not survive exec." >&2
+            exit 1
+        fi
         active_dir="$1"
         if ! mkdir "$active_dir" 2>/dev/null; then
             echo "UI test lock allowed overlapping runs." >&2
