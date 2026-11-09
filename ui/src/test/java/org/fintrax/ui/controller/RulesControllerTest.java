@@ -65,6 +65,8 @@ class RulesControllerTest extends AbstractUITest {
                 lookup("#addRuleConditionButton").query().getParent());
         assertEquals(lookup(".rule-action-group").query(),
                 lookup("#addRuleActionButton").query().getParent());
+        assertEquals(lookup(".rule-action-group").query(),
+                lookup(".rule-then-label").query().getParent());
 
         Button cancelButton = lookup("#createRuleCancel").query();
         interact(cancelButton::fire);

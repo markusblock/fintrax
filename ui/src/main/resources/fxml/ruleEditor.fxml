@@ -27,8 +27,8 @@
             <graphic><FontIcon iconLiteral="fth-plus" iconSize="14"/></graphic>
         </Button>
     </VBox>
-    <Label text="%ruleEditor.thenDo" styleClass="rule-sentence-heading rule-then-label"/>
     <VBox spacing="8" styleClass="rule-action-group">
+        <Label text="%ruleEditor.thenDo" styleClass="rule-sentence-heading rule-then-label"/>
         <VBox fx:id="actionsContainer" spacing="0" styleClass="rule-rows"/>
         <Button fx:id="addRuleActionButton" text="%button.addAction"
                 onAction="#onAddAction" styleClass="button-outlined group-add-button">
