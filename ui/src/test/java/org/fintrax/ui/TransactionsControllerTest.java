@@ -43,6 +43,7 @@ import org.fintrax.model.Operator;
 import org.fintrax.model.Rule;
 import org.fintrax.model.RuleAction;
 import org.fintrax.model.RuleCondition;
+import org.fintrax.model.RuleMatchMode;
 import org.fintrax.model.Transaction;
 import org.fintrax.service.AccountService;
 import org.fintrax.service.CategoryService;
@@ -824,25 +825,29 @@ class TransactionsControllerTest extends AbstractUITest {
         WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS,
                 () -> lookup("#createRuleSave").tryQuery().isPresent());
 
-        List<HBox> conditions = rows(".rule-condition-row");
+        List<GridPane> conditions = rows(".rule-condition-row");
         assertEquals(2, conditions.size());
-        HBox purposeCondition = conditions.stream()
-                .filter(row -> comboBoxAt(row, 0).getValue().equals(MatchField.PURPOSE.name()))
+        GridPane purposeCondition = conditions.stream()
+                .filter(row -> comboBoxAt(row, 0).getValue().equals(I18n.get("ruleEditor.field.purpose")))
                 .findFirst().orElseThrow();
         assertEquals("Test transaction purpose", ((TextField) purposeCondition.getChildren().get(2)).getText());
 
         interact(() -> {
-            comboBoxAt(purposeCondition, 1).setValue(Operator.EQUALS.name());
+            comboBoxAt(purposeCondition, 1).setValue(I18n.get("ruleEditor.operator.is"));
             ((TextField) purposeCondition.getChildren().get(2)).setText("Edited transaction purpose");
         });
 
-        HBox categoryAction = rows(".rule-action-row").stream()
-                .filter(row -> comboBoxAt(row, 0).getValue().equals(ActionType.ASSIGN_CATEGORY.name()))
+        GridPane categoryAction = rows(".rule-action-row").stream()
+                .filter(row -> comboBoxAt(row, 0).getValue().equals(I18n.get("ruleEditor.action.assignCategory")))
                 .findFirst().orElseThrow();
         SearchableChoiceButton categoryChoice = (SearchableChoiceButton) categoryAction.getChildren().get(1);
         assertEquals(testCategory.getName(), categoryChoice.getValue());
         chooseSearchableChoice(categoryChoice, replacementCategory.getName());
         assertEquals(replacementCategory.getName(), categoryChoice.getValue());
+
+        ComboBox<String> matchMode = lookup("#conditionMatchModeCombo").query();
+        assertEquals(I18n.get("ruleEditor.matchMode.all"), matchMode.getValue());
+        interact(() -> matchMode.setValue(I18n.get("ruleEditor.matchMode.any")));
 
         interact(lookup("#createRuleSave").<Button>query()::fire);
         WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS, () -> applicationContext.getBean(RuleService.class)
@@ -851,6 +856,7 @@ class TransactionsControllerTest extends AbstractUITest {
         Rule created = applicationContext.getBean(RuleService.class).getAllRules().stream()
                 .filter(rule -> rule.getName().equals("Rule for Display popup test"))
                 .findFirst().orElseThrow();
+        assertEquals(RuleMatchMode.ANY, created.getMatchMode());
         assertEquals(List.of(MatchField.PAYEE_NAME, MatchField.PURPOSE),
                 created.getConditions().stream().map(RuleCondition::getMatchField).toList());
         assertEquals(List.of("Display popup test", "Edited transaction purpose"),
@@ -875,18 +881,19 @@ class TransactionsControllerTest extends AbstractUITest {
         WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS,
                 () -> lookup("#createRuleSave").tryQuery().isPresent());
         assertTrue(lookup("#createRuleSave").<Button>query().isDisabled());
-        assertTrue(rows(".rule-action-row").isEmpty());
+        assertEquals(1, rows(".rule-action-row").size());
 
         String categoryName = "Created category action " + System.nanoTime();
         String labelName = "Created label action " + System.nanoTime();
-        interact(lookup("#addRuleActionButton").<Button>query()::fire);
-        HBox categoryAction = rows(".rule-action-row").get(0);
-        interact(() -> comboBoxAt(categoryAction, 0).setValue(ActionType.ASSIGN_CATEGORY.name()));
+        GridPane categoryAction = rows(".rule-action-row").get(0);
+        interact(() -> comboBoxAt(categoryAction, 0)
+                .setValue(I18n.get("ruleEditor.action.assignCategory")));
         createSearchableChoice((SearchableChoiceButton) categoryAction.getChildren().get(1), categoryName);
 
         interact(lookup("#addRuleActionButton").<Button>query()::fire);
-        HBox labelAction = rows(".rule-action-row").get(1);
-        interact(() -> comboBoxAt(labelAction, 0).setValue(ActionType.ADD_LABEL.name()));
+        GridPane labelAction = rows(".rule-action-row").get(1);
+        interact(() -> comboBoxAt(labelAction, 0)
+                .setValue(I18n.get("ruleEditor.action.assignLabel")));
         createSearchableChoice((SearchableChoiceButton) labelAction.getChildren().get(1), labelName);
         assertFalse(lookup("#createRuleSave").<Button>query().isDisabled());
 
@@ -1193,15 +1200,15 @@ class TransactionsControllerTest extends AbstractUITest {
         });
     }
 
-    private List<HBox> rows(String selector) {
+    private List<GridPane> rows(String selector) {
         return lookup(selector).queryAll().stream()
-                .filter(HBox.class::isInstance)
-                .map(HBox.class::cast)
+                .filter(GridPane.class::isInstance)
+                .map(GridPane.class::cast)
                 .toList();
     }
 
     @SuppressWarnings("unchecked")
-    private ComboBox<String> comboBoxAt(HBox row, int index) {
+    private ComboBox<String> comboBoxAt(GridPane row, int index) {
         return (ComboBox<String>) row.getChildren().get(index);
     }
 

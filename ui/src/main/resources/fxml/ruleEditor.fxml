@@ -1,45 +1,39 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
 <?import javafx.scene.control.Label?>
-<?import javafx.scene.control.ScrollPane?>
-<?import javafx.scene.control.Separator?>
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 <?import org.kordamp.ikonli.javafx.FontIcon?>
 
 <VBox xmlns:fx="http://javafx.com/fxml" fx:controller="org.fintrax.ui.controller.RuleEditorController"
-      spacing="12">
+      spacing="10" styleClass="rule-editor-panel">
     <HBox spacing="10" alignment="CENTER_LEFT">
         <Label text="%label.ruleName" styleClass="section-heading"/>
         <TextField fx:id="ruleNameField" HBox.hgrow="ALWAYS"/>
     </HBox>
-    <Separator/>
-    <Label text="%label.conditions" styleClass="section-heading"/>
-    <ScrollPane fitToWidth="true" prefHeight="150" styleClass="editor-list-scroll">
-        <VBox fx:id="conditionsContainer" spacing="5">
-            <padding>
-                <Insets top="5" right="5" bottom="5" left="5"/>
-            </padding>
-        </VBox>
-    </ScrollPane>
-    <Button fx:id="addRuleConditionButton" text="%button.addCondition"
-            onAction="#onAddCondition" styleClass="button-outlined">
-        <graphic><FontIcon iconLiteral="fth-plus" iconSize="14"/></graphic>
-    </Button>
-    <Separator/>
-    <Label text="%label.actions" styleClass="section-heading"/>
-    <ScrollPane fitToWidth="true" prefHeight="120" styleClass="editor-list-scroll">
-        <VBox fx:id="actionsContainer" spacing="5">
-            <padding>
-                <Insets top="5" right="5" bottom="5" left="5"/>
-            </padding>
-        </VBox>
-    </ScrollPane>
-    <Button fx:id="addRuleActionButton" text="%button.addAction"
-            onAction="#onAddAction" styleClass="button-outlined">
-        <graphic><FontIcon iconLiteral="fth-plus" iconSize="14"/></graphic>
-    </Button>
+    <VBox spacing="8" styleClass="rule-condition-group">
+        <HBox spacing="7" alignment="CENTER_LEFT" styleClass="rule-sentence">
+            <Label fx:id="ruleEditorConditionHeading" text="%ruleEditor.ifPrefix"
+                   styleClass="rule-sentence-heading"/>
+            <ComboBox fx:id="conditionMatchModeCombo" styleClass="rule-match-mode"/>
+            <Label text="%ruleEditor.ifSuffix" styleClass="rule-sentence-heading"/>
+        </HBox>
+        <Label text="%ruleEditor.caseInsensitiveHint" styleClass="help-text"/>
+        <VBox fx:id="conditionsContainer" spacing="0" styleClass="rule-rows"/>
+        <Button fx:id="addRuleConditionButton" text="%button.addCondition"
+                onAction="#onAddCondition" styleClass="button-outlined group-add-button">
+            <graphic><FontIcon iconLiteral="fth-plus" iconSize="14"/></graphic>
+        </Button>
+    </VBox>
+    <VBox spacing="8" styleClass="rule-action-group">
+        <Label fx:id="ruleEditorThenLabel" text="%ruleEditor.thenDo" styleClass="rule-sentence-heading"/>
+        <VBox fx:id="actionsContainer" spacing="0" styleClass="rule-rows"/>
+        <Button fx:id="addRuleActionButton" text="%button.addAction"
+                onAction="#onAddAction" styleClass="button-outlined group-add-button">
+            <graphic><FontIcon iconLiteral="fth-plus" iconSize="14"/></graphic>
+        </Button>
+    </VBox>
 </VBox>

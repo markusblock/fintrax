@@ -87,6 +87,65 @@ class RuleEngineTest {
     }
 
     @Test
+    void operatorOrdinalsRemainCompatibleWithPersistedRules() {
+        assertEquals(0, Operator.CONTAINS.ordinal());
+        assertEquals(1, Operator.REGEX.ordinal());
+        assertEquals(2, Operator.EQUALS.ordinal());
+        assertEquals(3, Operator.AMOUNT_RANGE.ordinal());
+    }
+
+    @Test
+    void anyMatchModeMatchesWhenOneConditionMatchesAndDefaultsToAllOtherwise() {
+        BankAccount account = accountService.createAccount(
+                "DE89370400440532013000", null, "Bank", "User", AccountType.GIRO, null);
+        transactionService.createTransaction(Transaction.builder()
+                .accountId(account.getId()).originalPayee("Corner Shop").purpose("Gift Card")
+                .amount(BigDecimal.ONE).bookingDate(LocalDate.now()).valueDate(LocalDate.now()).build());
+
+        Rule rule = ruleService.createRule("Gift purchase", List.of(
+                condition(MatchField.PAYEE_NAME, Operator.CONTAINS, "not present"),
+                condition(MatchField.PURPOSE, Operator.EQUALS, "GIFT CARD")), List.of(), RuleMatchMode.ANY);
+
+        assertEquals(1, ruleEngine.countMatchingTransactions(rule));
+        ruleService.updateRule(rule.getId(), "Gift purchase updated", rule.getConditions(), rule.getActions());
+        assertEquals(RuleMatchMode.ANY, ruleService.getRule(rule.getId()).orElseThrow().getMatchMode());
+
+        rule.setMatchMode(RuleMatchMode.ALL);
+        assertEquals(0, ruleEngine.countMatchingTransactions(rule));
+        assertEquals(RuleMatchMode.ALL, Rule.builder().build().getMatchMode());
+    }
+
+    @Test
+    void textOperatorsMatchWithoutCaseSensitivity() {
+        BankAccount account = accountService.createAccount(
+                "DE89370400440532013000", null, "Bank", "User", AccountType.GIRO, null);
+        transactionService.createTransaction(Transaction.builder()
+                .accountId(account.getId()).originalPayee("Corner Shop").purpose("Gift Card")
+                .amount(BigDecimal.ONE).bookingDate(LocalDate.now()).valueDate(LocalDate.now()).build());
+
+        assertTrue(matches(MatchField.PAYEE_NAME, Operator.CONTAINS, "corner"));
+        assertFalse(matches(MatchField.PAYEE_NAME, Operator.CONTAINS_NOT, "CORNER"));
+        assertTrue(matches(MatchField.PAYEE_NAME, Operator.CONTAINS_NOT, "market"));
+        assertTrue(matches(MatchField.PURPOSE, Operator.EQUALS, "GIFT CARD"));
+        assertFalse(matches(MatchField.PURPOSE, Operator.NOT_EQUALS, "gift card"));
+        assertTrue(matches(MatchField.PURPOSE, Operator.NOT_EQUALS, "salary"));
+        assertTrue(matches(MatchField.PURPOSE, Operator.REGEX, "^gift card$"));
+        assertFalse(matches(MatchField.PURPOSE, Operator.NOT_REGEX, "^GIFT CARD$"));
+        assertTrue(matches(MatchField.PURPOSE, Operator.NOT_REGEX, "^salary$"));
+    }
+
+    @Test
+    void ruleServiceRejectsInvalidRegularExpressions() {
+        RuleCondition invalidRegex = condition(MatchField.PURPOSE, Operator.REGEX, "[");
+        List<RuleCondition> conditions = List.of(invalidRegex);
+        List<RuleAction> actions = List.of();
+
+        assertThrows(IllegalArgumentException.class,
+                () -> ruleService.createRule("Invalid regex", conditions, actions));
+        assertTrue(store.getRoot().getRules().isEmpty());
+    }
+
+    @Test
     void testRuleMatchesAmountRange() {
         BankAccount account = accountService.createAccount(
                 "DE89370400440532013000", null, "Bank", "User", AccountType.GIRO, null);
@@ -457,5 +516,15 @@ class RuleEngineTest {
                 .conditions(List.of(RuleCondition.builder().matchField(MatchField.PAYEE_NAME)
                         .operator(Operator.CONTAINS).value(payee).build()))
                 .actions(actions).build();
+    }
+
+    private RuleCondition condition(MatchField field, Operator operator, String value) {
+        return RuleCondition.builder().matchField(field).operator(operator).value(value).build();
+    }
+
+    private boolean matches(MatchField field, Operator operator, String value) {
+        Rule rule = Rule.builder().id(1L).name("text match").priority(1).enabled(true)
+                .conditions(List.of(condition(field, operator, value))).build();
+        return ruleEngine.countMatchingTransactions(rule) > 0;
     }
 }

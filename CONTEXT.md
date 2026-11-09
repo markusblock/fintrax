@@ -56,6 +56,17 @@ A parent reference that cannot be mapped to a Fintrax Category during import. Un
 **Category Rule**:
 A rule, possibly derived from a Hibiscus Category matching pattern, that matches transactions. For overlapping matches, the highest-priority rule supplies the category while every matching rule contributes labels without duplicates. Category Rules do not modify transaction notes. Applying rules to existing transactions requires reviewing proposed changes before saving them.
 
+### Rules
+
+**Rule Condition**:
+A comparison between a transaction field and a search value. Text comparisons, including regular expressions, ignore letter case.
+
+**Rule Match Mode**:
+How a rule combines its conditions: **all** requires every condition to match; **any** requires at least one. Existing rules without an explicit match mode use **all**.
+
+**Rule Action**:
+An assignment made when a rule matches: assign one category or add a label.
+
 **Imported Category Rule Match**:
 An existing rule with the same payee condition, operator, pattern, and mapped category action. Rule name, priority, and enabled state do not affect the match.
 

@@ -22,6 +22,8 @@ public class Rule {
     @Builder.Default
     private List<RuleCondition> conditions = new ArrayList<>();
     @Builder.Default
+    private RuleMatchMode matchMode = RuleMatchMode.ALL;
+    @Builder.Default
     private List<RuleAction> actions = new ArrayList<>();
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

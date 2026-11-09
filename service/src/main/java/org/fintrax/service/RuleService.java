@@ -9,6 +9,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 @Slf4j
 @Service
@@ -33,6 +35,11 @@ public class RuleService {
     }
 
     public Rule createRule(String name, List<RuleCondition> conditions, List<RuleAction> actions) {
+        return createRule(name, conditions, actions, RuleMatchMode.ALL);
+    }
+
+    public Rule createRule(String name, List<RuleCondition> conditions, List<RuleAction> actions,
+                           RuleMatchMode matchMode) {
         validateRule(conditions, actions);
 
         int maxPriority = store.getRoot().getRules().stream()
@@ -46,6 +53,7 @@ public class RuleService {
                 .priority(maxPriority + 1)
                 .enabled(true)
                 .conditions(conditions)
+                .matchMode(matchMode == null ? RuleMatchMode.ALL : matchMode)
                 .actions(actions)
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
@@ -65,6 +73,19 @@ public class RuleService {
     }
 
     private void validateRule(List<RuleCondition> conditions, List<RuleAction> actions) {
+        conditions.stream()
+                .filter(condition -> condition.getOperator() == Operator.REGEX
+                        || condition.getOperator() == Operator.NOT_REGEX)
+                .forEach(condition -> {
+                    if (condition.getValue() == null) {
+                        throw new IllegalArgumentException("Regular expression is required for rule condition");
+                    }
+                    try {
+                        Pattern.compile(condition.getValue());
+                    } catch (PatternSyntaxException exception) {
+                        throw new IllegalArgumentException("Invalid regular expression in rule condition", exception);
+                    }
+                });
         long categoryActions = actions.stream()
                 .filter(a -> a.getActionType() == ActionType.ASSIGN_CATEGORY)
                 .count();
@@ -88,6 +109,13 @@ public class RuleService {
     }
 
     public Rule updateRule(Long id, String name, List<RuleCondition> conditions, List<RuleAction> actions) {
+        Rule existing = store.getRule(id);
+        RuleMatchMode matchMode = existing == null ? RuleMatchMode.ALL : existing.getMatchMode();
+        return updateRule(id, name, conditions, actions, matchMode);
+    }
+
+    public Rule updateRule(Long id, String name, List<RuleCondition> conditions, List<RuleAction> actions,
+                           RuleMatchMode matchMode) {
         Rule rule = store.getRule(id);
         if (rule == null) {
             throw new IllegalArgumentException("Rule not found: " + id);
@@ -97,6 +125,7 @@ public class RuleService {
 
         rule.setName(name);
         rule.setConditions(conditions);
+        rule.setMatchMode(matchMode == null ? RuleMatchMode.ALL : matchMode);
         rule.setActions(actions);
         rule.setUpdatedAt(LocalDateTime.now());
 

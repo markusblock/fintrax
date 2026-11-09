@@ -6,9 +6,9 @@ import javafx.geometry.Bounds;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.CheckMenuItem;
-import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.DialogPane;
 import javafx.scene.control.MenuButton;
@@ -495,15 +495,23 @@ class RulesControllerTest extends AbstractUITest {
         String editedName = ruleName + " updated";
         interact(() -> nameField.setText(editedName));
         TextField conditionValue = lookup(".rule-condition-row .text-field").query();
-        interact(() -> conditionValue.setText(editedCondition));
+        ComboBox<String> matchMode = lookup("#conditionMatchModeCombo").query();
+        interact(() -> {
+            conditionValue.setText(editedCondition);
+            matchMode.setValue(I18n.get("ruleEditor.matchMode.any"));
+        });
         Button saveButton = lookup("#editRuleSave").query();
         assertFalse(saveButton.isDisabled());
         interact(saveButton::fire);
         WaitForAsyncUtils.waitForFxEvents();
 
-        assertEquals(editedName, applicationContext.getBean(RuleService.class)
-                .getRule(selectedRule.getId()).orElseThrow().getName());
+        Rule updatedRule = applicationContext.getBean(RuleService.class)
+                .getRule(selectedRule.getId()).orElseThrow();
+        assertEquals(editedName, updatedRule.getName());
+        assertEquals(org.fintrax.model.RuleMatchMode.ANY, updatedRule.getMatchMode());
         assertTrue(lookup("#ruleNameSummary").queryLabeled().getText().contains(editedName));
+        assertTrue(lookup("#ruleConditionsSummary").queryLabeled().getText()
+                .startsWith(I18n.get("rules.summary.conditionsAny", "")));
         assertEquals(I18n.get("rules.matchCount", 1), lookup("#ruleMatchSummary").queryLabeled().getText());
         assertEquals("", lookup("#ruleConflictSummary").queryLabeled().getText());
         assertFalse(lookup("#ruleConflictSummary").query().isVisible());
