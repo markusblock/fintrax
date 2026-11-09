@@ -18,6 +18,7 @@ import org.fintrax.service.*;
 import org.fintrax.ui.FintraxUI;
 import org.fintrax.ui.ViewLoader;
 import org.fintrax.ui.control.TableCellTooltips;
+import org.fintrax.ui.control.TableColumnConfig;
 import org.fintrax.ui.control.TransactionTableSetup;
 import org.fintrax.ui.control.TableViewResizePolicy;
 import org.springframework.context.annotation.Scope;
@@ -63,6 +64,10 @@ public class RulesController {
     @FXML
     private TableView<Transaction> ruleTransactionsTable;
     @FXML
+    private TableColumn<Transaction, Number> transactionRuleCountColumn;
+    @FXML
+    private TableColumn<Transaction, String> transactionMatchedRulesColumn;
+    @FXML
     private Label ruleTransactionsTotalAmount;
     @FXML
     private TransactionFilterPanelController transactionFilterPanelController;
@@ -82,6 +87,7 @@ public class RulesController {
     private TransactionTableSetup transactionTableSetup;
     private Long selectedRuleId;
     private List<Transaction> selectedRuleTransactions = List.of();
+    private Map<Long, List<RuleMatchSummary.MatchingRule>> matchingRulesByTransactionId = Map.of();
 
     public RulesController(RuleService ruleService, AccountService accountService,
                            CategoryService categoryService, LabelService labelService,
@@ -142,6 +148,7 @@ public class RulesController {
         });
         loadRules();
         setupTransactionTable();
+        setupRuleMatchColumns();
         TableCellTooltips.install(ruleTransactionsTable);
         ruleTransactionsTable.setItems(displayedTransactions);
         setupColumnMenu();
@@ -151,7 +158,8 @@ public class RulesController {
         transactionTableActions.installContextMenu(
                 ruleTransactionsTable, this::reloadSelectedTransactionsKeepingSelection, null);
         transactionFilterPanelController.setCollapsible(true);
-        transactionFilterPanelController.restoreForView(SessionViewState.RULES_VIEW);
+        transactionFilterPanelController.restoreForView(
+                SessionViewState.RULES_VIEW, TransactionDateFilters.Preset.ALL_TIME);
         transactionFilterPanelController.setOnFiltersChanged(this::refreshSelectedRuleTransactions);
         ruleTable.getSelectionModel().selectedItemProperty().addListener((obs, oldRule, newRule) ->
                 showSelectedRule(newRule));
@@ -159,13 +167,27 @@ public class RulesController {
     }
 
     private void setupColumnMenu() {
-        transactionTableSetup.installColumnMenu(COLUMN_CONFIG_KEY, settingsService);
+        transactionTableSetup.installColumnMenu(COLUMN_CONFIG_KEY, settingsService, List.of(
+                new TableColumnConfig("matchingRuleCount", transactionRuleCountColumn),
+                new TableColumnConfig("matchingRules", transactionMatchedRulesColumn)));
     }
 
     private void setupTransactionTable() {
         transactionTableSetup = new TransactionTableSetup(ruleTransactionsTable,
                 accountService, categoryService, labelService);
         transactionTableSetup.configure();
+    }
+
+    private void setupRuleMatchColumns() {
+        transactionRuleCountColumn.setCellValueFactory(cell -> new SimpleIntegerProperty(
+                matchingRulesByTransactionId.getOrDefault(cell.getValue().getId(), List.of()).size()));
+        transactionMatchedRulesColumn.setCellValueFactory(cell -> new SimpleStringProperty(
+                matchingRulesByTransactionId.getOrDefault(cell.getValue().getId(), List.of()).stream()
+                        .map(matchingRule -> I18n.get("rules.ruleReference",
+                                matchingRule.name(), matchingRule.priority()))
+                        .collect(Collectors.joining(", "))));
+        transactionRuleCountColumn.setSortable(true);
+        transactionMatchedRulesColumn.setSortable(true);
     }
 
     @FXML
@@ -233,8 +255,15 @@ public class RulesController {
                 .filter(Objects::nonNull)
                 .collect(Collectors.joining(" · "))));
         updateRuleMatchSummary(rule);
-        selectedRuleTransactions = ruleService.getMatchingTransactions(rule.getId());
+        reloadSelectedRuleTransactions();
         refreshSelectedRuleTransactions();
+    }
+
+    private void reloadSelectedRuleTransactions() {
+        selectedRuleTransactions = selectedRuleId == null
+                ? List.of() : ruleService.getMatchingTransactions(selectedRuleId);
+        matchingRulesByTransactionId = ruleService.getMatchingRulesForTransactions(
+                selectedRuleTransactions.stream().map(Transaction::getId).toList());
     }
 
     private void clearSelectedRule() {
@@ -246,7 +275,10 @@ public class RulesController {
         ruleActionsSummary.setText("");
         ruleMatchSummary.setText("");
         ruleConflictSummary.setText("");
+        ruleConflictSummary.setVisible(false);
+        ruleConflictSummary.setManaged(false);
         ruleConflictSummary.getStyleClass().remove(WARNING_COPY_STYLE);
+        matchingRulesByTransactionId = Map.of();
         displayedTransactions.clear();
     }
 
@@ -254,9 +286,15 @@ public class RulesController {
         RuleMatchSummary summary = ruleService.getMatchSummary(rule.getId());
         ruleMatchSummary.setText(I18n.get("rules.matchCount", summary.matchingTransactionCount()));
         boolean hasConflicts = summary.conflictingTransactionCount() > 0;
+        String conflictingRules = summary.conflictingRules().stream()
+                .map(conflictingRule -> I18n.get("rules.ruleReference",
+                        conflictingRule.name(), conflictingRule.priority()))
+                .collect(Collectors.joining(", "));
         ruleConflictSummary.setText(hasConflicts
-                ? I18n.get("rules.conflictCount", summary.conflictingTransactionCount())
-                : I18n.get("rules.noConflicts"));
+                ? I18n.get("rules.conflictCount", summary.conflictingTransactionCount(), conflictingRules)
+                : "");
+        ruleConflictSummary.setVisible(hasConflicts);
+        ruleConflictSummary.setManaged(hasConflicts);
         if (hasConflicts) {
             if (!ruleConflictSummary.getStyleClass().contains(WARNING_COPY_STYLE)) {
                 ruleConflictSummary.getStyleClass().add(WARNING_COPY_STYLE);
@@ -323,7 +361,7 @@ public class RulesController {
                 .map(Transaction::getId)
                 .collect(Collectors.toSet());
         if (selectedRuleId != null) {
-            selectedRuleTransactions = ruleService.getMatchingTransactions(selectedRuleId);
+            reloadSelectedRuleTransactions();
         }
         refreshSelectedRuleTransactions();
         for (int index = 0; index < displayedTransactions.size(); index++) {

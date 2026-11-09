@@ -13,6 +13,7 @@ import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -208,10 +209,10 @@ class RuleEngineTest {
         Rule enabledOverlap = rule(2L, "Enabled overlap", 2, true, "MARKET", List.of());
         Rule disabledOverlap = rule(3L, "Disabled overlap", 3, false, "SHOP", List.of());
         store.getRoot().getRules().addAll(List.of(selectedRule, enabledOverlap, disabledOverlap));
-        transactionService.createTransaction(Transaction.builder().accountId(account.getId())
+        Transaction firstTransaction = transactionService.createTransaction(Transaction.builder().accountId(account.getId())
                 .originalPayee("SHOP MARKET").amount(BigDecimal.ONE)
                 .bookingDate(LocalDate.now()).valueDate(LocalDate.now()).build());
-        transactionService.createTransaction(Transaction.builder().accountId(account.getId())
+        Transaction secondTransaction = transactionService.createTransaction(Transaction.builder().accountId(account.getId())
                 .originalPayee("SHOP ONLINE").amount(BigDecimal.ONE)
                 .bookingDate(LocalDate.now()).valueDate(LocalDate.now()).build());
         transactionService.createTransaction(Transaction.builder().accountId(account.getId())
@@ -222,6 +223,20 @@ class RuleEngineTest {
 
         assertEquals(2, summary.matchingTransactionCount());
         assertEquals(2, summary.conflictingTransactionCount());
+        assertEquals(List.of(
+                new RuleMatchSummary.MatchingRule("Enabled overlap", 2),
+                new RuleMatchSummary.MatchingRule("Disabled overlap", 3)), summary.conflictingRules());
+        Map<Long, List<RuleMatchSummary.MatchingRule>> matchingRules =
+                ruleService.getMatchingRulesForTransactions(List.of(firstTransaction.getId(), secondTransaction.getId()));
+        assertEquals(List.of(
+                new RuleMatchSummary.MatchingRule("Selected", 1),
+                new RuleMatchSummary.MatchingRule("Enabled overlap", 2),
+                new RuleMatchSummary.MatchingRule("Disabled overlap", 3)),
+                matchingRules.get(firstTransaction.getId()));
+        assertEquals(List.of(
+                new RuleMatchSummary.MatchingRule("Selected", 1),
+                new RuleMatchSummary.MatchingRule("Disabled overlap", 3)),
+                matchingRules.get(secondTransaction.getId()));
     }
 
     @Test
