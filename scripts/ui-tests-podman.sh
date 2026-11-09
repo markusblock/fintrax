@@ -3,6 +3,7 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 mode="${1:-focused}"
+original_args=("$@")
 mode_args=()
 screen_sharing_pid=""
 
@@ -112,6 +113,13 @@ else
     fi
     vnc_port="$vnc_port_number"
 fi
+
+if [[ "${FINTRAX_UI_TEST_LOCK_OWNER_PID:-}" != "$$" ]]; then
+    lock_file="$HOME/.cache/fintrax/ui-tests-podman.lock"
+    exec bash "$repo_root/scripts/ui-tests-lock.sh" "$lock_file" \
+        "$repo_root/scripts/ui-tests-podman.sh" "${original_args[@]}"
+fi
+
 vnc_password="$(openssl rand -hex 4)"
 
 podman_args=(
