@@ -329,6 +329,7 @@ public class RulesController {
     private String fieldText(MatchField field) {
         return I18n.get("ruleEditor.field." + switch (field) {
             case PAYEE_NAME -> "payeeName";
+            case PAYEE_OR_PURPOSE -> "payeeOrPurpose";
             case PURPOSE -> "purpose";
             case AMOUNT -> "amount";
             case ACCOUNT -> "account";
