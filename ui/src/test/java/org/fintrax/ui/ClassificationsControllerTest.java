@@ -22,10 +22,13 @@ import javafx.scene.control.TableView;
 import javafx.scene.control.ColorPicker;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
+import javafx.scene.control.ListCell;
+import javafx.scene.control.ListView;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.input.PickResult;
 import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.stage.Stage;
@@ -394,7 +397,8 @@ class ClassificationsControllerTest extends AbstractUITest {
         reloadClassificationsView();
         TreeView<String> tree = lookup("#classificationTree").query();
         TableView<Transaction> table = lookup("#classificationTransactionsTable").query();
-        ComboBox<String> categoryFilter = lookup("#categoryFilter").query();
+        Button categoryFilter = lookup("#categoryFilter").query();
+        interact(lookup("#toggleAdditionalFiltersButton").<Button>query()::fire);
         interact(() -> tree.getSelectionModel().select(categoryTreeItem(tree, category.getName())));
 
         interact(() -> lookup("#searchField").<TextField>query().setText("family"));
@@ -402,7 +406,7 @@ class ClassificationsControllerTest extends AbstractUITest {
         assertEquals(List.of(parentMatch.getId(), childMatch.getId()),
                 table.getItems().stream().map(Transaction::getId).toList());
 
-        interact(() -> categoryFilter.getSelectionModel().select(childCategory.getName()));
+        selectCategoryFilter(categoryFilter, childCategory.getName());
 
         assertEquals(List.of(childMatch.getId()), table.getItems().stream().map(Transaction::getId).toList());
 
@@ -422,13 +426,43 @@ class ClassificationsControllerTest extends AbstractUITest {
         Category alpha = categoryService().createCategory("Alpha sort " + suffix, null, null);
 
         reloadClassificationsView();
-        ComboBox<String> categoryFilter = lookup("#categoryFilter").query();
+        Button categoryFilter = lookup("#categoryFilter").query();
+        interact(categoryFilter::fire);
+        waitForCategoryPicker();
+        ListView<?> options = lookup("#pickerList").query();
+        List<String> optionTexts = pickerOptionTexts(options);
+        assertEquals(I18n.get("filter.allCategories"), optionTexts.getFirst());
+        assertTrue(optionTexts.indexOf(alpha.getName()) < optionTexts.indexOf(zulu.getName()));
+    }
 
+    @Test
+    void categoryFilterSearchShowsFullHierarchyAndSupportsArrowKeys() throws Exception {
+        String suffix = Long.toString(System.nanoTime());
+        Category parent = categoryService().createCategory("Keyboard parent " + suffix, null, null);
+        Category child = categoryService().createCategory("Keyboard child " + suffix, parent.getId(), null);
+        reloadClassificationsView();
+        Button categoryFilter = lookup("#categoryFilter").query();
+        interact(lookup("#toggleAdditionalFiltersButton").<Button>query()::fire);
+        interact(categoryFilter::fire);
+        waitForCategoryPicker();
+
+        TextField search = lookup("#pickerSearch").query();
+        ListView<?> options = lookup("#pickerList").query();
+        interact(() -> search.setText(suffix));
+        WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS, () -> options.getItems().size() == 2);
+        List<String> results = pickerOptionTexts(options);
+        assertTrue(results.contains(parent.getName()));
+        assertTrue(results.contains(parent.getName() + " → " + child.getName()));
+
+        interact(() -> Event.fireEvent(search, keyEvent(KeyCode.DOWN)));
+        assertEquals(options.getItems().get(1), options.getSelectionModel().getSelectedItem());
+        interact(() -> Event.fireEvent(options, keyEvent(KeyCode.UP)));
+        assertEquals(options.getItems().getFirst(), options.getSelectionModel().getSelectedItem());
         interact(() -> {
-            assertEquals(I18n.get("filter.allCategories"), categoryFilter.getItems().get(0));
-            assertTrue(categoryFilter.getItems().indexOf(alpha.getName())
-                    < categoryFilter.getItems().indexOf(zulu.getName()));
+            Event.fireEvent(options, keyEvent(KeyCode.DOWN));
+            Event.fireEvent(options, keyEvent(KeyCode.ENTER));
         });
+        assertEquals(parent.getName() + " → " + child.getName(), categoryFilter.getText());
     }
 
     @Test
@@ -870,6 +904,37 @@ class ClassificationsControllerTest extends AbstractUITest {
                 .filter(item -> item.getValue().equals(value))
                 .findFirst()
                 .orElseThrow();
+    }
+
+    private void selectCategoryFilter(Button categoryFilter, String name) throws Exception {
+        interact(categoryFilter::fire);
+        waitForCategoryPicker();
+        TextField search = lookup("#pickerSearch").query();
+        ListView<?> options = lookup("#pickerList").query();
+        interact(() -> search.setText(name));
+        WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS, () -> options.getItems().size() == 1);
+        interact(() -> Event.fireEvent(search, keyEvent(KeyCode.ENTER)));
+    }
+
+    private void waitForCategoryPicker() throws Exception {
+        WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS,
+                () -> lookup("#searchableDropdownPicker").tryQuery().isPresent());
+    }
+
+    private List<String> pickerOptionTexts(ListView<?> options) {
+        return options.lookupAll(".list-cell").stream()
+                .filter(ListCell.class::isInstance)
+                .map(ListCell.class::cast)
+                .filter(cell -> !cell.isEmpty())
+                .map(cell -> (HBox) cell.getGraphic())
+                .map(row -> (javafx.scene.control.Label) row.getChildren().get(1))
+                .map(javafx.scene.control.Label::getText)
+                .toList();
+    }
+
+    private KeyEvent keyEvent(KeyCode keyCode) {
+        return new KeyEvent(KeyEvent.KEY_PRESSED, "", "", keyCode,
+                false, false, false, false);
     }
 
     private TreeItem<String> categoryTreeItem(TreeView<String> tree, String name) {

@@ -51,7 +51,6 @@ import org.fintrax.service.LabelService;
 import org.fintrax.service.RuleService;
 import org.fintrax.service.SettingsService;
 import org.fintrax.service.TransactionService;
-import org.fintrax.ui.control.SearchableChoiceButton;
 import org.kordamp.ikonli.javafx.FontIcon;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -185,7 +184,7 @@ class TransactionsControllerTest extends AbstractUITest {
     void labelFilterButtonMatchesCategoryHeightAndTogglesOnePicker() throws TimeoutException {
         interact(lookup("#toggleAdditionalFiltersButton").<Button>query()::fire);
         Button labelFilter = lookup("#labelFilterButton").query();
-        ComboBox<?> categoryFilter = lookup("#categoryFilter").query();
+        Button categoryFilter = lookup("#categoryFilter").query();
         WaitForAsyncUtils.waitForFxEvents();
 
         assertEquals(categoryFilter.getHeight(), labelFilter.getHeight(), 0.5);
@@ -265,16 +264,16 @@ class TransactionsControllerTest extends AbstractUITest {
     }
 
     @Test
-    void collapsedSummaryListsConfiguredAdditionalFiltersAndFiltersCanBeExpanded() {
+    void collapsedSummaryListsConfiguredAdditionalFiltersAndFiltersCanBeExpanded() throws TimeoutException {
         Button toggleFiltersButton = lookup("#toggleAdditionalFiltersButton").query();
-        ComboBox<String> categoryFilter = lookup("#categoryFilter").query();
+        Button categoryFilter = lookup("#categoryFilter").query();
         String categoryName = testCategory.getName();
 
         interact(toggleFiltersButton::fire);
         assertEquals("fth-chevron-up", ((FontIcon) toggleFiltersButton.getGraphic()).getIconLiteral());
         assertTrue(lookup("#additionalFilters").query().isVisible());
+        selectCategoryForFilter(categoryFilter, categoryName);
         interact(() -> {
-            categoryFilter.getSelectionModel().select(categoryName);
             lookup("#minAmountField").<TextField>query().setText("25.00");
         });
         interact(toggleFiltersButton::fire);
@@ -476,9 +475,9 @@ class TransactionsControllerTest extends AbstractUITest {
     }
 
     @Test
-    void changingFiltersImmediatelyUpdatesTransactionsAndClearResetsEveryFilter() {
+    void changingFiltersImmediatelyUpdatesTransactionsAndClearResetsEveryFilter() throws TimeoutException {
         TableView<Transaction> table = lookup("#transactionTable").query();
-        ComboBox<String> categoryFilter = lookup("#categoryFilter").query();
+        Button categoryFilter = lookup("#categoryFilter").query();
         TextField searchField = lookup("#searchField").query();
         TextField minAmountField = lookup("#minAmountField").query();
         interact(lookup("#toggleAdditionalFiltersButton").<Button>query()::fire);
@@ -487,7 +486,7 @@ class TransactionsControllerTest extends AbstractUITest {
                 .filter(transaction -> testCategoryTransaction.getId().equals(transaction.getId()))
                 .findFirst().orElseThrow();
 
-        interact(() -> categoryFilter.getSelectionModel().select(categoryName));
+        selectCategoryForFilter(categoryFilter, categoryName);
         assertEquals(List.of(matching.getId()), table.getItems().stream().map(Transaction::getId).toList());
 
         interact(() -> searchField.setText("does-not-match"));
@@ -510,7 +509,7 @@ class TransactionsControllerTest extends AbstractUITest {
         interact(lookup("#clearFiltersButton").<Button>query()::fire);
 
         assertTrue(table.getItems().stream().anyMatch(tx -> tx.getId().equals(matching.getId())));
-        assertEquals(0, categoryFilter.getSelectionModel().getSelectedIndex());
+        assertEquals(I18n.get("filter.allCategories"), categoryFilter.getText());
         assertEquals("", searchField.getText());
         assertEquals("", minAmountField.getText());
         assertEquals("", lookup("#maxAmountField").<TextField>query().getText());
@@ -528,11 +527,11 @@ class TransactionsControllerTest extends AbstractUITest {
     @Test
     void noCategoryOptionFiltersTransactionsWithoutCategory() throws Exception {
         interact(lookup("#toggleAdditionalFiltersButton").<Button>query()::fire);
-        ComboBox<String> categoryFilter = lookup("#categoryFilter").query();
+        Button categoryFilter = lookup("#categoryFilter").query();
         TableView<Transaction> table = lookup("#transactionTable").query();
         String noCategory = I18n.get("filter.noCategory");
 
-        interact(() -> categoryFilter.getSelectionModel().select(noCategory));
+        selectCategoryForFilter(categoryFilter, noCategory);
 
         assertTrue(table.getItems().stream().allMatch(transaction -> transaction.getCategoryId() == null));
         assertTrue(table.getItems().stream().anyMatch(transaction ->
@@ -543,9 +542,9 @@ class TransactionsControllerTest extends AbstractUITest {
         Stage stage = (Stage) table.getScene().getWindow();
         Parent restoredView = applicationContext.getBean(ViewLoader.class).load("transactions");
         interact(() -> stage.getScene().setRoot(restoredView));
-        ComboBox<String> restoredCategoryFilter = lookup("#categoryFilter").query();
+        Button restoredCategoryFilter = lookup("#categoryFilter").query();
         TableView<Transaction> restoredTable = lookup("#transactionTable").query();
-        assertEquals(noCategory, restoredCategoryFilter.getValue());
+        assertEquals(noCategory, restoredCategoryFilter.getText());
         assertTrue(restoredTable.getItems().stream().allMatch(transaction -> transaction.getCategoryId() == null));
     }
 
@@ -957,8 +956,11 @@ class TransactionsControllerTest extends AbstractUITest {
         TableView<Transaction> table = lookup("#transactionTable").query();
         int rowIndex = table.getItems().indexOf(testCategoryTransaction);
         assertTrue(rowIndex >= 0);
+        Category replacementParent = applicationContext.getBean(CategoryService.class)
+                .createCategory("Rule dialog parent " + System.nanoTime(), null, null);
         Category replacementCategory = applicationContext.getBean(CategoryService.class)
-                .createCategory("Rule dialog category " + System.nanoTime(), null, null);
+                .createCategory("Rule dialog category " + System.nanoTime(), replacementParent.getId(), null);
+        String replacementCategoryPath = replacementParent.getName() + " → " + replacementCategory.getName();
 
         scrollToRow(table, rowIndex);
         Platform.runLater(() -> rowFor(table, rowIndex).getContextMenu().getItems().get(2).fire());
@@ -980,10 +982,10 @@ class TransactionsControllerTest extends AbstractUITest {
         GridPane categoryAction = rows(".rule-action-row").stream()
                 .filter(row -> comboBoxAt(row, 0).getValue().equals(I18n.get("ruleEditor.action.assignCategory")))
                 .findFirst().orElseThrow();
-        SearchableChoiceButton categoryChoice = (SearchableChoiceButton) categoryAction.getChildren().get(1);
-        assertEquals(testCategory.getName(), categoryChoice.getValue());
-        chooseSearchableChoice(categoryChoice, replacementCategory.getName());
-        assertEquals(replacementCategory.getName(), categoryChoice.getValue());
+        Button categoryChoice = (Button) categoryAction.getChildren().get(1);
+        assertEquals(testCategory.getName(), categoryChoice.getText());
+        choosePickerOption(categoryChoice, replacementCategory.getName());
+        assertEquals(replacementCategoryPath, categoryChoice.getText());
 
         ComboBox<String> matchMode = lookup("#conditionMatchModeCombo").query();
         assertEquals(I18n.get("ruleEditor.matchMode.all"), matchMode.getValue());
@@ -1028,13 +1030,13 @@ class TransactionsControllerTest extends AbstractUITest {
         GridPane categoryAction = rows(".rule-action-row").get(0);
         interact(() -> comboBoxAt(categoryAction, 0)
                 .setValue(I18n.get("ruleEditor.action.assignCategory")));
-        createSearchableChoice((SearchableChoiceButton) categoryAction.getChildren().get(1), categoryName);
+        createPickerOption((Button) categoryAction.getChildren().get(1), categoryName);
 
         interact(lookup("#addRuleActionButton").<Button>query()::fire);
         GridPane labelAction = rows(".rule-action-row").get(1);
         interact(() -> comboBoxAt(labelAction, 0)
                 .setValue(I18n.get("ruleEditor.action.assignLabel")));
-        createSearchableChoice((SearchableChoiceButton) labelAction.getChildren().get(1), labelName);
+        createPickerOption((Button) labelAction.getChildren().get(1), labelName);
         assertFalse(lookup("#createRuleSave").<Button>query().isDisabled());
 
         String ruleName = lookup("#ruleNameField").<TextField>query().getText();
@@ -1321,35 +1323,30 @@ class TransactionsControllerTest extends AbstractUITest {
         return (ComboBox<String>) row.getChildren().get(index);
     }
 
-    private void chooseSearchableChoice(SearchableChoiceButton control, String value) throws TimeoutException {
+    private void choosePickerOption(Button control, String value) throws TimeoutException {
         interact(control::fire);
         WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS,
-                () -> lookup("#searchableChoiceSearch").tryQuery().isPresent());
-        TextField searchField = lookup("#searchableChoiceSearch").query();
+                () -> lookup("#pickerSearch").tryQuery().isPresent());
+        TextField searchField = lookup("#pickerSearch").query();
         assertEquals("", searchField.getText());
         interact(() -> searchField.setText(value));
-        WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS, () ->
-                lookup("#searchableChoiceList").<ListView<?>>query().getItems().contains(value));
-        interact(() -> {
-            ListView<?> choices = lookup("#searchableChoiceList").query();
-            choices.getSelectionModel().select(choices.getItems().indexOf(value));
-            Event.fireEvent(searchField, new KeyEvent(KeyEvent.KEY_PRESSED, "", "", KeyCode.ENTER,
-                    false, false, false, false));
-        });
-        WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS, () -> value.equals(control.getValue()));
+        WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS,
+                () -> lookup("#pickerList").<ListView<?>>query().getItems().size() == 1);
+        fireEnterOnPicker();
+        WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS, () -> control.getText().contains(value));
     }
 
-    private void createSearchableChoice(SearchableChoiceButton control, String value) throws TimeoutException {
+    private void createPickerOption(Button control, String value) throws TimeoutException {
         interact(control::fire);
         WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS,
-                () -> lookup("#searchableChoiceSearch").tryQuery().isPresent());
-        TextField searchField = lookup("#searchableChoiceSearch").query();
+                () -> lookup("#pickerSearch").tryQuery().isPresent());
+        TextField searchField = lookup("#pickerSearch").query();
         assertEquals("", searchField.getText());
         interact(() -> searchField.setText(value));
-        WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS, () -> lookup("#searchableChoiceCreate").tryQuery()
+        WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS, () -> lookup("#pickerCreateButton").tryQuery()
                 .map(Button.class::cast).filter(Button::isVisible).isPresent());
-        interact(lookup("#searchableChoiceCreate").<Button>query()::fire);
-        WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS, () -> value.equals(control.getValue()));
+        interact(lookup("#pickerCreateButton").<Button>query()::fire);
+        WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS, () -> value.equals(control.getText()));
     }
 
     private void openPickerFromContextMenu(TableView<Transaction> table, int rowIndex, int actionIndex)
@@ -1381,6 +1378,16 @@ class TransactionsControllerTest extends AbstractUITest {
         waitForPicker();
         clickLabelInPicker(name);
         saveLabelSelection();
+    }
+
+    private void selectCategoryForFilter(Button categoryFilter, String name) throws TimeoutException {
+        interact(categoryFilter::fire);
+        waitForPicker();
+        TextField search = lookup("#pickerSearch").query();
+        ListView<?> options = lookup("#pickerList").query();
+        interact(() -> search.setText(name));
+        WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS, () -> options.getItems().size() == 1);
+        fireEnterOnPicker();
     }
 
     private void clickLabelInPicker(String name) throws TimeoutException {

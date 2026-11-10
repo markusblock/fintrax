@@ -4,6 +4,7 @@ import javafx.fxml.FXML;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
@@ -21,6 +22,7 @@ import org.fintrax.service.AccountService;
 import org.fintrax.service.CategoryService;
 import org.fintrax.service.LabelService;
 import org.fintrax.service.TransactionFilter;
+import org.fintrax.ui.control.CategoryHierarchy;
 import org.fintrax.ui.control.LabelChipFactory;
 import org.fintrax.ui.control.NaturalOrder;
 import org.fintrax.ui.control.SearchableDropdownPicker;
@@ -28,7 +30,6 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
-import java.text.Collator;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -42,6 +43,7 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Component
@@ -55,7 +57,7 @@ public class TransactionFilterPanelController {
     @FXML
     private ComboBox<String> accountFilter;
     @FXML
-    private ComboBox<String> categoryFilter;
+    private Button categoryFilter;
     @FXML
     private Button labelFilterButton;
     @FXML
@@ -88,6 +90,8 @@ public class TransactionFilterPanelController {
     private final LabelService labelService;
     private final SessionViewState sessionViewState;
     private List<Category> categoryOptions = List.of();
+    private Long selectedCategoryId;
+    private boolean noCategorySelected;
     private List<Label> labelOptions = List.of();
     private final Set<Long> selectedLabelIds = new LinkedHashSet<>();
     private boolean noLabelsSelected;
@@ -110,6 +114,7 @@ public class TransactionFilterPanelController {
     public void initialize() {
         setupDateFilters();
         loadFilterOptions();
+        updateCategoryFilterButton();
         updateLabelFilterButton();
         setupFilterListeners();
         updateCollapsedFilterSummary();
@@ -202,6 +207,29 @@ public class TransactionFilterPanelController {
     }
 
     @FXML
+    private void onOpenCategoryFilter() {
+        categoryOptions = categoryService.getAllCategories();
+        Function<Category, String> categoryDisplay = CategoryHierarchy.displayPaths(categoryOptions);
+        List<CategoryFilterOption> options = new ArrayList<>();
+        options.add(new CategoryFilterOption(null, false, I18n.get("filter.allCategories")));
+        options.add(new CategoryFilterOption(null, true, I18n.get("filter.noCategory")));
+        options.addAll(categoryOptions.stream()
+                .map(category -> new CategoryFilterOption(category.getId(), false, categoryDisplay.apply(category)))
+                .toList());
+        CategoryFilterOption initiallySelected = noCategorySelected ? options.get(1)
+                : selectedCategoryId == null ? null
+                        : options.stream().filter(option -> selectedCategoryId.equals(option.categoryId()))
+                                .findFirst().orElse(null);
+        SearchableDropdownPicker.showOne(categoryFilter, options, initiallySelected,
+                CategoryFilterOption::displayText, null, null, "filter.allCategories", selected -> {
+                    selectedCategoryId = selected == null ? null : selected.categoryId();
+                    noCategorySelected = selected != null && selected.noCategory();
+                    updateCategoryFilterButton();
+                    applyChangedFilters();
+                });
+    }
+
+    @FXML
     private void onOpenLabelFilter() {
         labelOptions = labelService.getAllLabels();
         Set<Long> availableIds = labelOptions.stream()
@@ -238,7 +266,8 @@ public class TransactionFilterPanelController {
         updatingFilters = true;
         try {
             accountFilter.getSelectionModel().selectFirst();
-            categoryFilter.getSelectionModel().selectFirst();
+            selectedCategoryId = null;
+            noCategorySelected = false;
             selectedLabelIds.clear();
             noLabelsSelected = false;
             updateLabelFilterButton();
@@ -257,6 +286,7 @@ public class TransactionFilterPanelController {
             updatingDateFilters = false;
             updatingFilters = false;
         }
+        updateCategoryFilterButton();
         updateCollapsedFilterSummary();
         saveSessionState();
         onFiltersChanged.run();
@@ -272,19 +302,15 @@ public class TransactionFilterPanelController {
         }
         accountFilter.getSelectionModel().selectFirst();
 
-        categoryFilter.getItems().clear();
-        categoryFilter.getItems().add(I18n.get("filter.allCategories"));
-        categoryFilter.getItems().add(I18n.get("filter.noCategory"));
-        Collator collator = Collator.getInstance(I18n.getCurrentLocale());
-        categoryOptions = categoryService.getAllCategories().stream()
-                .sorted(Comparator.comparing(category -> category.getName() == null ? "" : category.getName(),
-                        collator))
-                .toList();
-        for (Category category : categoryOptions) {
-            categoryFilter.getItems().add(category.getName());
-        }
-        categoryFilter.getSelectionModel().selectFirst();
+        categoryOptions = categoryService.getAllCategories();
         labelOptions = labelService.getAllLabels();
+
+        Region dropdownIcon = new Region();
+        dropdownIcon.getStyleClass().add("filter-label-arrow");
+        dropdownIcon.setMouseTransparent(true);
+        categoryFilter.setGraphic(dropdownIcon);
+        categoryFilter.setContentDisplay(ContentDisplay.RIGHT);
+        categoryFilter.setMaxWidth(Double.MAX_VALUE);
     }
 
     private void setupDateFilters() {
@@ -341,7 +367,6 @@ public class TransactionFilterPanelController {
 
     private void setupFilterListeners() {
         accountFilter.valueProperty().addListener((observable, oldValue, newValue) -> applyChangedFilters());
-        categoryFilter.valueProperty().addListener((observable, oldValue, newValue) -> applyChangedFilters());
         searchField.textProperty().addListener((observable, oldValue, newValue) -> applyChangedFilters());
         minAmountField.textProperty().addListener((observable, oldValue, newValue) -> applyChangedFilters());
         maxAmountField.textProperty().addListener((observable, oldValue, newValue) -> applyChangedFilters());
@@ -403,16 +428,10 @@ public class TransactionFilterPanelController {
     }
 
     private void selectCategory(Long categoryId, boolean noCategory) {
-        int index = noCategory ? 1 : 0;
-        if (!noCategory && categoryId != null) {
-            for (int categoryIndex = 0; categoryIndex < categoryOptions.size(); categoryIndex++) {
-                if (categoryId.equals(categoryOptions.get(categoryIndex).getId())) {
-                    index = categoryIndex + 2;
-                    break;
-                }
-            }
-        }
-        categoryFilter.getSelectionModel().select(index);
+        this.selectedCategoryId = noCategory || categoryId == null || categoryOptions.stream()
+                .noneMatch(category -> categoryId.equals(category.getId())) ? null : categoryId;
+        this.noCategorySelected = noCategory;
+        updateCategoryFilterButton();
     }
 
     private void updateAdditionalFiltersVisibility() {
@@ -438,8 +457,8 @@ public class TransactionFilterPanelController {
         }
         if (isNoCategorySelected()) {
             addSummaryItem(activeFilters, I18n.get("filter.category"), I18n.get("filter.noCategory"));
-        } else if (categoryFilter.getSelectionModel().getSelectedIndex() > 0) {
-            addSummaryItem(activeFilters, I18n.get("filter.category"), categoryFilter.getValue());
+        } else if (selectedCategoryId != null) {
+            addSummaryItem(activeFilters, I18n.get("filter.category"), categoryFilter.getText());
         }
         List<String> selectedLabelNames = labelNames(selectedLabels());
         if (noLabelsSelected) {
@@ -506,13 +525,27 @@ public class TransactionFilterPanelController {
     }
 
     private Long getSelectedCategoryId() {
-        int index = categoryFilter.getSelectionModel().getSelectedIndex();
-        if (index <= 1) return null;
-        return index - 2 < categoryOptions.size() ? categoryOptions.get(index - 2).getId() : null;
+        return selectedCategoryId;
     }
 
     private boolean isNoCategorySelected() {
-        return categoryFilter.getSelectionModel().getSelectedIndex() == 1;
+        return noCategorySelected;
+    }
+
+    private void updateCategoryFilterButton() {
+        String selectedText = I18n.get("filter.allCategories");
+        if (noCategorySelected) {
+            selectedText = I18n.get("filter.noCategory");
+        } else if (selectedCategoryId != null) {
+            Function<Category, String> categoryDisplay = CategoryHierarchy.displayPaths(categoryOptions);
+            selectedText = categoryOptions.stream()
+                    .filter(category -> selectedCategoryId.equals(category.getId()))
+                    .map(categoryDisplay)
+                    .findFirst()
+                    .orElse(I18n.get("filter.allCategories"));
+        }
+        categoryFilter.setText(selectedText);
+        categoryFilter.setAccessibleText(I18n.get("filter.category") + ": " + selectedText);
     }
 
     private List<Label> selectedLabels() {
@@ -577,5 +610,8 @@ public class TransactionFilterPanelController {
         private static LabelFilterOption noLabelSetOption() {
             return new LabelFilterOption(null, true);
         }
+    }
+
+    private record CategoryFilterOption(Long categoryId, boolean noCategory, String displayText) {
     }
 }

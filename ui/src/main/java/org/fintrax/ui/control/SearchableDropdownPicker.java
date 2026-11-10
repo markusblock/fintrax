@@ -42,8 +42,15 @@ public final class SearchableDropdownPicker {
     public static <T> void showOne(Node anchor, Collection<T> options, T initiallySelected,
                                    Function<T, String> displayText, String createTextKey,
                                    Function<String, T> createOption, Consumer<T> onSave) {
+        showOne(anchor, options, initiallySelected, displayText, createTextKey, createOption,
+                "picker.category.clear", onSave);
+    }
+
+    public static <T> void showOne(Node anchor, Collection<T> options, T initiallySelected,
+                                   Function<T, String> displayText, String createTextKey,
+                                   Function<String, T> createOption, String clearTextKey, Consumer<T> onSave) {
         new Picker<>(anchor, options, initiallySelected == null ? List.of() : List.of(initiallySelected),
-                new PickerConfiguration<>(displayText, false, createTextKey, createOption,
+                new PickerConfiguration<>(displayText, false, createTextKey, createOption, clearTextKey,
                         new MultiSelection<>(item -> false, values -> onSave.accept(
                                 values.isEmpty() ? null : values.get(0))))).show();
     }
@@ -59,14 +66,15 @@ public final class SearchableDropdownPicker {
                                     Function<T, String> displayText, String createTextKey,
                                     Function<String, T> createOption, MultiSelection<T> selection) {
         new Picker<>(anchor, options, initiallySelected,
-                new PickerConfiguration<>(displayText, true, createTextKey, createOption, selection)).show();
+                new PickerConfiguration<>(displayText, true, createTextKey, createOption,
+                        "picker.category.clear", selection)).show();
     }
 
     public record MultiSelection<T>(Predicate<T> exclusiveSelection, Consumer<List<T>> onSave) {
     }
 
     private record PickerConfiguration<T>(Function<T, String> displayText, boolean multiple,
-                                          String createTextKey, Function<String, T> createOption,
+                                          String createTextKey, Function<String, T> createOption, String clearTextKey,
                                           MultiSelection<T> selection) {
     }
 
@@ -79,6 +87,7 @@ public final class SearchableDropdownPicker {
         private final boolean multiple;
         private final String createTextKey;
         private final Function<String, T> createOption;
+        private final String clearTextKey;
         private final Predicate<T> exclusiveSelection;
         private final Consumer<List<T>> onSave;
         private final Set<T> selected;
@@ -99,6 +108,7 @@ public final class SearchableDropdownPicker {
             this.multiple = configuration.multiple();
             this.createTextKey = configuration.createTextKey();
             this.createOption = configuration.createOption();
+            this.clearTextKey = configuration.clearTextKey();
             this.exclusiveSelection = configuration.selection().exclusiveSelection();
             this.onSave = configuration.selection().onSave();
             Comparator<String> naturalOrder = NaturalOrder.comparator(I18n.getCurrentLocale());
@@ -132,7 +142,7 @@ public final class SearchableDropdownPicker {
             createButton.setMaxWidth(Double.MAX_VALUE);
             createButton.getStyleClass().add("button-outlined");
             clearButton.setId("pickerClear");
-            clearButton.setText(I18n.get("picker.category.clear"));
+            clearButton.setText(I18n.get(clearTextKey));
             deselectAllButton.setId("pickerDeselectAll");
             deselectAllButton.getStyleClass().add("button-outlined");
             saveButton.setId("pickerSave");
