@@ -297,6 +297,7 @@ class TransactionsControllerTest extends AbstractUITest {
     @Test
     void collapsedSummaryListsConfiguredAdditionalFiltersAndFiltersCanBeExpanded() {
         Button toggleFiltersButton = lookup("#toggleAdditionalFiltersButton").query();
+        ComboBox<String> categoryFilter = lookup("#categoryFilter").query();
         String categoryName = testCategory.getName();
 
         interact(toggleFiltersButton::fire);
