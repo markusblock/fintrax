@@ -57,7 +57,8 @@ public class SessionViewState {
         this.classificationSelection = classificationSelection;
     }
 
-    record TransactionFilterPanelState(Long accountId, Long categoryId, Set<Long> labelIds, String searchText,
+    record TransactionFilterPanelState(Long accountId, Long categoryId, boolean noCategory,
+                                       Set<Long> labelIds, boolean noLabels, String searchText,
                                        String minAmountText, String maxAmountText,
                                        TransactionDateFilters.Preset datePreset,
                                        LocalDate fromDate, String invalidFromDateText,

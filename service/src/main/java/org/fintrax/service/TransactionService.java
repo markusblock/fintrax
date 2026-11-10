@@ -75,15 +75,7 @@ public class TransactionService {
     }
 
     public List<Transaction> filterTransactions(Collection<Transaction> transactions, TransactionFilter filter) {
-        Set<Long> matchingCategoryIds = new HashSet<>();
-        if (filter.categoryId() != null) {
-            matchingCategoryIds.add(filter.categoryId());
-            store.getRoot().getCategories().stream()
-                    .filter(category -> filter.categoryId().equals(category.getParentId()))
-                    .map(Category::getId)
-                    .forEach(matchingCategoryIds::add);
-        }
-
+        Set<Long> matchingCategoryIds = matchingCategoryIds(filter.categoryId());
         Map<Long, String> categoryNames = store.getRoot().getCategories().stream()
                 .filter(category -> category.getName() != null)
                 .collect(Collectors.toMap(Category::getId, Category::getName));
@@ -94,17 +86,65 @@ public class TransactionService {
                 .withLocale(I18n.getCurrentLocale());
 
         return transactions.stream()
-                .filter(t -> filter.accountId() == null || t.getAccountId().equals(filter.accountId()))
-                .filter(t -> (filter.fromDate() == null && filter.toDate() == null)
-                        || matchesDateRange(t.getBookingDate(), filter))
-                .filter(t -> filter.categoryId() == null || matchingCategoryIds.contains(t.getCategoryId()))
-                .filter(t -> filter.labelIds() == null || filter.labelIds().isEmpty() ||
-                        t.getLabelIds().containsAll(filter.labelIds()))
-                .filter(t -> filter.minAmount() == null || t.getAmount().compareTo(filter.minAmount()) >= 0)
-                .filter(t -> filter.maxAmount() == null || t.getAmount().compareTo(filter.maxAmount()) <= 0)
-                .filter(t -> filter.searchText() == null || filter.searchText().isEmpty()
-                        || matchesSearch(t, filter.searchText(), categoryNames, labelNames, searchDateFormatter))
+                .filter(transaction -> matchesAccount(transaction, filter))
+                .filter(transaction -> matchesDateFilter(transaction, filter))
+                .filter(transaction -> matchesCategory(transaction, filter, matchingCategoryIds))
+                .filter(transaction -> matchesLabels(transaction, filter))
+                .filter(transaction -> matchesAmount(transaction, filter))
+                .filter(transaction -> matchesSearchFilter(transaction, filter, categoryNames, labelNames,
+                        searchDateFormatter))
                 .toList();
+    }
+
+    private Set<Long> matchingCategoryIds(Long categoryId) {
+        Set<Long> matchingCategoryIds = new HashSet<>();
+        if (categoryId != null) {
+            matchingCategoryIds.add(categoryId);
+            store.getRoot().getCategories().stream()
+                    .filter(category -> categoryId.equals(category.getParentId()))
+                    .map(Category::getId)
+                    .forEach(matchingCategoryIds::add);
+        }
+        return matchingCategoryIds;
+    }
+
+    private boolean matchesAccount(Transaction transaction, TransactionFilter filter) {
+        return filter.accountId() == null || transaction.getAccountId().equals(filter.accountId());
+    }
+
+    private boolean matchesDateFilter(Transaction transaction, TransactionFilter filter) {
+        return filter.fromDate() == null && filter.toDate() == null
+                || matchesDateRange(transaction.getBookingDate(), filter);
+    }
+
+    private boolean matchesCategory(Transaction transaction, TransactionFilter filter,
+                                    Set<Long> matchingCategoryIds) {
+        if (filter.noCategory()) return transaction.getCategoryId() == null;
+        return filter.categoryId() == null || matchingCategoryIds.contains(transaction.getCategoryId());
+    }
+
+    private boolean matchesLabels(Transaction transaction, TransactionFilter filter) {
+        Set<Long> labelIds = transaction.getLabelIds();
+        if (filter.noLabels()) return labelIds == null || labelIds.isEmpty();
+        Set<Long> requiredLabelIds = filter.labelIds();
+        return requiredLabelIds == null || requiredLabelIds.isEmpty()
+                || (labelIds != null && labelIds.containsAll(requiredLabelIds));
+    }
+
+    private boolean matchesAmount(Transaction transaction, TransactionFilter filter) {
+        BigDecimal amount = transaction.getAmount();
+        if (filter.minAmount() != null && (amount == null || amount.compareTo(filter.minAmount()) < 0)) {
+            return false;
+        }
+        return filter.maxAmount() == null || amount != null && amount.compareTo(filter.maxAmount()) <= 0;
+    }
+
+    private boolean matchesSearchFilter(Transaction transaction, TransactionFilter filter,
+                                        Map<Long, String> categoryNames, Map<Long, String> labelNames,
+                                        DateTimeFormatter searchDateFormatter) {
+        String searchText = filter.searchText();
+        return searchText == null || searchText.isEmpty()
+                || matchesSearch(transaction, searchText, categoryNames, labelNames, searchDateFormatter);
     }
 
     private boolean matchesDateRange(LocalDate date, TransactionFilter filter) {

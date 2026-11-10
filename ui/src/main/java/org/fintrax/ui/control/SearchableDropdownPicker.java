@@ -31,6 +31,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
 /** Searchable dropdown picker for one or many values, anchored to its source control. */
 public final class SearchableDropdownPicker {
@@ -42,15 +43,31 @@ public final class SearchableDropdownPicker {
                                    Function<T, String> displayText, String createTextKey,
                                    Function<String, T> createOption, Consumer<T> onSave) {
         new Picker<>(anchor, options, initiallySelected == null ? List.of() : List.of(initiallySelected),
-                displayText, false, createTextKey, createOption, values -> onSave.accept(
-                values.isEmpty() ? null : values.get(0))).show();
+                new PickerConfiguration<>(displayText, false, createTextKey, createOption,
+                        new MultiSelection<>(item -> false, values -> onSave.accept(
+                                values.isEmpty() ? null : values.get(0))))).show();
+    }
+
+    public static <T> void showMany(Node anchor, Collection<T> options, Collection<T> initiallySelected,
+                                     Function<T, String> displayText, String createTextKey,
+                                     Function<String, T> createOption, Consumer<List<T>> onSave) {
+        showMany(anchor, options, initiallySelected, displayText, createTextKey, createOption,
+                new MultiSelection<>(item -> false, onSave));
     }
 
     public static <T> void showMany(Node anchor, Collection<T> options, Collection<T> initiallySelected,
                                     Function<T, String> displayText, String createTextKey,
-                                    Function<String, T> createOption, Consumer<List<T>> onSave) {
-        new Picker<>(anchor, options, initiallySelected, displayText, true,
-                createTextKey, createOption, onSave).show();
+                                    Function<String, T> createOption, MultiSelection<T> selection) {
+        new Picker<>(anchor, options, initiallySelected,
+                new PickerConfiguration<>(displayText, true, createTextKey, createOption, selection)).show();
+    }
+
+    public record MultiSelection<T>(Predicate<T> exclusiveSelection, Consumer<List<T>> onSave) {
+    }
+
+    private record PickerConfiguration<T>(Function<T, String> displayText, boolean multiple,
+                                          String createTextKey, Function<String, T> createOption,
+                                          MultiSelection<T> selection) {
     }
 
     private static final class Picker<T> {
@@ -62,6 +79,7 @@ public final class SearchableDropdownPicker {
         private final boolean multiple;
         private final String createTextKey;
         private final Function<String, T> createOption;
+        private final Predicate<T> exclusiveSelection;
         private final Consumer<List<T>> onSave;
         private final Set<T> selected;
         private final ContextMenu popup = new ContextMenu();
@@ -69,23 +87,24 @@ public final class SearchableDropdownPicker {
         private final ListView<T> optionsList = new ListView<>();
         private final Button createButton = new Button();
         private final Button clearButton = new Button();
-        private final Button toggleAllButton = new Button();
+        private final Button deselectAllButton = new Button();
         private final Button saveButton = new Button();
         private final Label errorLabel = new Label();
         private final Label keyboardHelp = new Label();
 
         private Picker(Node anchor, Collection<T> options, Collection<T> initiallySelected,
-                       Function<T, String> displayText, boolean multiple, String createTextKey,
-                       Function<String, T> createOption, Consumer<List<T>> onSave) {
+                       PickerConfiguration<T> configuration) {
             this.anchor = anchor;
-            this.displayText = displayText;
-            this.multiple = multiple;
-            this.createTextKey = createTextKey;
-            this.createOption = createOption;
-            this.onSave = onSave;
+            this.displayText = configuration.displayText();
+            this.multiple = configuration.multiple();
+            this.createTextKey = configuration.createTextKey();
+            this.createOption = configuration.createOption();
+            this.exclusiveSelection = configuration.selection().exclusiveSelection();
+            this.onSave = configuration.selection().onSave();
             Comparator<String> naturalOrder = NaturalOrder.comparator(I18n.getCurrentLocale());
             this.options = options.stream()
-                    .sorted(Comparator.comparing(displayText, naturalOrder))
+                    .sorted(Comparator.comparing((T option) -> !exclusiveSelection.test(option))
+                            .thenComparing(displayText, naturalOrder))
                     .toList();
             this.selected = new LinkedHashSet<>(initiallySelected);
         }
@@ -114,8 +133,8 @@ public final class SearchableDropdownPicker {
             createButton.getStyleClass().add("button-outlined");
             clearButton.setId("pickerClear");
             clearButton.setText(I18n.get("picker.category.clear"));
-            toggleAllButton.setId("pickerToggleAll");
-            toggleAllButton.getStyleClass().add("button-outlined");
+            deselectAllButton.setId("pickerDeselectAll");
+            deselectAllButton.getStyleClass().add("button-outlined");
             saveButton.setId("pickerSave");
             saveButton.setText(I18n.get("picker.select"));
             saveButton.setDefaultButton(true);
@@ -142,7 +161,7 @@ public final class SearchableDropdownPicker {
             HBox actions = new HBox(8);
             actions.getStyleClass().add("searchable-dropdown-actions");
             if (multiple) {
-                actions.getChildren().addAll(toggleAllButton, saveButton);
+                actions.getChildren().addAll(deselectAllButton, saveButton);
                 HBox.setHgrow(saveButton, Priority.ALWAYS);
                 saveButton.setMaxWidth(Double.MAX_VALUE);
                 content.getChildren().add(actions);
@@ -186,7 +205,7 @@ public final class SearchableDropdownPicker {
             });
             createButton.setOnAction(event -> createFromSearch());
             clearButton.setOnAction(event -> save(List.of()));
-            toggleAllButton.setOnAction(event -> toggleAll());
+            deselectAllButton.setOnAction(event -> deselectAll());
             saveButton.setOnAction(event -> save(List.copyOf(selected)));
 
             updateOptions(true);
@@ -257,7 +276,7 @@ public final class SearchableDropdownPicker {
             createButton.setVisible(canCreate);
             createButton.setManaged(canCreate);
             optionsList.refresh();
-            updateToggleAllButton();
+            updateDeselectAllButton();
         }
 
         private void handleSearchKey(KeyEvent event) {
@@ -317,9 +336,15 @@ public final class SearchableDropdownPicker {
         }
 
         private void toggle(T item) {
-            if (!selected.add(item)) selected.remove(item);
+            if (!selected.remove(item)) addSelection(item);
             optionsList.refresh();
-            updateToggleAllButton();
+            updateDeselectAllButton();
+        }
+
+        private void addSelection(T item) {
+            if (exclusiveSelection.test(item)) selected.clear();
+            else selected.removeIf(exclusiveSelection);
+            selected.add(item);
         }
 
         private boolean isInsideCheckBox(Object target) {
@@ -332,28 +357,22 @@ public final class SearchableDropdownPicker {
             return false;
         }
 
-        private void toggleAll() {
-            if (selected.containsAll(options)) {
-                selected.removeAll(options);
-            } else {
-                selected.addAll(options);
-            }
+        private void deselectAll() {
+            selected.clear();
             optionsList.refresh();
-            updateToggleAllButton();
+            updateDeselectAllButton();
         }
 
-        private void updateToggleAllButton() {
-            boolean allSelected = !options.isEmpty() && selected.containsAll(options);
-            toggleAllButton.setText(I18n.get(allSelected
-                    ? "picker.labels.deselectAll" : "picker.labels.selectAll"));
-            toggleAllButton.setDisable(options.isEmpty());
+        private void updateDeselectAllButton() {
+            deselectAllButton.setText(I18n.get("picker.labels.deselectAll"));
+            deselectAllButton.setDisable(selected.isEmpty());
         }
 
         private void createFromSearch() {
             try {
                 T created = createOption.apply(searchField.getText().trim());
                 if (multiple) {
-                    selected.add(created);
+                    addSelection(created);
                     searchField.clear();
                     searchField.requestFocus();
                 } else {
