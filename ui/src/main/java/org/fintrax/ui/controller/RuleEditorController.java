@@ -315,7 +315,7 @@ public class RuleEditorController {
                 row.createTextKey = "picker.category.create";
                 row.createTarget = name -> {
                     Category created = categoryService.createCategory(name, null, null);
-                    return new RuleTargetChoice(created.getId(), displayPath.apply(created));
+                    return addTargetOption(row, created.getId(), displayPath.apply(created));
                 };
             }
             case ADD_LABEL -> {
@@ -325,7 +325,7 @@ public class RuleEditorController {
                 row.createTextKey = "picker.labels.create";
                 row.createTarget = name -> {
                     org.fintrax.model.Label created = labelService.createLabel(name, DEFAULT_LABEL_COLOR, null);
-                    return new RuleTargetChoice(created.getId(), created.getName());
+                    return addTargetOption(row, created.getId(), created.getName());
                 };
             }
             case SET_NOTE -> {
@@ -349,6 +349,14 @@ public class RuleEditorController {
         row.selectedTarget = choice;
         row.targetButton.setText(choice == null ? "" : choice.displayText());
         notifyChanged();
+    }
+
+    private RuleTargetChoice addTargetOption(ActionRow row, Long id, String displayText) {
+        RuleTargetChoice choice = new RuleTargetChoice(id, displayText);
+        List<RuleTargetChoice> options = new ArrayList<>(row.targetOptions);
+        options.add(choice);
+        row.targetOptions = List.copyOf(options);
+        return choice;
     }
 
     private void notifyChanged() {

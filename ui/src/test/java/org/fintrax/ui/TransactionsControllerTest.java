@@ -1030,13 +1030,17 @@ class TransactionsControllerTest extends AbstractUITest {
         GridPane categoryAction = rows(".rule-action-row").get(0);
         interact(() -> comboBoxAt(categoryAction, 0)
                 .setValue(I18n.get("ruleEditor.action.assignCategory")));
-        createPickerOption((Button) categoryAction.getChildren().get(1), categoryName);
+        Button categoryTarget = (Button) categoryAction.getChildren().get(1);
+        createPickerOption(categoryTarget, categoryName);
+        reopenAndChoosePickerOption(categoryTarget, categoryName);
 
         interact(lookup("#addRuleActionButton").<Button>query()::fire);
         GridPane labelAction = rows(".rule-action-row").get(1);
         interact(() -> comboBoxAt(labelAction, 0)
                 .setValue(I18n.get("ruleEditor.action.assignLabel")));
-        createPickerOption((Button) labelAction.getChildren().get(1), labelName);
+        Button labelTarget = (Button) labelAction.getChildren().get(1);
+        createPickerOption(labelTarget, labelName);
+        reopenAndChoosePickerOption(labelTarget, labelName);
         assertFalse(lookup("#createRuleSave").<Button>query().isDisabled());
 
         String ruleName = lookup("#ruleNameField").<TextField>query().getText();
@@ -1347,6 +1351,17 @@ class TransactionsControllerTest extends AbstractUITest {
                 .map(Button.class::cast).filter(Button::isVisible).isPresent());
         interact(lookup("#pickerCreateButton").<Button>query()::fire);
         WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS, () -> value.equals(control.getText()));
+    }
+
+    private void reopenAndChoosePickerOption(Button control, String value) throws TimeoutException {
+        interact(control::fire);
+        waitForPicker();
+        TextField searchField = lookup("#pickerSearch").query();
+        ListView<?> options = lookup("#pickerList").query();
+        interact(() -> searchField.setText(value));
+        WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS, () -> options.getItems().size() == 1);
+        fireEnterOnPicker();
+        WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS, () -> control.getText().equals(value));
     }
 
     private void openPickerFromContextMenu(TableView<Transaction> table, int rowIndex, int actionIndex)
