@@ -1,6 +1,7 @@
 package org.fintrax.ui.controller;
 
 import javafx.fxml.FXML;
+import javafx.geometry.HPos;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Separator;
@@ -8,6 +9,7 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import org.fintrax.config.I18n;
 import org.fintrax.model.ActionType;
@@ -39,6 +41,8 @@ public class RuleEditorController {
     private static final String DEFAULT_LABEL_COLOR = "#1976d2";
     private static final String RULE_ROW_CONTROL_STYLE_CLASS = "rule-row-control";
     private static final double ACTION_TYPE_COMBO_WIDTH = 190;
+    private static final double CONDITION_FIELD_COMBO_WIDTH = 240;
+    private static final double CONDITION_OPERATOR_COMBO_WIDTH = 180;
 
     @FXML
     private TextField ruleNameField;
@@ -382,7 +386,7 @@ public class RuleEditorController {
     }
 
     private static final class ConditionRow {
-        private final GridPane grid = rowGrid(25, 27, 38, 10);
+        private final GridPane grid = conditionRowGrid();
         private final ComboBox<String> fieldCombo = new ComboBox<>();
         private final ComboBox<String> operatorCombo = new ComboBox<>();
         private final TextField valueField = new TextField();
@@ -394,7 +398,9 @@ public class RuleEditorController {
             fieldCombo.getStyleClass().add(RULE_ROW_CONTROL_STYLE_CLASS);
             operatorCombo.getStyleClass().add(RULE_ROW_CONTROL_STYLE_CLASS);
             valueField.getStyleClass().add(RULE_ROW_CONTROL_STYLE_CLASS);
+            fieldCombo.setMinWidth(CONDITION_FIELD_COMBO_WIDTH);
             fieldCombo.setMaxWidth(Double.MAX_VALUE);
+            operatorCombo.setMinWidth(CONDITION_OPERATOR_COMBO_WIDTH);
             operatorCombo.setMaxWidth(Double.MAX_VALUE);
             valueField.setMaxWidth(Double.MAX_VALUE);
             separator.getStyleClass().add("rule-row-separator");
@@ -454,6 +460,30 @@ public class RuleEditorController {
             column.setHgrow(javafx.scene.layout.Priority.ALWAYS);
             grid.getColumnConstraints().add(column);
         }
+        return grid;
+    }
+
+    private static GridPane conditionRowGrid() {
+        GridPane grid = new GridPane();
+        grid.setHgap(8);
+        ColumnConstraints fieldColumn = new ColumnConstraints();
+        fieldColumn.setMinWidth(CONDITION_FIELD_COMBO_WIDTH);
+        fieldColumn.setPrefWidth(CONDITION_FIELD_COMBO_WIDTH);
+        fieldColumn.setHgrow(Priority.NEVER);
+        grid.getColumnConstraints().add(fieldColumn);
+        ColumnConstraints operatorColumn = new ColumnConstraints();
+        operatorColumn.setMinWidth(CONDITION_OPERATOR_COMBO_WIDTH);
+        operatorColumn.setPrefWidth(CONDITION_OPERATOR_COMBO_WIDTH);
+        operatorColumn.setHgrow(Priority.NEVER);
+        grid.getColumnConstraints().add(operatorColumn);
+        ColumnConstraints valueColumn = new ColumnConstraints();
+        valueColumn.setHgrow(Priority.ALWAYS);
+        grid.getColumnConstraints().add(valueColumn);
+        ColumnConstraints removeColumn = new ColumnConstraints();
+        removeColumn.setHalignment(HPos.RIGHT);
+        removeColumn.setHgrow(Priority.NEVER);
+        grid.getColumnConstraints().add(removeColumn);
+        grid.setMaxWidth(Double.MAX_VALUE);
         return grid;
     }
 

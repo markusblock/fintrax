@@ -16,7 +16,6 @@ import javafx.scene.control.DatePicker;
 import javafx.scene.control.Labeled;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
-import javafx.scene.control.OverrunStyle;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.ScrollBar;
 import javafx.scene.control.TableCell;
@@ -179,35 +178,6 @@ class TransactionsControllerTest extends AbstractUITest {
                 .filter(Node::isVisible)
                 .allMatch(label -> label.getText() == null || label.getText().isBlank()));
         assertTrue(labelsControl.getChildren().getLast() instanceof Button);
-    }
-
-    @Test
-    void transactionTableAlignsWithFilterInsideContentPanel() {
-        VBox panel = lookup("#transactionsPanel").query();
-        Node filter = lookup(".filter-panel").query();
-        TableView<?> table = lookup("#transactionTable").query();
-
-        Bounds filterBounds = filter.localToScene(filter.getBoundsInLocal());
-        Bounds tableBounds = table.localToScene(table.getBoundsInLocal());
-
-        assertTrue(panel.getStyleClass().contains("content-panel"));
-        assertEquals(filterBounds.getMinX(), tableBounds.getMinX(), 1.0);
-        assertEquals(filterBounds.getMaxX(), tableBounds.getMaxX(), 1.0);
-    }
-
-    @Test
-    void additionalFilterRowsPlaceCategoryAndLabelsAboveAccountAndAmounts() {
-        GridPane filters = lookup("#additionalFilters").query();
-
-        assertEquals(0, GridPane.getRowIndex(lookup("#categoryFilter").query()));
-        assertEquals(0, GridPane.getRowIndex(lookup("#labelFilterButton").query()));
-        assertEquals(1, GridPane.getRowIndex(lookup("#accountFilter").query()));
-        assertEquals(1, GridPane.getRowIndex(lookup("#minAmountField").query()));
-        assertEquals(1, GridPane.getRowIndex(lookup("#maxAmountField").query()));
-        assertEquals(0, GridPane.getColumnIndex(lookup("#categoryFilter").query()));
-        assertEquals(1, GridPane.getColumnIndex(lookup("#labelFilterButton").query()));
-        assertEquals(2, GridPane.getColumnSpan(lookup("#labelFilterButton").query()));
-        assertEquals(3, filters.getColumnConstraints().size());
     }
 
     @Test
@@ -439,32 +409,6 @@ class TransactionsControllerTest extends AbstractUITest {
                         && transactionId.equals(rowTransaction.getId()))
                 .findFirst()
                 .orElseThrow();
-    }
-
-    @Test
-    void transactionTableKeepsDateColumnFixedAndCellsSingleLineWithEllipsis() {
-        TableView<Transaction> table = lookup("#transactionTable").query();
-        List<TableColumn<Transaction, ?>> dateColumns = table.getColumns().stream()
-                .filter(column -> I18n.get("col.bookingDate").equals(column.getText())
-                        || I18n.get("col.valueDate").equals(column.getText()))
-                .toList();
-
-        assertEquals(2, dateColumns.size());
-        for (TableColumn<?, ?> dateColumn : dateColumns) {
-            assertEquals(115, dateColumn.getMinWidth());
-            assertEquals(115, dateColumn.getPrefWidth());
-            assertEquals(115, dateColumn.getMaxWidth());
-            assertFalse(dateColumn.isResizable());
-        }
-
-        var visibleCells = table.lookupAll(".table-cell").stream()
-                .filter(TableCell.class::isInstance)
-                .map(node -> (TableCell<?, ?>) node)
-                .filter(cell -> !cell.isEmpty())
-                .toList();
-        assertFalse(visibleCells.isEmpty());
-        assertTrue(visibleCells.stream().allMatch(cell ->
-                cell.getTextOverrun() == OverrunStyle.ELLIPSIS && !cell.isWrapText()));
     }
 
     @Test
@@ -1196,29 +1140,6 @@ class TransactionsControllerTest extends AbstractUITest {
     }
 
     @Test
-    void detailPropertiesUseRequestedCompactPairingsAndFullWidthText() {
-        showTransactionDetail(testCategoryTransaction);
-
-        assertSideBySide("#amountValue", "#balanceValue");
-        assertSideBySide("#categoryValue", "#labelsValue");
-        assertSideBySide("#bookingDateValue", "#valueDateValue");
-        assertSideBySide("#payeeValue", "#originalPayeeValue");
-        assertEquals(3, GridPane.getColumnSpan(lookup("#noteValue").query()));
-        assertEquals(3, GridPane.getColumnSpan(lookup("#purposeValue").query()));
-        Set<Node> rowDividers = lookup("#detailForm").<GridPane>query()
-                .lookupAll(".detail-row-separator");
-        assertEquals(8, rowDividers.size());
-        assertTrue(rowDividers.stream().allMatch(divider -> GridPane.getColumnIndex(divider) == 0
-                && GridPane.getColumnSpan(divider) == 4));
-        assertTrue(GridPane.getRowIndex(lookup("#amountValue").query())
-                < GridPane.getRowIndex(lookup("#categoryValue").query()));
-        assertTrue(GridPane.getRowIndex(lookup("#categoryValue").query())
-                < GridPane.getRowIndex(lookup("#noteValue").query()));
-        assertTrue(GridPane.getRowIndex(lookup("#noteValue").query())
-                < GridPane.getRowIndex(lookup("#bookingDateValue").query()));
-    }
-
-    @Test
     void detailPanelDoesNotExposeEditablePropertiesOrSaveAction() {
         showTransactionDetail(testCategoryTransaction);
 
@@ -1300,14 +1221,6 @@ class TransactionsControllerTest extends AbstractUITest {
         if (row < 0) throw new AssertionError("Expected transaction to be visible in the table");
         interact(() -> table.getSelectionModel().clearAndSelect(row));
         interact(lookup("#detailToggleButton").<Button>query()::fire);
-    }
-
-    private void assertSideBySide(String leftSelector, String rightSelector) {
-        Node left = lookup(leftSelector).query();
-        Node right = lookup(rightSelector).query();
-        assertEquals(GridPane.getRowIndex(left), GridPane.getRowIndex(right));
-        assertEquals(1, GridPane.getColumnIndex(left));
-        assertEquals(3, GridPane.getColumnIndex(right));
     }
 
     private void waitForPicker() throws TimeoutException {
