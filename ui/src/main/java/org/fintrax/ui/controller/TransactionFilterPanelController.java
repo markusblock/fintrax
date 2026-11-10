@@ -50,6 +50,7 @@ public class TransactionFilterPanelController {
     private static final String INVALID_DATE_STYLE_CLASS = "invalid-date";
     private static final String FILTER_SUMMARY_SEPARATOR = " · ";
     private static final String LABEL_FILTER_I18N_KEY = "filter.labels";
+    private static final String NO_LABEL_SET_I18N_KEY = "filter.noLabelSet";
 
     @FXML
     private ComboBox<String> accountFilter;
@@ -216,10 +217,10 @@ public class TransactionFilterPanelController {
                 ? List.of(LabelFilterOption.noLabelSetOption())
                 : selectedLabels().stream().map(label -> new LabelFilterOption(label, false)).toList();
         SearchableDropdownPicker.showMany(labelFilterButton, options, selectedOptions,
-                option -> option.noLabelSet() ? I18n.get("filter.noLabelSet") : option.label().getName(),
+                option -> option.noLabelSet() ? I18n.get(NO_LABEL_SET_I18N_KEY) : option.label().getName(),
                 "picker.labels.create", name -> new LabelFilterOption(
                         labelService.createLabel(name, "#1976d2", null), false),
-                LabelFilterOption::noLabelSet, selected -> {
+                new SearchableDropdownPicker.MultiSelection<>(LabelFilterOption::noLabelSet, selected -> {
                     selectedLabelIds.clear();
                     noLabelsSelected = selected.stream().anyMatch(LabelFilterOption::noLabelSet);
                     if (!noLabelsSelected) {
@@ -229,7 +230,7 @@ public class TransactionFilterPanelController {
                     labelOptions = labelService.getAllLabels();
                     updateLabelFilterButton();
                     applyChangedFilters();
-                });
+                }));
     }
 
     @FXML
@@ -442,7 +443,7 @@ public class TransactionFilterPanelController {
         }
         List<String> selectedLabelNames = labelNames(selectedLabels());
         if (noLabelsSelected) {
-            addSummaryItem(activeFilters, I18n.get(LABEL_FILTER_I18N_KEY), I18n.get("filter.noLabelSet"));
+            addSummaryItem(activeFilters, I18n.get(LABEL_FILTER_I18N_KEY), I18n.get(NO_LABEL_SET_I18N_KEY));
         } else if (!selectedLabelNames.isEmpty()) {
             addSummaryItem(activeFilters, I18n.get(LABEL_FILTER_I18N_KEY), String.join(", ", selectedLabelNames));
         }
@@ -533,7 +534,7 @@ public class TransactionFilterPanelController {
         content.setMaxWidth(Double.MAX_VALUE);
         javafx.scene.Node selectedContent;
         if (noLabelsSelected) {
-            selectedContent = new javafx.scene.control.Label(I18n.get("filter.noLabelSet"));
+            selectedContent = new javafx.scene.control.Label(I18n.get(NO_LABEL_SET_I18N_KEY));
         } else if (labels.isEmpty()) {
             selectedContent = new javafx.scene.control.Label(I18n.get(LABEL_FILTER_I18N_KEY));
         } else {
@@ -548,8 +549,10 @@ public class TransactionFilterPanelController {
         labelFilterButton.setText("");
         labelFilterButton.setGraphic(content);
         String selectedNames = String.join(", ", labelNames(labels));
-        String selectionText = noLabelsSelected ? I18n.get("filter.noLabelSet")
-                : labels.isEmpty() ? I18n.get(LABEL_FILTER_I18N_KEY) : selectedNames;
+        String selectionText;
+        if (noLabelsSelected) selectionText = I18n.get(NO_LABEL_SET_I18N_KEY);
+        else if (labels.isEmpty()) selectionText = I18n.get(LABEL_FILTER_I18N_KEY);
+        else selectionText = selectedNames;
         labelFilterButton.setAccessibleText(I18n.get(LABEL_FILTER_I18N_KEY) + ": " + selectionText);
     }
 

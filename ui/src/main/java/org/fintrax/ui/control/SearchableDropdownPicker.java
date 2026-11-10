@@ -43,23 +43,31 @@ public final class SearchableDropdownPicker {
                                    Function<T, String> displayText, String createTextKey,
                                    Function<String, T> createOption, Consumer<T> onSave) {
         new Picker<>(anchor, options, initiallySelected == null ? List.of() : List.of(initiallySelected),
-                displayText, false, createTextKey, createOption, item -> false, values -> onSave.accept(
-                values.isEmpty() ? null : values.get(0))).show();
+                new PickerConfiguration<>(displayText, false, createTextKey, createOption,
+                        new MultiSelection<>(item -> false, values -> onSave.accept(
+                                values.isEmpty() ? null : values.get(0))))).show();
     }
 
     public static <T> void showMany(Node anchor, Collection<T> options, Collection<T> initiallySelected,
                                      Function<T, String> displayText, String createTextKey,
                                      Function<String, T> createOption, Consumer<List<T>> onSave) {
         showMany(anchor, options, initiallySelected, displayText, createTextKey, createOption,
-                item -> false, onSave);
+                new MultiSelection<>(item -> false, onSave));
     }
 
     public static <T> void showMany(Node anchor, Collection<T> options, Collection<T> initiallySelected,
                                     Function<T, String> displayText, String createTextKey,
-                                    Function<String, T> createOption, Predicate<T> exclusiveSelection,
-                                    Consumer<List<T>> onSave) {
-        new Picker<>(anchor, options, initiallySelected, displayText, true,
-                createTextKey, createOption, exclusiveSelection, onSave).show();
+                                    Function<String, T> createOption, MultiSelection<T> selection) {
+        new Picker<>(anchor, options, initiallySelected,
+                new PickerConfiguration<>(displayText, true, createTextKey, createOption, selection)).show();
+    }
+
+    public record MultiSelection<T>(Predicate<T> exclusiveSelection, Consumer<List<T>> onSave) {
+    }
+
+    private record PickerConfiguration<T>(Function<T, String> displayText, boolean multiple,
+                                          String createTextKey, Function<String, T> createOption,
+                                          MultiSelection<T> selection) {
     }
 
     private static final class Picker<T> {
@@ -85,16 +93,14 @@ public final class SearchableDropdownPicker {
         private final Label keyboardHelp = new Label();
 
         private Picker(Node anchor, Collection<T> options, Collection<T> initiallySelected,
-                       Function<T, String> displayText, boolean multiple, String createTextKey,
-                       Function<String, T> createOption, Predicate<T> exclusiveSelection,
-                       Consumer<List<T>> onSave) {
+                       PickerConfiguration<T> configuration) {
             this.anchor = anchor;
-            this.displayText = displayText;
-            this.multiple = multiple;
-            this.createTextKey = createTextKey;
-            this.createOption = createOption;
-            this.exclusiveSelection = exclusiveSelection;
-            this.onSave = onSave;
+            this.displayText = configuration.displayText();
+            this.multiple = configuration.multiple();
+            this.createTextKey = configuration.createTextKey();
+            this.createOption = configuration.createOption();
+            this.exclusiveSelection = configuration.selection().exclusiveSelection();
+            this.onSave = configuration.selection().onSave();
             Comparator<String> naturalOrder = NaturalOrder.comparator(I18n.getCurrentLocale());
             this.options = options.stream()
                     .sorted(Comparator.comparing((T option) -> !exclusiveSelection.test(option))
