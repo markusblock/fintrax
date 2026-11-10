@@ -92,6 +92,12 @@ class RuleEngineTest {
         assertEquals(1, Operator.REGEX.ordinal());
         assertEquals(2, Operator.EQUALS.ordinal());
         assertEquals(3, Operator.AMOUNT_RANGE.ordinal());
+        assertEquals(0, MatchField.PAYEE_NAME.ordinal());
+        assertEquals(1, MatchField.PURPOSE.ordinal());
+        assertEquals(2, MatchField.AMOUNT.ordinal());
+        assertEquals(3, MatchField.ACCOUNT.ordinal());
+        assertEquals(4, MatchField.TRANSACTION_TYPE.ordinal());
+        assertEquals(5, MatchField.PAYEE_OR_PURPOSE.ordinal());
     }
 
     @Test
@@ -132,6 +138,21 @@ class RuleEngineTest {
         assertTrue(matches(MatchField.PURPOSE, Operator.REGEX, "^gift card$"));
         assertFalse(matches(MatchField.PURPOSE, Operator.NOT_REGEX, "^GIFT CARD$"));
         assertTrue(matches(MatchField.PURPOSE, Operator.NOT_REGEX, "^salary$"));
+    }
+
+    @Test
+    void payeeOrPurposeConditionMatchesEitherTextField() {
+        BankAccount account = accountService.createAccount(
+                "DE89370400440532013000", null, "Bank", "User", AccountType.GIRO, null);
+        transactionService.createTransaction(Transaction.builder()
+                .accountId(account.getId()).originalPayee("Corner Shop").purpose("Gift Card")
+                .amount(BigDecimal.ONE).bookingDate(LocalDate.now()).valueDate(LocalDate.now()).build());
+
+        assertTrue(matches(MatchField.PAYEE_OR_PURPOSE, Operator.CONTAINS, "corner"));
+        assertTrue(matches(MatchField.PAYEE_OR_PURPOSE, Operator.CONTAINS, "gift"));
+        assertFalse(matches(MatchField.PAYEE_OR_PURPOSE, Operator.CONTAINS, "salary"));
+        assertFalse(matches(MatchField.PAYEE_OR_PURPOSE, Operator.CONTAINS_NOT, "gift"));
+        assertTrue(matches(MatchField.PAYEE_OR_PURPOSE, Operator.CONTAINS_NOT, "salary"));
     }
 
     @Test

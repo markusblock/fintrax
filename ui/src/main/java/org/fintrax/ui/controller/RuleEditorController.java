@@ -217,7 +217,8 @@ public class RuleEditorController {
     private void addConditionRow(RuleCondition existing) {
         ConditionRow row = new ConditionRow();
         List<MatchField> fields = new ArrayList<>(List.of(
-                MatchField.PAYEE_NAME, MatchField.PURPOSE, MatchField.AMOUNT, MatchField.ACCOUNT));
+                MatchField.PAYEE_NAME, MatchField.PAYEE_OR_PURPOSE,
+                MatchField.PURPOSE, MatchField.AMOUNT, MatchField.ACCOUNT));
         if (existing != null && !fields.contains(existing.getMatchField())) fields.add(existing.getMatchField());
         row.fieldCombo.getItems().setAll(fields.stream().map(this::fieldText).toList());
         List<Operator> operators = new ArrayList<>(List.of(Operator.CONTAINS, Operator.CONTAINS_NOT,
@@ -319,6 +320,7 @@ public class RuleEditorController {
     private String fieldText(MatchField field) {
         return I18n.get("ruleEditor.field." + switch (field) {
             case PAYEE_NAME -> "payeeName";
+            case PAYEE_OR_PURPOSE -> "payeeOrPurpose";
             case PURPOSE -> "purpose";
             case AMOUNT -> "amount";
             case ACCOUNT -> "account";

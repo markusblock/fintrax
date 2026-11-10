@@ -47,7 +47,8 @@ class RulesControllerTest extends AbstractUITest {
                         && combo.getItems().contains(I18n.get("ruleEditor.field.payeeName")))
                 .map(node -> (ComboBox<?>) node)
                 .findFirst().orElseThrow();
-        assertEquals(List.of(I18n.get("ruleEditor.field.payeeName"), I18n.get("ruleEditor.field.purpose"),
+        assertEquals(List.of(I18n.get("ruleEditor.field.payeeName"),
+                I18n.get("ruleEditor.field.payeeOrPurpose"), I18n.get("ruleEditor.field.purpose"),
                 I18n.get("ruleEditor.field.amount"), I18n.get("ruleEditor.field.account")), matchField.getItems());
         ComboBox<?> operator = lookup(".combo-box").queryAll().stream()
                 .filter(node -> node instanceof ComboBox<?> combo
