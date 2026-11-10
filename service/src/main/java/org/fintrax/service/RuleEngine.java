@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -103,19 +104,22 @@ public class RuleEngine {
     }
 
     private boolean matchesCondition(Transaction transaction, RuleCondition condition) {
-        String value = getFieldValue(transaction, condition.getMatchField());
+        List<String> values = getFieldValues(transaction, condition.getMatchField()).stream()
+                .filter(Objects::nonNull)
+                .toList();
+        if (values.isEmpty() && condition.getOperator() != Operator.AMOUNT_RANGE) return false;
 
         return switch (condition.getOperator()) {
-            case CONTAINS -> value != null && condition.getValue() != null
-                    && containsIgnoreCase(value, condition.getValue());
-            case CONTAINS_NOT -> value != null && condition.getValue() != null
-                    && !containsIgnoreCase(value, condition.getValue());
-            case REGEX -> regexMatches(value, condition.getValue(), false);
-            case NOT_REGEX -> regexMatches(value, condition.getValue(), true);
-            case EQUALS -> value != null && condition.getValue() != null
-                    && value.equalsIgnoreCase(condition.getValue());
-            case NOT_EQUALS -> value != null && condition.getValue() != null
-                    && !value.equalsIgnoreCase(condition.getValue());
+            case CONTAINS -> condition.getValue() != null && values.stream()
+                    .anyMatch(value -> containsIgnoreCase(value, condition.getValue()));
+            case CONTAINS_NOT -> condition.getValue() != null && values.stream()
+                    .noneMatch(value -> containsIgnoreCase(value, condition.getValue()));
+            case REGEX -> values.stream().anyMatch(value -> regexMatches(value, condition.getValue(), false));
+            case NOT_REGEX -> values.stream().allMatch(value -> regexMatches(value, condition.getValue(), true));
+            case EQUALS -> condition.getValue() != null && values.stream()
+                    .anyMatch(value -> value.equalsIgnoreCase(condition.getValue()));
+            case NOT_EQUALS -> condition.getValue() != null && values.stream()
+                    .noneMatch(value -> value.equalsIgnoreCase(condition.getValue()));
             case AMOUNT_RANGE -> {
                 BigDecimal amount = transaction.getAmount();
                 BigDecimal min = condition.getAmountMin();
@@ -142,14 +146,17 @@ public class RuleEngine {
         }
     }
 
-    private String getFieldValue(Transaction transaction, MatchField field) {
+    private List<String> getFieldValues(Transaction transaction, MatchField field) {
         return switch (field) {
-            case PAYEE_NAME -> transaction.getPayeeDisplay() != null ?
-                    transaction.getPayeeDisplay() : transaction.getOriginalPayee();
-            case PURPOSE -> transaction.getPurpose();
-            case AMOUNT -> transaction.getAmount().toString();
-            case ACCOUNT -> transaction.getAccountId().toString();
-            case TRANSACTION_TYPE -> transaction.getTransactionType();
+            case PAYEE_NAME -> Arrays.asList(transaction.getPayeeDisplay() != null
+                    ? transaction.getPayeeDisplay() : transaction.getOriginalPayee());
+            case PURPOSE -> Arrays.asList(transaction.getPurpose());
+            case PAYEE_OR_PURPOSE -> Arrays.asList(
+                    transaction.getPayeeDisplay() != null ? transaction.getPayeeDisplay() : transaction.getOriginalPayee(),
+                    transaction.getPurpose());
+            case AMOUNT -> List.of(transaction.getAmount().toString());
+            case ACCOUNT -> List.of(transaction.getAccountId().toString());
+            case TRANSACTION_TYPE -> Arrays.asList(transaction.getTransactionType());
         };
     }
 

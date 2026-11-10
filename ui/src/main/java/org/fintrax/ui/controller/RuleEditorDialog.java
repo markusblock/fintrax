@@ -1,11 +1,13 @@
 package org.fintrax.ui.controller;
 
+import javafx.geometry.Rectangle2D;
 import javafx.scene.Parent;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.ScrollPane;
+import javafx.stage.Screen;
 import javafx.stage.Window;
 import org.fintrax.config.I18n;
 import org.fintrax.model.RuleAction;
@@ -20,6 +22,10 @@ import java.util.Optional;
 import java.util.function.Consumer;
 
 final class RuleEditorDialog {
+    private static final double DIALOG_WIDTH = 900;
+    private static final double DIALOG_HEIGHT = 560;
+    private static final double SCREEN_MARGIN = 48;
+
     private RuleEditorDialog() {}
 
     static Optional<RuleInput> show(Window owner, ViewLoader viewLoader,
@@ -44,19 +50,33 @@ final class RuleEditorDialog {
         dialog.setHeaderText(I18n.get(headerKey));
 
         ButtonType saveType = new ButtonType(I18n.get("button.save"), ButtonBar.ButtonData.OK_DONE);
-        dialog.getDialogPane().getButtonTypes().setAll(saveType, ButtonType.CANCEL);
+        ButtonType cancelType = new ButtonType(I18n.get("button.cancel"), ButtonBar.ButtonData.CANCEL_CLOSE);
+        dialog.getDialogPane().getButtonTypes().setAll(saveType, cancelType);
         Button saveButton = (Button) dialog.getDialogPane().lookupButton(saveType);
         saveButton.setId(saveButtonId);
-        dialog.getDialogPane().lookupButton(ButtonType.CANCEL).setId(cancelButtonId);
+        dialog.getDialogPane().lookupButton(cancelType).setId(cancelButtonId);
 
         ScrollPane editorScrollPane = new ScrollPane(editorView);
         editorScrollPane.setFitToWidth(true);
         dialog.getDialogPane().setContent(editorScrollPane);
+        dialog.setOnShown(event -> resizeDialog(dialog, owner));
 
         editor.setOnChange(() -> saveButton.setDisable(!editor.isValid()));
         if (dialog.showAndWait().filter(saveType::equals).isEmpty()) return Optional.empty();
         return Optional.of(new RuleInput(editor.getRuleName(), editor.getMatchMode(),
                 editor.getConditions(), editor.getActions()));
+    }
+
+    private static void resizeDialog(Dialog<?> dialog, Window owner) {
+        Screen screen = Screen.getScreensForRectangle(owner.getX(), owner.getY(), owner.getWidth(), owner.getHeight())
+                .stream().findFirst().orElse(Screen.getPrimary());
+        Rectangle2D visualBounds = screen.getVisualBounds();
+        double width = Math.min(DIALOG_WIDTH, visualBounds.getWidth() - SCREEN_MARGIN);
+        dialog.getDialogPane().setMinWidth(width);
+        dialog.getDialogPane().setPrefWidth(width);
+        Window dialogWindow = dialog.getDialogPane().getScene().getWindow();
+        dialogWindow.setWidth(width);
+        dialogWindow.setHeight(Math.min(DIALOG_HEIGHT, visualBounds.getHeight() - SCREEN_MARGIN));
     }
 
     record RuleInput(String name, RuleMatchMode matchMode,

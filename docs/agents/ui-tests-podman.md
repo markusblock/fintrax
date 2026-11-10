@@ -2,6 +2,10 @@
 
 Run TestFX UI tests in a Java 21 Linux container with a private Xvfb display. The container does not receive the host display, X11 socket, or input devices, so UI automation cannot compete with host desktop input.
 
+## UI test scope
+
+UI tests must verify user-visible behavior. Do not add tests whose sole purpose is to assert layout implementation details such as node positions, GridPane row/column assignments, sizing constraints, or parent relationships. When layout matters, verify an observable outcome—such as content remaining reachable after resizing or controls remaining usable—instead of locking tests to internal structure.
+
 ## Requirements
 
 - Podman
