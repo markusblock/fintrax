@@ -138,6 +138,50 @@ class TransactionServiceTest {
     }
 
     @Test
+    void noCategoryFilterIncludesOnlyTransactionsWithoutCategory() {
+        Category category = categoryService.createCategory("Food", null, null);
+        transactionService.createTransaction(Transaction.builder()
+                .originalPayee("categorized").categoryId(category.getId()).amount(BigDecimal.ONE).build());
+        transactionService.createTransaction(Transaction.builder()
+                .originalPayee("uncategorized").amount(BigDecimal.ONE).build());
+
+        List<Transaction> filtered = transactionService.filterTransactions(new TransactionFilter(
+                null, null, null, null, true, null, false, null, null, null));
+
+        assertEquals(List.of("uncategorized"),
+                filtered.stream().map(Transaction::getOriginalPayee).toList());
+    }
+
+    @Test
+    void noLabelsFilterIncludesOnlyTransactionsWithoutLabels() {
+        org.fintrax.model.Label label = labelService.createLabel("Urgent", "#1976d2", null);
+        transactionService.createTransaction(Transaction.builder()
+                .originalPayee("labeled").labelIds(Set.of(label.getId())).amount(BigDecimal.ONE).build());
+        transactionService.createTransaction(Transaction.builder()
+                .originalPayee("unlabeled").amount(BigDecimal.ONE).build());
+
+        List<Transaction> filtered = transactionService.filterTransactions(new TransactionFilter(
+                null, null, null, null, false, null, true, null, null, null));
+
+        assertEquals(List.of("unlabeled"),
+                filtered.stream().map(Transaction::getOriginalPayee).toList());
+    }
+
+    @Test
+    void amountFiltersExcludeTransactionsWithoutAmount() {
+        transactionService.createTransaction(Transaction.builder()
+                .originalPayee("with amount").amount(BigDecimal.TEN).build());
+        transactionService.createTransaction(Transaction.builder()
+                .originalPayee("without amount").build());
+
+        List<Transaction> filtered = transactionService.filterTransactions(new TransactionFilter(
+                null, null, null, null, null, BigDecimal.ONE, null, null));
+
+        assertEquals(List.of("with amount"),
+                filtered.stream().map(Transaction::getOriginalPayee).toList());
+    }
+
+    @Test
     void labelFilterRequiresEverySelectedLabel() {
         org.fintrax.model.Label urgent = labelService.createLabel("Urgent", "#1976d2", null);
         org.fintrax.model.Label travel = labelService.createLabel("Travel", "#cc4400", null);

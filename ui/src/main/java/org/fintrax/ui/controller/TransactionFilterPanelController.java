@@ -3,6 +3,7 @@ package org.fintrax.ui.controller;
 import javafx.fxml.FXML;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.TextField;
@@ -57,6 +58,8 @@ public class TransactionFilterPanelController {
     private ComboBox<String> categoryFilter;
     @FXML
     private Button labelFilterButton;
+    @FXML
+    private CheckBox noLabelsFilter;
     @FXML
     private TextField searchField;
     @FXML
@@ -146,9 +149,11 @@ public class TransactionFilterPanelController {
         updatingFilters = true;
         try {
             selectAccount(state.accountId());
-            selectCategory(state.categoryId());
+            selectCategory(state.categoryId(), state.noCategory());
             selectedLabelIds.clear();
             if (state.labelIds() != null) selectedLabelIds.addAll(state.labelIds());
+            noLabelsFilter.setSelected(state.noLabels());
+            if (state.noLabels()) selectedLabelIds.clear();
             searchField.setText(state.searchText());
             minAmountField.setText(state.minAmountText());
             maxAmountField.setText(state.maxAmountText());
@@ -191,8 +196,8 @@ public class TransactionFilterPanelController {
 
         String search = searchField.getText().trim();
         return Optional.of(new TransactionFilter(
-                getSelectedAccountId(), fromDate, toDate, getSelectedCategoryId(),
-                selectedLabelIds.isEmpty() ? null : Set.copyOf(selectedLabelIds),
+                getSelectedAccountId(), fromDate, toDate, getSelectedCategoryId(), isNoCategorySelected(),
+                selectedLabelIds.isEmpty() ? null : Set.copyOf(selectedLabelIds), noLabelsFilter.isSelected(),
                 parseAmount(minAmountField.getText()), parseAmount(maxAmountField.getText()),
                 search.isEmpty() ? null : search));
     }
@@ -209,6 +214,7 @@ public class TransactionFilterPanelController {
                 "picker.labels.create", name -> labelService.createLabel(name, "#1976d2", null), labels -> {
                     selectedLabelIds.clear();
                     labels.stream().map(Label::getId).forEach(selectedLabelIds::add);
+                    noLabelsFilter.setSelected(false);
                     labelOptions = labelService.getAllLabels();
                     updateLabelFilterButton();
                     applyChangedFilters();
@@ -222,6 +228,7 @@ public class TransactionFilterPanelController {
             accountFilter.getSelectionModel().selectFirst();
             categoryFilter.getSelectionModel().selectFirst();
             selectedLabelIds.clear();
+            noLabelsFilter.setSelected(false);
             updateLabelFilterButton();
             searchField.clear();
             minAmountField.clear();
@@ -255,6 +262,7 @@ public class TransactionFilterPanelController {
 
         categoryFilter.getItems().clear();
         categoryFilter.getItems().add(I18n.get("filter.allCategories"));
+        categoryFilter.getItems().add(I18n.get("filter.noCategory"));
         Collator collator = Collator.getInstance(I18n.getCurrentLocale());
         categoryOptions = categoryService.getAllCategories().stream()
                 .sorted(Comparator.comparing(category -> category.getName() == null ? "" : category.getName(),
@@ -322,6 +330,11 @@ public class TransactionFilterPanelController {
     private void setupFilterListeners() {
         accountFilter.valueProperty().addListener((observable, oldValue, newValue) -> applyChangedFilters());
         categoryFilter.valueProperty().addListener((observable, oldValue, newValue) -> applyChangedFilters());
+        noLabelsFilter.selectedProperty().addListener((observable, oldValue, selected) -> {
+            if (selected) selectedLabelIds.clear();
+            updateLabelFilterButton();
+            applyChangedFilters();
+        });
         searchField.textProperty().addListener((observable, oldValue, newValue) -> applyChangedFilters());
         minAmountField.textProperty().addListener((observable, oldValue, newValue) -> applyChangedFilters());
         maxAmountField.textProperty().addListener((observable, oldValue, newValue) -> applyChangedFilters());
@@ -347,7 +360,8 @@ public class TransactionFilterPanelController {
         DateValue fromDate = captureDate(fromDateFilter);
         DateValue toDate = captureDate(toDateFilter);
         sessionViewState.saveTransactionFilters(viewKey, new SessionViewState.TransactionFilterPanelState(
-                getSelectedAccountId(), getSelectedCategoryId(), Set.copyOf(selectedLabelIds), searchField.getText(),
+                getSelectedAccountId(), getSelectedCategoryId(), isNoCategorySelected(),
+                Set.copyOf(selectedLabelIds), noLabelsFilter.isSelected(), searchField.getText(),
                 minAmountField.getText(), maxAmountField.getText(), datePresetFilter.getValue(),
                 fromDate.value(), fromDate.invalidText(), toDate.value(), toDate.invalidText(),
                 additionalFiltersExpanded));
@@ -381,12 +395,12 @@ public class TransactionFilterPanelController {
         accountFilter.getSelectionModel().select(index);
     }
 
-    private void selectCategory(Long categoryId) {
-        int index = 0;
-        if (categoryId != null) {
+    private void selectCategory(Long categoryId, boolean noCategory) {
+        int index = noCategory ? 1 : 0;
+        if (!noCategory && categoryId != null) {
             for (int categoryIndex = 0; categoryIndex < categoryOptions.size(); categoryIndex++) {
                 if (categoryId.equals(categoryOptions.get(categoryIndex).getId())) {
-                    index = categoryIndex + 1;
+                    index = categoryIndex + 2;
                     break;
                 }
             }
@@ -415,11 +429,15 @@ public class TransactionFilterPanelController {
         if (accountFilter.getSelectionModel().getSelectedIndex() > 0) {
             addSummaryItem(activeFilters, I18n.get("filter.account"), accountFilter.getValue());
         }
-        if (categoryFilter.getSelectionModel().getSelectedIndex() > 0) {
+        if (isNoCategorySelected()) {
+            addSummaryItem(activeFilters, I18n.get("filter.category"), I18n.get("filter.noCategory"));
+        } else if (categoryFilter.getSelectionModel().getSelectedIndex() > 0) {
             addSummaryItem(activeFilters, I18n.get("filter.category"), categoryFilter.getValue());
         }
         List<String> selectedLabelNames = labelNames(selectedLabels());
-        if (!selectedLabelNames.isEmpty()) {
+        if (noLabelsFilter.isSelected()) {
+            addSummaryItem(activeFilters, I18n.get(LABEL_FILTER_I18N_KEY), I18n.get("filter.noLabels"));
+        } else if (!selectedLabelNames.isEmpty()) {
             addSummaryItem(activeFilters, I18n.get(LABEL_FILTER_I18N_KEY), String.join(", ", selectedLabelNames));
         }
         addSummaryItem(activeFilters, I18n.get("filter.minAmount"), minAmountField.getText());
@@ -482,8 +500,12 @@ public class TransactionFilterPanelController {
 
     private Long getSelectedCategoryId() {
         int index = categoryFilter.getSelectionModel().getSelectedIndex();
-        if (index <= 0) return null;
-        return index - 1 < categoryOptions.size() ? categoryOptions.get(index - 1).getId() : null;
+        if (index <= 1) return null;
+        return index - 2 < categoryOptions.size() ? categoryOptions.get(index - 2).getId() : null;
+    }
+
+    private boolean isNoCategorySelected() {
+        return categoryFilter.getSelectionModel().getSelectedIndex() == 1;
     }
 
     private List<Label> selectedLabels() {
@@ -517,6 +539,7 @@ public class TransactionFilterPanelController {
         content.getChildren().setAll(selectedContent, dropdownIcon);
         labelFilterButton.setText("");
         labelFilterButton.setGraphic(content);
+        labelFilterButton.setDisable(noLabelsFilter.isSelected());
         String selectedNames = String.join(", ", labelNames(labels));
         labelFilterButton.setAccessibleText(labels.isEmpty()
                 ? I18n.get(LABEL_FILTER_I18N_KEY)

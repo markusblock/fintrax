@@ -97,11 +97,17 @@ public class TransactionService {
                 .filter(t -> filter.accountId() == null || t.getAccountId().equals(filter.accountId()))
                 .filter(t -> (filter.fromDate() == null && filter.toDate() == null)
                         || matchesDateRange(t.getBookingDate(), filter))
-                .filter(t -> filter.categoryId() == null || matchingCategoryIds.contains(t.getCategoryId()))
-                .filter(t -> filter.labelIds() == null || filter.labelIds().isEmpty() ||
-                        t.getLabelIds().containsAll(filter.labelIds()))
-                .filter(t -> filter.minAmount() == null || t.getAmount().compareTo(filter.minAmount()) >= 0)
-                .filter(t -> filter.maxAmount() == null || t.getAmount().compareTo(filter.maxAmount()) <= 0)
+                .filter(t -> filter.noCategory()
+                        ? t.getCategoryId() == null
+                        : filter.categoryId() == null || matchingCategoryIds.contains(t.getCategoryId()))
+                .filter(t -> filter.noLabels()
+                        ? t.getLabelIds() == null || t.getLabelIds().isEmpty()
+                        : filter.labelIds() == null || filter.labelIds().isEmpty()
+                                || (t.getLabelIds() != null && t.getLabelIds().containsAll(filter.labelIds())))
+                .filter(t -> filter.minAmount() == null || t.getAmount() != null
+                        && t.getAmount().compareTo(filter.minAmount()) >= 0)
+                .filter(t -> filter.maxAmount() == null || t.getAmount() != null
+                        && t.getAmount().compareTo(filter.maxAmount()) <= 0)
                 .filter(t -> filter.searchText() == null || filter.searchText().isEmpty()
                         || matchesSearch(t, filter.searchText(), categoryNames, labelNames, searchDateFormatter))
                 .toList();
