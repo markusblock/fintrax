@@ -3,7 +3,6 @@ package org.fintrax.ui.controller;
 import javafx.fxml.FXML;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
-import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.TextField;
@@ -59,8 +58,6 @@ public class TransactionFilterPanelController {
     @FXML
     private Button labelFilterButton;
     @FXML
-    private CheckBox noLabelsFilter;
-    @FXML
     private TextField searchField;
     @FXML
     private TextField minAmountField;
@@ -92,6 +89,7 @@ public class TransactionFilterPanelController {
     private List<Category> categoryOptions = List.of();
     private List<Label> labelOptions = List.of();
     private final Set<Long> selectedLabelIds = new LinkedHashSet<>();
+    private boolean noLabelsSelected;
     private Runnable onFiltersChanged = () -> { };
     private boolean updatingDateFilters;
     private boolean updatingFilters;
@@ -152,8 +150,8 @@ public class TransactionFilterPanelController {
             selectCategory(state.categoryId(), state.noCategory());
             selectedLabelIds.clear();
             if (state.labelIds() != null) selectedLabelIds.addAll(state.labelIds());
-            noLabelsFilter.setSelected(state.noLabels());
-            if (state.noLabels()) selectedLabelIds.clear();
+            noLabelsSelected = state.noLabels();
+            if (noLabelsSelected) selectedLabelIds.clear();
             searchField.setText(state.searchText());
             minAmountField.setText(state.minAmountText());
             maxAmountField.setText(state.maxAmountText());
@@ -197,7 +195,7 @@ public class TransactionFilterPanelController {
         String search = searchField.getText().trim();
         return Optional.of(new TransactionFilter(
                 getSelectedAccountId(), fromDate, toDate, getSelectedCategoryId(), isNoCategorySelected(),
-                selectedLabelIds.isEmpty() ? null : Set.copyOf(selectedLabelIds), noLabelsFilter.isSelected(),
+                selectedLabelIds.isEmpty() ? null : Set.copyOf(selectedLabelIds), noLabelsSelected,
                 parseAmount(minAmountField.getText()), parseAmount(maxAmountField.getText()),
                 search.isEmpty() ? null : search));
     }
@@ -210,11 +208,24 @@ public class TransactionFilterPanelController {
                 .collect(Collectors.toSet());
         if (selectedLabelIds.retainAll(availableIds)) applyChangedFilters();
         updateLabelFilterButton();
-        SearchableDropdownPicker.showMany(labelFilterButton, labelOptions, selectedLabels(), Label::getName,
-                "picker.labels.create", name -> labelService.createLabel(name, "#1976d2", null), labels -> {
+        List<LabelFilterOption> options = labelOptions.stream()
+                .map(label -> new LabelFilterOption(label, false))
+                .collect(Collectors.toCollection(ArrayList::new));
+        options.add(LabelFilterOption.noLabelSetOption());
+        List<LabelFilterOption> selectedOptions = noLabelsSelected
+                ? List.of(LabelFilterOption.noLabelSetOption())
+                : selectedLabels().stream().map(label -> new LabelFilterOption(label, false)).toList();
+        SearchableDropdownPicker.showMany(labelFilterButton, options, selectedOptions,
+                option -> option.noLabelSet() ? I18n.get("filter.noLabelSet") : option.label().getName(),
+                "picker.labels.create", name -> new LabelFilterOption(
+                        labelService.createLabel(name, "#1976d2", null), false),
+                LabelFilterOption::noLabelSet, selected -> {
                     selectedLabelIds.clear();
-                    labels.stream().map(Label::getId).forEach(selectedLabelIds::add);
-                    noLabelsFilter.setSelected(false);
+                    noLabelsSelected = selected.stream().anyMatch(LabelFilterOption::noLabelSet);
+                    if (!noLabelsSelected) {
+                        selected.stream().map(LabelFilterOption::label).map(Label::getId)
+                                .forEach(selectedLabelIds::add);
+                    }
                     labelOptions = labelService.getAllLabels();
                     updateLabelFilterButton();
                     applyChangedFilters();
@@ -228,7 +239,7 @@ public class TransactionFilterPanelController {
             accountFilter.getSelectionModel().selectFirst();
             categoryFilter.getSelectionModel().selectFirst();
             selectedLabelIds.clear();
-            noLabelsFilter.setSelected(false);
+            noLabelsSelected = false;
             updateLabelFilterButton();
             searchField.clear();
             minAmountField.clear();
@@ -330,11 +341,6 @@ public class TransactionFilterPanelController {
     private void setupFilterListeners() {
         accountFilter.valueProperty().addListener((observable, oldValue, newValue) -> applyChangedFilters());
         categoryFilter.valueProperty().addListener((observable, oldValue, newValue) -> applyChangedFilters());
-        noLabelsFilter.selectedProperty().addListener((observable, oldValue, selected) -> {
-            if (selected) selectedLabelIds.clear();
-            updateLabelFilterButton();
-            applyChangedFilters();
-        });
         searchField.textProperty().addListener((observable, oldValue, newValue) -> applyChangedFilters());
         minAmountField.textProperty().addListener((observable, oldValue, newValue) -> applyChangedFilters());
         maxAmountField.textProperty().addListener((observable, oldValue, newValue) -> applyChangedFilters());
@@ -361,7 +367,7 @@ public class TransactionFilterPanelController {
         DateValue toDate = captureDate(toDateFilter);
         sessionViewState.saveTransactionFilters(viewKey, new SessionViewState.TransactionFilterPanelState(
                 getSelectedAccountId(), getSelectedCategoryId(), isNoCategorySelected(),
-                Set.copyOf(selectedLabelIds), noLabelsFilter.isSelected(), searchField.getText(),
+                Set.copyOf(selectedLabelIds), noLabelsSelected, searchField.getText(),
                 minAmountField.getText(), maxAmountField.getText(), datePresetFilter.getValue(),
                 fromDate.value(), fromDate.invalidText(), toDate.value(), toDate.invalidText(),
                 additionalFiltersExpanded));
@@ -435,8 +441,8 @@ public class TransactionFilterPanelController {
             addSummaryItem(activeFilters, I18n.get("filter.category"), categoryFilter.getValue());
         }
         List<String> selectedLabelNames = labelNames(selectedLabels());
-        if (noLabelsFilter.isSelected()) {
-            addSummaryItem(activeFilters, I18n.get(LABEL_FILTER_I18N_KEY), I18n.get("filter.noLabels"));
+        if (noLabelsSelected) {
+            addSummaryItem(activeFilters, I18n.get(LABEL_FILTER_I18N_KEY), I18n.get("filter.noLabelSet"));
         } else if (!selectedLabelNames.isEmpty()) {
             addSummaryItem(activeFilters, I18n.get(LABEL_FILTER_I18N_KEY), String.join(", ", selectedLabelNames));
         }
@@ -526,7 +532,9 @@ public class TransactionFilterPanelController {
         content.setAlignment(Pos.CENTER_LEFT);
         content.setMaxWidth(Double.MAX_VALUE);
         javafx.scene.Node selectedContent;
-        if (labels.isEmpty()) {
+        if (noLabelsSelected) {
+            selectedContent = new javafx.scene.control.Label(I18n.get("filter.noLabelSet"));
+        } else if (labels.isEmpty()) {
             selectedContent = new javafx.scene.control.Label(I18n.get(LABEL_FILTER_I18N_KEY));
         } else {
             selectedContent = LabelChipFactory.createAll(labels);
@@ -539,11 +547,10 @@ public class TransactionFilterPanelController {
         content.getChildren().setAll(selectedContent, dropdownIcon);
         labelFilterButton.setText("");
         labelFilterButton.setGraphic(content);
-        labelFilterButton.setDisable(noLabelsFilter.isSelected());
         String selectedNames = String.join(", ", labelNames(labels));
-        labelFilterButton.setAccessibleText(labels.isEmpty()
-                ? I18n.get(LABEL_FILTER_I18N_KEY)
-                : I18n.get(LABEL_FILTER_I18N_KEY) + ": " + selectedNames);
+        String selectionText = noLabelsSelected ? I18n.get("filter.noLabelSet")
+                : labels.isEmpty() ? I18n.get(LABEL_FILTER_I18N_KEY) : selectedNames;
+        labelFilterButton.setAccessibleText(I18n.get(LABEL_FILTER_I18N_KEY) + ": " + selectionText);
     }
 
     private BigDecimal parseAmount(String text) {
@@ -561,5 +568,11 @@ public class TransactionFilterPanelController {
     }
 
     private record DateValue(LocalDate value, String invalidText) {
+    }
+
+    private record LabelFilterOption(Label label, boolean noLabelSet) {
+        private static LabelFilterOption noLabelSetOption() {
+            return new LabelFilterOption(null, true);
+        }
     }
 }

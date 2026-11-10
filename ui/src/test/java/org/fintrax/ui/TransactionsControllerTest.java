@@ -14,6 +14,7 @@ import javafx.scene.control.ContextMenu;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.Labeled;
+import javafx.scene.control.ListCell;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.OverrunStyle;
@@ -606,27 +607,42 @@ class TransactionsControllerTest extends AbstractUITest {
     }
 
     @Test
-    void noLabelsOptionFiltersTransactionsWithoutLabels() throws Exception {
+    void noLabelSetPickerOptionExclusivelyFiltersTransactionsWithoutLabels() throws Exception {
+        String suffix = String.valueOf(System.nanoTime());
+        Label assignedLabel = applicationContext.getBean(LabelService.class)
+                .createLabel("No label option " + suffix, "#1976d2", null);
+        Transaction assigned = applicationContext.getBean(TransactionService.class).createTransaction(
+                Transaction.builder().originalPayee("assigned-label-" + suffix)
+                        .bookingDate(LocalDate.now()).labelIds(Set.of(assignedLabel.getId())).build());
+        Transaction unassigned = applicationContext.getBean(TransactionService.class).createTransaction(
+                Transaction.builder().originalPayee("no-label-" + suffix).bookingDate(LocalDate.now()).build());
+
         interact(lookup("#toggleAdditionalFiltersButton").<Button>query()::fire);
-        CheckBox noLabelsFilter = lookup("#noLabelsFilter").query();
+        Button labelFilter = lookup("#labelFilterButton").query();
         TableView<Transaction> table = lookup("#transactionTable").query();
 
-        interact(noLabelsFilter::fire);
+        interact(labelFilter::fire);
+        waitForPicker();
+        assertEquals(I18n.get("filter.noLabelSet"), pickerOptionTextAt(0));
+        clickLabelInPicker(assignedLabel.getName());
+        saveLabelSelection();
+        assertEquals(List.of(assigned.getId()), table.getItems().stream().map(Transaction::getId).toList());
+
+        selectLabelForFilter(labelFilter, I18n.get("filter.noLabelSet"));
 
         assertTrue(table.getItems().stream().allMatch(transaction ->
                 transaction.getLabelIds() == null || transaction.getLabelIds().isEmpty()));
         assertTrue(table.getItems().stream().anyMatch(transaction ->
-                transaction.getId().equals(detailSparseTransaction.getId())));
+                transaction.getId().equals(unassigned.getId())));
         assertFalse(table.getItems().stream().anyMatch(transaction ->
-                transaction.getId().equals(testCategoryTransaction.getId())));
+                transaction.getId().equals(assigned.getId())));
 
         Stage stage = (Stage) table.getScene().getWindow();
         Parent restoredView = applicationContext.getBean(ViewLoader.class).load("transactions");
         interact(() -> stage.getScene().setRoot(restoredView));
-        CheckBox restoredNoLabelsFilter = lookup("#noLabelsFilter").query();
+        Button restoredLabelFilter = lookup("#labelFilterButton").query();
         TableView<Transaction> restoredTable = lookup("#transactionTable").query();
-        assertTrue(restoredNoLabelsFilter.isSelected());
-        assertTrue(lookup("#labelFilterButton").<Button>query().isDisabled());
+        assertTrue(restoredLabelFilter.getAccessibleText().contains(I18n.get("filter.noLabelSet")));
         assertTrue(restoredTable.getItems().stream().allMatch(transaction ->
                 transaction.getLabelIds() == null || transaction.getLabelIds().isEmpty()));
     }
@@ -733,14 +749,14 @@ class TransactionsControllerTest extends AbstractUITest {
 
         assertNotNull(lookup("#pickerSearch").query());
         Button selectButton = lookup("#pickerSave").query();
-        Button selectAllButton = lookup("#pickerToggleAll").query();
+        Button deselectAllButton = lookup("#pickerDeselectAll").query();
         assertEquals(I18n.get("picker.select"), selectButton.getText());
-        assertEquals(I18n.get("picker.labels.selectAll"), selectAllButton.getText());
-        interact(selectAllButton::fire);
-        assertEquals(I18n.get("picker.labels.deselectAll"), selectAllButton.getText());
-        interact(selectAllButton::fire);
-        assertEquals(I18n.get("picker.labels.selectAll"), selectAllButton.getText());
+        assertEquals(I18n.get("picker.labels.deselectAll"), deselectAllButton.getText());
+        assertFalse(deselectAllButton.isDisabled());
+        interact(deselectAllButton::fire);
+        assertTrue(deselectAllButton.isDisabled());
         selectLabelInPicker(label.getName());
+        assertFalse(deselectAllButton.isDisabled());
         javafx.scene.control.ListView<org.fintrax.model.Label> options = lookup("#pickerList").query();
         javafx.scene.control.ListCell<org.fintrax.model.Label> optionCell = options.lookupAll(".list-cell").stream()
                 .filter(javafx.scene.control.ListCell.class::isInstance)
@@ -1468,6 +1484,17 @@ class TransactionsControllerTest extends AbstractUITest {
                 .orElseThrow();
         CheckBox checkBox = (CheckBox) ((HBox) optionCell.getGraphic()).getChildren().getFirst();
         clickOn(checkBox);
+    }
+
+    private String pickerOptionTextAt(int index) {
+        ListCell<?> cell = lookup("#pickerList").<ListView<?>>query().lookupAll(".list-cell").stream()
+                .filter(ListCell.class::isInstance)
+                .map(node -> (ListCell<?>) node)
+                .filter(candidate -> !candidate.isEmpty() && candidate.getIndex() == index)
+                .findFirst()
+                .orElseThrow();
+        HBox option = (HBox) cell.getGraphic();
+        return ((Labeled) option.getChildren().get(1)).getText();
     }
 
     private int indexOfTransactionWithCategory(TableView<Transaction> table) {
