@@ -330,15 +330,15 @@ public final class SearchableDropdownPicker {
         }
 
         private void toggle(T item) {
-            if (selected.contains(item)) {
-                selected.remove(item);
-            } else {
-                if (exclusiveSelection.test(item)) selected.clear();
-                else selected.removeIf(exclusiveSelection);
-                selected.add(item);
-            }
+            if (!selected.remove(item)) addSelection(item);
             optionsList.refresh();
             updateDeselectAllButton();
+        }
+
+        private void addSelection(T item) {
+            if (exclusiveSelection.test(item)) selected.clear();
+            else selected.removeIf(exclusiveSelection);
+            selected.add(item);
         }
 
         private boolean isInsideCheckBox(Object target) {
@@ -366,7 +366,7 @@ public final class SearchableDropdownPicker {
             try {
                 T created = createOption.apply(searchField.getText().trim());
                 if (multiple) {
-                    selected.add(created);
+                    addSelection(created);
                     searchField.clear();
                     searchField.requestFocus();
                 } else {
