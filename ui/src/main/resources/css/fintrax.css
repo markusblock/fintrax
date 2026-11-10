@@ -533,8 +533,8 @@
 }
 
 .filter-label-arrow {
-    -fx-background-color: -fx-mark-highlight-color, -fx-mark-color;
-    -fx-background-insets: 0 0 -1 0, 0;
+    -fx-background-color: -color-fg-muted;
+    -fx-background-insets: 0;
     -fx-padding: 0.166667em 0.333333em;
     -fx-shape: "M 0 0 h 7 l -3.5 4 z";
 }

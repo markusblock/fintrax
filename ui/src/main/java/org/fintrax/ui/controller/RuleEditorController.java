@@ -10,7 +10,9 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
+import javafx.scene.text.Text;
 import org.fintrax.config.I18n;
 import org.fintrax.model.ActionType;
 import org.fintrax.model.Category;
@@ -40,9 +42,8 @@ import java.util.regex.PatternSyntaxException;
 public class RuleEditorController {
     private static final String DEFAULT_LABEL_COLOR = "#1976d2";
     private static final String RULE_ROW_CONTROL_STYLE_CLASS = "rule-row-control";
-    private static final double ACTION_TYPE_COMBO_WIDTH = 190;
-    private static final double CONDITION_FIELD_COMBO_WIDTH = 240;
     private static final double CONDITION_OPERATOR_COMBO_WIDTH = 180;
+    private static final double COMBO_BOX_ARROW_AND_PADDING_WIDTH = 48;
 
     @FXML
     private TextField ruleNameField;
@@ -225,6 +226,7 @@ public class RuleEditorController {
                 MatchField.PURPOSE, MatchField.AMOUNT, MatchField.ACCOUNT));
         if (existing != null && !fields.contains(existing.getMatchField())) fields.add(existing.getMatchField());
         row.fieldCombo.getItems().setAll(fields.stream().map(this::fieldText).toList());
+        fitComboBoxToItems(row.fieldCombo);
         List<Operator> operators = new ArrayList<>(List.of(Operator.CONTAINS, Operator.CONTAINS_NOT,
                 Operator.EQUALS, Operator.NOT_EQUALS, Operator.REGEX, Operator.NOT_REGEX));
         if (existing != null && !operators.contains(existing.getOperator())) operators.add(existing.getOperator());
@@ -259,6 +261,7 @@ public class RuleEditorController {
         ActionRow row = new ActionRow();
         row.typeCombo.getItems().setAll(Arrays.stream(ActionType.values())
                 .filter(actionType -> actionType != ActionType.SET_NOTE).map(this::actionText).toList());
+        fitComboBoxToItems(row.typeCombo);
         row.typeCombo.setOnAction(event -> {
             onActionTypeChanged(row);
             notifyChanged();
@@ -398,7 +401,8 @@ public class RuleEditorController {
             fieldCombo.getStyleClass().add(RULE_ROW_CONTROL_STYLE_CLASS);
             operatorCombo.getStyleClass().add(RULE_ROW_CONTROL_STYLE_CLASS);
             valueField.getStyleClass().add(RULE_ROW_CONTROL_STYLE_CLASS);
-            fieldCombo.setMinWidth(CONDITION_FIELD_COMBO_WIDTH);
+            valueField.setPrefColumnCount(25);
+            valueField.setMinWidth(Region.USE_PREF_SIZE);
             fieldCombo.setMaxWidth(Double.MAX_VALUE);
             operatorCombo.setMinWidth(CONDITION_OPERATOR_COMBO_WIDTH);
             operatorCombo.setMaxWidth(Double.MAX_VALUE);
@@ -408,6 +412,28 @@ public class RuleEditorController {
             grid.add(operatorCombo, 1, 0);
             grid.add(valueField, 2, 0);
             grid.add(removeButton, 3, 0);
+        }
+
+        private static GridPane conditionRowGrid() {
+            GridPane grid = new GridPane();
+            grid.setHgap(8);
+            ColumnConstraints fieldColumn = new ColumnConstraints();
+            fieldColumn.setHgrow(Priority.NEVER);
+            grid.getColumnConstraints().add(fieldColumn);
+            ColumnConstraints operatorColumn = new ColumnConstraints();
+            operatorColumn.setMinWidth(CONDITION_OPERATOR_COMBO_WIDTH);
+            operatorColumn.setPrefWidth(CONDITION_OPERATOR_COMBO_WIDTH);
+            operatorColumn.setHgrow(Priority.NEVER);
+            grid.getColumnConstraints().add(operatorColumn);
+            ColumnConstraints valueColumn = new ColumnConstraints();
+            valueColumn.setHgrow(Priority.ALWAYS);
+            grid.getColumnConstraints().add(valueColumn);
+            ColumnConstraints removeColumn = new ColumnConstraints();
+            removeColumn.setHalignment(HPos.RIGHT);
+            removeColumn.setHgrow(Priority.NEVER);
+            grid.getColumnConstraints().add(removeColumn);
+            grid.setMaxWidth(Double.MAX_VALUE);
+            return grid;
         }
 
         private boolean isValid() {
@@ -425,7 +451,7 @@ public class RuleEditorController {
     }
 
     private static final class ActionRow {
-        private final GridPane grid = rowGrid(35, 25, 30, 10);
+        private final GridPane grid = actionRowGrid();
         private final ComboBox<String> typeCombo = new ComboBox<>();
         private final SearchableChoiceButton targetCombo = new SearchableChoiceButton();
         private final Button removeButton = removeButton();
@@ -434,8 +460,6 @@ public class RuleEditorController {
         private ActionRow() {
             grid.getStyleClass().add("rule-action-row");
             typeCombo.getStyleClass().add(RULE_ROW_CONTROL_STYLE_CLASS);
-            typeCombo.setMinWidth(ACTION_TYPE_COMBO_WIDTH);
-            typeCombo.setPrefWidth(ACTION_TYPE_COMBO_WIDTH);
             typeCombo.setMaxWidth(Double.MAX_VALUE);
             targetCombo.setMaxWidth(Double.MAX_VALUE);
             targetCombo.getStyleClass().add(RULE_ROW_CONTROL_STYLE_CLASS);
@@ -451,40 +475,38 @@ public class RuleEditorController {
         }
     }
 
-    private static GridPane rowGrid(double... widths) {
+    private static GridPane actionRowGrid() {
         GridPane grid = new GridPane();
         grid.setHgap(8);
-        for (double width : widths) {
-            ColumnConstraints column = new ColumnConstraints();
-            column.setPercentWidth(width);
-            column.setHgrow(javafx.scene.layout.Priority.ALWAYS);
-            grid.getColumnConstraints().add(column);
-        }
-        return grid;
-    }
-
-    private static GridPane conditionRowGrid() {
-        GridPane grid = new GridPane();
-        grid.setHgap(8);
-        ColumnConstraints fieldColumn = new ColumnConstraints();
-        fieldColumn.setMinWidth(CONDITION_FIELD_COMBO_WIDTH);
-        fieldColumn.setPrefWidth(CONDITION_FIELD_COMBO_WIDTH);
-        fieldColumn.setHgrow(Priority.NEVER);
-        grid.getColumnConstraints().add(fieldColumn);
-        ColumnConstraints operatorColumn = new ColumnConstraints();
-        operatorColumn.setMinWidth(CONDITION_OPERATOR_COMBO_WIDTH);
-        operatorColumn.setPrefWidth(CONDITION_OPERATOR_COMBO_WIDTH);
-        operatorColumn.setHgrow(Priority.NEVER);
-        grid.getColumnConstraints().add(operatorColumn);
-        ColumnConstraints valueColumn = new ColumnConstraints();
-        valueColumn.setHgrow(Priority.ALWAYS);
-        grid.getColumnConstraints().add(valueColumn);
+        ColumnConstraints typeColumn = new ColumnConstraints();
+        typeColumn.setHgrow(Priority.NEVER);
+        grid.getColumnConstraints().add(typeColumn);
+        ColumnConstraints firstTargetColumn = new ColumnConstraints();
+        firstTargetColumn.setHgrow(Priority.ALWAYS);
+        grid.getColumnConstraints().add(firstTargetColumn);
+        ColumnConstraints secondTargetColumn = new ColumnConstraints();
+        secondTargetColumn.setHgrow(Priority.ALWAYS);
+        grid.getColumnConstraints().add(secondTargetColumn);
         ColumnConstraints removeColumn = new ColumnConstraints();
         removeColumn.setHalignment(HPos.RIGHT);
         removeColumn.setHgrow(Priority.NEVER);
         grid.getColumnConstraints().add(removeColumn);
         grid.setMaxWidth(Double.MAX_VALUE);
         return grid;
+    }
+
+    private static void fitComboBoxToItems(ComboBox<String> combo) {
+        double widestLabel = combo.getItems().stream()
+                .mapToDouble(label -> {
+                    Text text = new Text(label);
+                    return text.getLayoutBounds().getWidth();
+                })
+                .max()
+                .orElse(0);
+        double horizontalInsets = combo.getInsets().getLeft() + combo.getInsets().getRight();
+        double width = Math.ceil(widestLabel + horizontalInsets + COMBO_BOX_ARROW_AND_PADDING_WIDTH);
+        combo.setMinWidth(width);
+        combo.setPrefWidth(width);
     }
 
     private static Button removeButton() {
