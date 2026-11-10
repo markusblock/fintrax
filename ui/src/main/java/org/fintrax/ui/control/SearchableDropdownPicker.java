@@ -43,15 +43,15 @@ public final class SearchableDropdownPicker {
                                    Function<T, String> displayText, String createTextKey,
                                    Function<String, T> createOption, Consumer<T> onSave) {
         showOne(anchor, options, initiallySelected, displayText, createTextKey, createOption,
-                "picker.category.clear", onSave);
+                new SingleSelection<>("picker.category.clear", onSave));
     }
 
     public static <T> void showOne(Node anchor, Collection<T> options, T initiallySelected,
                                    Function<T, String> displayText, String createTextKey,
-                                   Function<String, T> createOption, String clearTextKey, Consumer<T> onSave) {
+                                   Function<String, T> createOption, SingleSelection<T> selection) {
         new Picker<>(anchor, options, initiallySelected == null ? List.of() : List.of(initiallySelected),
-                new PickerConfiguration<>(displayText, false, createTextKey, createOption, clearTextKey,
-                        new MultiSelection<>(item -> false, values -> onSave.accept(
+                new PickerConfiguration<>(displayText, false, createTextKey, createOption, selection.clearTextKey(),
+                        new MultiSelection<>(item -> false, values -> selection.onSave().accept(
                                 values.isEmpty() ? null : values.get(0))))).show();
     }
 
@@ -71,6 +71,9 @@ public final class SearchableDropdownPicker {
     }
 
     public record MultiSelection<T>(Predicate<T> exclusiveSelection, Consumer<List<T>> onSave) {
+    }
+
+    public record SingleSelection<T>(String clearTextKey, Consumer<T> onSave) {
     }
 
     private record PickerConfiguration<T>(Function<T, String> displayText, boolean multiple,

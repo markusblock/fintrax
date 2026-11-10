@@ -53,6 +53,9 @@ public class TransactionFilterPanelController {
     private static final String FILTER_SUMMARY_SEPARATOR = " · ";
     private static final String LABEL_FILTER_I18N_KEY = "filter.labels";
     private static final String NO_LABEL_SET_I18N_KEY = "filter.noLabelSet";
+    private static final String CATEGORY_I18N_KEY = "filter.category";
+    private static final String ALL_CATEGORIES_I18N_KEY = "filter.allCategories";
+    private static final String NO_CATEGORY_I18N_KEY = "filter.noCategory";
 
     @FXML
     private ComboBox<String> accountFilter;
@@ -211,22 +214,28 @@ public class TransactionFilterPanelController {
         categoryOptions = categoryService.getAllCategories();
         Function<Category, String> categoryDisplay = CategoryHierarchy.displayPaths(categoryOptions);
         List<CategoryFilterOption> options = new ArrayList<>();
-        options.add(new CategoryFilterOption(null, false, I18n.get("filter.allCategories")));
-        options.add(new CategoryFilterOption(null, true, I18n.get("filter.noCategory")));
+        options.add(new CategoryFilterOption(null, false, I18n.get(ALL_CATEGORIES_I18N_KEY)));
+        options.add(new CategoryFilterOption(null, true, I18n.get(NO_CATEGORY_I18N_KEY)));
         options.addAll(categoryOptions.stream()
                 .map(category -> new CategoryFilterOption(category.getId(), false, categoryDisplay.apply(category)))
                 .toList());
-        CategoryFilterOption initiallySelected = noCategorySelected ? options.get(1)
-                : selectedCategoryId == null ? null
-                        : options.stream().filter(option -> selectedCategoryId.equals(option.categoryId()))
-                                .findFirst().orElse(null);
+        CategoryFilterOption initiallySelected = null;
+        if (noCategorySelected) {
+            initiallySelected = options.get(1);
+        } else if (selectedCategoryId != null) {
+            initiallySelected = options.stream()
+                    .filter(option -> selectedCategoryId.equals(option.categoryId()))
+                    .findFirst()
+                    .orElse(null);
+        }
         SearchableDropdownPicker.showOne(categoryFilter, options, initiallySelected,
-                CategoryFilterOption::displayText, null, null, "filter.allCategories", selected -> {
+                CategoryFilterOption::displayText, null, null,
+                new SearchableDropdownPicker.SingleSelection<>(ALL_CATEGORIES_I18N_KEY, selected -> {
                     selectedCategoryId = selected == null ? null : selected.categoryId();
                     noCategorySelected = selected != null && selected.noCategory();
                     updateCategoryFilterButton();
                     applyChangedFilters();
-                });
+                }));
     }
 
     @FXML
@@ -456,9 +465,9 @@ public class TransactionFilterPanelController {
             addSummaryItem(activeFilters, I18n.get("filter.account"), accountFilter.getValue());
         }
         if (isNoCategorySelected()) {
-            addSummaryItem(activeFilters, I18n.get("filter.category"), I18n.get("filter.noCategory"));
+            addSummaryItem(activeFilters, I18n.get(CATEGORY_I18N_KEY), I18n.get(NO_CATEGORY_I18N_KEY));
         } else if (selectedCategoryId != null) {
-            addSummaryItem(activeFilters, I18n.get("filter.category"), categoryFilter.getText());
+            addSummaryItem(activeFilters, I18n.get(CATEGORY_I18N_KEY), categoryFilter.getText());
         }
         List<String> selectedLabelNames = labelNames(selectedLabels());
         if (noLabelsSelected) {
@@ -533,19 +542,19 @@ public class TransactionFilterPanelController {
     }
 
     private void updateCategoryFilterButton() {
-        String selectedText = I18n.get("filter.allCategories");
+        String selectedText = I18n.get(ALL_CATEGORIES_I18N_KEY);
         if (noCategorySelected) {
-            selectedText = I18n.get("filter.noCategory");
+            selectedText = I18n.get(NO_CATEGORY_I18N_KEY);
         } else if (selectedCategoryId != null) {
             Function<Category, String> categoryDisplay = CategoryHierarchy.displayPaths(categoryOptions);
             selectedText = categoryOptions.stream()
                     .filter(category -> selectedCategoryId.equals(category.getId()))
                     .map(categoryDisplay)
                     .findFirst()
-                    .orElse(I18n.get("filter.allCategories"));
+                    .orElse(I18n.get(ALL_CATEGORIES_I18N_KEY));
         }
         categoryFilter.setText(selectedText);
-        categoryFilter.setAccessibleText(I18n.get("filter.category") + ": " + selectedText);
+        categoryFilter.setAccessibleText(I18n.get(CATEGORY_I18N_KEY) + ": " + selectedText);
     }
 
     private List<Label> selectedLabels() {

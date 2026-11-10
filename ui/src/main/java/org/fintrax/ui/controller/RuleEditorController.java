@@ -341,8 +341,8 @@ public class RuleEditorController {
         if (row.targetType == null) return;
         SearchableDropdownPicker.showOne(row.targetButton, row.targetOptions, row.selectedTarget,
                 RuleTargetChoice::displayText, row.createTextKey, row.createTarget,
-                "picker.selection.clear",
-                selected -> setTargetChoice(row, selected));
+                new SearchableDropdownPicker.SingleSelection<>("picker.selection.clear",
+                        selected -> setTargetChoice(row, selected)));
     }
 
     private void setTargetChoice(ActionRow row, RuleTargetChoice choice) {
