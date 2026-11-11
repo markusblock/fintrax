@@ -1,5 +1,6 @@
 package org.fintrax.ui.controller;
 
+import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
@@ -9,6 +10,7 @@ import javafx.scene.control.*;
 import javafx.scene.control.cell.CheckBoxTableCell;
 import javafx.scene.input.ContextMenuEvent;
 import javafx.scene.layout.VBox;
+import javafx.stage.Stage;
 import javafx.stage.Window;
 import org.kordamp.ikonli.javafx.FontIcon;
 import org.fintrax.config.I18n;
@@ -22,6 +24,8 @@ import org.fintrax.service.RuleService;
 import org.fintrax.service.SettingsService;
 import org.fintrax.service.TransactionRulePreview;
 import org.fintrax.ui.FintraxUI;
+import org.fintrax.ui.WindowGeometry;
+import org.fintrax.ui.control.SingleLineText;
 import org.fintrax.ui.control.TableCellTooltips;
 import org.fintrax.ui.control.TableColumnConfig;
 import org.fintrax.ui.control.TableColumnVisibilityMenu;
@@ -29,6 +33,7 @@ import org.fintrax.ui.control.TableColumnVisibilityMenu;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,6 +44,12 @@ import java.util.stream.Collectors;
 
 final class RuleReviewDialog {
     private static final double SELECTION_COLUMN_WIDTH = 36;
+    private static final double MIN_REVIEW_WINDOW_WIDTH = 800;
+    private static final double MIN_REVIEW_WINDOW_HEIGHT = 400;
+    private static final String REVIEW_WINDOW_GEOMETRY_SETTING = "rules.review.window.geometry";
+    private static final String REVIEW_COLUMNS_SETTING = "rules.review.columns";
+    private static final String PAYEE_COLUMN_KEY = "payee";
+    private static final String PURPOSE_COLUMN_KEY = "purpose";
     record Services(RuleService ruleService, AccountService accountService, CategoryService categoryService,
                     LabelService labelService, SettingsService settingsService) {}
 
@@ -74,6 +85,19 @@ final class RuleReviewDialog {
         dialog.setHeaderText(I18n.get(selectedRuleOnly
                 ? "rules.review.single.header" : "rules.review.header"));
         dialog.initOwner(owner);
+        dialog.setOnShown(event -> {
+            Stage stage = dialogStage(dialog);
+            stage.setOnHiding(windowEvent ->
+                    WindowGeometry.save(stage, settingsService, REVIEW_WINDOW_GEOMETRY_SETTING,
+                            MIN_REVIEW_WINDOW_WIDTH, MIN_REVIEW_WINDOW_HEIGHT));
+            // Dialog layout can override restored dimensions during its initial layout pass.
+            Platform.runLater(() -> {
+                if (stage.isShowing()) {
+                    WindowGeometry.restore(stage, settingsService, REVIEW_WINDOW_GEOMETRY_SETTING,
+                            MIN_REVIEW_WINDOW_WIDTH, MIN_REVIEW_WINDOW_HEIGHT);
+                }
+            });
+        });
 
         CheckBox onlyFillMissing = new CheckBox(I18n.get("rules.review.onlyFillMissing"));
         onlyFillMissing.setId("onlyFillMissingRules");
@@ -93,9 +117,10 @@ final class RuleReviewDialog {
         DateTimeFormatter dateFormatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT)
                 .withLocale(I18n.getCurrentLocale());
         List<TableColumn<TransactionRulePreview, ?>> columns = List.of(
-                column("col.bookingDate", row -> formatDate(row.bookingDate(), dateFormatter), 105),
-                column("col.valueDate", row -> formatDate(row.valueDate(), dateFormatter), 105),
+                dateColumn("col.bookingDate", TransactionRulePreview::bookingDate, dateFormatter),
+                dateColumn("col.valueDate", TransactionRulePreview::valueDate, dateFormatter),
                 column("rules.review.payee", TransactionRulePreview::payee, 180),
+                column("col.purpose", row -> SingleLineText.normalize(row.purpose()), 180),
                 column("rules.review.amount", row -> row.amount() == null
                         ? "—" : String.format("%,.2f EUR", row.amount().doubleValue()), 110),
                 column("rules.review.account", this::accountName, 140),
@@ -120,18 +145,20 @@ final class RuleReviewDialog {
         menuColumn.setReorderable(false);
         menuColumn.setGraphic(columnMenuButton);
         table.getColumns().add(menuColumn);
-        TableColumnVisibilityMenu.install(table, columnMenuButton, "rules.review.columns", settingsService,
+        migratePurposeColumnOrder();
+        TableColumnVisibilityMenu.install(table, columnMenuButton, REVIEW_COLUMNS_SETTING, settingsService,
                 List.of(new TableColumnConfig("date", columns.get(0)),
                         new TableColumnConfig("valueDate", columns.get(1)),
-                        new TableColumnConfig("payee", columns.get(2)),
-                        new TableColumnConfig("amount", columns.get(3)),
-                        new TableColumnConfig("account", columns.get(4)),
-                        new TableColumnConfig("currentCategory", columns.get(5)),
-                        new TableColumnConfig("categoryAfter", columns.get(6)),
-                        new TableColumnConfig("currentLabel", columns.get(7)),
-                        new TableColumnConfig("labelAfter", columns.get(8)),
-                        new TableColumnConfig("matchingRuleCount", columns.get(9)),
-                        new TableColumnConfig("matchedRules", columns.get(10))));
+                        new TableColumnConfig(PAYEE_COLUMN_KEY, columns.get(2)),
+                        new TableColumnConfig(PURPOSE_COLUMN_KEY, columns.get(3)),
+                        new TableColumnConfig("amount", columns.get(4)),
+                        new TableColumnConfig("account", columns.get(5)),
+                        new TableColumnConfig("currentCategory", columns.get(6)),
+                        new TableColumnConfig("categoryAfter", columns.get(7)),
+                        new TableColumnConfig("currentLabel", columns.get(8)),
+                        new TableColumnConfig("labelAfter", columns.get(9)),
+                        new TableColumnConfig("matchingRuleCount", columns.get(10)),
+                        new TableColumnConfig("matchedRules", columns.get(11))));
         Map<Long, BooleanProperty> selectionByTransactionId = new HashMap<>();
         table.setRowFactory(view -> createReviewRow(view, selectionByTransactionId));
         TableColumn<TransactionRulePreview, Boolean> selectionColumn = new TableColumn<>();
@@ -281,6 +308,8 @@ final class RuleReviewDialog {
         List<TransactionRulePreview> changedRows = preview.transactionsWithChanges();
         initializeRowSelections(changedRows, selectionByTransactionId, updateSelectionControls);
         rows.setAll(changedRows);
+        // Sort preferences are restored before the dialog's preview rows are loaded.
+        elements.table().sort();
         updateSelectionControls.run();
         updatePreviewSummary(preview, changedRows, elements);
         updatePreviewVisibility(changedRows.isEmpty(), elements);
@@ -332,6 +361,21 @@ final class RuleReviewDialog {
         return column;
     }
 
+    private TableColumn<TransactionRulePreview, String> dateColumn(
+            String titleKey, Function<TransactionRulePreview, LocalDate> dateFor,
+            DateTimeFormatter dateFormatter) {
+        TableColumn<TransactionRulePreview, String> column = column(
+                titleKey, row -> formatDate(dateFor.apply(row), dateFormatter), 105);
+        column.setComparator((first, second) -> compareDates(first, second, dateFormatter));
+        return column;
+    }
+
+    private int compareDates(String first, String second, DateTimeFormatter dateFormatter) {
+        if ("—".equals(first)) return "—".equals(second) ? 0 : -1;
+        if ("—".equals(second)) return 1;
+        return LocalDate.parse(first, dateFormatter).compareTo(LocalDate.parse(second, dateFormatter));
+    }
+
     private String formatDate(LocalDate date, DateTimeFormatter dateFormatter) {
         return date == null ? "—" : date.format(dateFormatter);
     }
@@ -373,6 +417,24 @@ final class RuleReviewDialog {
 
     private String display(String value) {
         return value == null || value.isBlank() ? "—" : value;
+    }
+
+    private void migratePurposeColumnOrder() {
+        String orderSettingKey = REVIEW_COLUMNS_SETTING + ".order";
+        String savedOrder = settingsService.getSettingValue(orderSettingKey);
+        if (savedOrder == null || savedOrder.isBlank()) return;
+
+        List<String> orderedColumns = new ArrayList<>(List.of(savedOrder.split(",")));
+        if (orderedColumns.contains(PURPOSE_COLUMN_KEY)) return;
+
+        int payeeIndex = orderedColumns.indexOf(PAYEE_COLUMN_KEY);
+        int purposeIndex = payeeIndex < 0 ? orderedColumns.size() : payeeIndex + 1;
+        orderedColumns.add(purposeIndex, PURPOSE_COLUMN_KEY);
+        settingsService.saveSettingValue(orderSettingKey, String.join(",", orderedColumns));
+    }
+
+    private Stage dialogStage(Dialog<?> dialog) {
+        return (Stage) dialog.getDialogPane().getScene().getWindow();
     }
 
     private FontIcon icon(String literal, int size) {
