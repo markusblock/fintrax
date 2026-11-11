@@ -146,6 +146,45 @@ class HibiscusXmlImporterTest {
     }
 
     @Test
+    void commaSeparatedPatternsCreateAnyMatchRules() throws IOException {
+        String xml = Files.readString(support.loadXmlTestData(IMPORT_TEST_DATA).toPath())
+                .replaceFirst(
+                        "<pattern type=\"java.lang.String\">AGIP</pattern>",
+                        "<pattern type=\"java.lang.String\">UNICREDIT W/ TOTAL, TOTAL Service Station</pattern>");
+        File xmlFile = writeImportFile("comma-separated-patterns.xml", xml);
+
+        importer.importFile(xmlFile, true, true);
+
+        Rule importedRule = store.getRoot().getRules().stream()
+                .filter(rule -> rule.getName().equals("AGIP"))
+                .findFirst().orElseThrow();
+        assertEquals(RuleMatchMode.ANY, importedRule.getMatchMode());
+        assertEquals(2, importedRule.getConditions().size());
+        assertEquals(
+                List.of("UNICREDIT W/ TOTAL", "TOTAL Service Station"),
+                importedRule.getConditions().stream().map(RuleCondition::getValue).toList());
+        assertTrue(importedRule.getConditions().stream()
+                .allMatch(condition -> condition.getMatchField() == MatchField.PAYEE_OR_PURPOSE));
+        assertTrue(importedRule.getConditions().stream()
+                .allMatch(condition -> condition.getOperator() == Operator.CONTAINS));
+    }
+
+    @Test
+    void reimportingCommaSeparatedPatternsDoesNotDuplicateRules() throws IOException {
+        String xml = Files.readString(support.loadXmlTestData(IMPORT_TEST_DATA).toPath())
+                .replaceFirst(
+                        "<pattern type=\"java.lang.String\">AGIP</pattern>",
+                        "<pattern type=\"java.lang.String\">UNICREDIT W/ TOTAL, TOTAL Service Station</pattern>");
+        File xmlFile = writeImportFile("reimport-comma-separated-patterns.xml", xml);
+
+        importer.importFile(xmlFile, true, true);
+        HibiscusXmlImporter.ImportResult secondResult = importer.importFile(xmlFile, true, true);
+
+        assertEquals(0, secondResult.getRulesImported());
+        assertEquals(3, store.getRoot().getRules().size());
+    }
+
+    @Test
     void testImportWithoutCategoriesAndRules() {
         File xmlFile = support.loadXmlTestData(IMPORT_TEST_DATA);
 
@@ -397,6 +436,7 @@ class HibiscusXmlImporterTest {
 
         assertNotNull(agipRule);
         assertEquals("AGIP", agipRule.getName());
+        assertEquals(RuleMatchMode.ALL, agipRule.getMatchMode());
         assertEquals(1, agipRule.getConditions().size());
         assertEquals(MatchField.PAYEE_OR_PURPOSE, agipRule.getConditions().get(0).getMatchField());
         assertEquals(Operator.CONTAINS, agipRule.getConditions().get(0).getOperator());
