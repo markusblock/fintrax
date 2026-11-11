@@ -431,7 +431,8 @@ class ClassificationsControllerTest extends AbstractUITest {
         waitForCategoryPicker();
         ListView<?> options = lookup("#pickerList").query();
         List<String> optionTexts = pickerOptionTexts(options);
-        assertEquals(I18n.get("filter.allCategories"), optionTexts.getFirst());
+        assertEquals(I18n.get("filter.noCategory"), optionTexts.getFirst());
+        assertTrue(optionTexts.indexOf(I18n.get("filter.allCategories")) > 0);
         assertTrue(optionTexts.indexOf(alpha.getName()) < optionTexts.indexOf(zulu.getName()));
     }
 
