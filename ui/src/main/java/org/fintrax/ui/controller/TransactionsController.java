@@ -324,6 +324,9 @@ public class TransactionsController {
         Button button = new Button("▾");
         button.setAccessibleText(I18n.get(accessibleTextKey));
         button.getStyleClass().add("assignment-picker-button");
+        button.addEventFilter(MouseEvent.MOUSE_PRESSED, event -> {
+            if (SearchableDropdownPicker.dismissIfActiveAt(button)) event.consume();
+        });
         button.setOnAction(event -> {
             if (!cell.isEmpty() && !transactionTable.getSelectionModel().isSelected(cell.getIndex())) {
                 transactionTable.getSelectionModel().clearAndSelect(cell.getIndex());

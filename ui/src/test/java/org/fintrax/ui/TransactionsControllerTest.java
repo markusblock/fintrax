@@ -385,8 +385,10 @@ class TransactionsControllerTest extends AbstractUITest {
 
         clickOn(categoryValue);
         waitForPicker();
+        assertTrue(lookup("#searchableDropdownPicker").tryQuery().isPresent());
         clickOn(categoryValue);
         waitForPickerToClose();
+        assertTrue(lookup("#pickerSearch").tryQuery().isEmpty());
 
         TableColumn<?, ?> labelsColumn = table.getColumns().stream()
                 .filter(column -> I18n.get("col.labels").equals(column.getText()))
@@ -397,8 +399,10 @@ class TransactionsControllerTest extends AbstractUITest {
 
         clickOn(chips);
         waitForPicker();
+        assertTrue(lookup("#searchableDropdownPicker").tryQuery().isPresent());
         clickOn(chips);
         waitForPickerToClose();
+        assertTrue(lookup("#pickerSearch").tryQuery().isEmpty());
     }
 
     private TableCell<?, ?> transactionCell(TableView<Transaction> table, TableColumn<?, ?> column,
@@ -913,6 +917,32 @@ class TransactionsControllerTest extends AbstractUITest {
 
         assertTrue(lookup("#pickerSearch").tryQuery().isPresent());
         clickOn("#searchField");
+        waitForPickerToClose();
+    }
+
+    @Test
+    void clickingAssignmentIconsTogglesCategoryAndLabelPickers() throws TimeoutException {
+        TableView<Transaction> table = lookup("#transactionTable").query();
+        TableColumn<?, ?> categoryColumn = table.getColumns().stream()
+                .filter(column -> I18n.get("col.category").equals(column.getText()))
+                .findFirst().orElseThrow();
+        Transaction categoryTransaction = table.getItems().get(indexOfTransactionWithCategory(table));
+        TableCell<?, ?> categoryCell = transactionCell(table, categoryColumn, categoryTransaction);
+        Button categoryButton = (Button) categoryCell.lookup(".assignment-picker-button");
+        clickOn(categoryButton);
+        waitForPicker();
+        clickOn(categoryButton);
+        waitForPickerToClose();
+
+        TableColumn<?, ?> labelsColumn = table.getColumns().stream()
+                .filter(column -> I18n.get("col.labels").equals(column.getText()))
+                .findFirst().orElseThrow();
+        Transaction labeledTransaction = table.getItems().get(indexOfTransactionWithLabels(table));
+        TableCell<?, ?> labelsCell = transactionCell(table, labelsColumn, labeledTransaction);
+        Button labelsButton = (Button) labelsCell.lookup(".assignment-picker-button");
+        clickOn(labelsButton);
+        waitForPicker();
+        clickOn(labelsButton);
         waitForPickerToClose();
     }
 

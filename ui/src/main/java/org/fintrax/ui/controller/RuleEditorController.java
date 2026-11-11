@@ -356,28 +356,6 @@ public class RuleEditorController {
         notifyChanged();
     }
 
-    private static HBox createRightAlignedPickerArrow(Button button) {
-        Region spacer = new Region();
-        Region arrow = new Region();
-        arrow.getStyleClass().add("rule-target-picker-arrow");
-        arrow.setMinSize(8, 5);
-        arrow.setPrefSize(8, 5);
-        arrow.setMaxSize(8, 5);
-        HBox.setHgrow(spacer, Priority.ALWAYS);
-        HBox graphic = new HBox(spacer, arrow);
-        graphic.setAlignment(Pos.CENTER_RIGHT);
-        graphic.setMaxWidth(Double.MAX_VALUE);
-        graphic.prefWidthProperty().bind(Bindings.createDoubleBinding(() -> {
-            Insets insets = button.getInsets();
-            Text text = new Text(button.getText());
-            text.setFont(button.getFont());
-            return Math.max(arrow.prefWidth(-1), button.getWidth() - insets.getLeft() - insets.getRight()
-                    - text.getLayoutBounds().getWidth() - button.getGraphicTextGap());
-        }, button.widthProperty(), button.textProperty(), button.fontProperty(), button.insetsProperty(),
-                button.graphicTextGapProperty()));
-        return graphic;
-    }
-
     private RuleTargetChoice addTargetOption(ActionRow row, Long id, String displayText) {
         RuleTargetChoice choice = new RuleTargetChoice(id, displayText);
         List<RuleTargetChoice> options = new ArrayList<>(row.targetOptions);
@@ -538,12 +516,35 @@ public class RuleEditorController {
             targetButton.addEventFilter(MouseEvent.MOUSE_PRESSED, event -> {
                 if (SearchableDropdownPicker.dismissIfActiveAt(targetButton)) event.consume();
             });
-            targetButton.setGraphic(createRightAlignedPickerArrow(targetButton));
+            targetButton.setGraphic(createRightAlignedPickerArrow());
             targetButton.setContentDisplay(ContentDisplay.RIGHT);
             separator.getStyleClass().add("rule-row-separator");
             grid.add(typeCombo, 0, 0);
             grid.add(targetButton, 1, 0, 2, 1);
             grid.add(removeButton, 3, 0);
+        }
+
+        private HBox createRightAlignedPickerArrow() {
+            Region spacer = new Region();
+            Region arrow = new Region();
+            arrow.getStyleClass().add("rule-target-picker-arrow");
+            arrow.setMinSize(8, 5);
+            arrow.setPrefSize(8, 5);
+            arrow.setMaxSize(8, 5);
+            HBox.setHgrow(spacer, Priority.ALWAYS);
+            HBox graphic = new HBox(spacer, arrow);
+            graphic.setAlignment(Pos.CENTER_RIGHT);
+            graphic.setMaxWidth(Double.MAX_VALUE);
+            graphic.prefWidthProperty().bind(Bindings.createDoubleBinding(() -> {
+                Insets insets = targetButton.getInsets();
+                Text text = new Text(targetButton.getText());
+                text.setFont(targetButton.getFont());
+                return Math.max(arrow.prefWidth(-1), targetButton.getWidth() - insets.getLeft()
+                        - insets.getRight() - text.getLayoutBounds().getWidth()
+                        - targetButton.getGraphicTextGap());
+            }, targetButton.widthProperty(), targetButton.textProperty(), targetButton.fontProperty(),
+                    targetButton.insetsProperty(), targetButton.graphicTextGapProperty()));
+            return graphic;
         }
 
         private boolean isValid() {

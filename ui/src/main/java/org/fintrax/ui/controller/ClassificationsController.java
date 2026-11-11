@@ -232,6 +232,9 @@ public class ClassificationsController {
         Button button = new Button("▾");
         button.setAccessibleText(I18n.get(accessibleTextKey));
         button.getStyleClass().add("assignment-picker-button");
+        button.addEventFilter(MouseEvent.MOUSE_PRESSED, event -> {
+            if (SearchableDropdownPicker.dismissIfActiveAt(button)) event.consume();
+        });
         button.setOnAction(event -> {
             if (!classificationTransactionsTable.getSelectionModel().isSelected(cell.getIndex())) {
                 classificationTransactionsTable.getSelectionModel().clearAndSelect(cell.getIndex());
