@@ -6,6 +6,7 @@ import org.fintrax.store.StoreManager;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -156,10 +157,22 @@ public class RuleService {
 
     /** Merges imported rules by case-insensitive name without deleting rules absent from the import. */
     public MergeResult mergeImportedRules(List<Rule> importedRules) {
+        validateImportedRuleList(importedRules);
+        MergePlan plan = createMergePlan(importedRules);
+        LocalDateTime now = LocalDateTime.now(ZoneId.systemDefault());
+        applyImportedUpdates(plan.updates(), now);
+        applyImportedAdditions(plan.additions(), now);
+        store.store(store.getRoot().getRules());
+        return new MergeResult(plan.additions().size(), plan.updates().size());
+    }
+
+    private void validateImportedRuleList(List<Rule> importedRules) {
         if (importedRules == null || importedRules.stream().anyMatch(Objects::isNull)) {
             throw new IllegalArgumentException("Imported rules are required");
         }
+    }
 
+    private MergePlan createMergePlan(List<Rule> importedRules) {
         Map<String, List<Rule>> existingByName = new HashMap<>();
         store.getRoot().getRules().forEach(rule -> existingByName
                 .computeIfAbsent(normalizeName(rule.getName()), ignored -> new ArrayList<>()).add(rule));
@@ -168,27 +181,36 @@ public class RuleService {
         List<RuleUpdate> updates = new ArrayList<>();
         List<Rule> additions = new ArrayList<>();
         for (Rule imported : importedRules) {
-            if (imported.getName() == null || imported.getName().isBlank()) {
-                throw new IllegalArgumentException("Rule name is required");
-            }
-            validateRule(imported.getConditions(), imported.getActions());
+            validateImportedRule(imported);
             String key = normalizeName(imported.getName());
             if (!importedNames.add(key)) {
                 throw new IllegalArgumentException("Duplicate imported rule name: " + imported.getName());
             }
-
-            List<Rule> matches = existingByName.getOrDefault(key, List.of());
-            if (matches.size() > 1) {
-                throw new IllegalArgumentException("Multiple existing rules have the name: " + imported.getName());
-            }
-            if (matches.isEmpty()) {
-                additions.add(imported);
-            } else {
-                updates.add(new RuleUpdate(matches.getFirst(), imported));
-            }
+            addImportedRule(imported, existingByName.getOrDefault(key, List.of()), updates, additions);
         }
+        return new MergePlan(updates, additions);
+    }
 
-        LocalDateTime now = LocalDateTime.now();
+    private void validateImportedRule(Rule imported) {
+        if (imported.getName() == null || imported.getName().isBlank()) {
+            throw new IllegalArgumentException("Rule name is required");
+        }
+        validateRule(imported.getConditions(), imported.getActions());
+    }
+
+    private void addImportedRule(Rule imported, List<Rule> matches,
+                                 List<RuleUpdate> updates, List<Rule> additions) {
+        if (matches.size() > 1) {
+            throw new IllegalArgumentException("Multiple existing rules have the name: " + imported.getName());
+        }
+        if (matches.isEmpty()) {
+            additions.add(imported);
+        } else {
+            updates.add(new RuleUpdate(matches.getFirst(), imported));
+        }
+    }
+
+    private void applyImportedUpdates(List<RuleUpdate> updates, LocalDateTime now) {
         for (RuleUpdate update : updates) {
             Rule existing = update.existing();
             Rule imported = update.imported();
@@ -196,7 +218,9 @@ public class RuleService {
             activityLogger.log(ActivityAction.UPDATE, EntityType.RULE, existing.getId(),
                     "Updated imported rule: " + existing.getName());
         }
+    }
 
+    private void applyImportedAdditions(List<Rule> additions, LocalDateTime now) {
         for (Rule imported : additions) {
             imported.setId(nextId++);
             if (imported.getMatchMode() == null) imported.setMatchMode(RuleMatchMode.ALL);
@@ -207,8 +231,6 @@ public class RuleService {
             activityLogger.log(ActivityAction.CREATE, EntityType.RULE, imported.getId(),
                     "Imported rule: " + imported.getName());
         }
-        store.store(store.getRoot().getRules());
-        return new MergeResult(additions.size(), updates.size());
     }
 
     private void applyImportedValues(Rule existing, Rule imported, LocalDateTime now) {
@@ -244,6 +266,8 @@ public class RuleService {
     }
 
     public record MergeResult(int added, int updated) {}
+
+    private record MergePlan(List<RuleUpdate> updates, List<Rule> additions) {}
 
     private record RuleUpdate(Rule existing, Rule imported) {}
 

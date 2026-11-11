@@ -98,9 +98,12 @@ class RuleEngineTest {
     void updatingRuleRejectsNameAlreadyUsedIgnoringCase() {
         Rule first = ruleService.createRule("Travel", List.of(), List.of());
         Rule second = ruleService.createRule("Food", List.of(), List.of());
+        Long secondId = second.getId();
+        List<RuleCondition> conditions = List.of();
+        List<RuleAction> actions = List.of();
 
         assertThrows(IllegalArgumentException.class, () ->
-                ruleService.updateRule(second.getId(), "TRAVEL", List.of(), List.of()));
+                ruleService.updateRule(secondId, "TRAVEL", conditions, actions));
         assertEquals("Food", ruleService.getRule(second.getId()).orElseThrow().getName());
         assertEquals("Travel", ruleService.getRule(first.getId()).orElseThrow().getName());
     }

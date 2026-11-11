@@ -114,9 +114,10 @@ class CategoryServiceTest {
     void updatingSiblingCategoryRejectsNameThatDiffersOnlyByCase() {
         Category category = categoryService.createCategory("Old", null, null);
         categoryService.createCategory("Food", null, null);
+        Long categoryId = category.getId();
 
         assertThrows(IllegalArgumentException.class, () ->
-                categoryService.updateCategory(category.getId(), "food", null));
+                categoryService.updateCategory(categoryId, "food", null));
     }
 
     @Test
