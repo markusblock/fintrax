@@ -249,7 +249,7 @@ public class HibiscusXmlImporter {
                             RuleCondition condition = RuleCondition.builder()
                                     .id(condId)
                                     .ruleId(ruleId)
-                                    .matchField(MatchField.PAYEE_NAME)
+                                    .matchField(MatchField.PAYEE_OR_PURPOSE)
                                     .operator(op)
                                     .value(catImport.pattern)
                                     .build();
@@ -404,7 +404,7 @@ public class HibiscusXmlImporter {
         return root.getRules().stream().anyMatch(rule ->
                 rule.getConditions() != null
                         && rule.getConditions().size() == 1
-                        && rule.getConditions().get(0).getMatchField() == MatchField.PAYEE_NAME
+                        && rule.getConditions().get(0).getMatchField() == MatchField.PAYEE_OR_PURPOSE
                         && rule.getConditions().get(0).getOperator() == operator
                         && Objects.equals(rule.getConditions().get(0).getValue(), pattern)
                         && rule.getActions() != null

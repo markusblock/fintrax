@@ -393,7 +393,7 @@ class HibiscusXmlImporterTest {
         assertNotNull(agipRule);
         assertEquals("AGIP", agipRule.getName());
         assertEquals(1, agipRule.getConditions().size());
-        assertEquals(MatchField.PAYEE_NAME, agipRule.getConditions().get(0).getMatchField());
+        assertEquals(MatchField.PAYEE_OR_PURPOSE, agipRule.getConditions().get(0).getMatchField());
         assertEquals(Operator.CONTAINS, agipRule.getConditions().get(0).getOperator());
         assertEquals("AGIP", agipRule.getConditions().get(0).getValue());
         assertEquals(1, agipRule.getActions().size());
@@ -404,6 +404,8 @@ class HibiscusXmlImporterTest {
                 .findFirst().orElse(null);
 
         assertNotNull(supermarktRule);
+        assertEquals(1, supermarktRule.getConditions().size());
+        assertEquals(MatchField.PAYEE_OR_PURPOSE, supermarktRule.getConditions().get(0).getMatchField());
         assertEquals(Operator.REGEX, supermarktRule.getConditions().get(0).getOperator());
         assertEquals("REWE|EDEKA|ALDI", supermarktRule.getConditions().get(0).getValue());
     }
