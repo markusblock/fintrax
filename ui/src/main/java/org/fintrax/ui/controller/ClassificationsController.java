@@ -32,6 +32,7 @@ import org.fintrax.service.TransactionFilter;
 import org.fintrax.service.TransactionService;
 import org.fintrax.ui.FintraxUI;
 import org.fintrax.ui.control.LabelChipFactory;
+import org.fintrax.ui.control.SearchableDropdownPicker;
 import org.fintrax.ui.control.TableCellTooltips;
 import org.fintrax.ui.control.TransactionTableSetup;
 import org.springframework.context.annotation.Scope;
@@ -177,8 +178,10 @@ public class ClassificationsController {
                 }
                 Label value = new Label(item == null ? "" : item);
                 value.setMaxWidth(Double.MAX_VALUE);
-                HBox control = new HBox(4, value, createAssignmentButton(this, "picker.category.accessible",
-                        openSelection));
+                Button assignmentButton = createAssignmentButton(
+                        this, "picker.category.accessible", openSelection);
+                SearchableDropdownPicker.installToggleHandler(value, assignmentButton, assignmentButton::fire);
+                HBox control = new HBox(4, value, assignmentButton);
                 control.getStyleClass().add("assignment-cell");
                 control.prefWidthProperty().bind(Bindings.max(0,
                         transactionTableSetup.categoryColumn().widthProperty().subtract(12)));
@@ -210,8 +213,10 @@ public class ClassificationsController {
                             .toList();
                 }
                 HBox chips = LabelChipFactory.createAll(labels);
-                HBox control = new HBox(4, chips, createAssignmentButton(this, "picker.labels.accessible",
-                        openSelection));
+                Button assignmentButton = createAssignmentButton(
+                        this, "picker.labels.accessible", openSelection);
+                SearchableDropdownPicker.installToggleHandler(chips, assignmentButton, assignmentButton::fire);
+                HBox control = new HBox(4, chips, assignmentButton);
                 control.getStyleClass().add("assignment-cell");
                 control.prefWidthProperty().bind(Bindings.max(0,
                         transactionTableSetup.labelsColumn().widthProperty().subtract(12)));
@@ -227,12 +232,14 @@ public class ClassificationsController {
         Button button = new Button("▾");
         button.setAccessibleText(I18n.get(accessibleTextKey));
         button.getStyleClass().add("assignment-picker-button");
+        button.addEventFilter(MouseEvent.MOUSE_PRESSED, event -> {
+            if (SearchableDropdownPicker.dismissIfActiveAt(button)) event.consume();
+        });
         button.setOnAction(event -> {
             if (!classificationTransactionsTable.getSelectionModel().isSelected(cell.getIndex())) {
                 classificationTransactionsTable.getSelectionModel().clearAndSelect(cell.getIndex());
             }
-            Node anchor = cell.getTableRow() == null ? cell : cell.getTableRow();
-            Platform.runLater(() -> openSelection.accept(anchor));
+            openSelection.accept(button);
         });
         return button;
     }

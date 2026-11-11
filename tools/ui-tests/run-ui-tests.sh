@@ -64,6 +64,7 @@ case "$mode" in
 esac
 
 gradle_args=(
+    --project-cache-dir "${GRADLE_USER_HOME:-$HOME/.gradle}/project-cache"
     --init-script tools/ui-tests/rerun-tests.gradle
     --no-parallel
     --max-workers=1
