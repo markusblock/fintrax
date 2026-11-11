@@ -1,6 +1,8 @@
 package org.fintrax.ui.controller;
 
+import javafx.beans.binding.Bindings;
 import javafx.fxml.FXML;
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
@@ -12,6 +14,7 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
+import javafx.scene.text.Text;
 import javafx.util.StringConverter;
 import org.kordamp.ikonli.javafx.FontIcon;
 import org.fintrax.config.I18n;
@@ -230,7 +233,8 @@ public class TransactionFilterPanelController {
         }
         SearchableDropdownPicker.showOne(categoryFilter, options, initiallySelected,
                 CategoryFilterOption::displayText, null, null,
-                new SearchableDropdownPicker.SingleSelection<>(ALL_CATEGORIES_I18N_KEY, selected -> {
+                new SearchableDropdownPicker.SingleSelection<>(
+                        ALL_CATEGORIES_I18N_KEY, CategoryFilterOption::noCategory, selected -> {
                     selectedCategoryId = selected == null ? null : selected.categoryId();
                     noCategorySelected = selected != null && selected.noCategory();
                     updateCategoryFilterButton();
@@ -314,10 +318,7 @@ public class TransactionFilterPanelController {
         categoryOptions = categoryService.getAllCategories();
         labelOptions = labelService.getAllLabels();
 
-        Region dropdownIcon = new Region();
-        dropdownIcon.getStyleClass().add("filter-label-arrow");
-        dropdownIcon.setMouseTransparent(true);
-        categoryFilter.setGraphic(dropdownIcon);
+        categoryFilter.setGraphic(createRightAlignedCategoryArrow());
         categoryFilter.setContentDisplay(ContentDisplay.RIGHT);
         categoryFilter.setMaxWidth(Double.MAX_VALUE);
     }
@@ -557,6 +558,34 @@ public class TransactionFilterPanelController {
         categoryFilter.setAccessibleText(I18n.get(CATEGORY_I18N_KEY) + ": " + selectedText);
     }
 
+    private HBox createRightAlignedCategoryArrow() {
+        Region spacer = new Region();
+        Region arrow = createFilterDropdownArrow();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        HBox graphic = new HBox(spacer, arrow);
+        graphic.setAlignment(Pos.CENTER_RIGHT);
+        graphic.setMaxWidth(Double.MAX_VALUE);
+        graphic.prefWidthProperty().bind(Bindings.createDoubleBinding(() -> {
+            Insets insets = categoryFilter.getInsets();
+            Text text = new Text(categoryFilter.getText());
+            text.setFont(categoryFilter.getFont());
+            return Math.max(arrow.prefWidth(-1), categoryFilter.getWidth() - insets.getLeft() - insets.getRight()
+                    - text.getLayoutBounds().getWidth() - categoryFilter.getGraphicTextGap());
+        }, categoryFilter.widthProperty(), categoryFilter.textProperty(), categoryFilter.fontProperty(),
+                categoryFilter.insetsProperty(), categoryFilter.graphicTextGapProperty()));
+        return graphic;
+    }
+
+    private Region createFilterDropdownArrow() {
+        Region arrow = new Region();
+        arrow.getStyleClass().add("filter-label-arrow");
+        arrow.setMouseTransparent(true);
+        arrow.setMinSize(8, 6);
+        arrow.setPrefSize(8, 6);
+        arrow.setMaxSize(8, 6);
+        return arrow;
+    }
+
     private List<Label> selectedLabels() {
         Comparator<String> labelOrder = NaturalOrder.comparator(I18n.getCurrentLocale());
         return labelOptions.stream()
@@ -584,12 +613,14 @@ public class TransactionFilterPanelController {
         }
         HBox.setHgrow(selectedContent, Priority.ALWAYS);
         ((Region) selectedContent).setMaxWidth(Double.MAX_VALUE);
-        Region dropdownIcon = new Region();
-        dropdownIcon.getStyleClass().add("filter-label-arrow");
-        dropdownIcon.setMouseTransparent(true);
-        content.getChildren().setAll(selectedContent, dropdownIcon);
+        content.getChildren().setAll(selectedContent, createFilterDropdownArrow());
+        content.prefWidthProperty().bind(Bindings.createDoubleBinding(() -> {
+            Insets insets = labelFilterButton.getInsets();
+            return Math.max(0, labelFilterButton.getWidth() - insets.getLeft() - insets.getRight());
+        }, labelFilterButton.widthProperty(), labelFilterButton.insetsProperty()));
         labelFilterButton.setText("");
         labelFilterButton.setGraphic(content);
+        labelFilterButton.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
         String selectedNames = String.join(", ", labelNames(labels));
         String selectionText;
         if (noLabelsSelected) selectionText = I18n.get(NO_LABEL_SET_I18N_KEY);

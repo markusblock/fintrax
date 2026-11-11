@@ -24,6 +24,7 @@ import org.fintrax.service.*;
 import org.fintrax.ui.ViewLoader;
 import org.fintrax.ui.control.AccountDisplay;
 import org.fintrax.ui.control.LabelChipFactory;
+import org.fintrax.ui.control.SearchableDropdownPicker;
 import org.fintrax.ui.control.SingleLineText;
 import org.fintrax.ui.control.TableCellTooltips;
 import org.fintrax.ui.control.TableColumnConfig;
@@ -273,8 +274,10 @@ public class TransactionsController {
                 }
                 Label value = new Label(item == null ? "" : item);
                 value.setMaxWidth(Double.MAX_VALUE);
-                HBox control = new HBox(4, value, createAssignmentButton(
-                        this, "picker.category.accessible", openAssignment));
+                Button assignmentButton = createAssignmentButton(
+                        this, "picker.category.accessible", openAssignment);
+                SearchableDropdownPicker.installToggleHandler(value, assignmentButton, assignmentButton::fire);
+                HBox control = new HBox(4, value, assignmentButton);
                 control.getStyleClass().add("assignment-cell");
                 control.prefWidthProperty().bind(Bindings.max(0, categoryColumn.widthProperty().subtract(12)));
                 HBox.setHgrow(value, javafx.scene.layout.Priority.ALWAYS);
@@ -303,8 +306,10 @@ public class TransactionsController {
                         .flatMap(Optional::stream)
                         .toList();
                 HBox chips = LabelChipFactory.createAll(labels);
-                HBox control = new HBox(4, chips, createAssignmentButton(
-                        this, "picker.labels.accessible", openAssignment));
+                Button assignmentButton = createAssignmentButton(
+                        this, "picker.labels.accessible", openAssignment);
+                SearchableDropdownPicker.installToggleHandler(chips, assignmentButton, assignmentButton::fire);
+                HBox control = new HBox(4, chips, assignmentButton);
                 control.getStyleClass().add("assignment-cell");
                 control.prefWidthProperty().bind(Bindings.max(0, labelsColumn.widthProperty().subtract(12)));
                 HBox.setHgrow(chips, javafx.scene.layout.Priority.ALWAYS);
@@ -323,8 +328,7 @@ public class TransactionsController {
             if (!cell.isEmpty() && !transactionTable.getSelectionModel().isSelected(cell.getIndex())) {
                 transactionTable.getSelectionModel().clearAndSelect(cell.getIndex());
             }
-            Node anchor = cell.getTableRow() == null ? cell : cell.getTableRow();
-            Platform.runLater(() -> openAssignment.accept(anchor));
+            openAssignment.accept(button);
         });
         return button;
     }

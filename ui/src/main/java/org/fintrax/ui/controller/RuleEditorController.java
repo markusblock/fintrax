@@ -1,15 +1,20 @@
 package org.fintrax.ui.controller;
 
+import javafx.beans.binding.Bindings;
 import javafx.fxml.FXML;
+import javafx.geometry.Insets;
 import javafx.geometry.HPos;
+import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Separator;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
@@ -351,6 +356,28 @@ public class RuleEditorController {
         notifyChanged();
     }
 
+    private static HBox createRightAlignedPickerArrow(Button button) {
+        Region spacer = new Region();
+        Region arrow = new Region();
+        arrow.getStyleClass().add("rule-target-picker-arrow");
+        arrow.setMinSize(8, 5);
+        arrow.setPrefSize(8, 5);
+        arrow.setMaxSize(8, 5);
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        HBox graphic = new HBox(spacer, arrow);
+        graphic.setAlignment(Pos.CENTER_RIGHT);
+        graphic.setMaxWidth(Double.MAX_VALUE);
+        graphic.prefWidthProperty().bind(Bindings.createDoubleBinding(() -> {
+            Insets insets = button.getInsets();
+            Text text = new Text(button.getText());
+            text.setFont(button.getFont());
+            return Math.max(arrow.prefWidth(-1), button.getWidth() - insets.getLeft() - insets.getRight()
+                    - text.getLayoutBounds().getWidth() - button.getGraphicTextGap());
+        }, button.widthProperty(), button.textProperty(), button.fontProperty(), button.insetsProperty(),
+                button.graphicTextGapProperty()));
+        return graphic;
+    }
+
     private RuleTargetChoice addTargetOption(ActionRow row, Long id, String displayText) {
         RuleTargetChoice choice = new RuleTargetChoice(id, displayText);
         List<RuleTargetChoice> options = new ArrayList<>(row.targetOptions);
@@ -508,12 +535,10 @@ public class RuleEditorController {
             targetButton.setMaxWidth(Double.MAX_VALUE);
             targetButton.getStyleClass().addAll(RULE_ROW_CONTROL_STYLE_CLASS, "rule-target-picker-button");
             targetButton.setDisable(true);
-            Region dropdownArrow = new Region();
-            dropdownArrow.getStyleClass().add("rule-target-picker-arrow");
-            dropdownArrow.setMinSize(8, 5);
-            dropdownArrow.setPrefSize(8, 5);
-            dropdownArrow.setMaxSize(8, 5);
-            targetButton.setGraphic(dropdownArrow);
+            targetButton.addEventFilter(MouseEvent.MOUSE_PRESSED, event -> {
+                if (SearchableDropdownPicker.dismissIfActiveAt(targetButton)) event.consume();
+            });
+            targetButton.setGraphic(createRightAlignedPickerArrow(targetButton));
             targetButton.setContentDisplay(ContentDisplay.RIGHT);
             separator.getStyleClass().add("rule-row-separator");
             grid.add(typeCombo, 0, 0);

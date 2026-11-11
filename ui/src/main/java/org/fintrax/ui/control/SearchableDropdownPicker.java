@@ -1,10 +1,12 @@
 package org.fintrax.ui.control;
 
 import javafx.application.Platform;
+import javafx.event.EventHandler;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
 import javafx.geometry.Side;
 import javafx.scene.Node;
+import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ContextMenu;
@@ -17,6 +19,7 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
@@ -39,6 +42,28 @@ public final class SearchableDropdownPicker {
 
     private SearchableDropdownPicker() {}
 
+    public static boolean dismissIfActiveAt(Node anchor) {
+        if (activePicker == null || activePicker.anchor != anchor) return false;
+        if (activePicker.popup.isShowing()) activePicker.popup.hide();
+        return true;
+    }
+
+    public static void installToggleHandler(Node clickTarget, Node anchor, Runnable onOpen) {
+        boolean[] dismissedOnPress = {false};
+        clickTarget.addEventFilter(MouseEvent.MOUSE_PRESSED, event -> {
+            dismissedOnPress[0] = dismissIfActiveAt(anchor);
+            if (dismissedOnPress[0]) event.consume();
+        });
+        clickTarget.addEventHandler(MouseEvent.MOUSE_CLICKED, event -> {
+            if (dismissedOnPress[0]) {
+                dismissedOnPress[0] = false;
+            } else {
+                onOpen.run();
+            }
+            event.consume();
+        });
+    }
+
     public static <T> void showOne(Node anchor, Collection<T> options, T initiallySelected,
                                    Function<T, String> displayText, String createTextKey,
                                    Function<String, T> createOption, Consumer<T> onSave) {
@@ -51,7 +76,7 @@ public final class SearchableDropdownPicker {
                                    Function<String, T> createOption, SingleSelection<T> selection) {
         new Picker<>(anchor, options, initiallySelected == null ? List.of() : List.of(initiallySelected),
                 new PickerConfiguration<>(displayText, false, createTextKey, createOption, selection.clearTextKey(),
-                        new MultiSelection<>(item -> false, values -> selection.onSave().accept(
+                        new MultiSelection<>(selection.exclusiveSelection(), values -> selection.onSave().accept(
                                 values.isEmpty() ? null : values.get(0))))).show();
     }
 
@@ -73,7 +98,10 @@ public final class SearchableDropdownPicker {
     public record MultiSelection<T>(Predicate<T> exclusiveSelection, Consumer<List<T>> onSave) {
     }
 
-    public record SingleSelection<T>(String clearTextKey, Consumer<T> onSave) {
+    public record SingleSelection<T>(String clearTextKey, Predicate<T> exclusiveSelection, Consumer<T> onSave) {
+        public SingleSelection(String clearTextKey, Consumer<T> onSave) {
+            this(clearTextKey, item -> false, onSave);
+        }
     }
 
     private record PickerConfiguration<T>(Function<T, String> displayText, boolean multiple,
@@ -187,10 +215,15 @@ public final class SearchableDropdownPicker {
             popup.setAutoFix(true);
             popup.setAutoHide(true);
             popup.setHideOnEscape(false);
-            popup.setOnHidden(event -> Platform.runLater(() -> {
-                if (activePicker == this) activePicker = null;
-                if (anchor.getScene() != null) anchor.requestFocus();
-            }));
+            Scene anchorScene = anchor.getScene();
+            EventHandler<MouseEvent> dismissOnOwnerClick = event -> popup.hide();
+            popup.setOnHidden(event -> {
+                anchorScene.removeEventFilter(MouseEvent.MOUSE_PRESSED, dismissOnOwnerClick);
+                Platform.runLater(() -> {
+                    if (activePicker == this) activePicker = null;
+                    if (anchor.getScene() != null) anchor.requestFocus();
+                });
+            });
 
             searchField.textProperty().addListener((observable, oldValue, newValue) -> {
                 errorLabel.setText("");
@@ -224,6 +257,7 @@ public final class SearchableDropdownPicker {
             updateOptions(true);
             popup.show(anchor, Side.BOTTOM, 0, 0);
             popup.getScene().getStylesheets().setAll(anchor.getScene().getStylesheets());
+            anchorScene.addEventFilter(MouseEvent.MOUSE_PRESSED, dismissOnOwnerClick);
             Platform.runLater(searchField::requestFocus);
         }
 

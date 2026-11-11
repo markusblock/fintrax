@@ -372,6 +372,35 @@ class TransactionsControllerTest extends AbstractUITest {
                 () -> lookup("#pickerSearch").tryQuery().isEmpty());
     }
 
+    @Test
+    void clickingCategoryTextAndLabelChipsTogglesTheirPickers() throws TimeoutException {
+        TableView<Transaction> table = lookup("#transactionTable").query();
+        TableColumn<?, ?> categoryColumn = table.getColumns().stream()
+                .filter(column -> I18n.get("col.category").equals(column.getText()))
+                .findFirst().orElseThrow();
+        Transaction categoryTransaction = table.getItems().get(indexOfTransactionWithCategory(table));
+        TableCell<?, ?> categoryCell = transactionCell(table, categoryColumn, categoryTransaction);
+        javafx.scene.control.Label categoryValue = (javafx.scene.control.Label)
+                ((HBox) categoryCell.getGraphic()).getChildren().getFirst();
+
+        clickOn(categoryValue);
+        waitForPicker();
+        clickOn(categoryValue);
+        waitForPickerToClose();
+
+        TableColumn<?, ?> labelsColumn = table.getColumns().stream()
+                .filter(column -> I18n.get("col.labels").equals(column.getText()))
+                .findFirst().orElseThrow();
+        Transaction labeledTransaction = table.getItems().get(indexOfTransactionWithLabels(table));
+        TableCell<?, ?> labelsCell = transactionCell(table, labelsColumn, labeledTransaction);
+        HBox chips = (HBox) ((HBox) labelsCell.getGraphic()).getChildren().getFirst();
+
+        clickOn(chips);
+        waitForPicker();
+        clickOn(chips);
+        waitForPickerToClose();
+    }
+
     private TableCell<?, ?> transactionCell(TableView<Transaction> table, TableColumn<?, ?> column,
                                             Transaction transaction) {
         return table.lookupAll(".table-cell").stream()
@@ -878,6 +907,16 @@ class TransactionsControllerTest extends AbstractUITest {
     }
 
     @Test
+    void contextMenuPickerClosesWhenClickingOutside() throws TimeoutException {
+        TableView<Transaction> table = lookup("#transactionTable").query();
+        openPickerFromContextMenu(table, 0, 0);
+
+        assertTrue(lookup("#pickerSearch").tryQuery().isPresent());
+        clickOn("#searchField");
+        waitForPickerToClose();
+    }
+
+    @Test
     void bulkLabelEditKeepsAllSelectedTransactionsSelected() throws TimeoutException {
         TableView<Transaction> table = lookup("#transactionTable").query();
         interact(() -> {
@@ -1031,6 +1070,7 @@ class TransactionsControllerTest extends AbstractUITest {
         interact(() -> comboBoxAt(categoryAction, 0)
                 .setValue(I18n.get("ruleEditor.action.assignCategory")));
         Button categoryTarget = (Button) categoryAction.getChildren().get(1);
+        assertPickerButtonToggles(categoryTarget);
         createPickerOption(categoryTarget, categoryName);
         reopenAndChoosePickerOption(categoryTarget, categoryName);
 
@@ -1039,6 +1079,7 @@ class TransactionsControllerTest extends AbstractUITest {
         interact(() -> comboBoxAt(labelAction, 0)
                 .setValue(I18n.get("ruleEditor.action.assignLabel")));
         Button labelTarget = (Button) labelAction.getChildren().get(1);
+        assertPickerButtonToggles(labelTarget);
         createPickerOption(labelTarget, labelName);
         reopenAndChoosePickerOption(labelTarget, labelName);
         assertFalse(lookup("#createRuleSave").<Button>query().isDisabled());
@@ -1304,6 +1345,11 @@ class TransactionsControllerTest extends AbstractUITest {
                 () -> lookup("#searchableDropdownPicker").tryQuery().isPresent());
     }
 
+    private void waitForPickerToClose() throws TimeoutException {
+        WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS,
+                () -> lookup("#pickerSearch").tryQuery().isEmpty());
+    }
+
     private void scrollToRow(TableView<Transaction> table, int rowIndex) throws TimeoutException {
         interact(() -> table.scrollTo(rowIndex));
         WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS, () -> {
@@ -1362,6 +1408,13 @@ class TransactionsControllerTest extends AbstractUITest {
         WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS, () -> options.getItems().size() == 1);
         fireEnterOnPicker();
         WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS, () -> control.getText().equals(value));
+    }
+
+    private void assertPickerButtonToggles(Button control) throws TimeoutException {
+        clickOn(control);
+        waitForPicker();
+        clickOn(control);
+        waitForPickerToClose();
     }
 
     private void openPickerFromContextMenu(TableView<Transaction> table, int rowIndex, int actionIndex)
