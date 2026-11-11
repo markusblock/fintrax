@@ -9,6 +9,7 @@ import javafx.scene.control.*;
 import javafx.scene.control.cell.CheckBoxTableCell;
 import javafx.scene.input.ContextMenuEvent;
 import javafx.scene.layout.VBox;
+import javafx.stage.Stage;
 import javafx.stage.Window;
 import org.kordamp.ikonli.javafx.FontIcon;
 import org.fintrax.config.I18n;
@@ -22,6 +23,7 @@ import org.fintrax.service.RuleService;
 import org.fintrax.service.SettingsService;
 import org.fintrax.service.TransactionRulePreview;
 import org.fintrax.ui.FintraxUI;
+import org.fintrax.ui.WindowGeometry;
 import org.fintrax.ui.control.SingleLineText;
 import org.fintrax.ui.control.TableCellTooltips;
 import org.fintrax.ui.control.TableColumnConfig;
@@ -41,6 +43,9 @@ import java.util.stream.Collectors;
 
 final class RuleReviewDialog {
     private static final double SELECTION_COLUMN_WIDTH = 36;
+    private static final double MIN_REVIEW_WINDOW_WIDTH = 800;
+    private static final double MIN_REVIEW_WINDOW_HEIGHT = 400;
+    private static final String REVIEW_WINDOW_GEOMETRY_SETTING = "rules.review.window.geometry";
     private static final String REVIEW_COLUMNS_SETTING = "rules.review.columns";
     private static final String PAYEE_COLUMN_KEY = "payee";
     private static final String PURPOSE_COLUMN_KEY = "purpose";
@@ -79,6 +84,10 @@ final class RuleReviewDialog {
         dialog.setHeaderText(I18n.get(selectedRuleOnly
                 ? "rules.review.single.header" : "rules.review.header"));
         dialog.initOwner(owner);
+        dialog.setOnShown(event -> WindowGeometry.restore(dialogStage(dialog), settingsService,
+                REVIEW_WINDOW_GEOMETRY_SETTING, MIN_REVIEW_WINDOW_WIDTH, MIN_REVIEW_WINDOW_HEIGHT));
+        dialog.setOnHidden(event -> WindowGeometry.save(dialogStage(dialog), settingsService,
+                REVIEW_WINDOW_GEOMETRY_SETTING, MIN_REVIEW_WINDOW_WIDTH, MIN_REVIEW_WINDOW_HEIGHT));
 
         CheckBox onlyFillMissing = new CheckBox(I18n.get("rules.review.onlyFillMissing"));
         onlyFillMissing.setId("onlyFillMissingRules");
@@ -395,6 +404,10 @@ final class RuleReviewDialog {
         int purposeIndex = payeeIndex < 0 ? orderedColumns.size() : payeeIndex + 1;
         orderedColumns.add(purposeIndex, PURPOSE_COLUMN_KEY);
         settingsService.saveSettingValue(orderSettingKey, String.join(",", orderedColumns));
+    }
+
+    private Stage dialogStage(Dialog<?> dialog) {
+        return (Stage) dialog.getDialogPane().getScene().getWindow();
     }
 
     private FontIcon icon(String literal, int size) {
