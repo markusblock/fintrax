@@ -63,11 +63,7 @@ public class RuleArchiveService {
     /** Imports a rules archive as a merge; local rules absent from the archive remain unchanged. */
     public ImportResult importRules(Path archivePath) throws IOException {
         if (archivePath == null) throw new IllegalArgumentException("Rules archive is required");
-        if (Files.size(archivePath) > MAX_ARCHIVE_BYTES) {
-            throw new IllegalArgumentException("Rules archive exceeds the maximum file size");
-        }
-
-        ExportDocument archive = readArchive(archivePath);
+        ExportDocument archive = readImportDocument(archivePath);
         if (!ARCHIVE_FORMAT.equals(archive.format())) {
             throw new IllegalArgumentException("This ZIP file is not a Fintrax export");
         }
@@ -86,7 +82,24 @@ public class RuleArchiveService {
         return new ImportResult(result.added(), result.updated());
     }
 
-    private ExportDocument readArchive(Path archivePath) throws IOException {
+    private ExportDocument readImportDocument(Path path) throws IOException {
+        String filename = path.getFileName().toString().toLowerCase(Locale.ROOT);
+        if (filename.endsWith(".json")) {
+            if (Files.size(path) > MAX_JSON_BYTES) {
+                throw new IllegalArgumentException("Rules export payload exceeds the maximum size");
+            }
+            return objectMapper.readValue(path.toFile(), ExportDocument.class);
+        }
+        if (!filename.endsWith(".zip")) {
+            throw new IllegalArgumentException("Choose a rules export ZIP or JSON file");
+        }
+        if (Files.size(path) > MAX_ARCHIVE_BYTES) {
+            throw new IllegalArgumentException("Rules archive exceeds the maximum file size");
+        }
+        return readZipArchive(path);
+    }
+
+    private ExportDocument readZipArchive(Path archivePath) throws IOException {
         try (ZipInputStream zip = new ZipInputStream(Files.newInputStream(archivePath))) {
             ZipEntry entry = zip.getNextEntry();
             if (entry == null || entry.isDirectory() || !PAYLOAD_NAME.equals(entry.getName())) {

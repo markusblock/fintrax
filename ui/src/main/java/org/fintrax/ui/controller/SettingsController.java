@@ -179,11 +179,12 @@ public class SettingsController {
         fileChooser.getExtensionFilters().add(
                 new FileChooser.ExtensionFilter(I18n.get("settings.import.hibiscus.filter"), "*.xml"));
         fileChooser.getExtensionFilters().add(
-                new FileChooser.ExtensionFilter(I18n.get("settings.import.rules.filter"), "*.zip"));
+                new FileChooser.ExtensionFilter(I18n.get("settings.import.rules.filter"), "*.zip", "*.json"));
         File file = fileChooser.showOpenDialog(rootPane.getScene().getWindow());
 
         if (file == null) return;
-        if (file.getName().toLowerCase(java.util.Locale.ROOT).endsWith(".zip")) {
+        String filename = file.getName().toLowerCase(java.util.Locale.ROOT);
+        if (filename.endsWith(".zip") || filename.endsWith(".json")) {
             importRules(file);
             return;
         }
@@ -250,7 +251,7 @@ public class SettingsController {
         fileChooser.setTitle(I18n.get("settings.rules.export.title"));
         fileChooser.setInitialFileName("fintrax-rules.zip");
         fileChooser.getExtensionFilters().add(
-                new FileChooser.ExtensionFilter(I18n.get("settings.import.rules.filter"), "*.zip"));
+                new FileChooser.ExtensionFilter(I18n.get("settings.export.rules.filter"), "*.zip"));
         File file = fileChooser.showSaveDialog(rootPane.getScene().getWindow());
         if (file == null) return;
         if (!file.getName().toLowerCase(java.util.Locale.ROOT).endsWith(".zip")) {

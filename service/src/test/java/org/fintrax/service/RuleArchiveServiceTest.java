@@ -106,6 +106,27 @@ class RuleArchiveServiceTest {
     }
 
     @Test
+    void importAcceptsStandaloneJsonPayload() throws Exception {
+        Fixture source = fixture();
+        source.createRule("Travel", 1, true);
+        Path zipArchive = Files.createTempFile(source.directory, "rules-export", ".zip");
+        Path jsonFile = source.directory.resolve("rules.json");
+        source.archiveService.exportRules(zipArchive);
+        try (ZipInputStream zip = new ZipInputStream(Files.newInputStream(zipArchive))) {
+            assertNotNull(zip.getNextEntry());
+            Files.write(jsonFile, zip.readAllBytes());
+        }
+
+        Fixture target = fixture();
+
+        RuleArchiveService.ImportResult result = target.archiveService.importRules(jsonFile);
+
+        assertEquals(1, result.added());
+        assertEquals(0, result.updated());
+        assertEquals("Travel", target.ruleService.getAllRules().getFirst().getName());
+    }
+
+    @Test
     void exportRejectsAccountConditionsThatCannotBeMappedPortably() throws Exception {
         Fixture source = fixture();
         source.ruleService.createRule("Contains account ID",
