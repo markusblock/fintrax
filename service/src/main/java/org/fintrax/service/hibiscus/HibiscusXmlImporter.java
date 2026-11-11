@@ -548,16 +548,10 @@ public class HibiscusXmlImporter {
 
     private String buildPurpose(String zweck, String zweck2, String zweck3) {
         StringBuilder sb = new StringBuilder();
-        if (zweck != null && !zweck.isEmpty()) sb.append(zweck);
-        if (zweck2 != null && !zweck2.isEmpty()) {
-            if (sb.length() > 0) sb.append(" | ");
-            sb.append(zweck2);
-        }
-        if (zweck3 != null && !zweck3.isEmpty()) {
-            if (sb.length() > 0) sb.append(" | ");
-            sb.append(zweck3);
-        }
-        return sb.toString();
+        if (zweck != null && !zweck.isBlank()) sb.append(zweck.trim());
+        if (zweck2 != null && !zweck2.isBlank()) sb.append(zweck2.trim());
+        if (zweck3 != null && !zweck3.isBlank()) sb.append(zweck3.trim());
+        return sb.toString().replaceAll("[\\r\\n]", "").replaceAll("\\s+", " ").trim();
     }
 
     private ActivityAction mapProtokollTyp(String typStr) {
