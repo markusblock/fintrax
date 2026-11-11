@@ -84,10 +84,20 @@ final class RuleReviewDialog {
         dialog.setHeaderText(I18n.get(selectedRuleOnly
                 ? "rules.review.single.header" : "rules.review.header"));
         dialog.initOwner(owner);
-        dialog.setOnShown(event -> WindowGeometry.restore(dialogStage(dialog), settingsService,
-                REVIEW_WINDOW_GEOMETRY_SETTING, MIN_REVIEW_WINDOW_WIDTH, MIN_REVIEW_WINDOW_HEIGHT));
-        dialog.setOnHidden(event -> WindowGeometry.save(dialogStage(dialog), settingsService,
-                REVIEW_WINDOW_GEOMETRY_SETTING, MIN_REVIEW_WINDOW_WIDTH, MIN_REVIEW_WINDOW_HEIGHT));
+        AtomicReference<Stage> reviewDialogStage = new AtomicReference<>();
+        dialog.setOnShown(event -> {
+            Stage stage = dialogStage(dialog);
+            reviewDialogStage.set(stage);
+            WindowGeometry.restore(stage, settingsService, REVIEW_WINDOW_GEOMETRY_SETTING,
+                    MIN_REVIEW_WINDOW_WIDTH, MIN_REVIEW_WINDOW_HEIGHT);
+        });
+        dialog.setOnHidden(event -> {
+            Stage stage = reviewDialogStage.get();
+            if (stage != null) {
+                WindowGeometry.save(stage, settingsService, REVIEW_WINDOW_GEOMETRY_SETTING,
+                        MIN_REVIEW_WINDOW_WIDTH, MIN_REVIEW_WINDOW_HEIGHT);
+            }
+        });
 
         CheckBox onlyFillMissing = new CheckBox(I18n.get("rules.review.onlyFillMissing"));
         onlyFillMissing.setId("onlyFillMissingRules");
