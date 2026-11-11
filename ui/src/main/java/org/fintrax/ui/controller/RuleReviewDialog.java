@@ -84,19 +84,13 @@ final class RuleReviewDialog {
         dialog.setHeaderText(I18n.get(selectedRuleOnly
                 ? "rules.review.single.header" : "rules.review.header"));
         dialog.initOwner(owner);
-        AtomicReference<Stage> reviewDialogStage = new AtomicReference<>();
         dialog.setOnShown(event -> {
             Stage stage = dialogStage(dialog);
-            reviewDialogStage.set(stage);
             WindowGeometry.restore(stage, settingsService, REVIEW_WINDOW_GEOMETRY_SETTING,
                     MIN_REVIEW_WINDOW_WIDTH, MIN_REVIEW_WINDOW_HEIGHT);
-        });
-        dialog.setOnHidden(event -> {
-            Stage stage = reviewDialogStage.get();
-            if (stage != null) {
-                WindowGeometry.save(stage, settingsService, REVIEW_WINDOW_GEOMETRY_SETTING,
-                        MIN_REVIEW_WINDOW_WIDTH, MIN_REVIEW_WINDOW_HEIGHT);
-            }
+            stage.setOnHiding(windowEvent ->
+                    WindowGeometry.save(stage, settingsService, REVIEW_WINDOW_GEOMETRY_SETTING,
+                            MIN_REVIEW_WINDOW_WIDTH, MIN_REVIEW_WINDOW_HEIGHT));
         });
 
         CheckBox onlyFillMissing = new CheckBox(I18n.get("rules.review.onlyFillMissing"));
@@ -117,8 +111,8 @@ final class RuleReviewDialog {
         DateTimeFormatter dateFormatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT)
                 .withLocale(I18n.getCurrentLocale());
         List<TableColumn<TransactionRulePreview, ?>> columns = List.of(
-                column("col.bookingDate", row -> formatDate(row.bookingDate(), dateFormatter), 105),
-                column("col.valueDate", row -> formatDate(row.valueDate(), dateFormatter), 105),
+                dateColumn("col.bookingDate", TransactionRulePreview::bookingDate, dateFormatter),
+                dateColumn("col.valueDate", TransactionRulePreview::valueDate, dateFormatter),
                 column("rules.review.payee", TransactionRulePreview::payee, 180),
                 column("col.purpose", row -> SingleLineText.normalize(row.purpose()), 180),
                 column("rules.review.amount", row -> row.amount() == null
@@ -357,6 +351,21 @@ final class RuleReviewDialog {
         column.setPrefWidth(width);
         column.setCellValueFactory(cell -> new SimpleObjectProperty<>(value.apply(cell.getValue())));
         return column;
+    }
+
+    private TableColumn<TransactionRulePreview, String> dateColumn(
+            String titleKey, Function<TransactionRulePreview, LocalDate> dateFor,
+            DateTimeFormatter dateFormatter) {
+        TableColumn<TransactionRulePreview, String> column = column(
+                titleKey, row -> formatDate(dateFor.apply(row), dateFormatter), 105);
+        column.setComparator((first, second) -> compareDates(first, second, dateFormatter));
+        return column;
+    }
+
+    private int compareDates(String first, String second, DateTimeFormatter dateFormatter) {
+        if ("—".equals(first)) return "—".equals(second) ? 0 : -1;
+        if ("—".equals(second)) return 1;
+        return LocalDate.parse(first, dateFormatter).compareTo(LocalDate.parse(second, dateFormatter));
     }
 
     private String formatDate(LocalDate date, DateTimeFormatter dateFormatter) {
