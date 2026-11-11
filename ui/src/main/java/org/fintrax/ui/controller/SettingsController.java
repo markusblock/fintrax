@@ -71,7 +71,7 @@ public class SettingsController {
     private final LabelService labelService;
     private final Path storagePath;
 
-        public SettingsController(AccountService accountService, PinStorage pinStorage,
+    public SettingsController(AccountService accountService, PinStorage pinStorage,
                                HibiscusXmlImporter hibiscusXmlImporter, ResetService resetService,
                                SyncService syncService, SettingsService settingsService,
                                RuleService ruleService, RuleArchiveService ruleArchiveService,
