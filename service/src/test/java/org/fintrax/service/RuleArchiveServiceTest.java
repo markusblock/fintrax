@@ -5,6 +5,7 @@ import org.fintrax.store.StoreManager;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -131,6 +132,26 @@ class RuleArchiveServiceTest {
     }
 
     @Test
+    void importDoesNotUpdateAmountRuleWhenBoundsOnlyDifferByScale() throws Exception {
+        Fixture source = fixture();
+        createAmountRule(source, new BigDecimal("1.0"), new BigDecimal("2.0"));
+        Path archive = Files.createTempFile(source.directory, "rules-export", ".zip");
+        source.archiveService.exportRules(archive);
+
+        Fixture target = fixture();
+        Rule existing = createAmountRule(target, new BigDecimal("1.00"), new BigDecimal("2.00"));
+        var updatedAt = existing.getUpdatedAt();
+        int activityLogCount = target.store.getRoot().getActivityLogs().size();
+
+        RuleArchiveService.ImportResult result = target.archiveService.importRules(archive);
+
+        assertEquals(0, result.added());
+        assertEquals(0, result.updated());
+        assertEquals(updatedAt, existing.getUpdatedAt());
+        assertEquals(activityLogCount, target.store.getRoot().getActivityLogs().size());
+    }
+
+    @Test
     void exportRejectsAccountConditionsThatCannotBeMappedPortably() throws Exception {
         Fixture source = fixture();
         source.ruleService.createRule("Contains account ID",
@@ -163,6 +184,15 @@ class RuleArchiveServiceTest {
         Fixture fixture = new Fixture(false, true);
         fixtures.add(fixture);
         return fixture;
+    }
+
+    private Rule createAmountRule(Fixture fixture, BigDecimal minimum, BigDecimal maximum) {
+        return fixture.ruleService.createRule("Amount range",
+                List.of(RuleCondition.builder().matchField(MatchField.AMOUNT).operator(Operator.AMOUNT_RANGE)
+                        .amountMin(minimum).amountMax(maximum).build()),
+                List.of(RuleAction.builder().actionType(ActionType.ASSIGN_CATEGORY)
+                                .categoryId(fixture.meals.getId()).build(),
+                        RuleAction.builder().actionType(ActionType.ADD_LABEL).labelId(fixture.label.getId()).build()));
     }
 
     private static class Fixture implements AutoCloseable {

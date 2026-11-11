@@ -5,6 +5,7 @@ import org.fintrax.model.*;
 import org.fintrax.store.StoreManager;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -233,12 +234,16 @@ public class RuleService {
             if (!Objects.equals(current.getMatchField(), incoming.getMatchField())
                     || !Objects.equals(current.getOperator(), incoming.getOperator())
                     || !Objects.equals(current.getValue(), incoming.getValue())
-                    || !Objects.equals(current.getAmountMin(), incoming.getAmountMin())
-                    || !Objects.equals(current.getAmountMax(), incoming.getAmountMax())) {
+                    || !sameAmountValue(current.getAmountMin(), incoming.getAmountMin())
+                    || !sameAmountValue(current.getAmountMax(), incoming.getAmountMax())) {
                 return false;
             }
         }
         return true;
+    }
+
+    private boolean sameAmountValue(BigDecimal existing, BigDecimal imported) {
+        return existing == null ? imported == null : imported != null && existing.compareTo(imported) == 0;
     }
 
     private boolean hasSameActionValues(List<RuleAction> existing, List<RuleAction> imported) {
