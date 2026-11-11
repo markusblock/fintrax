@@ -272,6 +272,29 @@ class HibiscusXmlImporterTest {
     }
 
     @Test
+    void importedPurposeJoinsAndNormalizesHibiscusPurposeFields() throws IOException {
+        String xml = Files.readString(support.loadXmlTestData(IMPORT_TEST_DATA).toPath())
+                .replace("<zweck type=\"java.lang.String\">SVWZ+NR XXXX 1024 Pforzheim</zweck>",
+                        "<zweck type=\"java.lang.String\">EREF+1029143334409</zweck>")
+                .replace("<zweck2 type=\"java.lang.String\">DEKAUFUMSATZ08.10 14.54170</zweck2>",
+                        "<zweck2 type=\"java.lang.String\">MREF+5BQJ2252ACJXA</zweck2>")
+                .replace("<zweck3 type=\"java.lang.String\">123456789000000000000</zweck3>",
+                        "<zweck3 type=\"java.lang.String\">CRED+ABC123\r\n0058\n"
+                                + "SVWZ+1313131313 PP.1212.\r\nPP . blubi\nz      XYZ GbR, Ihr Einkauf bei\n"
+                                + "blubiz \nenGbR</zweck3>");
+        File xmlFile = writeImportFile("normalized-purpose.xml", xml);
+
+        importer.importFile(xmlFile, true, true);
+
+        Transaction importedTransaction = store.getRoot().getTransactions().stream()
+                .filter(transaction -> "VISA Test GmbH".equals(transaction.getOriginalPayee()))
+                .findFirst().orElseThrow();
+        assertEquals("EREF+1029143334409MREF+5BQJ2252ACJXACRED+ABC1230058"
+                        + "SVWZ+1313131313 PP.1212.PP . blubiz XYZ GbR, Ihr Einkauf beiblubiz enGbR",
+                importedTransaction.getPurpose());
+    }
+
+    @Test
     void sameChecksumIdentifiesTransactionDespiteChangedDescription() throws IOException {
         String xml = Files.readString(support.loadXmlTestData(IMPORT_TEST_DATA).toPath());
         File firstImport = writeImportFile("first-import.xml", xml);
