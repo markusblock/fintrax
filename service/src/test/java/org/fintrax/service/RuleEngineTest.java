@@ -156,6 +156,32 @@ class RuleEngineTest {
     }
 
     @Test
+    void payeeOrPurposeConditionAssignsCategoryWhenEitherTextFieldMatches() {
+        BankAccount account = accountService.createAccount(
+                "DE89370400440532013000", null, "Bank", "User", AccountType.GIRO, null);
+        Category category = categoryService.createCategory("Matching category", null, null);
+        store.getRoot().getRules().add(Rule.builder().id(1L).name("Combined match")
+                .priority(1).enabled(true)
+                .conditions(List.of(condition(MatchField.PAYEE_OR_PURPOSE, Operator.REGEX, ".*needle.*")))
+                .actions(List.of(RuleAction.builder().actionType(ActionType.ASSIGN_CATEGORY)
+                        .categoryId(category.getId()).build()))
+                .build());
+
+        Transaction payeeMatch = transactionService.createTransaction(Transaction.builder()
+                .accountId(account.getId()).originalPayee("Payee needle")
+                .amount(BigDecimal.ONE).bookingDate(LocalDate.now()).valueDate(LocalDate.now()).build());
+        Transaction purposeMatch = transactionService.createTransaction(Transaction.builder()
+                .accountId(account.getId()).originalPayee("Unrelated payee").purpose("Purpose needle")
+                .amount(BigDecimal.ONE).bookingDate(LocalDate.now()).valueDate(LocalDate.now()).build());
+
+        ruleEngine.applyRules(payeeMatch);
+        ruleEngine.applyRules(purposeMatch);
+
+        assertEquals(category.getId(), payeeMatch.getCategoryId());
+        assertEquals(category.getId(), purposeMatch.getCategoryId());
+    }
+
+    @Test
     void ruleServiceRejectsInvalidRegularExpressions() {
         RuleCondition invalidRegex = condition(MatchField.PURPOSE, Operator.REGEX, "[");
         List<RuleCondition> conditions = List.of(invalidRegex);

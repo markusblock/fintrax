@@ -68,7 +68,7 @@ How a rule combines its conditions: **all** requires every condition to match; *
 An assignment made when a rule matches: assign one category or add a label.
 
 **Imported Category Rule Match**:
-An existing rule with the same payee condition, operator, pattern, and mapped category action. Rule name, priority, and enabled state do not affect the match.
+An existing rule with the same payee-or-purpose condition, operator, pattern, and mapped category action. Rule name, priority, and enabled state do not affect the match.
 
 **Pattern Match Mode**:
 The way a Category Rule evaluates its pattern: regex or contains matching.
