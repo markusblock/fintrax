@@ -19,6 +19,7 @@ import org.fintrax.service.ResetService;
 import org.fintrax.service.CategoryService;
 import org.fintrax.service.hibiscus.HibiscusXmlImporter;
 import org.fintrax.service.LabelService;
+import org.fintrax.service.RuleArchiveService;
 import org.fintrax.service.RuleService;
 import org.fintrax.service.SyncService;
 import org.fintrax.service.SettingsService;
@@ -65,14 +66,16 @@ public class SettingsController {
     private final SyncService syncService;
     private final SettingsService settingsService;
     private final RuleService ruleService;
+    private final RuleArchiveService ruleArchiveService;
     private final CategoryService categoryService;
     private final LabelService labelService;
     private final Path storagePath;
 
-    public SettingsController(AccountService accountService, PinStorage pinStorage,
+        public SettingsController(AccountService accountService, PinStorage pinStorage,
                                HibiscusXmlImporter hibiscusXmlImporter, ResetService resetService,
                                SyncService syncService, SettingsService settingsService,
-                               RuleService ruleService, CategoryService categoryService, LabelService labelService,
+                               RuleService ruleService, RuleArchiveService ruleArchiveService,
+                               CategoryService categoryService, LabelService labelService,
                                Path storagePath) {
         this.accountService = accountService;
         this.pinStorage = pinStorage;
@@ -81,6 +84,7 @@ public class SettingsController {
         this.syncService = syncService;
         this.settingsService = settingsService;
         this.ruleService = ruleService;
+        this.ruleArchiveService = ruleArchiveService;
         this.categoryService = categoryService;
         this.labelService = labelService;
         this.storagePath = storagePath;
@@ -173,15 +177,21 @@ public class SettingsController {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle(I18n.get("settings.import.title"));
         fileChooser.getExtensionFilters().add(
-                new FileChooser.ExtensionFilter("Hibiscus XML", "*.xml"));
+                new FileChooser.ExtensionFilter(I18n.get("settings.import.hibiscus.filter"), "*.xml"));
+        fileChooser.getExtensionFilters().add(
+                new FileChooser.ExtensionFilter(I18n.get("settings.import.rules.filter"), "*.zip"));
         File file = fileChooser.showOpenDialog(rootPane.getScene().getWindow());
 
         if (file == null) return;
+        if (file.getName().toLowerCase(java.util.Locale.ROOT).endsWith(".zip")) {
+            importRules(file);
+            return;
+        }
 
         Dialog<Boolean> dialog = new Dialog<>();
         FintraxUI.configureDialog(dialog);
-        dialog.setTitle(I18n.get("settings.import.title"));
-        dialog.setHeaderText(I18n.get("settings.import.title"));
+        dialog.setTitle(I18n.get("settings.import.hibiscus"));
+        dialog.setHeaderText(I18n.get("settings.import.hibiscus"));
 
         ButtonType importButtonType = new ButtonType(I18n.get("button.import"), ButtonBar.ButtonData.OK_DONE);
         dialog.getDialogPane().getButtonTypes().addAll(importButtonType, ButtonType.CANCEL);
@@ -216,6 +226,60 @@ public class SettingsController {
                 alert.showAndWait();
             }
         }
+    }
+
+    private void importRules(File file) {
+        try {
+            RuleArchiveService.ImportResult result = ruleArchiveService.importRules(file.toPath());
+            Alert alert = new Alert(Alert.AlertType.INFORMATION);
+            FintraxUI.configureDialog(alert);
+            alert.setTitle(I18n.get("settings.rules.import.success"));
+            alert.setHeaderText(I18n.get("settings.rules.import.success"));
+            alert.setContentText(I18n.get("settings.rules.import.result", result.added(), result.updated()));
+            alert.initOwner(rootPane.getScene().getWindow());
+            alert.showAndWait();
+        } catch (Exception exception) {
+            log.error("Rules import failed", exception);
+            showRulesError(I18n.get("settings.rules.import.error", exception.getMessage()));
+        }
+    }
+
+    @FXML
+    private void onExportRules() {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle(I18n.get("settings.rules.export.title"));
+        fileChooser.setInitialFileName("fintrax-rules.zip");
+        fileChooser.getExtensionFilters().add(
+                new FileChooser.ExtensionFilter(I18n.get("settings.import.rules.filter"), "*.zip"));
+        File file = fileChooser.showSaveDialog(rootPane.getScene().getWindow());
+        if (file == null) return;
+        if (!file.getName().toLowerCase(java.util.Locale.ROOT).endsWith(".zip")) {
+            file = new File(file.getParentFile(), file.getName() + ".zip");
+        }
+
+        try {
+            ruleArchiveService.exportRules(file.toPath());
+            Alert alert = new Alert(Alert.AlertType.INFORMATION);
+            FintraxUI.configureDialog(alert);
+            alert.setTitle(I18n.get("settings.rules.export.success"));
+            alert.setHeaderText(I18n.get("settings.rules.export.success"));
+            alert.setContentText(I18n.get("settings.rules.export.result", file.getName()));
+            alert.initOwner(rootPane.getScene().getWindow());
+            alert.showAndWait();
+        } catch (Exception exception) {
+            log.error("Rules export failed", exception);
+            showRulesError(I18n.get("settings.rules.export.error", exception.getMessage()));
+        }
+    }
+
+    private void showRulesError(String message) {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        FintraxUI.configureDialog(alert);
+        alert.setTitle(I18n.get("settings.rules.error"));
+        alert.setHeaderText(I18n.get("settings.rules.error"));
+        alert.setContentText(message);
+        alert.initOwner(rootPane.getScene().getWindow());
+        alert.showAndWait();
     }
 
     void showImportSuccess(HibiscusXmlImporter.ImportResult importResult) {

@@ -6,9 +6,15 @@ import org.fintrax.store.StoreManager;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
@@ -40,6 +46,7 @@ public class RuleService {
 
     public Rule createRule(String name, List<RuleCondition> conditions, List<RuleAction> actions,
                            RuleMatchMode matchMode) {
+        validateUniqueName(name, null);
         validateRule(conditions, actions);
 
         int maxPriority = store.getRoot().getRules().stream()
@@ -73,6 +80,11 @@ public class RuleService {
     }
 
     private void validateRule(List<RuleCondition> conditions, List<RuleAction> actions) {
+        if (conditions == null || actions == null
+                || conditions.stream().anyMatch(Objects::isNull)
+                || actions.stream().anyMatch(Objects::isNull)) {
+            throw new IllegalArgumentException("Rule conditions and actions are required");
+        }
         conditions.stream()
                 .filter(condition -> condition.getOperator() == Operator.REGEX
                         || condition.getOperator() == Operator.NOT_REGEX)
@@ -121,6 +133,7 @@ public class RuleService {
             throw new IllegalArgumentException("Rule not found: " + id);
         }
 
+        validateUniqueName(name, id);
         validateRule(conditions, actions);
 
         rule.setName(name);
@@ -139,6 +152,103 @@ public class RuleService {
 
         log.info("Updated rule {}", id);
         return rule;
+    }
+
+    /** Merges imported rules by case-insensitive name without deleting rules absent from the import. */
+    public MergeResult mergeImportedRules(List<Rule> importedRules) {
+        if (importedRules == null || importedRules.stream().anyMatch(Objects::isNull)) {
+            throw new IllegalArgumentException("Imported rules are required");
+        }
+
+        Map<String, List<Rule>> existingByName = new HashMap<>();
+        store.getRoot().getRules().forEach(rule -> existingByName
+                .computeIfAbsent(normalizeName(rule.getName()), ignored -> new ArrayList<>()).add(rule));
+
+        Set<String> importedNames = new HashSet<>();
+        List<RuleUpdate> updates = new ArrayList<>();
+        List<Rule> additions = new ArrayList<>();
+        for (Rule imported : importedRules) {
+            if (imported.getName() == null || imported.getName().isBlank()) {
+                throw new IllegalArgumentException("Rule name is required");
+            }
+            validateRule(imported.getConditions(), imported.getActions());
+            String key = normalizeName(imported.getName());
+            if (!importedNames.add(key)) {
+                throw new IllegalArgumentException("Duplicate imported rule name: " + imported.getName());
+            }
+
+            List<Rule> matches = existingByName.getOrDefault(key, List.of());
+            if (matches.size() > 1) {
+                throw new IllegalArgumentException("Multiple existing rules have the name: " + imported.getName());
+            }
+            if (matches.isEmpty()) {
+                additions.add(imported);
+            } else {
+                updates.add(new RuleUpdate(matches.getFirst(), imported));
+            }
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        for (RuleUpdate update : updates) {
+            Rule existing = update.existing();
+            Rule imported = update.imported();
+            applyImportedValues(existing, imported, now);
+            activityLogger.log(ActivityAction.UPDATE, EntityType.RULE, existing.getId(),
+                    "Updated imported rule: " + existing.getName());
+        }
+
+        for (Rule imported : additions) {
+            imported.setId(nextId++);
+            if (imported.getMatchMode() == null) imported.setMatchMode(RuleMatchMode.ALL);
+            imported.setCreatedAt(now);
+            imported.setUpdatedAt(now);
+            setChildRuleIds(imported);
+            store.getRoot().getRules().add(imported);
+            activityLogger.log(ActivityAction.CREATE, EntityType.RULE, imported.getId(),
+                    "Imported rule: " + imported.getName());
+        }
+        store.store(store.getRoot().getRules());
+        return new MergeResult(additions.size(), updates.size());
+    }
+
+    private void applyImportedValues(Rule existing, Rule imported, LocalDateTime now) {
+        existing.setName(imported.getName());
+        existing.setPriority(imported.getPriority());
+        existing.setEnabled(imported.isEnabled());
+        existing.setConditions(imported.getConditions());
+        existing.setMatchMode(imported.getMatchMode() == null ? RuleMatchMode.ALL : imported.getMatchMode());
+        existing.setActions(imported.getActions());
+        existing.setUpdatedAt(now);
+        setChildRuleIds(existing);
+    }
+
+    private void setChildRuleIds(Rule rule) {
+        rule.getConditions().forEach(condition -> condition.setRuleId(rule.getId()));
+        rule.getActions().forEach(action -> action.setRuleId(rule.getId()));
+    }
+
+    private void validateUniqueName(String name, Long exceptId) {
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException("Rule name is required");
+        }
+        boolean duplicate = store.getRoot().getRules().stream()
+                .anyMatch(rule -> (exceptId == null || !Objects.equals(rule.getId(), exceptId))
+                        && rule.getName() != null && rule.getName().equalsIgnoreCase(name));
+        if (duplicate) {
+            throw new IllegalArgumentException("Rule with name already exists: " + name);
+        }
+    }
+
+    private String normalizeName(String name) {
+        return name == null ? "" : name.toLowerCase(Locale.ROOT);
+    }
+
+    public record MergeResult(int added, int updated) {}
+
+    private record RuleUpdate(Rule existing, Rule imported) {}
+
+    void validateRuleForImport(List<RuleCondition> conditions, List<RuleAction> actions) {
+        validateRule(conditions, actions);
     }
 
     public void deleteRule(Long id) {

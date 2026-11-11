@@ -29,7 +29,10 @@ Categories sharing the same parent. Top-level categories are siblings when they 
 The full hierarchy of top-level categories and their descendants.
 
 **Category Identity**:
-A category is identified by its name together with its parent. Sibling names must be unique; the same name under a different parent is allowed.
+A category is identified by its name together with its parent. Sibling names must be unique without regard to letter case; the same name under a different parent is allowed.
+
+**Label Identity**:
+A label is identified by its name, compared without regard to letter case; labels with the same name are duplicates.
 
 ### Category Import
 
@@ -48,7 +51,7 @@ A Hibiscus export that contains every category referenced as another category's 
 The operation that reads Hibiscus Categories and creates or matches Fintrax Categories while preserving their hierarchy.
 
 **Category Match**:
-The association between a Hibiscus Category and an existing Fintrax Category during one import, based on category name and parent.
+The association between a Hibiscus Category and an existing Fintrax Category during one import, based on category name (ignoring letter case) and parent.
 
 **Unresolved Parent**:
 A parent reference that cannot be mapped to a Fintrax Category during import. Under the full-export rule this is invalid input and fails the import.
@@ -57,6 +60,15 @@ A parent reference that cannot be mapped to a Fintrax Category during import. Un
 A rule, possibly derived from a Hibiscus Category matching pattern, that matches transactions. For overlapping matches, the highest-priority rule supplies the category while every matching rule contributes labels without duplicates. Category Rules do not modify transaction notes. Applying rules to existing transactions requires reviewing proposed changes before saving them.
 
 ### Rules
+
+**Rule Identity**:
+A rule is identified for portable export and import by its name, compared without regard to letter case; rule names must be unique.
+
+**Rule Export**:
+A portable archive containing a selected set of data and only the references needed to use it; the current export includes all rules. A Rule Export is not a backup of other application data.
+
+**Rule Import**:
+A merge that adds new rules and updates same-name rules while leaving local rules absent from the export unchanged. Missing or ambiguous category, label, or account references make the whole import invalid.
 
 **Rule Condition**:
 A comparison between a transaction field and a search value. Text comparisons, including regular expressions, ignore letter case.

@@ -87,6 +87,25 @@ class RuleEngineTest {
     }
 
     @Test
+    void creatingRuleRejectsNameThatDiffersOnlyByCase() {
+        ruleService.createRule("Travel", List.of(), List.of());
+
+        assertThrows(IllegalArgumentException.class, () ->
+                ruleService.createRule("travel", List.of(), List.of()));
+    }
+
+    @Test
+    void updatingRuleRejectsNameAlreadyUsedIgnoringCase() {
+        Rule first = ruleService.createRule("Travel", List.of(), List.of());
+        Rule second = ruleService.createRule("Food", List.of(), List.of());
+
+        assertThrows(IllegalArgumentException.class, () ->
+                ruleService.updateRule(second.getId(), "TRAVEL", List.of(), List.of()));
+        assertEquals("Food", ruleService.getRule(second.getId()).orElseThrow().getName());
+        assertEquals("Travel", ruleService.getRule(first.getId()).orElseThrow().getName());
+    }
+
+    @Test
     void operatorOrdinalsRemainCompatibleWithPersistedRules() {
         assertEquals(0, Operator.CONTAINS.ordinal());
         assertEquals(1, Operator.REGEX.ordinal());

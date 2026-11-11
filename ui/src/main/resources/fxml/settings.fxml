@@ -82,9 +82,16 @@
                         <Label text="%settings.section.import" styleClass="section-heading"/>
                     </HBox>
                     <Label text="%settings.import.hibiscus.desc" wrapText="true" styleClass="help-text"/>
+                    <Label text="%settings.rules.import.desc" wrapText="true" styleClass="help-text"/>
+                    <Label text="%settings.rules.export.desc" wrapText="true" styleClass="help-text"/>
                     <HBox spacing="10" alignment="CENTER_LEFT">
-                        <Button text="%button.import" onAction="#onImportHibiscus" styleClass="accent-button">
+                        <Button fx:id="importDataButton" text="%button.import" onAction="#onImportHibiscus"
+                                styleClass="accent-button">
                             <graphic><FontIcon iconLiteral="fth-upload" iconSize="14"/></graphic>
+                        </Button>
+                        <Button fx:id="exportRulesButton" text="%button.exportRules" onAction="#onExportRules"
+                                styleClass="button-outlined">
+                            <graphic><FontIcon iconLiteral="fth-download" iconSize="14"/></graphic>
                         </Button>
                     </HBox>
                 </VBox>

@@ -336,7 +336,7 @@ public class HibiscusXmlImporter {
     private void rejectDuplicateSourceCategories(List<CategoryImport> categoryImports) {
         Set<CategoryKey> seen = new HashSet<>();
         for (var catImport : categoryImports) {
-            CategoryKey key = new CategoryKey(catImport.name, catImport.parentHibiscusId);
+            CategoryKey key = new CategoryKey(normalizeCategoryName(catImport.name), catImport.parentHibiscusId);
             if (!seen.add(key)) {
                 throw new IllegalArgumentException(
                         "Duplicate sibling category '" + catImport.name + "' in XML (parent hibiscus ID: "
@@ -347,9 +347,13 @@ public class HibiscusXmlImporter {
 
     private Optional<Category> findExistingFintraxCategory(DataRoot root, String name, Long parentFintraxId) {
         return root.getCategories().stream()
-                .filter(c -> name.equals(c.getName()))
+                .filter(c -> c.getName().equalsIgnoreCase(name))
                 .filter(c -> Objects.equals(parentFintraxId, c.getParentId()))
                 .findFirst();
+    }
+
+    private String normalizeCategoryName(String name) {
+        return name.toLowerCase(Locale.ROOT);
     }
 
     private Long resolveParentFintraxId(

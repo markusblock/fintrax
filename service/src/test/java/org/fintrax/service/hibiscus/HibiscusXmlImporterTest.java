@@ -116,6 +116,22 @@ class HibiscusXmlImporterTest {
     }
 
     @Test
+    void categoryMatchingIgnoresNameCase() throws IOException {
+        String xml = Files.readString(support.loadXmlTestData(IMPORT_TEST_DATA).toPath());
+        File firstImport = writeImportFile("category-name-case-original.xml", xml);
+        File caseChangedImport = writeImportFile("category-name-case-changed.xml", xml.replaceFirst(
+                "<name type=\"java.lang.String\">Auto</name>",
+                "<name type=\"java.lang.String\">auto</name>"));
+
+        importer.importFile(firstImport, true, false);
+        int categoryCountAfterFirstImport = store.getRoot().getCategories().size();
+        HibiscusXmlImporter.ImportResult secondResult = importer.importFile(caseChangedImport, true, false);
+
+        assertEquals(0, secondResult.getCategoriesImported());
+        assertEquals(categoryCountAfterFirstImport, store.getRoot().getCategories().size());
+    }
+
+    @Test
     void accountsWithoutIbanAreImportedAsNewRecords() throws IOException {
         String xml = Files.readString(support.loadXmlTestData(IMPORT_TEST_DATA).toPath());
         String withoutFirstIban = xml.replaceFirst(
