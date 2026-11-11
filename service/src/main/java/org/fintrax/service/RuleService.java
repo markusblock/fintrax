@@ -162,7 +162,9 @@ public class RuleService {
         LocalDateTime now = LocalDateTime.now(ZoneId.systemDefault());
         applyImportedUpdates(plan.updates(), now);
         applyImportedAdditions(plan.additions(), now);
-        store.store(store.getRoot().getRules());
+        if (!plan.updates().isEmpty() || !plan.additions().isEmpty()) {
+            store.store(store.getRoot().getRules());
+        }
         return new MergeResult(plan.additions().size(), plan.updates().size());
     }
 
@@ -205,9 +207,52 @@ public class RuleService {
         }
         if (matches.isEmpty()) {
             additions.add(imported);
-        } else {
+        } else if (!hasSameImportedValues(matches.getFirst(), imported)) {
             updates.add(new RuleUpdate(matches.getFirst(), imported));
         }
+    }
+
+    private boolean hasSameImportedValues(Rule existing, Rule imported) {
+        return Objects.equals(existing.getName(), imported.getName())
+                && existing.getPriority() == imported.getPriority()
+                && existing.isEnabled() == imported.isEnabled()
+                && effectiveMatchMode(existing) == effectiveMatchMode(imported)
+                && hasSameConditionValues(existing.getConditions(), imported.getConditions())
+                && hasSameActionValues(existing.getActions(), imported.getActions());
+    }
+
+    private RuleMatchMode effectiveMatchMode(Rule rule) {
+        return rule.getMatchMode() == null ? RuleMatchMode.ALL : rule.getMatchMode();
+    }
+
+    private boolean hasSameConditionValues(List<RuleCondition> existing, List<RuleCondition> imported) {
+        if (existing == null || existing.size() != imported.size()) return false;
+        for (int index = 0; index < existing.size(); index++) {
+            RuleCondition current = existing.get(index);
+            RuleCondition incoming = imported.get(index);
+            if (!Objects.equals(current.getMatchField(), incoming.getMatchField())
+                    || !Objects.equals(current.getOperator(), incoming.getOperator())
+                    || !Objects.equals(current.getValue(), incoming.getValue())
+                    || !Objects.equals(current.getAmountMin(), incoming.getAmountMin())
+                    || !Objects.equals(current.getAmountMax(), incoming.getAmountMax())) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean hasSameActionValues(List<RuleAction> existing, List<RuleAction> imported) {
+        if (existing == null || existing.size() != imported.size()) return false;
+        for (int index = 0; index < existing.size(); index++) {
+            RuleAction current = existing.get(index);
+            RuleAction incoming = imported.get(index);
+            if (current.getActionType() != incoming.getActionType()
+                    || !Objects.equals(current.getCategoryId(), incoming.getCategoryId())
+                    || !Objects.equals(current.getLabelId(), incoming.getLabelId())) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private void applyImportedUpdates(List<RuleUpdate> updates, LocalDateTime now) {

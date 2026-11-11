@@ -81,11 +81,15 @@ class RuleArchiveServiceTest {
         Rule stillPresent = target.ruleService.getRule(omittedId).orElseThrow();
         assertEquals("Keep me", stillPresent.getName());
         assertTrue(stillPresent.isEnabled());
+        var updatedAt = updated.getUpdatedAt();
+        int activityLogCount = target.store.getRoot().getActivityLogs().size();
 
         RuleArchiveService.ImportResult repeated = target.archiveService.importRules(archive);
         assertEquals(0, repeated.added());
-        assertEquals(2, repeated.updated());
+        assertEquals(0, repeated.updated());
         assertEquals(3, target.ruleService.getAllRules().size());
+        assertEquals(updatedAt, updated.getUpdatedAt());
+        assertEquals(activityLogCount, target.store.getRoot().getActivityLogs().size());
     }
 
     @Test

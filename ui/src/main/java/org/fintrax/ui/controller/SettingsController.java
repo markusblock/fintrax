@@ -177,9 +177,8 @@ public class SettingsController {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle(I18n.get("settings.import.title"));
         fileChooser.getExtensionFilters().add(
-                new FileChooser.ExtensionFilter(I18n.get("settings.import.hibiscus.filter"), "*.xml"));
-        fileChooser.getExtensionFilters().add(
-                new FileChooser.ExtensionFilter(I18n.get("settings.import.rules.filter"), "*.zip", "*.json"));
+                new FileChooser.ExtensionFilter(I18n.get("settings.import.supported.filter"),
+                        "*.xml", "*.zip", "*.json"));
         File file = fileChooser.showOpenDialog(rootPane.getScene().getWindow());
 
         if (file == null) return;
