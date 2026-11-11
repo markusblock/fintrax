@@ -30,6 +30,7 @@ import org.fintrax.ui.control.TableColumnVisibilityMenu;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -40,6 +41,9 @@ import java.util.stream.Collectors;
 
 final class RuleReviewDialog {
     private static final double SELECTION_COLUMN_WIDTH = 36;
+    private static final String REVIEW_COLUMNS_SETTING = "rules.review.columns";
+    private static final String PAYEE_COLUMN_KEY = "payee";
+    private static final String PURPOSE_COLUMN_KEY = "purpose";
     record Services(RuleService ruleService, AccountService accountService, CategoryService categoryService,
                     LabelService labelService, SettingsService settingsService) {}
 
@@ -122,11 +126,12 @@ final class RuleReviewDialog {
         menuColumn.setReorderable(false);
         menuColumn.setGraphic(columnMenuButton);
         table.getColumns().add(menuColumn);
-        TableColumnVisibilityMenu.install(table, columnMenuButton, "rules.review.columns", settingsService,
+        migratePurposeColumnOrder();
+        TableColumnVisibilityMenu.install(table, columnMenuButton, REVIEW_COLUMNS_SETTING, settingsService,
                 List.of(new TableColumnConfig("date", columns.get(0)),
                         new TableColumnConfig("valueDate", columns.get(1)),
-                        new TableColumnConfig("payee", columns.get(2)),
-                        new TableColumnConfig("purpose", columns.get(3)),
+                        new TableColumnConfig(PAYEE_COLUMN_KEY, columns.get(2)),
+                        new TableColumnConfig(PURPOSE_COLUMN_KEY, columns.get(3)),
                         new TableColumnConfig("amount", columns.get(4)),
                         new TableColumnConfig("account", columns.get(5)),
                         new TableColumnConfig("currentCategory", columns.get(6)),
@@ -376,6 +381,20 @@ final class RuleReviewDialog {
 
     private String display(String value) {
         return value == null || value.isBlank() ? "—" : value;
+    }
+
+    private void migratePurposeColumnOrder() {
+        String orderSettingKey = REVIEW_COLUMNS_SETTING + ".order";
+        String savedOrder = settingsService.getSettingValue(orderSettingKey);
+        if (savedOrder == null || savedOrder.isBlank()) return;
+
+        List<String> orderedColumns = new ArrayList<>(List.of(savedOrder.split(",")));
+        if (orderedColumns.contains(PURPOSE_COLUMN_KEY)) return;
+
+        int payeeIndex = orderedColumns.indexOf(PAYEE_COLUMN_KEY);
+        int purposeIndex = payeeIndex < 0 ? orderedColumns.size() : payeeIndex + 1;
+        orderedColumns.add(purposeIndex, PURPOSE_COLUMN_KEY);
+        settingsService.saveSettingValue(orderSettingKey, String.join(",", orderedColumns));
     }
 
     private FontIcon icon(String literal, int size) {
