@@ -236,10 +236,8 @@ public class HibiscusXmlImporter {
                 for (var catImport : categoryImports) {
                     if (catImport.pattern != null && !catImport.pattern.isEmpty()) {
                         List<String> conditionValues = splitPatternAlternatives(catImport.pattern);
-                        if (conditionValues.isEmpty()) continue;
-
                         Long mappedCategoryId = hibiscusToFintraxCategoryIdMap.get(catImport.hibiscusId);
-                        if (mappedCategoryId == null) continue;
+                        if (conditionValues.isEmpty() || mappedCategoryId == null) continue;
 
                         long ruleId = nextRuleId(root);
                         long actionId = System.nanoTime() + 1;
