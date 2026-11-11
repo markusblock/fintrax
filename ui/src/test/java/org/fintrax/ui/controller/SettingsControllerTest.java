@@ -51,6 +51,12 @@ class SettingsControllerTest extends AbstractUITest {
     }
 
     @Test
+    void settingsOfferRulesExportBesideImport() {
+        assertTrue(lookup("#importDataButton").<Button>query().isVisible());
+        assertTrue(lookup("#exportRulesButton").<Button>query().isVisible());
+    }
+
+    @Test
     void changingLanguageSavesImmediately() {
         interact(() -> lookup("#languageCombo").<ComboBox<String>>query().setValue("Deutsch"));
 

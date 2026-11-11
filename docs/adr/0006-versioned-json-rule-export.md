@@ -1,0 +1,3 @@
+# Rule exports use versioned JSON in a ZIP archive
+
+Fintrax exports use a ZIP archive with a versioned JSON envelope that identifies partial versus full scope and can carry multiple data sections. This issue emits a partial export containing all rules, not a full application backup; Import accepts either the ZIP archive or its standalone JSON payload. Category and label targets use portable names/paths and account targets use IBAN rather than local IDs. Import prevalidates references and merges by case-insensitive rule name instead of replacing the local rule set; full backup/restore remains a separate use case.

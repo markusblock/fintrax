@@ -83,6 +83,14 @@ class CategoryServiceTest {
     }
 
     @Test
+    void creatingSiblingCategoryRejectsNameThatDiffersOnlyByCase() {
+        categoryService.createCategory("Food", null, null);
+
+        assertThrows(IllegalArgumentException.class, () ->
+                categoryService.createCategory("food", null, null));
+    }
+
+    @Test
     void testCreateSameNameUnderDifferentParentAllowed() {
         Category parent1 = categoryService.createCategory("Parent1", null, null);
         Category parent2 = categoryService.createCategory("Parent2", null, null);
@@ -100,6 +108,25 @@ class CategoryServiceTest {
 
         assertThrows(IllegalArgumentException.class, () ->
                 categoryService.updateCategory(cat1.getId(), "Cat2", null));
+    }
+
+    @Test
+    void updatingSiblingCategoryRejectsNameThatDiffersOnlyByCase() {
+        Category category = categoryService.createCategory("Old", null, null);
+        categoryService.createCategory("Food", null, null);
+        Long categoryId = category.getId();
+
+        assertThrows(IllegalArgumentException.class, () ->
+                categoryService.updateCategory(categoryId, "food", null));
+    }
+
+    @Test
+    void updatingCategoryCaseWithoutCreatingDuplicateIsAllowed() {
+        Category category = categoryService.createCategory("Food", null, null);
+
+        categoryService.updateCategory(category.getId(), "FOOD", null);
+
+        assertEquals("FOOD", categoryService.getCategory(category.getId()).orElseThrow().getName());
     }
 
     @Test

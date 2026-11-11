@@ -42,7 +42,7 @@ public class CategoryService {
             }
         }
 
-        if (hasSiblingWithName(name, parentId)) {
+        if (hasSiblingWithName(name, parentId, null)) {
             throw new IllegalArgumentException("A sibling category with name '" + name + "' already exists");
         }
 
@@ -65,9 +65,10 @@ public class CategoryService {
         return category;
     }
 
-    private boolean hasSiblingWithName(String name, Long parentId) {
+    private boolean hasSiblingWithName(String name, Long parentId, Long exceptId) {
         return store.getRoot().getCategories().stream()
-                .anyMatch(c -> name.equals(c.getName()) && Objects.equals(parentId, c.getParentId()));
+                .anyMatch(c -> !Objects.equals(c.getId(), exceptId)
+                        && c.getName().equalsIgnoreCase(name) && Objects.equals(parentId, c.getParentId()));
     }
 
     private int calculateDepth(Long parentId) {
@@ -125,7 +126,7 @@ public class CategoryService {
             validateNewParent(category, parentId);
         }
 
-        if ((nameChanged || parentChanged) && hasSiblingWithName(name, parentId)) {
+        if ((nameChanged || parentChanged) && hasSiblingWithName(name, parentId, id)) {
             throw new IllegalArgumentException("A sibling category with name '" + name + "' already exists");
         }
 
