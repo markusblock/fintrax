@@ -10,6 +10,7 @@ public record TransactionRulePreview(
         LocalDate bookingDate,
         LocalDate valueDate,
         String payee,
+        String purpose,
         BigDecimal amount,
         Long accountId,
         Long currentCategoryId,

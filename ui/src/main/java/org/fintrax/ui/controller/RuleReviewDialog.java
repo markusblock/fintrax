@@ -96,6 +96,7 @@ final class RuleReviewDialog {
                 column("col.bookingDate", row -> formatDate(row.bookingDate(), dateFormatter), 105),
                 column("col.valueDate", row -> formatDate(row.valueDate(), dateFormatter), 105),
                 column("rules.review.payee", TransactionRulePreview::payee, 180),
+                column("col.purpose", TransactionRulePreview::purpose, 180),
                 column("rules.review.amount", row -> row.amount() == null
                         ? "—" : String.format("%,.2f EUR", row.amount().doubleValue()), 110),
                 column("rules.review.account", this::accountName, 140),
@@ -124,14 +125,15 @@ final class RuleReviewDialog {
                 List.of(new TableColumnConfig("date", columns.get(0)),
                         new TableColumnConfig("valueDate", columns.get(1)),
                         new TableColumnConfig("payee", columns.get(2)),
-                        new TableColumnConfig("amount", columns.get(3)),
-                        new TableColumnConfig("account", columns.get(4)),
-                        new TableColumnConfig("currentCategory", columns.get(5)),
-                        new TableColumnConfig("categoryAfter", columns.get(6)),
-                        new TableColumnConfig("currentLabel", columns.get(7)),
-                        new TableColumnConfig("labelAfter", columns.get(8)),
-                        new TableColumnConfig("matchingRuleCount", columns.get(9)),
-                        new TableColumnConfig("matchedRules", columns.get(10))));
+                        new TableColumnConfig("purpose", columns.get(3)),
+                        new TableColumnConfig("amount", columns.get(4)),
+                        new TableColumnConfig("account", columns.get(5)),
+                        new TableColumnConfig("currentCategory", columns.get(6)),
+                        new TableColumnConfig("categoryAfter", columns.get(7)),
+                        new TableColumnConfig("currentLabel", columns.get(8)),
+                        new TableColumnConfig("labelAfter", columns.get(9)),
+                        new TableColumnConfig("matchingRuleCount", columns.get(10)),
+                        new TableColumnConfig("matchedRules", columns.get(11))));
         Map<Long, BooleanProperty> selectionByTransactionId = new HashMap<>();
         table.setRowFactory(view -> createReviewRow(view, selectionByTransactionId));
         TableColumn<TransactionRulePreview, Boolean> selectionColumn = new TableColumn<>();

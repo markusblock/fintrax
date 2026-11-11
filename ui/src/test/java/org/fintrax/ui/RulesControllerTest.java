@@ -51,6 +51,7 @@ class RulesControllerTest extends AbstractUITest {
     private String proposedLabelName;
     private String ruleName;
     private String disabledRuleName;
+    private String transactionPurpose;
 
     @Override
     public void start(Stage stage) throws Exception {
@@ -63,6 +64,7 @@ class RulesControllerTest extends AbstractUITest {
         BankAccount account = accountService.createAccount(
                 "DE89370400440532013000", null, "Review Bank", "User", AccountType.GIRO, null);
         String suffix = Long.toString(System.nanoTime());
+        transactionPurpose = "Review purpose " + suffix;
         currentCategory = categoryService.createCategory("Review Current " + suffix, null, null);
         proposedCategory = categoryService.createCategory("Review Proposed " + suffix, null, null);
         var proposedLabel = labelService.createLabel("Review label " + suffix, null, null);
@@ -86,7 +88,7 @@ class RulesControllerTest extends AbstractUITest {
         transaction = transactionService.createTransaction(Transaction.builder()
                 .accountId(account.getId()).originalPayee("REVIEW-" + suffix + " purchase").amount(BigDecimal.TEN)
                 .bookingDate(LocalDate.of(2025, 2, 1)).valueDate(LocalDate.of(2025, 2, 4))
-                .categoryId(currentCategory.getId()).note("Current note").build());
+                .purpose(transactionPurpose).categoryId(currentCategory.getId()).note("Current note").build());
         Parent root = applicationContext.getBean(ViewLoader.class).load("rules");
         stage.setScene(new Scene(root, 1024, 768));
         stage.show();
@@ -103,7 +105,7 @@ class RulesControllerTest extends AbstractUITest {
         TableView<TransactionRulePreview> reviewTable = lookup("#ruleReviewTable").query();
         MenuButton reviewColumnMenu = lookup("#ruleReviewColumnMenuButton").query();
         assertSame(reviewColumnMenu, reviewTable.getColumns().getLast().getGraphic());
-        assertEquals(13, reviewColumnMenu.getItems().size());
+        assertEquals(14, reviewColumnMenu.getItems().size());
         assertEquals(I18n.get("button.columns.reset"), reviewColumnMenu.getItems().getLast().getText());
         assertTrue(reviewColumnMenu.getItems().stream()
                 .noneMatch(item -> "Note (current -> proposed)".equals(item.getText())));
@@ -118,6 +120,9 @@ class RulesControllerTest extends AbstractUITest {
                 .findFirst().orElseThrow();
         assertEquals(formatDate(transaction.getBookingDate()), bookingDateColumn.getCellData(initialRow));
         assertEquals(formatDate(transaction.getValueDate()), valueDateColumn.getCellData(initialRow));
+        assertEquals(transactionPurpose, reviewTable.getColumns().stream()
+                .filter(column -> I18n.get("col.purpose").equals(column.getText()))
+                .findFirst().orElseThrow().getCellData(initialRow));
         assertEquals(currentCategory.getName(), reviewTable.getColumns().stream()
                 .filter(column -> column.getText().equals(I18n.get("rules.review.currentCategory")))
                 .findFirst().orElseThrow().getCellObservableValue(initialRow).getValue());
@@ -151,7 +156,7 @@ class RulesControllerTest extends AbstractUITest {
                 var dateColumn = reviewTable.getColumns().remove(1);
                 reviewTable.getColumns().add(2, dateColumn);
             });
-            assertEquals("valueDate,date,payee,amount,account,currentCategory,categoryAfter,currentLabel,labelAfter,matchingRuleCount,matchedRules",
+            assertEquals("valueDate,date,payee,purpose,amount,account,currentCategory,categoryAfter,currentLabel,labelAfter,matchingRuleCount,matchedRules",
                     applicationContext.getBean(SettingsService.class)
                             .getSettingValue("rules.review.columns.order"));
         } finally {
