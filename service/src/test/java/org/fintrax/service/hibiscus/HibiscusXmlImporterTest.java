@@ -146,6 +146,45 @@ class HibiscusXmlImporterTest {
     }
 
     @Test
+    void commaSeparatedPatternsCreateAnyMatchRules() throws IOException {
+        String xml = Files.readString(support.loadXmlTestData(IMPORT_TEST_DATA).toPath())
+                .replaceFirst(
+                        "<pattern type=\"java.lang.String\">AGIP</pattern>",
+                        "<pattern type=\"java.lang.String\">UNICREDIT W/ TOTAL, TOTAL Service Station</pattern>");
+        File xmlFile = writeImportFile("comma-separated-patterns.xml", xml);
+
+        importer.importFile(xmlFile, true, true);
+
+        Rule importedRule = store.getRoot().getRules().stream()
+                .filter(rule -> rule.getName().equals("AGIP"))
+                .findFirst().orElseThrow();
+        assertEquals(RuleMatchMode.ANY, importedRule.getMatchMode());
+        assertEquals(2, importedRule.getConditions().size());
+        assertEquals(
+                List.of("UNICREDIT W/ TOTAL", "TOTAL Service Station"),
+                importedRule.getConditions().stream().map(RuleCondition::getValue).toList());
+        assertTrue(importedRule.getConditions().stream()
+                .allMatch(condition -> condition.getMatchField() == MatchField.PAYEE_OR_PURPOSE));
+        assertTrue(importedRule.getConditions().stream()
+                .allMatch(condition -> condition.getOperator() == Operator.CONTAINS));
+    }
+
+    @Test
+    void reimportingCommaSeparatedPatternsDoesNotDuplicateRules() throws IOException {
+        String xml = Files.readString(support.loadXmlTestData(IMPORT_TEST_DATA).toPath())
+                .replaceFirst(
+                        "<pattern type=\"java.lang.String\">AGIP</pattern>",
+                        "<pattern type=\"java.lang.String\">UNICREDIT W/ TOTAL, TOTAL Service Station</pattern>");
+        File xmlFile = writeImportFile("reimport-comma-separated-patterns.xml", xml);
+
+        importer.importFile(xmlFile, true, true);
+        HibiscusXmlImporter.ImportResult secondResult = importer.importFile(xmlFile, true, true);
+
+        assertEquals(0, secondResult.getRulesImported());
+        assertEquals(3, store.getRoot().getRules().size());
+    }
+
+    @Test
     void testImportWithoutCategoriesAndRules() {
         File xmlFile = support.loadXmlTestData(IMPORT_TEST_DATA);
 
@@ -272,6 +311,34 @@ class HibiscusXmlImporterTest {
     }
 
     @Test
+    void importedPurposeJoinsAndNormalizesHibiscusPurposeFields() throws IOException {
+        String xml = Files.readString(support.loadXmlTestData(IMPORT_TEST_DATA).toPath())
+                .replace("<zweck type=\"java.lang.String\">SVWZ+NR XXXX 1024 Pforzheim</zweck>",
+                        "<zweck type=\"java.lang.String\">EREF+1029143334409</zweck>")
+                .replace("<zweck2 type=\"java.lang.String\">DEKAUFUMSATZ08.10 14.54170</zweck2>",
+                        "<zweck2 type=\"java.lang.String\">MREF+5BQJ2252ACJXA</zweck2>")
+                .replace("<zweck3 type=\"java.lang.String\">123456789000000000000</zweck3>",
+                        """
+                                <zweck3 type="java.lang.String">CRED+ABC123
+                                0058
+                                SVWZ+1313131313 PP.1212.
+                                PP . blubi
+                                z      XYZ GbR, Ihr Einkauf bei
+                                blubiz\s
+                                enGbR</zweck3>""".replace("CRED+ABC123\n", "CRED+ABC123\r\n"));
+        File xmlFile = writeImportFile("normalized-purpose.xml", xml);
+
+        importer.importFile(xmlFile, true, true);
+
+        Transaction importedTransaction = store.getRoot().getTransactions().stream()
+                .filter(transaction -> "VISA Test GmbH".equals(transaction.getOriginalPayee()))
+                .findFirst().orElseThrow();
+        assertEquals("""
+                        EREF+1029143334409MREF+5BQJ2252ACJXACRED+ABC1230058SVWZ+1313131313 PP.1212.PP . blubiz XYZ GbR, Ihr Einkauf beiblubiz enGbR""",
+                importedTransaction.getPurpose());
+    }
+
+    @Test
     void sameChecksumIdentifiesTransactionDespiteChangedDescription() throws IOException {
         String xml = Files.readString(support.loadXmlTestData(IMPORT_TEST_DATA).toPath());
         File firstImport = writeImportFile("first-import.xml", xml);
@@ -369,8 +436,9 @@ class HibiscusXmlImporterTest {
 
         assertNotNull(agipRule);
         assertEquals("AGIP", agipRule.getName());
+        assertEquals(RuleMatchMode.ALL, agipRule.getMatchMode());
         assertEquals(1, agipRule.getConditions().size());
-        assertEquals(MatchField.PAYEE_NAME, agipRule.getConditions().get(0).getMatchField());
+        assertEquals(MatchField.PAYEE_OR_PURPOSE, agipRule.getConditions().get(0).getMatchField());
         assertEquals(Operator.CONTAINS, agipRule.getConditions().get(0).getOperator());
         assertEquals("AGIP", agipRule.getConditions().get(0).getValue());
         assertEquals(1, agipRule.getActions().size());
@@ -381,6 +449,8 @@ class HibiscusXmlImporterTest {
                 .findFirst().orElse(null);
 
         assertNotNull(supermarktRule);
+        assertEquals(1, supermarktRule.getConditions().size());
+        assertEquals(MatchField.PAYEE_OR_PURPOSE, supermarktRule.getConditions().get(0).getMatchField());
         assertEquals(Operator.REGEX, supermarktRule.getConditions().get(0).getOperator());
         assertEquals("REWE|EDEKA|ALDI", supermarktRule.getConditions().get(0).getValue());
     }

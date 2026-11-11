@@ -235,24 +235,28 @@ public class HibiscusXmlImporter {
             if (importRules) {
                 for (var catImport : categoryImports) {
                     if (catImport.pattern != null && !catImport.pattern.isEmpty()) {
+                        List<String> conditionValues = splitPatternAlternatives(catImport.pattern);
                         Long mappedCategoryId = hibiscusToFintraxCategoryIdMap.get(catImport.hibiscusId);
-                        if (mappedCategoryId == null) continue;
+                        if (conditionValues.isEmpty() || mappedCategoryId == null) continue;
 
                         long ruleId = nextRuleId(root);
-                        long condId = System.nanoTime();
                         long actionId = System.nanoTime() + 1;
 
                         Operator op = catImport.isRegex ? Operator.REGEX : Operator.CONTAINS;
-                        if (hasMatchingImportedRule(root, mappedCategoryId, op, catImport.pattern)) {
+                        if (hasMatchingImportedRule(root, mappedCategoryId, op, conditionValues)) {
                             log.debug("Skipping duplicate imported rule for category {}", catImport.name);
                         } else {
-                            RuleCondition condition = RuleCondition.builder()
-                                    .id(condId)
-                                    .ruleId(ruleId)
-                                    .matchField(MatchField.PAYEE_NAME)
-                                    .operator(op)
-                                    .value(catImport.pattern)
-                                    .build();
+                            List<RuleCondition> conditions = new ArrayList<>(conditionValues.size());
+                            long conditionId = System.nanoTime();
+                            for (String conditionValue : conditionValues) {
+                                conditions.add(RuleCondition.builder()
+                                        .id(conditionId++)
+                                        .ruleId(ruleId)
+                                        .matchField(MatchField.PAYEE_OR_PURPOSE)
+                                        .operator(op)
+                                        .value(conditionValue)
+                                        .build());
+                            }
 
                             RuleAction action = RuleAction.builder()
                                     .id(actionId)
@@ -266,7 +270,8 @@ public class HibiscusXmlImporter {
                                     .name(catImport.name)
                                     .priority(root.getRules().size() + 1)
                                     .enabled(true)
-                                    .conditions(List.of(condition))
+                                    .matchMode(conditionValues.size() > 1 ? RuleMatchMode.ANY : RuleMatchMode.ALL)
+                                    .conditions(conditions)
                                     .actions(List.of(action))
                                     .createdAt(LocalDateTime.now())
                                     .updatedAt(LocalDateTime.now())
@@ -311,6 +316,21 @@ public class HibiscusXmlImporter {
             log.error("Failed to import Hibiscus XML", e);
             throw new RuntimeException("Failed to import Hibiscus XML: " + e.getMessage(), e);
         }
+    }
+
+    private List<String> splitPatternAlternatives(String pattern) {
+        if (!pattern.contains(",")) {
+            return List.of(pattern);
+        }
+
+        List<String> alternatives = new ArrayList<>();
+        for (String part : pattern.split(",", -1)) {
+            String alternative = part.trim();
+            if (!alternative.isEmpty()) {
+                alternatives.add(alternative);
+            }
+        }
+        return alternatives;
     }
 
     private void rejectDuplicateSourceCategories(List<CategoryImport> categoryImports) {
@@ -400,13 +420,18 @@ public class HibiscusXmlImporter {
         return iban.replaceAll("\\s+", "").toUpperCase(Locale.ROOT);
     }
 
-    private boolean hasMatchingImportedRule(DataRoot root, Long categoryId, Operator operator, String pattern) {
+    private boolean hasMatchingImportedRule(
+            DataRoot root, Long categoryId, Operator operator, List<String> conditionValues) {
         return root.getRules().stream().anyMatch(rule ->
                 rule.getConditions() != null
-                        && rule.getConditions().size() == 1
-                        && rule.getConditions().get(0).getMatchField() == MatchField.PAYEE_NAME
-                        && rule.getConditions().get(0).getOperator() == operator
-                        && Objects.equals(rule.getConditions().get(0).getValue(), pattern)
+                        && rule.getConditions().size() == conditionValues.size()
+                        && rule.getConditions().stream().allMatch(condition ->
+                                condition.getMatchField() == MatchField.PAYEE_OR_PURPOSE
+                                        && condition.getOperator() == operator)
+                        && conditionValues.equals(rule.getConditions().stream()
+                                .map(RuleCondition::getValue)
+                                .toList())
+                        && (conditionValues.size() == 1 || rule.getMatchMode() == RuleMatchMode.ANY)
                         && rule.getActions() != null
                         && rule.getActions().size() == 1
                         && rule.getActions().get(0).getActionType() == ActionType.ASSIGN_CATEGORY
@@ -548,16 +573,10 @@ public class HibiscusXmlImporter {
 
     private String buildPurpose(String zweck, String zweck2, String zweck3) {
         StringBuilder sb = new StringBuilder();
-        if (zweck != null && !zweck.isEmpty()) sb.append(zweck);
-        if (zweck2 != null && !zweck2.isEmpty()) {
-            if (sb.length() > 0) sb.append(" | ");
-            sb.append(zweck2);
-        }
-        if (zweck3 != null && !zweck3.isEmpty()) {
-            if (sb.length() > 0) sb.append(" | ");
-            sb.append(zweck3);
-        }
-        return sb.toString();
+        if (zweck != null && !zweck.isBlank()) sb.append(zweck.trim());
+        if (zweck2 != null && !zweck2.isBlank()) sb.append(zweck2.trim());
+        if (zweck3 != null && !zweck3.isBlank()) sb.append(zweck3.trim());
+        return sb.toString().replaceAll("[\\r\\n]", "").replaceAll("\\s+", " ").trim();
     }
 
     private ActivityAction mapProtokollTyp(String typStr) {
