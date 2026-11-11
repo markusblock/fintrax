@@ -1,5 +1,6 @@
 package org.fintrax.ui.controller;
 
+import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
@@ -86,11 +87,16 @@ final class RuleReviewDialog {
         dialog.initOwner(owner);
         dialog.setOnShown(event -> {
             Stage stage = dialogStage(dialog);
-            WindowGeometry.restore(stage, settingsService, REVIEW_WINDOW_GEOMETRY_SETTING,
-                    MIN_REVIEW_WINDOW_WIDTH, MIN_REVIEW_WINDOW_HEIGHT);
             stage.setOnHiding(windowEvent ->
                     WindowGeometry.save(stage, settingsService, REVIEW_WINDOW_GEOMETRY_SETTING,
                             MIN_REVIEW_WINDOW_WIDTH, MIN_REVIEW_WINDOW_HEIGHT));
+            // Dialog layout can override restored dimensions during its initial layout pass.
+            Platform.runLater(() -> {
+                if (stage.isShowing()) {
+                    WindowGeometry.restore(stage, settingsService, REVIEW_WINDOW_GEOMETRY_SETTING,
+                            MIN_REVIEW_WINDOW_WIDTH, MIN_REVIEW_WINDOW_HEIGHT);
+                }
+            });
         });
 
         CheckBox onlyFillMissing = new CheckBox(I18n.get("rules.review.onlyFillMissing"));
@@ -302,6 +308,8 @@ final class RuleReviewDialog {
         List<TransactionRulePreview> changedRows = preview.transactionsWithChanges();
         initializeRowSelections(changedRows, selectionByTransactionId, updateSelectionControls);
         rows.setAll(changedRows);
+        // Sort preferences are restored before the dialog's preview rows are loaded.
+        elements.table().sort();
         updateSelectionControls.run();
         updatePreviewSummary(preview, changedRows, elements);
         updatePreviewVisibility(changedRows.isEmpty(), elements);
