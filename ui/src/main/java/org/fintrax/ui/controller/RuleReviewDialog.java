@@ -22,6 +22,7 @@ import org.fintrax.service.RuleService;
 import org.fintrax.service.SettingsService;
 import org.fintrax.service.TransactionRulePreview;
 import org.fintrax.ui.FintraxUI;
+import org.fintrax.ui.control.SingleLineText;
 import org.fintrax.ui.control.TableCellTooltips;
 import org.fintrax.ui.control.TableColumnConfig;
 import org.fintrax.ui.control.TableColumnVisibilityMenu;
@@ -96,7 +97,7 @@ final class RuleReviewDialog {
                 column("col.bookingDate", row -> formatDate(row.bookingDate(), dateFormatter), 105),
                 column("col.valueDate", row -> formatDate(row.valueDate(), dateFormatter), 105),
                 column("rules.review.payee", TransactionRulePreview::payee, 180),
-                column("col.purpose", TransactionRulePreview::purpose, 180),
+                column("col.purpose", row -> SingleLineText.normalize(row.purpose()), 180),
                 column("rules.review.amount", row -> row.amount() == null
                         ? "—" : String.format("%,.2f EUR", row.amount().doubleValue()), 110),
                 column("rules.review.account", this::accountName, 140),
