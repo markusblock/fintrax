@@ -931,8 +931,10 @@ class TransactionsControllerTest extends AbstractUITest {
         Button categoryButton = (Button) categoryCell.lookup(".assignment-picker-button");
         clickOn(categoryButton);
         waitForPicker();
+        assertTrue(lookup("#searchableDropdownPicker").tryQuery().isPresent());
         clickOn(categoryButton);
         waitForPickerToClose();
+        assertTrue(lookup("#pickerSearch").tryQuery().isEmpty());
 
         TableColumn<?, ?> labelsColumn = table.getColumns().stream()
                 .filter(column -> I18n.get("col.labels").equals(column.getText()))
@@ -942,8 +944,10 @@ class TransactionsControllerTest extends AbstractUITest {
         Button labelsButton = (Button) labelsCell.lookup(".assignment-picker-button");
         clickOn(labelsButton);
         waitForPicker();
+        assertTrue(lookup("#searchableDropdownPicker").tryQuery().isPresent());
         clickOn(labelsButton);
         waitForPickerToClose();
+        assertTrue(lookup("#pickerSearch").tryQuery().isEmpty());
     }
 
     @Test
