@@ -2,6 +2,7 @@ package org.fintrax.ui;
 
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.event.Event;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
@@ -11,6 +12,7 @@ import javafx.scene.control.TableCell;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
+import javafx.scene.control.ListView;
 import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeView;
 import javafx.scene.layout.StackPane;
@@ -19,6 +21,8 @@ import javafx.scene.layout.BackgroundFill;
 import javafx.scene.layout.Region;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import org.fintrax.config.I18n;
 import org.fintrax.model.ActionType;
 import org.fintrax.model.Category;
@@ -33,11 +37,13 @@ import org.fintrax.service.RuleService;
 import org.fintrax.service.TransactionService;
 import org.kordamp.ikonli.javafx.FontIcon;
 import org.junit.jupiter.api.Test;
+import org.testfx.util.WaitForAsyncUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -93,7 +99,7 @@ class NavigationTest extends AbstractUITest {
     }
 
     @Test
-    void filtersAndViewSelectionsSurviveNavigationForTheCurrentSession() {
+    void filtersAndViewSelectionsSurviveNavigationForTheCurrentSession() throws Exception {
         String suffix = Long.toString(System.nanoTime());
         LocalDate today = LocalDate.now();
         Category category = applicationContext.getBean(CategoryService.class)
@@ -110,7 +116,6 @@ class NavigationTest extends AbstractUITest {
             lookup("#searchField").<TextField>query().setText("transaction filter " + suffix);
             lookup("#minAmountField").<TextField>query().setText("12.50");
             lookup("#maxAmountField").<TextField>query().setText("250.00");
-            lookup("#categoryFilter").<ComboBox<String>>query().setValue(category.getName());
             ComboBox<?> datePresets = lookup("#datePresetFilter").query();
             int customPresetIndex = datePresets.getItems().stream()
                     .filter(preset -> "CUSTOM".equals(preset.toString()))
@@ -120,6 +125,7 @@ class NavigationTest extends AbstractUITest {
             lookup("#toDateFilter").<DatePicker>query().setValue(LocalDate.of(2025, 2, 28));
             lookup("#toggleAdditionalFiltersButton").<Button>query().fire();
         });
+        selectCategoryFilter(category.getName());
 
         interact(lookup("#classificationsButton").<Button>query()::fire);
         TreeView<String> classificationTree = lookup("#classificationTree").query();
@@ -151,7 +157,7 @@ class NavigationTest extends AbstractUITest {
         assertEquals("transaction filter " + suffix, lookup("#searchField").<TextField>query().getText());
         assertEquals("12.50", lookup("#minAmountField").<TextField>query().getText());
         assertEquals("250.00", lookup("#maxAmountField").<TextField>query().getText());
-        assertEquals(category.getName(), lookup("#categoryFilter").<ComboBox<String>>query().getValue());
+        assertEquals(category.getName(), lookup("#categoryFilter").<Button>query().getText());
         assertEquals("CUSTOM", lookup("#datePresetFilter").<ComboBox<?>>query().getValue().toString());
         assertEquals(LocalDate.of(2025, 2, 1), lookup("#fromDateFilter").<DatePicker>query().getValue());
         assertEquals(LocalDate.of(2025, 2, 28), lookup("#toDateFilter").<DatePicker>query().getValue());
@@ -171,6 +177,19 @@ class NavigationTest extends AbstractUITest {
         assertEquals(rule.getId(), lookup("#ruleTable").<TableView<Rule>>query()
                 .getSelectionModel().getSelectedItem().getId());
         assertDateFilter("THIS_MONTH", today.withDayOfMonth(1), today.withDayOfMonth(today.lengthOfMonth()));
+    }
+
+    private void selectCategoryFilter(String categoryName) throws Exception {
+        Button categoryFilter = lookup("#categoryFilter").query();
+        interact(categoryFilter::fire);
+        WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS,
+                () -> lookup("#searchableDropdownPicker").tryQuery().isPresent());
+        TextField search = lookup("#pickerSearch").query();
+        ListView<?> options = lookup("#pickerList").query();
+        interact(() -> search.setText(categoryName));
+        WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS, () -> options.getItems().size() == 1);
+        interact(() -> Event.fireEvent(search, new KeyEvent(KeyEvent.KEY_PRESSED, "", "", KeyCode.ENTER,
+                false, false, false, false)));
     }
 
     private void assertDateFilter(String preset, LocalDate fromDate, LocalDate toDate) {

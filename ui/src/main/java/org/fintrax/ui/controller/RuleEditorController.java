@@ -1,14 +1,20 @@
 package org.fintrax.ui.controller;
 
+import javafx.beans.binding.Bindings;
 import javafx.fxml.FXML;
+import javafx.geometry.Insets;
 import javafx.geometry.HPos;
+import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Separator;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
@@ -24,7 +30,8 @@ import org.fintrax.model.RuleMatchMode;
 import org.fintrax.model.Transaction;
 import org.fintrax.service.CategoryService;
 import org.fintrax.service.LabelService;
-import org.fintrax.ui.control.SearchableChoiceButton;
+import org.fintrax.ui.control.CategoryHierarchy;
+import org.fintrax.ui.control.SearchableDropdownPicker;
 import org.kordamp.ikonli.javafx.FontIcon;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
@@ -34,6 +41,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
@@ -181,18 +189,14 @@ public class RuleEditorController {
         List<RuleAction> actions = new ArrayList<>();
         for (ActionRow row : actionRows) {
             ActionType actionType = actionTypeFromText(row.typeCombo.getValue());
-            String target = row.targetCombo.getValue();
+            RuleTargetChoice target = row.selectedTarget;
             if (actionType == null) continue;
 
             RuleAction action = RuleAction.builder().actionType(actionType).build();
             if (actionType == ActionType.ASSIGN_CATEGORY && target != null) {
-                categoryService.getAllCategories().stream()
-                        .filter(category -> category.getName().equals(target))
-                        .findFirst().ifPresent(category -> action.setCategoryId(category.getId()));
+                action.setCategoryId(target.id());
             } else if (actionType == ActionType.ADD_LABEL && target != null) {
-                labelService.getAllLabels().stream()
-                        .filter(label -> label.getName().equals(target))
-                        .findFirst().ifPresent(label -> action.setLabelId(label.getId()));
+                action.setLabelId(target.id());
             }
             actions.add(action);
         }
@@ -270,15 +274,15 @@ public class RuleEditorController {
             row.typeCombo.setValue(actionText(existing.getActionType()));
             onActionTypeChanged(row);
             if (existing.getCategoryId() != null) {
-                categoryService.getCategory(existing.getCategoryId())
-                        .ifPresent(category -> row.targetCombo.setValue(category.getName()));
+                row.targetOptions.stream().filter(option -> existing.getCategoryId().equals(option.id()))
+                        .findFirst().ifPresent(option -> setTargetChoice(row, option));
             }
             if (existing.getLabelId() != null) {
-                labelService.getLabel(existing.getLabelId())
-                        .ifPresent(label -> row.targetCombo.setValue(label.getName()));
+                row.targetOptions.stream().filter(option -> existing.getLabelId().equals(option.id()))
+                        .findFirst().ifPresent(option -> setTargetChoice(row, option));
             }
         }
-        row.targetCombo.valueProperty().addListener((observable, oldValue, newValue) -> notifyChanged());
+        row.targetButton.setOnAction(event -> showTargetPicker(row));
         row.removeButton.setOnAction(event -> {
             if (actionRows.size() == 1) {
                 row.typeCombo.setValue(null);
@@ -297,27 +301,67 @@ public class RuleEditorController {
 
     private void onActionTypeChanged(ActionRow row) {
         ActionType type = actionTypeFromText(row.typeCombo.getValue());
-        row.targetCombo.setValue(null);
-        row.targetCombo.setCreateChoice(null, null);
-        row.targetCombo.setDisable(type == null);
+        row.targetType = type;
+        row.selectedTarget = null;
+        row.targetButton.setText("");
+        row.targetButton.setDisable(type == null);
         if (type == null) {
-            row.targetCombo.setChoices(List.of());
+            row.targetOptions = List.of();
+            row.createTarget = null;
             return;
         }
-        List<String> choices = switch (type) {
+        switch (type) {
             case ASSIGN_CATEGORY -> {
-                row.targetCombo.setCreateChoice("picker.category.create", name ->
-                        categoryService.createCategory(name, null, null).getName());
-                yield categoryService.getAllCategories().stream().map(Category::getName).toList();
+                List<Category> categories = categoryService.getAllCategories();
+                Function<Category, String> displayPath = CategoryHierarchy.displayPaths(categories);
+                row.targetOptions = categories.stream()
+                        .map(category -> new RuleTargetChoice(category.getId(), displayPath.apply(category)))
+                        .toList();
+                row.createTextKey = "picker.category.create";
+                row.createTarget = name -> {
+                    Category created = categoryService.createCategory(name, null, null);
+                    return addTargetOption(row, created.getId(), displayPath.apply(created));
+                };
             }
             case ADD_LABEL -> {
-                row.targetCombo.setCreateChoice("picker.labels.create", name ->
-                        labelService.createLabel(name, DEFAULT_LABEL_COLOR, null).getName());
-                yield labelService.getAllLabels().stream().map(org.fintrax.model.Label::getName).toList();
+                row.targetOptions = labelService.getAllLabels().stream()
+                        .map(label -> new RuleTargetChoice(label.getId(), label.getName()))
+                        .toList();
+                row.createTextKey = "picker.labels.create";
+                row.createTarget = name -> {
+                    org.fintrax.model.Label created = labelService.createLabel(name, DEFAULT_LABEL_COLOR, null);
+                    return addTargetOption(row, created.getId(), created.getName());
+                };
             }
-            case SET_NOTE -> List.of();
-        };
-        row.targetCombo.setChoices(choices);
+            case SET_NOTE -> {
+                row.targetOptions = List.of();
+                row.createTarget = null;
+            }
+        }
+        row.targetButton.setAccessibleText(I18n.get(type == ActionType.ASSIGN_CATEGORY
+                ? "picker.category.accessible" : "picker.labels.accessible"));
+    }
+
+    private void showTargetPicker(ActionRow row) {
+        if (row.targetType == null) return;
+        SearchableDropdownPicker.showOne(row.targetButton, row.targetOptions, row.selectedTarget,
+                RuleTargetChoice::displayText, row.createTextKey, row.createTarget,
+                new SearchableDropdownPicker.SingleSelection<>("picker.selection.clear",
+                        selected -> setTargetChoice(row, selected)));
+    }
+
+    private void setTargetChoice(ActionRow row, RuleTargetChoice choice) {
+        row.selectedTarget = choice;
+        row.targetButton.setText(choice == null ? "" : choice.displayText());
+        notifyChanged();
+    }
+
+    private RuleTargetChoice addTargetOption(ActionRow row, Long id, String displayText) {
+        RuleTargetChoice choice = new RuleTargetChoice(id, displayText);
+        List<RuleTargetChoice> options = new ArrayList<>(row.targetOptions);
+        options.add(choice);
+        row.targetOptions = List.copyOf(options);
+        return choice;
     }
 
     private void notifyChanged() {
@@ -453,26 +497,62 @@ public class RuleEditorController {
     private static final class ActionRow {
         private final GridPane grid = actionRowGrid();
         private final ComboBox<String> typeCombo = new ComboBox<>();
-        private final SearchableChoiceButton targetCombo = new SearchableChoiceButton();
+        private final Button targetButton = new Button();
         private final Button removeButton = removeButton();
         private final Separator separator = new Separator();
+        private List<RuleTargetChoice> targetOptions = List.of();
+        private RuleTargetChoice selectedTarget;
+        private ActionType targetType;
+        private String createTextKey;
+        private Function<String, RuleTargetChoice> createTarget;
 
         private ActionRow() {
             grid.getStyleClass().add("rule-action-row");
             typeCombo.getStyleClass().add(RULE_ROW_CONTROL_STYLE_CLASS);
             typeCombo.setMaxWidth(Double.MAX_VALUE);
-            targetCombo.setMaxWidth(Double.MAX_VALUE);
-            targetCombo.getStyleClass().add(RULE_ROW_CONTROL_STYLE_CLASS);
-            targetCombo.setDisable(true);
+            targetButton.setMaxWidth(Double.MAX_VALUE);
+            targetButton.getStyleClass().addAll(RULE_ROW_CONTROL_STYLE_CLASS, "rule-target-picker-button");
+            targetButton.setDisable(true);
+            targetButton.addEventFilter(MouseEvent.MOUSE_PRESSED, event -> {
+                if (SearchableDropdownPicker.dismissIfActiveAt(targetButton)) event.consume();
+            });
+            targetButton.setGraphic(createRightAlignedPickerArrow());
+            targetButton.setContentDisplay(ContentDisplay.RIGHT);
             separator.getStyleClass().add("rule-row-separator");
             grid.add(typeCombo, 0, 0);
-            grid.add(targetCombo, 1, 0, 2, 1);
+            grid.add(targetButton, 1, 0, 2, 1);
             grid.add(removeButton, 3, 0);
         }
 
-        private boolean isValid() {
-            return typeCombo.getValue() != null && targetCombo.getValue() != null;
+        private HBox createRightAlignedPickerArrow() {
+            Region spacer = new Region();
+            Region arrow = new Region();
+            arrow.getStyleClass().add("rule-target-picker-arrow");
+            arrow.setMinSize(8, 5);
+            arrow.setPrefSize(8, 5);
+            arrow.setMaxSize(8, 5);
+            HBox.setHgrow(spacer, Priority.ALWAYS);
+            HBox graphic = new HBox(spacer, arrow);
+            graphic.setAlignment(Pos.CENTER_RIGHT);
+            graphic.setMaxWidth(Double.MAX_VALUE);
+            graphic.prefWidthProperty().bind(Bindings.createDoubleBinding(() -> {
+                Insets insets = targetButton.getInsets();
+                Text text = new Text(targetButton.getText());
+                text.setFont(targetButton.getFont());
+                return Math.max(arrow.prefWidth(-1), targetButton.getWidth() - insets.getLeft()
+                        - insets.getRight() - text.getLayoutBounds().getWidth()
+                        - targetButton.getGraphicTextGap());
+            }, targetButton.widthProperty(), targetButton.textProperty(), targetButton.fontProperty(),
+                    targetButton.insetsProperty(), targetButton.graphicTextGapProperty()));
+            return graphic;
         }
+
+        private boolean isValid() {
+            return typeCombo.getValue() != null && selectedTarget != null;
+        }
+    }
+
+    private record RuleTargetChoice(Long id, String displayText) {
     }
 
     private static GridPane actionRowGrid() {

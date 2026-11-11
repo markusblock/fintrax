@@ -1,10 +1,12 @@
 package org.fintrax.ui.control;
 
 import javafx.application.Platform;
+import javafx.event.EventHandler;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
 import javafx.geometry.Side;
 import javafx.scene.Node;
+import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ContextMenu;
@@ -17,6 +19,7 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
@@ -39,12 +42,41 @@ public final class SearchableDropdownPicker {
 
     private SearchableDropdownPicker() {}
 
+    public static boolean dismissIfActiveAt(Node anchor) {
+        if (activePicker == null || activePicker.anchor != anchor) return false;
+        if (activePicker.popup.isShowing()) activePicker.popup.hide();
+        return true;
+    }
+
+    public static void installToggleHandler(Node clickTarget, Node anchor, Runnable onOpen) {
+        boolean[] dismissedOnPress = {false};
+        clickTarget.addEventFilter(MouseEvent.MOUSE_PRESSED, event -> {
+            dismissedOnPress[0] = dismissIfActiveAt(anchor);
+            if (dismissedOnPress[0]) event.consume();
+        });
+        clickTarget.addEventHandler(MouseEvent.MOUSE_CLICKED, event -> {
+            if (dismissedOnPress[0]) {
+                dismissedOnPress[0] = false;
+            } else {
+                onOpen.run();
+            }
+            event.consume();
+        });
+    }
+
     public static <T> void showOne(Node anchor, Collection<T> options, T initiallySelected,
                                    Function<T, String> displayText, String createTextKey,
                                    Function<String, T> createOption, Consumer<T> onSave) {
+        showOne(anchor, options, initiallySelected, displayText, createTextKey, createOption,
+                new SingleSelection<>("picker.category.clear", onSave));
+    }
+
+    public static <T> void showOne(Node anchor, Collection<T> options, T initiallySelected,
+                                   Function<T, String> displayText, String createTextKey,
+                                   Function<String, T> createOption, SingleSelection<T> selection) {
         new Picker<>(anchor, options, initiallySelected == null ? List.of() : List.of(initiallySelected),
-                new PickerConfiguration<>(displayText, false, createTextKey, createOption,
-                        new MultiSelection<>(item -> false, values -> onSave.accept(
+                new PickerConfiguration<>(displayText, false, createTextKey, createOption, selection.clearTextKey(),
+                        new MultiSelection<>(selection.exclusiveSelection(), values -> selection.onSave().accept(
                                 values.isEmpty() ? null : values.get(0))))).show();
     }
 
@@ -59,14 +91,21 @@ public final class SearchableDropdownPicker {
                                     Function<T, String> displayText, String createTextKey,
                                     Function<String, T> createOption, MultiSelection<T> selection) {
         new Picker<>(anchor, options, initiallySelected,
-                new PickerConfiguration<>(displayText, true, createTextKey, createOption, selection)).show();
+                new PickerConfiguration<>(displayText, true, createTextKey, createOption,
+                        "picker.category.clear", selection)).show();
     }
 
     public record MultiSelection<T>(Predicate<T> exclusiveSelection, Consumer<List<T>> onSave) {
     }
 
+    public record SingleSelection<T>(String clearTextKey, Predicate<T> exclusiveSelection, Consumer<T> onSave) {
+        public SingleSelection(String clearTextKey, Consumer<T> onSave) {
+            this(clearTextKey, item -> false, onSave);
+        }
+    }
+
     private record PickerConfiguration<T>(Function<T, String> displayText, boolean multiple,
-                                          String createTextKey, Function<String, T> createOption,
+                                          String createTextKey, Function<String, T> createOption, String clearTextKey,
                                           MultiSelection<T> selection) {
     }
 
@@ -79,6 +118,7 @@ public final class SearchableDropdownPicker {
         private final boolean multiple;
         private final String createTextKey;
         private final Function<String, T> createOption;
+        private final String clearTextKey;
         private final Predicate<T> exclusiveSelection;
         private final Consumer<List<T>> onSave;
         private final Set<T> selected;
@@ -99,6 +139,7 @@ public final class SearchableDropdownPicker {
             this.multiple = configuration.multiple();
             this.createTextKey = configuration.createTextKey();
             this.createOption = configuration.createOption();
+            this.clearTextKey = configuration.clearTextKey();
             this.exclusiveSelection = configuration.selection().exclusiveSelection();
             this.onSave = configuration.selection().onSave();
             Comparator<String> naturalOrder = NaturalOrder.comparator(I18n.getCurrentLocale());
@@ -132,7 +173,7 @@ public final class SearchableDropdownPicker {
             createButton.setMaxWidth(Double.MAX_VALUE);
             createButton.getStyleClass().add("button-outlined");
             clearButton.setId("pickerClear");
-            clearButton.setText(I18n.get("picker.category.clear"));
+            clearButton.setText(I18n.get(clearTextKey));
             deselectAllButton.setId("pickerDeselectAll");
             deselectAllButton.getStyleClass().add("button-outlined");
             saveButton.setId("pickerSave");
@@ -174,10 +215,15 @@ public final class SearchableDropdownPicker {
             popup.setAutoFix(true);
             popup.setAutoHide(true);
             popup.setHideOnEscape(false);
-            popup.setOnHidden(event -> Platform.runLater(() -> {
-                if (activePicker == this) activePicker = null;
-                if (anchor.getScene() != null) anchor.requestFocus();
-            }));
+            Scene anchorScene = anchor.getScene();
+            EventHandler<MouseEvent> dismissOnOwnerClick = event -> popup.hide();
+            popup.setOnHidden(event -> {
+                anchorScene.removeEventFilter(MouseEvent.MOUSE_PRESSED, dismissOnOwnerClick);
+                Platform.runLater(() -> {
+                    if (activePicker == this) activePicker = null;
+                    if (anchor.getScene() != null) anchor.requestFocus();
+                });
+            });
 
             searchField.textProperty().addListener((observable, oldValue, newValue) -> {
                 errorLabel.setText("");
@@ -211,6 +257,7 @@ public final class SearchableDropdownPicker {
             updateOptions(true);
             popup.show(anchor, Side.BOTTOM, 0, 0);
             popup.getScene().getStylesheets().setAll(anchor.getScene().getStylesheets());
+            anchorScene.addEventFilter(MouseEvent.MOUSE_PRESSED, dismissOnOwnerClick);
             Platform.runLater(searchField::requestFocus);
         }
 
