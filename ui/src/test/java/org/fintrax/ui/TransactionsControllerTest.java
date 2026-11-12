@@ -60,6 +60,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -837,6 +838,11 @@ class TransactionsControllerTest extends AbstractUITest {
             Parent restoredView = applicationContext.getBean(ViewLoader.class).load("transactions");
             interact(() -> stage.getScene().setRoot(restoredView));
             TableView<Transaction> restoredTable = lookup("#transactionTable").query();
+            assertTrue(restoredTable.getItems().size() > 1);
+            List<Transaction> displayedRows = List.copyOf(restoredTable.getItems());
+            List<Transaction> sortedRows = new ArrayList<>(displayedRows);
+            sortedRows.sort(restoredTable.getComparator());
+            assertEquals(sortedRows, displayedRows);
             assertEquals(List.of("col.valueDate", "col.bookingDate", "col.payee", "col.account", "col.purpose",
                             "col.amount", "col.balance", "col.category", "col.labels").stream()
                             .map(I18n::get).toList(),

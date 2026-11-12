@@ -22,24 +22,33 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Slf4j
 @Service
 public class SyncService {
+    private static final String DIAGNOSTIC_DETAILS_MARKER = "\n[FINTRAX_SYNC_DIAGNOSTICS]\n";
     private final StoreManager store;
     private final BankingProtocol bankingProtocol;
     private final TransactionService transactionService;
     private final AccountService accountService;
     private final ActivityLogger activityLogger;
+    private final BankService bankService;
     private final AtomicInteger activeSyncs = new AtomicInteger();
     private long nextId = 1;
 
     @Autowired
     public SyncService(StoreManager store, BankingProtocol bankingProtocol,
                        TransactionService transactionService, AccountService accountService,
-                       ActivityLogger activityLogger) {
+                       ActivityLogger activityLogger, BankService bankService) {
         this.store = store;
         this.bankingProtocol = bankingProtocol;
         this.transactionService = transactionService;
         this.accountService = accountService;
         this.activityLogger = activityLogger;
+        this.bankService = bankService;
         initializeNextId();
+    }
+
+    public SyncService(StoreManager store, BankingProtocol bankingProtocol,
+                       TransactionService transactionService, AccountService accountService,
+                       ActivityLogger activityLogger) {
+        this(store, bankingProtocol, transactionService, accountService, activityLogger, (BankService) null);
     }
 
     public SyncService(StoreManager store, BankingProtocol bankingProtocol,
@@ -82,25 +91,42 @@ public class SyncService {
                 .bankAccountId(accountId)
                 .startedAt(LocalDateTime.now())
                 .status(SyncStatus.PARTIAL)
+                .stage(SyncStage.CONNECTION)
                 .build();
         store.getRoot().getSyncLogs().add(syncLog);
         store.store(store.getRoot().getSyncLogs());
 
         List<Long> newTransactionIds = new ArrayList<>();
+        SyncStage stage = SyncStage.CONNECTION;
         try {
-            List<Transaction> fetchedTransactions = bankingProtocol.fetchTransactions(account, pin);
+            Bank bank = bankService == null ? null : bankService.getBankForAccount(account).orElse(null);
+            if (bankService != null && bank == null) {
+                throw new BankingException(BankingException.FailureReason.MISSING_BANK_PROFILE,
+                        SyncStage.CONNECTION, "No bank profile is linked to this account.");
+            }
+            if (bank != null && (bank.getFintsUserId() == null || bank.getFintsUserId().isBlank())) {
+                throw new BankingException(BankingException.FailureReason.MISSING_USER_ID,
+                        SyncStage.AUTHENTICATION, "FinTS user ID is missing from the bank profile.");
+            }
+            List<Transaction> fetchedTransactions = bankService == null
+                    ? bankingProtocol.fetchTransactions(account, pin)
+                    : bankingProtocol.fetchTransactions(account, bank, pin);
+            stage = SyncStage.DATA_RETRIEVAL;
+            syncLog.setStage(stage);
             if (fetchedTransactions == null) {
-                throw new BankingException(BankingException.FailureReason.INCOMPLETE_RESPONSE,
+                throw new BankingException(BankingException.FailureReason.INCOMPLETE_RESPONSE, stage,
                         "Bank returned no complete transaction response.");
             }
             for (Transaction fetched : fetchedTransactions) {
                 if (fetched == null || (fetched.getAccountId() != null && !accountId.equals(fetched.getAccountId()))) {
-                    throw new BankingException(BankingException.FailureReason.ACCOUNT_MISMATCH,
+                    throw new BankingException(BankingException.FailureReason.ACCOUNT_MISMATCH, stage,
                             "Bank returned transaction data for an unexpected account.");
                 }
                 fetched.setAccountId(accountId);
             }
 
+            stage = SyncStage.DATA_IMPORT;
+            syncLog.setStage(stage);
             List<Transaction> localTransactions = new ArrayList<>(transactionService.getTransactionsByAccount(accountId));
             Set<Transaction> matchedTransactions = Collections.newSetFromMap(new IdentityHashMap<>());
             int newCount = 0;
@@ -137,18 +163,21 @@ public class SyncService {
             LocalDateTime completedAt = LocalDateTime.now();
             syncLog.setCompletedAt(completedAt);
             syncLog.setStatus(SyncStatus.SUCCESS);
+            syncLog.setStage(SyncStage.COMPLETE);
             syncLog.setNewCount(newCount);
             syncLog.setSkippedCount(skippedCount);
             accountService.updateLastSync(accountId, completedAt);
             store.store(syncLog);
             activityLogger.log(ActivityAction.SYNC, EntityType.ACCOUNT, accountId, "Bank sync completed");
         } catch (Exception e) {
+            stage = failureStage(e, stage);
             syncLog.setCompletedAt(LocalDateTime.now());
             syncLog.setStatus(SyncStatus.FAILED);
+            syncLog.setStage(stage);
             syncLog.setErrorMessage(safeFailureMessage(e));
             store.store(syncLog);
             activityLogger.log(ActivityAction.SYNC, EntityType.ACCOUNT, accountId,
-                    "Bank sync failed: " + safeFailureMessage(e));
+                    detailedFailureMessage(stage, e));
             log.error("Bank sync failed for account {} [{}]:\n{}", accountId, failureReason(e),
                     redactedStackTrace(e));
         }
@@ -183,12 +212,44 @@ public class SyncService {
     }
 
     private String safeFailureMessage(Exception exception) {
+        if (exception instanceof BankingException bankingException) {
+            if (bankingException.getFailureReason() == BankingException.FailureReason.MISSING_BANK_PROFILE) {
+                return I18n.get("message.sync.bankProfileMissing");
+            }
+            if (bankingException.getFailureReason() == BankingException.FailureReason.MISSING_USER_ID) {
+                return I18n.get("message.sync.userIdMissing");
+            }
+        }
         BankingException.FailureReason reason = failureReason(exception);
         String causeType = rootCauseType(exception);
         if (reason == BankingException.FailureReason.TAN_REQUIRED) {
             return I18n.get("message.sync.tanRequiredDiagnostic", causeType);
         }
         return I18n.get("message.sync.failedDiagnostic", reason.name(), causeType);
+    }
+
+    private SyncStage failureStage(Exception exception, SyncStage currentStage) {
+        if (exception instanceof BankingException bankingException) {
+            if (bankingException.getSyncStage() != null) {
+                return bankingException.getSyncStage();
+            }
+            return switch (bankingException.getFailureReason()) {
+                case TAN_REQUIRED -> SyncStage.AUTHENTICATION;
+                case BANK_REJECTED, INCOMPLETE_RESPONSE, MAPPING_FAILED, ACCOUNT_MISMATCH -> SyncStage.DATA_RETRIEVAL;
+                default -> currentStage;
+            };
+        }
+        return currentStage;
+    }
+
+    private String detailedFailureMessage(SyncStage stage, Exception exception) {
+        String stageLabel = I18n.get("sync.failureStage." + stage.name());
+        String reason = failureReason(exception).name();
+        String causeType = rootCauseType(exception);
+        String diagnostics = DIAGNOSTIC_DETAILS_MARKER + I18n.get("activity.sync.stackTraceHeader")
+                + "\n" + redactedStackTrace(exception);
+        return I18n.get("activity.sync.failureDetails", stageLabel, reason, causeType,
+                diagnostics);
     }
 
     private BankingException.FailureReason failureReason(Throwable error) {

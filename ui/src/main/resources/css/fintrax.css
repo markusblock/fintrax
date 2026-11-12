@@ -738,6 +738,65 @@
     -fx-background-radius: 6;
 }
 
+.sync-report-content {
+    -fx-spacing: 12;
+}
+
+.sync-report-content > .scroll-pane,
+.sync-report-content > .scroll-pane > .viewport {
+    -fx-background-color: transparent;
+}
+
+.sync-report-account-content {
+    -fx-padding: 10 12;
+}
+
+.sync-stage-marker {
+    -fx-alignment: CENTER;
+    -fx-min-width: 22;
+    -fx-pref-width: 22;
+    -fx-min-height: 22;
+    -fx-pref-height: 22;
+    -fx-background-radius: 11;
+    -fx-font-weight: bold;
+}
+
+.sync-stage-marker.complete {
+    -fx-background-color: derive(-color-success-fg, 85%);
+    -fx-text-fill: -color-success-fg;
+}
+
+.sync-stage-marker.failed {
+    -fx-background-color: -color-danger-subtle;
+    -fx-text-fill: -color-danger-fg;
+}
+
+.sync-stage-marker.pending,
+.sync-stage-marker.unknown {
+    -fx-background-color: -color-bg-subtle;
+    -fx-text-fill: -color-fg-muted;
+}
+
+.sync-stage-state {
+    -fx-text-fill: -color-fg-muted;
+}
+
+.sync-stage-label.failed {
+    -fx-font-weight: bold;
+}
+
+.sync-stage-label.failed,
+.sync-stage-state.failed {
+    -fx-text-fill: -color-danger-fg;
+}
+
+.sync-report-error {
+    -fx-padding: 10 12;
+    -fx-background-color: -color-danger-subtle;
+    -fx-background-radius: 6;
+    -fx-text-fill: -color-danger-fg;
+}
+
 .rule-condition-row,
 .rule-action-row {
     -fx-alignment: CENTER_LEFT;

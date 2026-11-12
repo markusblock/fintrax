@@ -108,6 +108,10 @@ public class MainController {
         loadView("activityLog");
     }
 
+    public void showActivityLog() {
+        loadView("activityLog");
+    }
+
     @FXML
     private void onSettings() {
         loadView("settings");

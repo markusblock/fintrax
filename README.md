@@ -29,6 +29,24 @@ Start the application on macOS or Linux:
 
 On Windows, run `gradlew.bat :app:run` instead.
 
+## Database storage
+
+By default, Fintrax stores its database in `~/.fintrax/data` (`~` is your user home directory; for example, `~/` on macOS/Linux and `%USERPROFILE%` on Windows).
+
+To use a different directory, pass `fintrax.storage.path` as an application argument:
+
+```sh
+./gradlew :app:run --args="--fintrax.storage.path=$HOME/.fintrax/data-empty"
+```
+
+On Windows:
+
+```bat
+gradlew.bat :app:run --args="--fintrax.storage.path=%USERPROFILE%\.fintrax\data-empty"
+```
+
+Fintrax creates the directory if it does not exist. Using a different path keeps the default database unchanged and starts with a separate, empty database.
+
 ## Build and test
 
 Build the project and run its tests:

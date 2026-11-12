@@ -309,7 +309,8 @@ public class TransactionFilterPanelController {
         accountFilter.getItems().clear();
         accountFilter.getItems().add(I18n.get("filter.allAccounts"));
         for (BankAccount account : accountService.getAllAccounts()) {
-            String display = (account.getBankName() != null ? account.getBankName() : "")
+            String accountName = account.getAccountName() != null ? account.getAccountName() : account.getBankName();
+            String display = (accountName != null ? accountName : "")
                     + " (" + maskIban(account.getIban()) + ")";
             accountFilter.getItems().add(display);
         }

@@ -14,10 +14,9 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class BankAccount {
     private Long id;
+    private Long bankId;
     private String iban;
-    private String bic;
-    private String fintsServerUrl;
-    private String bankName;
+    private String accountName;
     private String accountHolder;
     private AccountType accountType;
     @Builder.Default
@@ -28,4 +27,11 @@ public class BankAccount {
     private String comment;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    /** Retained for migration from stores created before bank profiles were introduced. */
+    private String bic;
+    /** Retained for migration from stores created before bank profiles were introduced. */
+    private String fintsServerUrl;
+    /** Retained for migration; Hibiscus imports placed account labels in this field. */
+    private String bankName;
 }

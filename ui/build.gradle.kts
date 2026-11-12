@@ -25,6 +25,14 @@ dependencies {
     testImplementation("org.hamcrest:hamcrest:2.1")
 }
 
+tasks.register<JavaExec>("accountImportPrototype") {
+    group = "application"
+    description = "Runs the throwaway bank-account import UI prototype."
+    dependsOn(tasks.named("classes"))
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("org.fintrax.ui.prototype.AccountImportPrototypeLauncher")
+}
+
 tasks.withType<Test> {
     jvmArgs(
         "--add-opens", "javafx.graphics/com.sun.javafx.application=ALL-UNNAMED",

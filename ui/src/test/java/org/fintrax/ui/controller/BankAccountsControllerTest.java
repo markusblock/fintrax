@@ -15,6 +15,7 @@ import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import org.fintrax.model.*;
 import org.fintrax.service.AccountService;
+import org.fintrax.service.BankService;
 import org.fintrax.service.CategoryService;
 import org.fintrax.service.RuleService;
 import org.fintrax.service.SyncResult;
@@ -111,6 +112,7 @@ class BankAccountsControllerTest extends AbstractUITest {
         accountService.updateBalance(account.getId(), new BigDecimal("42.50"), balanceDate);
         accountService.updateLastSync(account.getId(), syncDate);
         LocalDateTime createdAt = account.getCreatedAt();
+        BankService bankService = applicationContext.getBean(BankService.class);
 
         clickOn("#editAccountButton-" + account.getId());
 
@@ -121,16 +123,18 @@ class BankAccountsControllerTest extends AbstractUITest {
         interact(() -> {
             lookup("#bankNameField").<TextField>query().setText("Updated Bank");
             lookup("#bicField").<TextField>query().setText("NEWBIC");
+            lookup("#accountNameField").<TextField>query().setText("Updated account");
             lookup("#accountHolderField").<TextField>query().setText("Updated holder");
             lookup("#accountTypeCombo").<ComboBox<AccountType>>query().setValue(AccountType.SAVINGS);
-            lookup("#commentField").<TextArea>query().setText("Updated comment");
+            lookup("#accountCommentField").<TextArea>query().setText("Updated comment");
         });
         clickOn("#saveAccountButton");
         WaitForAsyncUtils.waitForFxEvents();
 
         BankAccount updated = accountService.getAccount(account.getId()).orElseThrow();
-        assertEquals("Updated Bank", updated.getBankName());
-        assertEquals("NEWBIC", updated.getBic());
+        assertEquals("Updated account", updated.getAccountName());
+        assertEquals("Updated Bank", bankService.getBankForAccount(updated).orElseThrow().getName());
+        assertEquals("NEWBIC", bankService.getBankForAccount(updated).orElseThrow().getBic());
         assertEquals("Updated holder", updated.getAccountHolder());
         assertEquals(AccountType.SAVINGS, updated.getAccountType());
         assertEquals("Updated comment", updated.getComment());

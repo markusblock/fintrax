@@ -384,7 +384,8 @@ final class RuleReviewDialog {
         if (row.accountId() == null) return "—";
         return accountService.getAccount(row.accountId())
                 .map(account -> {
-                    String bankName = account.getBankName() == null ? "" : account.getBankName();
+                    String bankName = account.getAccountName() != null
+                            ? account.getAccountName() : account.getBankName() == null ? "" : account.getBankName();
                     String iban = maskedIban(account.getIban());
                     String details = iban.isBlank() ? bankName : bankName + " (" + iban + ")";
                     return details.isBlank() ? String.valueOf(row.accountId()) : details;

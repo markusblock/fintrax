@@ -17,6 +17,7 @@ public class SyncLog {
     private LocalDateTime startedAt;
     private LocalDateTime completedAt;
     private SyncStatus status;
+    private SyncStage stage;
     @Builder.Default
     private int newCount = 0;
     @Builder.Default
