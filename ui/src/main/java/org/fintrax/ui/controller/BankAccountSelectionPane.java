@@ -1,25 +1,23 @@
 package org.fintrax.ui.controller;
 
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.ReadOnlyIntegerProperty;
+import javafx.beans.property.ReadOnlyIntegerWrapper;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.control.Button;
-import javafx.scene.control.ButtonBar;
-import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
-import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.SplitPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
-import javafx.stage.Modality;
-import javafx.stage.Window;
 import org.fintrax.config.I18n;
 import org.fintrax.fintx.DiscoveredBankAccount;
-import org.fintrax.ui.FintraxUI;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -27,91 +25,76 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
-/** List-and-details selector for accounts returned by a bank's FinTS passport. */
-final class BankAccountSelectionDialog {
-    private BankAccountSelectionDialog() {
-    }
+/** Reusable in-place account list and details selector for bank-import flows. */
+public final class BankAccountSelectionPane extends VBox {
+    private final List<Candidate> candidates = new ArrayList<>();
+    private final ReadOnlyIntegerWrapper selectedCount = new ReadOnlyIntegerWrapper();
+    private final Label summary = new Label();
+    private final ListView<Candidate> accountList = new ListView<>();
+    private final VBox details = new VBox(12);
 
-    static List<DiscoveredBankAccount> show(Window owner, List<DiscoveredBankAccount> discoveredAccounts,
-                                            Set<String> existingIbans) {
-        if (discoveredAccounts.isEmpty()) {
-            return List.of();
-        }
-
-        List<Candidate> candidates = candidates(discoveredAccounts, existingIbans);
-        Dialog<List<DiscoveredBankAccount>> dialog = new Dialog<>();
-        dialog.setTitle(I18n.get("dialog.bankAccounts.title"));
-        dialog.setHeaderText(I18n.get("dialog.bankAccounts.subtitle"));
-        dialog.initModality(Modality.WINDOW_MODAL);
-        if (owner != null) {
-            dialog.initOwner(owner);
-        }
-
-        Label summary = new Label();
+    public BankAccountSelectionPane() {
+        super(12);
+        getStyleClass().add("content-panel");
         summary.getStyleClass().add("secondary-text");
-        VBox details = new VBox(12);
         details.getStyleClass().add("editor-panel");
-        ListView<Candidate> accountList = new ListView<>();
-        accountList.getItems().setAll(candidates);
+
         accountList.setPrefWidth(410);
         accountList.setCellFactory(list -> new AccountCell());
-        accountList.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, selected) ->
-                showDetails(details, selected));
-        accountList.getSelectionModel().selectFirst();
-        showDetails(details, accountList.getSelectionModel().getSelectedItem());
-
-        HBox listAndDetails = new HBox(16, accountList, details);
-        HBox.setHgrow(details, Priority.ALWAYS);
-        VBox content = new VBox(12, summary, listAndDetails,
-                muted(I18n.get("message.bankAccounts.unavailableHint")));
-        content.setPadding(new Insets(4, 0, 0, 0));
+        accountList.getSelectionModel().selectedItemProperty().addListener(
+                (observable, oldValue, selected) -> showDetails(selected));
+        ScrollPane detailsScroll = new ScrollPane(details);
+        detailsScroll.setFitToWidth(true);
+        detailsScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        detailsScroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        detailsScroll.getStyleClass().add("account-scroll");
+        SplitPane listAndDetails = new SplitPane(accountList, detailsScroll);
+        listAndDetails.setDividerPositions(0.43);
         VBox.setVgrow(listAndDetails, Priority.ALWAYS);
-        dialog.getDialogPane().setContent(content);
-        dialog.getDialogPane().setPrefSize(980, 600);
-
-        ButtonType importButtonType = new ButtonType(I18n.get("button.importSelected", 0),
-                ButtonBar.ButtonData.OK_DONE);
-        dialog.getDialogPane().getButtonTypes().setAll(importButtonType, ButtonType.CANCEL);
-        Button importButton = (Button) dialog.getDialogPane().lookupButton(importButtonType);
-        importButton.getStyleClass().add("accent-button");
-
-        Runnable updateSummary = () -> {
-            long selected = candidates.stream().filter(candidate -> candidate.selected.get()).count();
-            long alreadyAdded = candidates.stream().filter(candidate -> candidate.duplicate).count();
-            long manual = candidates.stream().filter(candidate -> candidate.needsManualSetup).count();
-            summary.setText(I18n.get("message.bankAccounts.selectionSummary", selected, alreadyAdded, manual));
-            importButton.setText(I18n.get("button.importSelected", selected));
-            importButton.setDisable(selected == 0);
-        };
-        candidates.forEach(candidate -> candidate.selected.addListener(
-                (observable, oldValue, newValue) -> updateSummary.run()));
-        dialog.setOnShown(event -> updateSummary.run());
-        dialog.setResultConverter(button -> button == importButtonType
-                ? candidates.stream().filter(candidate -> candidate.selected.get() && candidate.importable)
-                        .map(candidate -> candidate.account).toList()
-                : null);
-
-        FintraxUI.configureDialog(dialog);
-        return dialog.showAndWait().orElse(List.of());
+        getChildren().setAll(summary, listAndDetails,
+                muted(I18n.get("message.bankAccounts.unavailableHint")),
+                muted(I18n.get("message.bankAccounts.resizeHint")));
     }
 
-    static String suggestedAccountName(DiscoveredBankAccount account) {
+    public void setAccounts(List<DiscoveredBankAccount> accounts, Set<String> existingIbans) {
+        candidates.clear();
+        candidates.addAll(createCandidates(accounts, existingIbans));
+        accountList.getItems().setAll(candidates);
+        candidates.forEach(candidate -> candidate.selected.addListener(
+                (observable, oldValue, newValue) -> updateSummary()));
+        accountList.getSelectionModel().selectFirst();
+        showDetails(accountList.getSelectionModel().getSelectedItem());
+        updateSummary();
+    }
+
+    public List<DiscoveredBankAccount> selectedAccounts() {
+        return candidates.stream()
+                .filter(candidate -> candidate.selected.get() && candidate.importable)
+                .map(candidate -> candidate.account)
+                .toList();
+    }
+
+    public ReadOnlyIntegerProperty selectedCountProperty() {
+        return selectedCount.getReadOnlyProperty();
+    }
+
+    public static String normalizeIban(String iban) {
+        return iban == null ? "" : iban.replaceAll("\\s+", "").toUpperCase(Locale.ROOT);
+    }
+
+    public static String suggestedAccountName(DiscoveredBankAccount account) {
         if (account.accountName() != null && !account.accountName().isBlank()) {
             return account.accountName().trim();
         }
         if (account.bankType() != null && !account.bankType().isBlank()) {
             return account.bankType().trim();
         }
-        return "Bank account " + maskIban(account.iban());
+        return "Bank account " + formatIban(account.iban());
     }
 
-    static String normalizeIban(String iban) {
-        return iban == null ? "" : iban.replaceAll("\\s+", "").toUpperCase(Locale.ROOT);
-    }
-
-    private static List<Candidate> candidates(List<DiscoveredBankAccount> accounts, Set<String> existingIbans) {
+    private List<Candidate> createCandidates(List<DiscoveredBankAccount> accounts, Set<String> existingIbans) {
         Set<String> knownIbans = new HashSet<>();
-        existingIbans.stream().map(BankAccountSelectionDialog::normalizeIban)
+        existingIbans.stream().map(BankAccountSelectionPane::normalizeIban)
                 .filter(iban -> !iban.isBlank()).forEach(knownIbans::add);
 
         List<Candidate> result = new ArrayList<>(accounts.size());
@@ -124,7 +107,7 @@ final class BankAccountSelectionDialog {
         return result;
     }
 
-    private static void showDetails(VBox details, Candidate candidate) {
+    private void showDetails(Candidate candidate) {
         if (candidate == null) {
             details.getChildren().setAll(muted(I18n.get("message.bankAccounts.chooseAccount")));
             return;
@@ -135,7 +118,7 @@ final class BankAccountSelectionDialog {
                 detail(I18n.get("label.bankAccountType"), display(account.bankType())),
                 detail(I18n.get("label.accountHolder"), display(account.accountHolder())),
                 detail(I18n.get("label.iban"), account.iban() == null || account.iban().isBlank()
-                        ? I18n.get("label.notProvided") : maskIban(account.iban())),
+                        ? I18n.get("label.notProvided") : formatIban(account.iban())),
                 detail(I18n.get("label.bic"), display(account.bic())),
                 detail(I18n.get("label.blz"), display(account.bankCode())),
                 detail(I18n.get("label.accountNumber"), maskAccountNumber(account.accountNumber())),
@@ -144,13 +127,23 @@ final class BankAccountSelectionDialog {
                         ? "message.bankAccounts.selectHint" : "message.bankAccounts.manualSetupHint")));
     }
 
-    private static VBox detail(String name, String value) {
-        Label label = muted(name);
-        return new VBox(3, label, new Label(value));
+    private void updateSummary() {
+        long selected = candidates.stream().filter(candidate -> candidate.selected.get()).count();
+        long alreadyAdded = candidates.stream().filter(candidate -> candidate.duplicate).count();
+        long manual = candidates.stream().filter(candidate -> candidate.needsManualSetup).count();
+        summary.setText(I18n.get("message.bankAccounts.selectionSummary", selected, alreadyAdded, manual));
+        selectedCount.set((int) selected);
+    }
+
+    private VBox detail(String name, String value) {
+        Label content = new Label(value);
+        content.setWrapText(true);
+        return new VBox(3, muted(name), content);
     }
 
     private static Label heading(String name, String status) {
         Label label = new Label(name + "  ·  " + status);
+        label.setWrapText(true);
         label.getStyleClass().add("section-title");
         return label;
     }
@@ -165,10 +158,15 @@ final class BankAccountSelectionDialog {
         return value == null || value.isBlank() ? "—" : value;
     }
 
-    private static String maskIban(String iban) {
+    private static String formatIban(String iban) {
         String normalized = normalizeIban(iban);
-        return normalized.length() < 8 ? display(normalized)
-                : normalized.substring(0, 4) + "****" + normalized.substring(normalized.length() - 4);
+        if (normalized.isBlank()) return I18n.get("label.notProvided");
+        StringBuilder formatted = new StringBuilder(normalized.length() + normalized.length() / 4);
+        for (int index = 0; index < normalized.length(); index++) {
+            if (index > 0 && index % 4 == 0) formatted.append(' ');
+            formatted.append(normalized.charAt(index));
+        }
+        return formatted.toString();
     }
 
     private static String maskAccountNumber(String accountNumber) {
@@ -188,8 +186,8 @@ final class BankAccountSelectionDialog {
             this.account = account;
             this.duplicate = duplicate;
             this.needsManualSetup = needsManualSetup;
-            this.importable = !duplicate && !needsManualSetup;
-            this.selected.set(importable);
+            importable = !duplicate && !needsManualSetup;
+            selected.set(importable);
         }
 
         private String status() {
@@ -207,6 +205,8 @@ final class BankAccountSelectionDialog {
 
         private AccountCell() {
             row.setAlignment(Pos.CENTER_LEFT);
+            text.setMinWidth(0);
+            HBox.setHgrow(text, Priority.ALWAYS);
             checkBox.setOnAction(event -> {
                 if (candidate != null && candidate.importable) {
                     candidate.selected.set(checkBox.isSelected());
@@ -225,8 +225,9 @@ final class BankAccountSelectionDialog {
             }
             checkBox.setSelected(item.selected.get());
             checkBox.setDisable(!item.importable);
-            text.getChildren().setAll(heading(suggestedAccountName(item.account), item.status()),
-                    muted(maskIban(item.account.iban()) + " · " + display(item.account.currency())));
+            Label iban = muted(formatIban(item.account.iban()));
+            iban.setWrapText(true);
+            text.getChildren().setAll(heading(suggestedAccountName(item.account), item.status()), iban);
             setGraphic(row);
             setText(null);
         }

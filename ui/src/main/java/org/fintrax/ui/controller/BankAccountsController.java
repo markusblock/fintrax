@@ -221,12 +221,13 @@ public class BankAccountsController {
             Stage dialog = new Stage();
             dialog.setTitle(I18n.get("dialog.addAccount.title"));
             dialog.initModality(Modality.WINDOW_MODAL);
-            Scene dialogScene = new Scene(root, 560, 680);
-            FintraxUI.configureScene(dialogScene);
-            dialog.setScene(dialogScene);
-
             Window ownerWindow = addAccountButton.getScene().getWindow();
             dialog.initOwner(ownerWindow);
+            Scene dialogScene = new Scene(root);
+            FintraxUI.configureScene(dialogScene);
+            dialog.setScene(dialogScene);
+            dialog.setMinWidth(560);
+            dialog.sizeToScene();
 
             dialog.showAndWait();
             loadAccounts();
@@ -330,28 +331,7 @@ public class BankAccountsController {
     }
 
     private String showPinDialog(String bankName, int accountCount) {
-        Dialog<String> dialog = new Dialog<>();
-        dialog.setTitle(I18n.get("dialog.pin.title"));
-        String header = accountCount > 1
-                ? I18n.get("dialog.pin.header.multiple", bankName, accountCount)
-                : I18n.get("dialog.pin.header", bankName);
-        dialog.setHeaderText(header);
-        dialog.initModality(Modality.APPLICATION_MODAL);
-        dialog.initOwner(rootPane.getScene().getWindow());
-
-        PasswordField pinField = new PasswordField();
-        pinField.setPromptText(I18n.get("dialog.pin.prompt"));
-        VBox content = new VBox(8, new Label(I18n.get("dialog.pin.prompt")), pinField);
-        content.setPadding(new Insets(10, 0, 0, 0));
-        dialog.getDialogPane().setContent(content);
-        ButtonType syncButton = new ButtonType(I18n.get("button.sync"), ButtonBar.ButtonData.OK_DONE);
-        dialog.getDialogPane().getButtonTypes().setAll(syncButton, ButtonType.CANCEL);
-        dialog.setResultConverter(button -> button == syncButton ? pinField.getText() : null);
-        dialog.setOnHidden(event -> pinField.clear());
-
-        FintraxUI.configureDialog(dialog);
-
-        return dialog.showAndWait().filter(pin -> !pin.isBlank()).orElse(null);
+        return PinPromptDialog.show(rootPane.getScene().getWindow(), bankName, accountCount, I18n.get("button.sync"));
     }
 
     private String syncBankKey(BankAccount account) {

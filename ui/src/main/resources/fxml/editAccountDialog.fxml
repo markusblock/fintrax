@@ -4,6 +4,7 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.ColumnConstraints?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ScrollPane?>
@@ -27,9 +28,10 @@
     <Label text="%dialog.editAccount.title" styleClass="dialog-title"/>
     <Label text="%dialog.editAccount.subtitle" styleClass="dialog-subtitle" wrapText="true"/>
 
-    <ScrollPane fitToWidth="true" hbarPolicy="NEVER" VBox.vgrow="ALWAYS">
-        <content>
-            <VBox spacing="14">
+    <StackPane VBox.vgrow="ALWAYS">
+        <ScrollPane fx:id="connectionPage" fitToWidth="true" hbarPolicy="NEVER" prefViewportHeight="520">
+            <content>
+                <VBox spacing="14">
                 <VBox styleClass="editor-panel" spacing="10">
                     <Label text="%label.bankConnection" styleClass="section-title"/>
                     <GridPane hgap="10" vgap="10">
@@ -105,20 +107,29 @@
                         <Label fx:id="lastSyncValue" styleClass="secondary-text"/>
                     </HBox>
                 </VBox>
-            </VBox>
-        </content>
-    </ScrollPane>
+                </VBox>
+            </content>
+        </ScrollPane>
+        <VBox fx:id="accountSelectionPage" visible="false" managed="false" spacing="12" prefHeight="520">
+            <Label text="%dialog.bankAccounts.title" styleClass="section-title"/>
+            <Label text="%dialog.bankAccounts.subtitle" wrapText="true" styleClass="help-text"/>
+            <VBox fx:id="accountSelectionHost" VBox.vgrow="ALWAYS"/>
+            <Label fx:id="accountImportStatusLabel" wrapText="true" styleClass="help-text"/>
+        </VBox>
+    </StackPane>
 
     <Separator/>
 
     <HBox spacing="10" alignment="CENTER_RIGHT">
         <Region HBox.hgrow="ALWAYS"/>
         <Button text="%button.cancel" onAction="#onCancel" styleClass="button-outlined"/>
+        <Button fx:id="backButton" text="%button.back" onAction="#onBack"
+                styleClass="button-outlined" visible="false" managed="false"/>
         <Button fx:id="saveButton" id="saveAccountButton" text="%button.save"
                 onAction="#onSave" styleClass="button-outlined">
             <graphic><FontIcon iconLiteral="fth-save" iconSize="14"/></graphic>
         </Button>
-        <Button fx:id="testConnectionButton" text="%button.testConnection"
-                onAction="#onTestConnection" styleClass="accent-button"/>
+        <Button fx:id="testConnectionButton" text="%button.connect"
+                onAction="#onPrimaryAction" styleClass="accent-button"/>
     </HBox>
 </VBox>

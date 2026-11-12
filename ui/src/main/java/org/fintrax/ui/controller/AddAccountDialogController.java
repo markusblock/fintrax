@@ -2,10 +2,10 @@ package org.fintrax.ui.controller;
 
 import javafx.application.Platform;
 import javafx.fxml.FXML;
-import javafx.geometry.Insets;
 import javafx.scene.control.*;
+import javafx.scene.layout.Priority;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.VBox;
-import javafx.stage.Modality;
 import javafx.stage.Stage;
 import lombok.extern.slf4j.Slf4j;
 import org.fintrax.config.I18n;
@@ -58,6 +58,8 @@ public class AddAccountDialogController {
     @FXML
     private Label fintsServerStatusLabel;
     @FXML
+    private Label wizardStepLabel;
+    @FXML
     private TextField fintsUserIdField;
     @FXML
     private TextField fintsCustomerIdField;
@@ -68,19 +70,19 @@ public class AddAccountDialogController {
     @FXML
     private TextField bankCommentField;
     @FXML
-    private TextField accountNameField;
-    @FXML
-    private TextField accountHolderField;
-    @FXML
-    private ComboBox<AccountType> accountTypeCombo;
-    @FXML
-    private TextField currencyField;
-    @FXML
-    private TextField accountCommentField;
-    @FXML
     private Button saveButton;
     @FXML
     private Button testConnectionButton;
+    @FXML
+    private Button backButton;
+    @FXML
+    private ScrollPane connectionPage;
+    @FXML
+    private VBox accountSelectionPage;
+    @FXML
+    private VBox accountSelectionHost;
+    @FXML
+    private Label accountImportStatusLabel;
 
     private final AccountService accountService;
     private final BankingProtocol bankingProtocol;
@@ -89,6 +91,9 @@ public class AddAccountDialogController {
     private final ActivityLogger activityLogger;
     private Bank matchedBank;
     private String checkedIban;
+    private String connectionPin;
+    private BankAccountSelectionPane accountSelectionPane;
+    private boolean showingAccountSelection;
 
     @Autowired
     public AddAccountDialogController(AccountService accountService, BankingProtocol bankingProtocol,
@@ -102,11 +107,17 @@ public class AddAccountDialogController {
 
     @FXML
     public void initialize() {
-        accountTypeCombo.getItems().setAll(AccountType.values());
-        accountTypeCombo.setValue(AccountType.GIRO);
-        currencyField.setText("EUR");
         bankCodeField.setEditable(false);
         ibanField.textProperty().addListener((observable, oldValue, newValue) -> refreshBankProfileForIban());
+        accountSelectionPane = new BankAccountSelectionPane();
+        accountSelectionHost.getChildren().setAll(accountSelectionPane);
+        VBox.setVgrow(accountSelectionPane, Priority.ALWAYS);
+        accountSelectionPane.selectedCountProperty().addListener(
+                (observable, oldValue, newValue) -> updatePrimaryButton());
+        accountSelectionPage.setVisible(false);
+        accountSelectionPage.setManaged(false);
+        backButton.setVisible(false);
+        backButton.setManaged(false);
     }
 
     @FXML
@@ -140,6 +151,19 @@ public class AddAccountDialogController {
     }
 
     @FXML
+    private void onPrimaryAction() {
+        if (showingAccountSelection) {
+            importSelectedAccounts();
+        } else {
+            onTestConnection();
+        }
+    }
+
+    @FXML
+    private void onBack() {
+        showConnectionPage();
+    }
+
     private void onTestConnection() {
         String password = passwordField.getText();
         if (password == null || password.isBlank()) {
@@ -154,6 +178,7 @@ public class AddAccountDialogController {
         BankAccount account = BankAccount.builder().iban(iban).build();
         Bank bank = currentBankProfile();
         String pin = password;
+        connectionPin = pin;
         List<String> diagnostics = Collections.synchronizedList(new ArrayList<>());
         String bankName = bank.getName() == null || bank.getName().isBlank()
                 ? I18n.get("label.bankConnection") : bank.getName();
@@ -210,19 +235,63 @@ public class AddAccountDialogController {
             String description = summary + ACTIVITY_DIAGNOSTICS_MARKER + String.join("\n", diagnostics);
             activityLogger.log(ActivityAction.EXECUTE, EntityType.ACCOUNT, null, description);
             if (failure == null && valid.connected() && !valid.accounts().isEmpty()) {
-                List<DiscoveredBankAccount> selected = BankAccountSelectionDialog.show(
-                        testConnectionButton.getScene().getWindow(), valid.accounts(), existingIbans());
-                if (!selected.isEmpty()) {
-                    importDiscoveredAccounts(selected, pin, iban, bicField.getText());
-                }
+                accountSelectionPane.setAccounts(valid.accounts(), existingIbans());
+                accountImportStatusLabel.setText("");
+                showAccountSelectionPage();
             }
         }));
+    }
+
+    private void showAccountSelectionPage() {
+        showingAccountSelection = true;
+        wizardStepLabel.setText(I18n.get("wizard.addAccount.accountsStep"));
+        connectionPage.setVisible(false);
+        connectionPage.setManaged(false);
+        accountSelectionPage.setVisible(true);
+        accountSelectionPage.setManaged(true);
+        backButton.setVisible(true);
+        backButton.setManaged(true);
+        saveButton.setVisible(false);
+        saveButton.setManaged(false);
+        updatePrimaryButton();
+    }
+
+    private void showConnectionPage() {
+        showingAccountSelection = false;
+        wizardStepLabel.setText(I18n.get("wizard.addAccount.bankStep"));
+        accountSelectionPage.setVisible(false);
+        accountSelectionPage.setManaged(false);
+        connectionPage.setVisible(true);
+        connectionPage.setManaged(true);
+        backButton.setVisible(false);
+        backButton.setManaged(false);
+        saveButton.setVisible(true);
+        saveButton.setManaged(true);
+        updatePrimaryButton();
+    }
+
+    private void updatePrimaryButton() {
+        if (showingAccountSelection) {
+            int selected = accountSelectionPane.selectedCountProperty().get();
+            testConnectionButton.setText(I18n.get("button.importSelected", selected));
+            testConnectionButton.setDisable(selected == 0);
+        } else {
+            testConnectionButton.setText(I18n.get("button.connect"));
+            testConnectionButton.setDisable(false);
+        }
+    }
+
+    private void importSelectedAccounts() {
+        List<DiscoveredBankAccount> selected = accountSelectionPane.selectedAccounts();
+        if (!selected.isEmpty()) {
+            importDiscoveredAccounts(selected, connectionPin, normalizeIban(ibanField.getText()), bicField.getText());
+        }
     }
 
     private Set<String> existingIbans() {
         Set<String> ibans = new LinkedHashSet<>();
         accountService.getAllAccounts().stream().map(BankAccount::getIban)
-                .map(BankAccountSelectionDialog::normalizeIban).filter(iban -> !iban.isBlank()).forEach(ibans::add);
+                .map(BankAccountSelectionPane::normalizeIban).filter(iban -> !iban.isBlank()).forEach(ibans::add);
         return ibans;
     }
 
@@ -233,10 +302,10 @@ public class AddAccountDialogController {
             if (bank == null) return;
             int imported = 0;
             for (DiscoveredBankAccount discoveredAccount : discovered) {
-                String iban = BankAccountSelectionDialog.normalizeIban(discoveredAccount.iban());
+                String iban = BankAccountSelectionPane.normalizeIban(discoveredAccount.iban());
                 if (iban.isBlank()) continue;
                 BankAccount created = accountService.createAccount(bank.getId(), iban,
-                        BankAccountSelectionDialog.suggestedAccountName(discoveredAccount),
+                        BankAccountSelectionPane.suggestedAccountName(discoveredAccount),
                         discoveredAccount.accountHolder(), accountTypeFor(discoveredAccount),
                         defaultCurrency(discoveredAccount.currency()), null);
                 if (storePasswordCheckBox.isSelected()) {
@@ -317,32 +386,10 @@ public class AddAccountDialogController {
     private void onSave() {
         String iban = normalizeIban(ibanField.getText());
         String bic = emptyToNull(bicField.getText());
-        String bankName = bankNameField.getText().trim();
-        String fintsServerUrl = emptyToNull(fintsServerUrlField.getText());
-        String fintsUserId = emptyToNull(fintsUserIdField.getText());
-        String fintsCustomerId = emptyToNull(fintsCustomerIdField.getText());
-        String bankComment = bankCommentField.getText().trim();
-        String accountName = accountNameField.getText().trim();
-        String accountHolder = accountHolderField.getText().trim();
-        String accountComment = accountCommentField.getText().trim();
-        AccountType accountType = accountTypeCombo.getValue();
 
         if (iban.isEmpty()) {
             showError(I18n.get("validation.iban.required"));
             return;
-        }
-        if (accountName.isBlank()) {
-            showError(I18n.get("validation.accountName.required"));
-            return;
-        }
-
-        String password = passwordField.getText();
-        if (storePasswordCheckBox.isSelected() && (password == null || password.isBlank())) {
-            password = promptForPin();
-            if (password == null || password.isBlank()) {
-                return;
-            }
-            passwordField.setText(password);
         }
 
         BankDirectoryEntry directoryEntry;
@@ -361,44 +408,28 @@ public class AddAccountDialogController {
         }
 
         matchedBank = bankService.findForIban(iban, bic).orElse(matchedBank);
-        Bank bank = matchedBank;
-        if (bank == null) {
-            if (bankName.isBlank()) {
-                bankName = directoryEntry == null ? "" : emptyToNull(directoryEntry.name());
-            }
-            if (bic == null && directoryEntry != null) {
-                bic = emptyToNull(directoryEntry.bic());
-            }
-            bank = Bank.builder()
-                    .name(emptyToNull(bankName))
-                    .blz(bankCode)
-                    .bic(bic)
-                    .fintsServerUrl(fintsServerUrl != null ? fintsServerUrl
-                            : directoryEntry == null ? null : emptyToNull(directoryEntry.pinTanAddress()))
-                    .fintsUserId(fintsUserId)
-                    .fintsCustomerId(fintsCustomerId)
-                    .comment(bankComment.isBlank() ? null : bankComment)
-                    .build();
-            if (bank.getName() == null) {
-                showError(I18n.get("validation.bankName.required"));
-                return;
-            }
-            if (bank.getFintsUserId() == null) {
-                showError(I18n.get("validation.fintsUserId.required"));
-                return;
-            }
+        String bankName = emptyToNull(bankNameField.getText());
+        if (bankName == null && directoryEntry != null) bankName = emptyToNull(directoryEntry.name());
+        String userId = emptyToNull(fintsUserIdField.getText());
+        if (bankName == null || userId == null) {
+            showError(I18n.get(bankName == null ? "validation.bankName.required" : "validation.fintsUserId.required"));
+            return;
         }
+        if (bic == null && directoryEntry != null) bic = emptyToNull(directoryEntry.bic());
+        String fintsServerUrl = emptyToNull(fintsServerUrlField.getText());
+        if (fintsServerUrl == null && directoryEntry != null) {
+            fintsServerUrl = emptyToNull(directoryEntry.pinTanAddress());
+        }
+        String customerId = emptyToNull(fintsCustomerIdField.getText());
+        String comment = emptyToNull(bankCommentField.getText());
         if (matchedBank == null) {
-            bank = bankService.createBank(bankCode, bank.getName(), bank.getBic(), bank.getFintsServerUrl(),
-                    bank.getFintsUserId(), bank.getFintsCustomerId(), bank.getComment());
-        }
-        BankAccount account = accountService.createAccount(bank.getId(), iban, accountName, accountHolder, accountType,
-                emptyToNull(currencyField.getText()), accountComment);
-        if (storePasswordCheckBox.isSelected()) {
-            pinStorage.storePin(String.valueOf(account.getId()), password);
+            matchedBank = bankService.createBank(bankCode, bankName, bic, fintsServerUrl, userId, customerId, comment);
+        } else {
+            matchedBank = bankService.updateBank(matchedBank.getId(), bankName, bic, fintsServerUrl,
+                    userId, customerId, comment);
         }
 
-        log.info("Added bank account");
+        log.info("Saved bank connection details for {}", matchedBank.getName());
         close();
     }
 
@@ -490,25 +521,9 @@ public class AddAccountDialogController {
     }
 
     protected String promptForPin() {
-        Dialog<String> dialog = new Dialog<>();
-        dialog.setTitle(I18n.get("dialog.pin.title"));
         String bankName = bankNameField.getText().isBlank()
                 ? I18n.get("label.bankConnection") : bankNameField.getText().trim();
-        dialog.setHeaderText(I18n.get("dialog.pin.header", bankName));
-        dialog.initModality(Modality.APPLICATION_MODAL);
-        dialog.initOwner(passwordField.getScene().getWindow());
-
-        PasswordField pinField = new PasswordField();
-        pinField.setPromptText(I18n.get("dialog.pin.prompt"));
-        VBox content = new VBox(8, new Label(I18n.get("dialog.pin.prompt")), pinField);
-        content.setPadding(new Insets(10, 0, 0, 0));
-        dialog.getDialogPane().setContent(content);
-        ButtonType testButton = new ButtonType(I18n.get("button.testConnection"), ButtonBar.ButtonData.OK_DONE);
-        dialog.getDialogPane().getButtonTypes().setAll(testButton, ButtonType.CANCEL);
-        dialog.setResultConverter(button -> button == testButton ? pinField.getText() : null);
-        dialog.setOnHidden(event -> pinField.clear());
-        FintraxUI.configureDialog(dialog);
-        return dialog.showAndWait().orElse(null);
+        return PinPromptDialog.show(passwordField.getScene().getWindow(), bankName, 1, I18n.get("button.connect"));
     }
 
     private void setBankProfileReadOnly(boolean readOnly) {

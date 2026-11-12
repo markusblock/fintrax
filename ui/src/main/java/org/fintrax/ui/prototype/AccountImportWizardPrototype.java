@@ -275,7 +275,7 @@ public final class AccountImportWizardPrototype extends Application {
         selectionSummary.setText(selected + " selected  ·  " + alreadyAdded + " already added  ·  "
                 + manual + " need manual setup");
         if (currentStep == Step.BANK_CONNECTION) {
-            nextButton.setText("Test connection");
+            nextButton.setText("Connect");
             nextButton.setDisable(false);
         } else if (importedCount > 0) {
             nextButton.setText("Finish");

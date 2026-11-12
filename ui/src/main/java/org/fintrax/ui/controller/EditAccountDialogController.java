@@ -2,10 +2,10 @@ package org.fintrax.ui.controller;
 
 import javafx.fxml.FXML;
 import javafx.application.Platform;
-import javafx.geometry.Insets;
 import javafx.scene.control.*;
+import javafx.scene.layout.Priority;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.VBox;
-import javafx.stage.Modality;
 import javafx.stage.Stage;
 import lombok.extern.slf4j.Slf4j;
 import org.fintrax.config.I18n;
@@ -87,6 +87,16 @@ public class EditAccountDialogController {
     private Button saveButton;
     @FXML
     private Button testConnectionButton;
+    @FXML
+    private Button backButton;
+    @FXML
+    private ScrollPane connectionPage;
+    @FXML
+    private VBox accountSelectionPage;
+    @FXML
+    private VBox accountSelectionHost;
+    @FXML
+    private Label accountImportStatusLabel;
 
     private final AccountService accountService;
     private final BankService bankService;
@@ -95,6 +105,9 @@ public class EditAccountDialogController {
     private final ActivityLogger activityLogger;
     private BankAccount account;
     private Bank bank;
+    private String connectionPin;
+    private BankAccountSelectionPane accountSelectionPane;
+    private boolean showingAccountSelection;
 
     public EditAccountDialogController(AccountService accountService, BankService bankService,
                                        BankingProtocol bankingProtocol, PinStorage pinStorage,
@@ -109,6 +122,15 @@ public class EditAccountDialogController {
     @FXML
     public void initialize() {
         accountTypeCombo.getItems().setAll(AccountType.values());
+        accountSelectionPane = new BankAccountSelectionPane();
+        accountSelectionHost.getChildren().setAll(accountSelectionPane);
+        VBox.setVgrow(accountSelectionPane, Priority.ALWAYS);
+        accountSelectionPane.selectedCountProperty().addListener(
+                (observable, oldValue, newValue) -> updatePrimaryButton());
+        accountSelectionPage.setVisible(false);
+        accountSelectionPage.setManaged(false);
+        backButton.setVisible(false);
+        backButton.setManaged(false);
     }
 
     public void setAccount(BankAccount account) {
@@ -166,6 +188,19 @@ public class EditAccountDialogController {
     }
 
     @FXML
+    private void onPrimaryAction() {
+        if (showingAccountSelection) {
+            importSelectedAccounts();
+        } else {
+            onTestConnection();
+        }
+    }
+
+    @FXML
+    private void onBack() {
+        showConnectionPage();
+    }
+
     private void onTestConnection() {
         String pin = passwordField.getText();
         if (pin == null || pin.isBlank()) {
@@ -191,6 +226,7 @@ public class EditAccountDialogController {
         saveButton.setDisable(true);
         showEndpointStatus(I18n.get("message.fints.connectionTestInProgress"), "help-text");
         String testPin = pin;
+        connectionPin = pin;
         CompletableFuture.supplyAsync(() -> {
             try {
                 boolean valid = bankingProtocol.validatePin(account, testBank, testPin,
@@ -235,19 +271,61 @@ public class EditAccountDialogController {
             activityLogger.log(ActivityAction.EXECUTE, EntityType.ACCOUNT, account.getId(),
                     summary + " — " + bankName + ACTIVITY_DIAGNOSTICS_MARKER + String.join("\n", diagnostics));
             if (failure == null && valid.connected() && !valid.accounts().isEmpty()) {
-                List<DiscoveredBankAccount> selected = BankAccountSelectionDialog.show(
-                        testConnectionButton.getScene().getWindow(), valid.accounts(), existingIbans());
-                if (!selected.isEmpty()) {
-                    importDiscoveredAccounts(selected, testPin);
-                }
+                accountSelectionPane.setAccounts(valid.accounts(), existingIbans());
+                accountImportStatusLabel.setText("");
+                showAccountSelectionPage();
             }
         }));
+    }
+
+    private void showAccountSelectionPage() {
+        showingAccountSelection = true;
+        connectionPage.setVisible(false);
+        connectionPage.setManaged(false);
+        accountSelectionPage.setVisible(true);
+        accountSelectionPage.setManaged(true);
+        backButton.setVisible(true);
+        backButton.setManaged(true);
+        saveButton.setVisible(false);
+        saveButton.setManaged(false);
+        updatePrimaryButton();
+    }
+
+    private void showConnectionPage() {
+        showingAccountSelection = false;
+        accountSelectionPage.setVisible(false);
+        accountSelectionPage.setManaged(false);
+        connectionPage.setVisible(true);
+        connectionPage.setManaged(true);
+        backButton.setVisible(false);
+        backButton.setManaged(false);
+        saveButton.setVisible(true);
+        saveButton.setManaged(true);
+        updatePrimaryButton();
+    }
+
+    private void updatePrimaryButton() {
+        if (showingAccountSelection) {
+            int selected = accountSelectionPane.selectedCountProperty().get();
+            testConnectionButton.setText(I18n.get("button.importSelected", selected));
+            testConnectionButton.setDisable(selected == 0);
+        } else {
+            testConnectionButton.setText(I18n.get("button.connect"));
+            testConnectionButton.setDisable(false);
+        }
+    }
+
+    private void importSelectedAccounts() {
+        List<DiscoveredBankAccount> selected = accountSelectionPane.selectedAccounts();
+        if (!selected.isEmpty()) {
+            importDiscoveredAccounts(selected, connectionPin);
+        }
     }
 
     private Set<String> existingIbans() {
         Set<String> ibans = new LinkedHashSet<>();
         accountService.getAllAccounts().stream().map(BankAccount::getIban)
-                .map(BankAccountSelectionDialog::normalizeIban).filter(iban -> !iban.isBlank()).forEach(ibans::add);
+                .map(BankAccountSelectionPane::normalizeIban).filter(iban -> !iban.isBlank()).forEach(ibans::add);
         return ibans;
     }
 
@@ -266,10 +344,10 @@ public class EditAccountDialogController {
 
             int imported = 0;
             for (DiscoveredBankAccount discoveredAccount : discovered) {
-                String iban = BankAccountSelectionDialog.normalizeIban(discoveredAccount.iban());
+                String iban = BankAccountSelectionPane.normalizeIban(discoveredAccount.iban());
                 if (iban.isBlank()) continue;
                 BankAccount created = accountService.createAccount(bank.getId(), iban,
-                        BankAccountSelectionDialog.suggestedAccountName(discoveredAccount),
+                        BankAccountSelectionPane.suggestedAccountName(discoveredAccount),
                         discoveredAccount.accountHolder(), accountTypeFor(discoveredAccount),
                         defaultCurrency(discoveredAccount.currency()), null);
                 if (storePasswordCheckBox.isSelected()) {
@@ -348,25 +426,9 @@ public class EditAccountDialogController {
     }
 
     private String promptForPin() {
-        Dialog<String> dialog = new Dialog<>();
-        dialog.setTitle(I18n.get("dialog.pin.title"));
         String bankName = bankNameField.getText().isBlank()
                 ? I18n.get("label.bankConnection") : bankNameField.getText().trim();
-        dialog.setHeaderText(I18n.get("dialog.pin.header", bankName));
-        dialog.initModality(Modality.APPLICATION_MODAL);
-        dialog.initOwner(passwordField.getScene().getWindow());
-
-        PasswordField pinField = new PasswordField();
-        pinField.setPromptText(I18n.get("dialog.pin.prompt"));
-        VBox content = new VBox(8, new Label(I18n.get("dialog.pin.prompt")), pinField);
-        content.setPadding(new Insets(10, 0, 0, 0));
-        dialog.getDialogPane().setContent(content);
-        ButtonType testButton = new ButtonType(I18n.get("button.testConnection"), ButtonBar.ButtonData.OK_DONE);
-        dialog.getDialogPane().getButtonTypes().setAll(testButton, ButtonType.CANCEL);
-        dialog.setResultConverter(button -> button == testButton ? pinField.getText() : null);
-        dialog.setOnHidden(event -> pinField.clear());
-        FintraxUI.configureDialog(dialog);
-        return dialog.showAndWait().orElse(null);
+        return PinPromptDialog.show(passwordField.getScene().getWindow(), bankName, 1, I18n.get("button.connect"));
     }
 
     private void recordConnectionDiagnostic(List<String> diagnostics, String message) {
