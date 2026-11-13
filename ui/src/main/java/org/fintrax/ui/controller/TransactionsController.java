@@ -201,6 +201,10 @@ public class TransactionsController {
 
         amountColumn.setCellValueFactory(cd -> new SimpleObjectProperty<>(cd.getValue().getAmount()));
         amountColumn.setCellFactory(col -> new TableCell<>() {
+            {
+                setAlignment(Pos.CENTER_RIGHT);
+            }
+
             @Override
             protected void updateItem(BigDecimal item, boolean empty) {
                 super.updateItem(item, empty);
@@ -208,7 +212,7 @@ public class TransactionsController {
                     setText(null);
                     setStyle("");
                 } else {
-                    setText(String.format("%,.2f EUR", item.doubleValue()));
+                    setText(String.format("%,.2f", item.doubleValue()));
                     getStyleClass().removeAll(AMOUNT_POSITIVE_STYLE_CLASS, AMOUNT_NEGATIVE_STYLE_CLASS);
                     if (item.signum() < 0) {
                         getStyleClass().add(AMOUNT_NEGATIVE_STYLE_CLASS);
@@ -221,10 +225,14 @@ public class TransactionsController {
 
         balanceColumn.setCellValueFactory(cd -> new SimpleObjectProperty<>(cd.getValue().getBalanceAfter()));
         balanceColumn.setCellFactory(col -> new TableCell<>() {
+            {
+                setAlignment(Pos.CENTER_RIGHT);
+            }
+
             @Override
             protected void updateItem(BigDecimal item, boolean empty) {
                 super.updateItem(item, empty);
-                setText(empty || item == null ? null : String.format("%,.2f EUR", item.doubleValue()));
+                setText(empty || item == null ? null : String.format("%,.2f", item.doubleValue()));
             }
         });
 

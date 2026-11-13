@@ -6,6 +6,7 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.CheckBoxTableCell;
 import javafx.scene.input.ContextMenuEvent;
@@ -116,13 +117,25 @@ final class RuleReviewDialog {
         table.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
         DateTimeFormatter dateFormatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT)
                 .withLocale(I18n.getCurrentLocale());
+        TableColumn<TransactionRulePreview, String> amountColumn = column("rules.review.amount",
+                row -> row.amount() == null ? "—" : String.format("%,.2f", row.amount().doubleValue()), 110);
+        amountColumn.setCellFactory(column -> new TableCell<>() {
+            {
+                setAlignment(Pos.CENTER_RIGHT);
+            }
+
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty ? null : item);
+            }
+        });
         List<TableColumn<TransactionRulePreview, ?>> columns = List.of(
                 dateColumn("col.bookingDate", TransactionRulePreview::bookingDate, dateFormatter),
                 dateColumn("col.valueDate", TransactionRulePreview::valueDate, dateFormatter),
                 column("rules.review.payee", TransactionRulePreview::payee, 180),
                 column("col.purpose", row -> SingleLineText.normalize(row.purpose()), 180),
-                column("rules.review.amount", row -> row.amount() == null
-                        ? "—" : String.format("%,.2f EUR", row.amount().doubleValue()), 110),
+                amountColumn,
                 column("rules.review.account", this::accountName, 140),
                 column("rules.review.currentCategory", row -> categoryName(row.currentCategoryId()), 150),
                 column("rules.review.categoryAfter", row -> categoryName(row.proposedCategoryId()), 150),

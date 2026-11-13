@@ -2,6 +2,7 @@ package org.fintrax.ui;
 
 import javafx.application.Platform;
 import javafx.event.Event;
+import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
@@ -484,6 +485,27 @@ class ClassificationsControllerTest extends AbstractUITest {
         interact(() -> lookup("#searchField").<TextField>query().setText("Expense"));
 
         assertEquals(String.format("%,.2f EUR", new BigDecimal("-8")), total.getText());
+    }
+
+    @Test
+    void classificationAmountColumnShowsBareRightAlignedNumber() throws Exception {
+        Category category = categoryService().createCategory("Amount column " + System.nanoTime(), null, null);
+        Transaction transaction = createTransaction(category.getId(), "Amount column transaction", "17",
+                LocalDate.of(2025, 2, 1));
+
+        reloadClassificationsView();
+        TreeView<String> tree = lookup("#classificationTree").query();
+        interact(() -> tree.getSelectionModel().select(categoryTreeItem(tree, category.getName())));
+        TableView<Transaction> table = lookup("#classificationTransactionsTable").query();
+        TableColumn<?, ?> amountColumn = table.getColumns().stream()
+                .filter(column -> I18n.get("col.amount").equals(column.getText()))
+                .findFirst().orElseThrow();
+        interact(() -> table.scrollTo(table.getItems().indexOf(transaction)));
+        WaitForAsyncUtils.waitForFxEvents();
+
+        TableCell<?, ?> amountCell = cellForTransaction(table, amountColumn, transaction);
+        assertEquals(String.format("%,.2f", transaction.getAmount()), amountCell.getText());
+        assertEquals(Pos.CENTER_RIGHT, amountCell.getAlignment());
     }
 
     @Test
