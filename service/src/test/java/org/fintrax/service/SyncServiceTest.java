@@ -2,6 +2,7 @@ package org.fintrax.service;
 
 import org.fintrax.fintx.BankingException;
 import org.fintrax.fintx.BankingProtocol;
+import org.fintrax.fintx.BankingSyncData;
 import org.fintrax.fintx.PinStorage;
 import org.fintrax.model.*;
 import org.fintrax.store.StoreManager;
@@ -14,8 +15,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -90,39 +93,89 @@ class SyncServiceTest {
     }
 
     @Test
-    void syncUpdatesAccountBalanceFromLatestBookedTransactionWithBalance() {
+    void syncUpdatesAccountBalanceFromBankReportedSnapshot() {
         BankAccount account = createAccount();
-        Transaction older = transaction(account.getId(), "older", "Older");
-        older.setBookingDate(LocalDate.of(2026, 1, 1));
-        older.setBalanceAfter(new BigDecimal("12.34"));
-        Transaction latest = transaction(account.getId(), "latest", "Latest");
-        latest.setBookingDate(LocalDate.of(2026, 1, 2));
-        latest.setBalanceAfter(new BigDecimal("56.78"));
-        Transaction pending = transaction(account.getId(), "pending", "Pending");
-        pending.setBookingDate(LocalDate.of(2026, 1, 3));
-        pending.setBalanceAfter(new BigDecimal("99.99"));
-        pending.setBooked(false);
-        bankingProtocol.transactions = List.of(older, latest, pending);
+        Transaction transactionWithDifferentBalance = transaction(account.getId(), "txn", "Purchase");
+        transactionWithDifferentBalance.setBalanceAfter(new BigDecimal("56.78"));
+        bankingProtocol.transactions = List.of(transactionWithDifferentBalance);
+        bankingProtocol.accountBalance = new BigDecimal("123.45");
+        bankingProtocol.balanceDate = LocalDateTime.of(2026, 1, 2, 10, 30);
 
         syncService.syncAccount(account.getId(), "1234");
 
-        assertEquals(new BigDecimal("56.78"), account.getBalance());
-        assertEquals(LocalDateTime.of(2026, 1, 2, 0, 0), account.getBalanceDate());
+        assertEquals(new BigDecimal("123.45"), account.getBalance());
+        assertEquals(LocalDateTime.of(2026, 1, 2, 10, 30), account.getBalanceDate());
     }
 
     @Test
-    void syncKeepsAccountBalanceWhenNoBookedTransactionHasBalance() {
+    void syncKeepsAccountBalanceWhenBankReturnsNoAccountBalance() {
         BankAccount account = createAccount();
         LocalDateTime balanceDate = LocalDateTime.of(2026, 1, 1, 10, 30);
         accountService.updateBalance(account.getId(), new BigDecimal("42.00"), balanceDate);
-        Transaction withoutBalance = transaction(account.getId(), "no-balance", "No balance");
-        withoutBalance.setBalanceAfter(null);
-        bankingProtocol.transactions = List.of(withoutBalance);
+        Transaction transactionWithBalance = transaction(account.getId(), "txn", "Purchase");
+        transactionWithBalance.setBalanceAfter(new BigDecimal("99.00"));
+        bankingProtocol.transactions = List.of(transactionWithBalance);
 
         syncService.syncAccount(account.getId(), "1234");
 
         assertEquals(new BigDecimal("42.00"), account.getBalance());
         assertEquals(balanceDate, account.getBalanceDate());
+    }
+
+    @Test
+    void syncReportsProgressStagesInOrder() {
+        BankAccount account = createAccount();
+        List<SyncProgress> progress = new ArrayList<>();
+
+        syncService.syncAccount(account.getId(), "1234", progress::add);
+
+        assertEquals(List.of(SyncStage.CONNECTION, SyncStage.AUTHENTICATION, SyncStage.DATA_RETRIEVAL,
+                SyncStage.DATA_RETRIEVAL, SyncStage.DATA_IMPORT, SyncStage.COMPLETE),
+                progress.stream().map(SyncProgress::stage).toList());
+    }
+
+    @Test
+    void syncProgressReportsDownloadedAndImportedCounts() {
+        BankAccount account = createAccount();
+        transactionService.createTransaction(transaction(account.getId(), "existing", "Existing"));
+        bankingProtocol.transactions = List.of(
+                transaction(account.getId(), "existing", "Existing"),
+                transaction(account.getId(), "new", "New"));
+        List<SyncProgress> progress = new ArrayList<>();
+
+        syncService.syncAccount(account.getId(), "1234", progress::add);
+
+        SyncProgress downloaded = progress.stream()
+                .filter(event -> event.stage() == SyncStage.DATA_RETRIEVAL && event.transactionsDownloaded() > 0)
+                .findFirst().orElseThrow();
+        SyncProgress imported = progress.stream()
+                .filter(event -> event.stage() == SyncStage.DATA_IMPORT && event.transactionsImported() > 0)
+                .reduce((first, last) -> last).orElseThrow();
+        assertEquals(2, downloaded.transactionsDownloaded());
+        assertEquals(2, imported.transactionsDownloaded());
+        assertEquals(1, imported.transactionsImported());
+        assertEquals(1, imported.transactionsAlreadyKnown());
+    }
+
+    @Test
+    void cancellationDuringImportStopsBeforeNextTransactionAndRecordsPartialSync() {
+        BankAccount account = createAccount();
+        bankingProtocol.transactions = List.of(
+                transaction(account.getId(), "first", "First"),
+                transaction(account.getId(), "second", "Second"));
+        AtomicBoolean cancellationRequested = new AtomicBoolean();
+
+        SyncResult result = syncService.syncAccount(account.getId(), "1234", progress -> {
+            if (progress.stage() == SyncStage.DATA_IMPORT && progress.transactionsImported() == 1) {
+                cancellationRequested.set(true);
+            }
+        }, cancellationRequested::get);
+
+        assertEquals(SyncStatus.PARTIAL, result.syncLog().getStatus());
+        assertEquals(SyncStage.DATA_IMPORT, result.syncLog().getStage());
+        assertEquals(1, result.syncLog().getNewCount());
+        assertEquals(1, transactionService.getTransactionsByAccount(account.getId()).size());
+        assertEquals(1, result.newTransactionIds().size());
     }
 
     @Test
@@ -149,12 +202,19 @@ class SyncServiceTest {
 
     private static final class FakeBankingProtocol implements BankingProtocol {
         private List<Transaction> transactions = List.of();
+        private BigDecimal accountBalance;
+        private LocalDateTime balanceDate;
         private BankingException failure;
 
         @Override
         public List<Transaction> fetchTransactions(BankAccount account, String pin) throws BankingException {
             if (failure != null) throw failure;
             return transactions;
+        }
+
+        @Override
+        public BankingSyncData fetchSyncData(BankAccount account, String pin) throws BankingException {
+            return new BankingSyncData(fetchTransactions(account, pin), accountBalance, balanceDate);
         }
 
         @Override

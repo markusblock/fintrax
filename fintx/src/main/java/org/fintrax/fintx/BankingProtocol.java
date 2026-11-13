@@ -2,6 +2,7 @@ package org.fintrax.fintx;
 
 import org.fintrax.model.BankAccount;
 import org.fintrax.model.Bank;
+import org.fintrax.model.SyncStage;
 import org.fintrax.model.Transaction;
 
 import java.util.List;
@@ -27,6 +28,32 @@ public interface BankingProtocol {
 
     default List<Transaction> fetchTransactions(BankAccount account, Bank bank, String pin) throws BankingException {
         return fetchTransactions(account, pin);
+    }
+
+    /** Fetches transactions and the bank-reported account-level balance in one sync operation. */
+    default BankingSyncData fetchSyncData(BankAccount account, String pin) throws BankingException {
+        return new BankingSyncData(fetchTransactions(account, pin), null, null);
+    }
+
+    /** Fetches transactions and the bank-reported account-level balance in one sync operation. */
+    default BankingSyncData fetchSyncData(BankAccount account, Bank bank, String pin) throws BankingException {
+        return new BankingSyncData(fetchTransactions(account, bank, pin), null, null);
+    }
+
+    default BankingSyncData fetchSyncData(BankAccount account, String pin, Consumer<SyncStage> progress)
+            throws BankingException {
+        if (progress != null) {
+            progress.accept(SyncStage.DATA_RETRIEVAL);
+        }
+        return fetchSyncData(account, pin);
+    }
+
+    default BankingSyncData fetchSyncData(BankAccount account, Bank bank, String pin,
+                                          Consumer<SyncStage> progress) throws BankingException {
+        if (progress != null) {
+            progress.accept(SyncStage.DATA_RETRIEVAL);
+        }
+        return fetchSyncData(account, bank, pin);
     }
 
     boolean validatePin(BankAccount account, String pin) throws BankingException;

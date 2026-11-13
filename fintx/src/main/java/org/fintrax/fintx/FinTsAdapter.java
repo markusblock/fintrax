@@ -8,6 +8,7 @@ import org.fintrax.model.Transaction;
 import org.kapott.hbci.GV.HBCIJob;
 import org.kapott.hbci.GV_Result.GVRKUms;
 import org.kapott.hbci.GV_Result.GVRKUms.UmsLine;
+import org.kapott.hbci.GV_Result.GVRSaldoReq;
 import org.kapott.hbci.callback.AbstractHBCICallback;
 import org.kapott.hbci.manager.BankInfo;
 import org.kapott.hbci.manager.HBCIHandler;
@@ -48,12 +49,35 @@ public class FinTsAdapter implements BankingProtocol {
 
     @Override
     public synchronized List<Transaction> fetchTransactions(BankAccount account, String pin) throws BankingException {
-        return fetchTransactions(account, legacyBankProfile(account), pin);
+        return fetchSyncData(account, legacyBankProfile(account), pin).transactions();
     }
 
     @Override
     public synchronized List<Transaction> fetchTransactions(BankAccount account, Bank bank, String pin)
             throws BankingException {
+        return fetchSyncData(account, bank, pin).transactions();
+    }
+
+    @Override
+    public synchronized BankingSyncData fetchSyncData(BankAccount account, String pin) throws BankingException {
+        return fetchSyncData(account, legacyBankProfile(account), pin);
+    }
+
+    @Override
+    public synchronized BankingSyncData fetchSyncData(BankAccount account, Bank bank, String pin)
+            throws BankingException {
+        return fetchSyncData(account, bank, pin, null);
+    }
+
+    @Override
+    public synchronized BankingSyncData fetchSyncData(BankAccount account, String pin,
+                                                       Consumer<SyncStage> progress) throws BankingException {
+        return fetchSyncData(account, legacyBankProfile(account), pin, progress);
+    }
+
+    @Override
+    public synchronized BankingSyncData fetchSyncData(BankAccount account, Bank bank, String pin,
+                                                       Consumer<SyncStage> progress) throws BankingException {
         List<Transaction> transactions = new ArrayList<>();
 
         HBCIPassport passport = null;
@@ -80,6 +104,7 @@ public class FinTsAdapter implements BankingProtocol {
 
             handle = new HBCIHandler(HBCIVersion.HBCI_300.getId(), passport);
             stage = SyncStage.AUTHENTICATION;
+            reportSyncProgress(progress, stage);
 
             Konto konto = new Konto(bankIdentity.bankCode(), bankIdentity.accountNumber());
             konto.country = "DE";
@@ -92,6 +117,12 @@ public class FinTsAdapter implements BankingProtocol {
             // gives repeated syncs an overlap instead of risking a fixed-window gap.
             umsatzJob.addToQueue();
 
+            HBCIJob saldoJob = handle.newJob("SaldoReq");
+            saldoJob.setParam("my", konto);
+            saldoJob.addToQueue();
+
+            stage = SyncStage.DATA_RETRIEVAL;
+            reportSyncProgress(progress, stage);
             HBCIExecStatus status = handle.execute();
 
             if (!status.isOK()) {
@@ -100,7 +131,6 @@ public class FinTsAdapter implements BankingProtocol {
                         "Bank rejected the transaction sync request.");
             }
 
-            stage = SyncStage.DATA_RETRIEVAL;
             GVRKUms result = (GVRKUms) umsatzJob.getJobResult();
 
             if (!result.isOK()) {
@@ -114,6 +144,20 @@ public class FinTsAdapter implements BankingProtocol {
             for (UmsLine line : result.getFlatDataUnbooked()) {
                 transactions.add(mapUmsLine(line, account.getId(), false));
             }
+
+            GVRSaldoReq saldoResult = (GVRSaldoReq) saldoJob.getJobResult();
+            if (!saldoResult.isOK()) {
+                return new BankingSyncData(transactions, null, null);
+            }
+            GVRSaldoReq.Info[] saldoEntries = saldoResult.getEntries();
+            if (saldoEntries.length == 0 || saldoEntries[0].ready == null
+                    || saldoEntries[0].ready.value == null) {
+                return new BankingSyncData(transactions, null, null);
+            }
+            BigDecimal accountBalance = saldoEntries[0].ready.value.getBigDecimalValue();
+            LocalDateTime balanceDate = saldoEntries[0].ready.timestamp == null ? null
+                    : saldoEntries[0].ready.timestamp.toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
+            return new BankingSyncData(transactions, accountBalance, balanceDate);
 
         } catch (BankingException e) {
             throw withStage(e, e.getSyncStage() == null
@@ -132,8 +176,6 @@ public class FinTsAdapter implements BankingProtocol {
         } finally {
             closeSession(handle, passport, passportFile);
         }
-
-        return transactions;
     }
 
     private BankingException withStage(BankingException exception, SyncStage stage) {
@@ -452,6 +494,12 @@ public class FinTsAdapter implements BankingProtocol {
         }
         log.info("FinTS connection test: {}", message);
         progress.accept(message);
+    }
+
+    private static void reportSyncProgress(Consumer<SyncStage> progress, SyncStage stage) {
+        if (progress != null) {
+            progress.accept(stage);
+        }
     }
 
     private Transaction mapUmsLine(UmsLine line, Long accountId, boolean booked) throws BankingException {
