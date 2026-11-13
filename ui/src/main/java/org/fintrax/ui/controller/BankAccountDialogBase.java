@@ -122,6 +122,20 @@ abstract class BankAccountDialogBase {
 
     protected abstract void importSelectedAccounts();
 
+    protected final int importDiscoveredAccounts(Bank bank, List<DiscoveredBankAccount> discovered) {
+        int imported = 0;
+        for (DiscoveredBankAccount discoveredAccount : discovered) {
+            String iban = BankAccountSelectionPane.normalizeIban(discoveredAccount.iban());
+            if (iban.isBlank()) continue;
+            accountService.createAccount(bank.getId(), iban,
+                    BankAccountSelectionPane.suggestedAccountName(discoveredAccount),
+                    discoveredAccount.accountHolder(), BankAccountSelectionPane.accountTypeFor(discoveredAccount),
+                    BankAccountSelectionPane.defaultCurrency(discoveredAccount.currency()), null);
+            imported++;
+        }
+        return imported;
+    }
+
     protected final String pinForConnection(String bankName) {
         String pin = passwordField.getText();
         if (pin == null || pin.isBlank()) {

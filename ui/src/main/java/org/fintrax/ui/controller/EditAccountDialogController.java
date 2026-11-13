@@ -131,16 +131,7 @@ public class EditAccountDialogController extends BankAccountDialogBase {
             accountService.updateAccount(account.getId(), bank.getId(), accountNameField.getText().trim(),
                     accountHolderField.getText().trim(), accountTypeCombo.getValue(), currencyField.getText().trim(),
                     accountCommentField.getText().trim());
-            int imported = 0;
-            for (DiscoveredBankAccount discoveredAccount : discovered) {
-                String iban = BankAccountSelectionPane.normalizeIban(discoveredAccount.iban());
-                if (iban.isBlank()) continue;
-                accountService.createAccount(bank.getId(), iban,
-                        BankAccountSelectionPane.suggestedAccountName(discoveredAccount),
-                        discoveredAccount.accountHolder(), BankAccountSelectionPane.accountTypeFor(discoveredAccount),
-                        BankAccountSelectionPane.defaultCurrency(discoveredAccount.currency()), null);
-                imported++;
-            }
+            int imported = importDiscoveredAccounts(bank, discovered);
             if (imported > 0) {
                 log.info("Imported {} bank account(s) from {}", imported, bank.getName());
                 close();

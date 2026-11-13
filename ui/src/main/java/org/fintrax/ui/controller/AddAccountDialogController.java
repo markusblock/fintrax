@@ -94,16 +94,7 @@ public class AddAccountDialogController extends BankAccountDialogBase {
         try {
             Bank bank = ensureBankProfile(sourceIban, sourceBic);
             if (bank == null) return;
-            int imported = 0;
-            for (DiscoveredBankAccount discoveredAccount : discovered) {
-                String iban = BankAccountSelectionPane.normalizeIban(discoveredAccount.iban());
-                if (iban.isBlank()) continue;
-                accountService.createAccount(bank.getId(), iban,
-                        BankAccountSelectionPane.suggestedAccountName(discoveredAccount),
-                        discoveredAccount.accountHolder(), BankAccountSelectionPane.accountTypeFor(discoveredAccount),
-                        BankAccountSelectionPane.defaultCurrency(discoveredAccount.currency()), null);
-                imported++;
-            }
+            int imported = importDiscoveredAccounts(bank, discovered);
             if (imported > 0) {
                 log.info("Imported {} bank account(s) from {}", imported, bank.getName());
                 close();
