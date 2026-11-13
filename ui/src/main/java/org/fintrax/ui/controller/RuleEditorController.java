@@ -249,7 +249,7 @@ public class RuleEditorController {
         if (existing != null) {
             row.fieldCombo.setValue(fieldText(existing.getMatchField()));
             row.operatorCombo.setValue(operatorText(existing.getOperator()));
-            row.valueField.setText(existing.getValue() == null ? "" : existing.getValue());
+            row.valueField.setText(conditionEditorValue(existing));
         }
         row.fieldCombo.valueProperty().addListener((observable, oldValue, newValue) -> notifyChanged());
         row.operatorCombo.valueProperty().addListener((observable, oldValue, newValue) -> notifyChanged());
@@ -269,6 +269,18 @@ public class RuleEditorController {
         conditionRows.add(row);
         conditionsContainer.getChildren().addAll(row.grid, row.separator);
         notifyChanged();
+    }
+
+    private String conditionEditorValue(RuleCondition condition) {
+        if (condition.getOperator() == Operator.AMOUNT_RANGE
+                && (condition.getAmountMin() != null || condition.getAmountMax() != null)) {
+            return amountText(condition.getAmountMin()) + ";" + amountText(condition.getAmountMax());
+        }
+        return condition.getValue() == null ? "" : condition.getValue();
+    }
+
+    private String amountText(BigDecimal amount) {
+        return amount == null ? "" : amount.toPlainString();
     }
 
     private void addActionRow(RuleAction existing) {

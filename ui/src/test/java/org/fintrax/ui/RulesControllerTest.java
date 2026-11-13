@@ -60,6 +60,7 @@ class RulesControllerTest extends AbstractUITest {
     private String disabledRuleName;
     private String mergeSourceOneName;
     private String mergeSourceTwoName;
+    private String mergeAmountSourceName;
     private String transactionPurpose;
 
     @Override
@@ -101,6 +102,11 @@ class RulesControllerTest extends AbstractUITest {
                 List.of(RuleAction.builder().actionType(ActionType.ADD_LABEL).labelId(proposedLabelId).build()));
         ruleService.createRule(mergeSourceTwoName, List.of(RuleCondition.builder()
                         .matchField(MatchField.PAYEE_NAME).operator(Operator.CONTAINS).value("MERGE-TWO").build()),
+                List.of(RuleAction.builder().actionType(ActionType.ADD_LABEL).labelId(proposedLabelId).build()));
+        mergeAmountSourceName = "Merge amount source " + suffix;
+        ruleService.createRule(mergeAmountSourceName, List.of(RuleCondition.builder()
+                        .matchField(MatchField.AMOUNT).operator(Operator.AMOUNT_RANGE)
+                        .amountMin(new BigDecimal("1234.56")).amountMax(new BigDecimal("1234.57")).build()),
                 List.of(RuleAction.builder().actionType(ActionType.ADD_LABEL).labelId(proposedLabelId).build()));
         transaction = transactionService.createTransaction(Transaction.builder()
                 .accountId(account.getId()).originalPayee("REVIEW-" + suffix + " purchase").amount(BigDecimal.TEN)
@@ -607,6 +613,27 @@ class RulesControllerTest extends AbstractUITest {
         assertEquals(ruleTable.getColumns().getFirst(), ruleTable.getSortOrder().getFirst());
         assertTrue(ruleTable.getItems().indexOf(mergedRule) < ruleTable.getItems().indexOf(sourceOne));
         assertTrue(ruleTable.getItems().indexOf(mergedRule) < ruleTable.getItems().indexOf(sourceTwo));
+    }
+
+    @Test
+    void creatingMergedRulePreservesAmountRangeBounds() {
+        TableView<Rule> ruleTable = lookup("#ruleTable").query();
+        openMergeRuleEditor(ruleTable, mergeSourceOneName, mergeAmountSourceName);
+
+        String mergedName = "Merged amount rule " + System.nanoTime();
+        TextField nameField = lookup("#ruleNameField").query();
+        interact(() -> nameField.setText(mergedName));
+        assertFalse(lookup("#createRuleSave").queryButton().isDisabled());
+        interact(lookup("#createRuleSave").queryButton()::fire);
+        WaitForAsyncUtils.waitForFxEvents();
+
+        Rule mergedRule = applicationContext.getBean(RuleService.class).getAllRules().stream()
+                .filter(rule -> rule.getName().equals(mergedName)).findFirst().orElseThrow();
+        RuleCondition amountRange = mergedRule.getConditions().stream()
+                .filter(condition -> condition.getOperator() == Operator.AMOUNT_RANGE)
+                .findFirst().orElseThrow();
+        assertEquals(new BigDecimal("1234.56"), amountRange.getAmountMin());
+        assertEquals(new BigDecimal("1234.57"), amountRange.getAmountMax());
     }
 
     @Test
