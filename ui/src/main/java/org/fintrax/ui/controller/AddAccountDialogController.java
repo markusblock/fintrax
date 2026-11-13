@@ -1,48 +1,31 @@
 package org.fintrax.ui.controller;
 
-import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
-import javafx.stage.Stage;
 import lombok.extern.slf4j.Slf4j;
 import org.fintrax.config.I18n;
 import org.fintrax.fintx.BankingException;
 import org.fintrax.fintx.BankDirectoryEntry;
 import org.fintrax.fintx.BankingProtocol;
 import org.fintrax.fintx.DiscoveredBankAccount;
-import org.fintrax.model.ActivityAction;
 import org.fintrax.model.Bank;
 import org.fintrax.model.BankAccount;
-import org.fintrax.model.EntityType;
-import org.fintrax.service.ActivityLogger;
 import org.fintrax.service.AccountService;
+import org.fintrax.service.ActivityLogger;
 import org.fintrax.service.BankService;
-import org.fintrax.ui.FintraxUI;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 @Component
 @Scope("prototype")
 public class AddAccountDialogController extends BankAccountDialogBase {
-    private static final String ACTIVITY_DIAGNOSTICS_MARKER = "\n[FINTRAX_SYNC_DIAGNOSTICS]\n";
-    private static final String WARNING_COPY_STYLE_CLASS = "warning-copy";
-    private static final String SUCCESS_COPY_STYLE_CLASS = "success-copy";
-    private static final String HELP_TEXT_STYLE_CLASS = "help-text";
-    private static final String DANGER_COPY_STYLE_CLASS = "danger-copy";
     private static final String READ_ONLY_FIELD_STYLE_CLASS = "read-only-field";
     private static final String INVALID_IBAN_MESSAGE_KEY = "message.sync.invalidIban";
     private static final String CONNECTION_TEST_SUCCESS_MESSAGE_KEY = "message.fints.connectionTestSuccess";
-    private static final DateTimeFormatter DIAGNOSTIC_TIME = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss");
 
     @FXML
     private TextField ibanField;
@@ -51,35 +34,14 @@ public class AddAccountDialogController extends BankAccountDialogBase {
     @FXML
     private TextField bankCodeField;
     @FXML
-    private TextField bankNameField;
-    @FXML
-    private TextField fintsServerUrlField;
-    @FXML
-    private Label fintsServerStatusLabel;
-    @FXML
     private Label wizardStepLabel;
-    @FXML
-    private TextField fintsUserIdField;
-    @FXML
-    private TextField fintsCustomerIdField;
-    @FXML
-    private PasswordField passwordField;
-    @FXML
-    private TextField bankCommentField;
-    private final AccountService accountService;
-    private final BankingProtocol bankingProtocol;
-    private final BankService bankService;
-    private final ActivityLogger activityLogger;
     private Bank matchedBank;
     private String checkedIban;
 
     @Autowired
     public AddAccountDialogController(AccountService accountService, BankingProtocol bankingProtocol,
                                       BankService bankService, ActivityLogger activityLogger) {
-        this.accountService = accountService;
-        this.bankingProtocol = bankingProtocol;
-        this.bankService = bankService;
-        this.activityLogger = activityLogger;
+        super(accountService, bankingProtocol, bankService, activityLogger);
     }
 
     @FXML
@@ -101,118 +63,28 @@ public class AddAccountDialogController extends BankAccountDialogBase {
                 lookup.found() ? SUCCESS_COPY_STYLE_CLASS : WARNING_COPY_STYLE_CLASS);
     }
 
-    @FXML
-    private void onPrimaryAction() {
-        if (wizard.isShowingSelection()) {
-            importSelectedAccounts();
-        } else {
-            onTestConnection();
-        }
-    }
-
-    @FXML
-    private void onBack() {
-        wizard.showConnectionPage();
-    }
-
-    private void onTestConnection() {
-        String pin = pinForConnection();
+    @Override
+    protected void onTestConnection() {
+        Bank bank = currentBankProfile();
+        String bankName = bankName(bank);
+        String pin = pinForConnection(bankName);
         if (pin == null) return;
         String iban = normalizeIban(ibanField.getText());
         BankAccount account = BankAccount.builder().iban(iban).build();
-        Bank bank = currentBankProfile();
-        List<String> diagnostics = Collections.synchronizedList(new ArrayList<>());
-        String bankName = bankName(bank);
-        ConnectionTestContext context = new ConnectionTestContext(account, bank, pin, bankName, diagnostics);
-        recordConnectionDiagnostic(diagnostics, "Testing bank access for " + bankName);
-        recordConnectionDiagnostic(diagnostics, "Fintrax-Version " + I18n.get("app.version"));
-        log.info("Fintrax-Version {}: bank connection test started for {}", I18n.get("app.version"), bankName);
-
-        testConnectionButton.setDisable(true);
-        saveButton.setDisable(true);
-        showEndpointStatus(I18n.get("message.fints.connectionTestInProgress"), HELP_TEXT_STYLE_CLASS);
-        CompletableFuture.supplyAsync(() -> BankConnectionTestRunner.testAndDiscover(
-                        bankingProtocol, context.account(), context.bank(), context.pin(),
-                        message -> recordConnectionDiagnostic(context.diagnostics(), message)))
-                .whenComplete((result, failure) -> Platform.runLater(
-                        () -> finishConnectionTest(context, result, failure)));
+        startConnectionTest(account, bank, pin, null, bankName);
     }
 
-    private String pinForConnection() {
-        String pin = passwordField.getText();
-        if (pin == null || pin.isBlank()) {
-            pin = promptForPin();
-            if (pin != null && !pin.isBlank()) {
-                passwordField.setText(pin);
-            }
-        }
-        return pin == null || pin.isBlank() ? null : pin;
-    }
+    @FXML
+    protected void onPrimaryAction() { super.onPrimaryAction(); }
 
-    private String bankName(Bank bank) {
-        return bank.getName() == null || bank.getName().isBlank()
-                ? I18n.get("label.bankConnection") : bank.getName();
-    }
+    @FXML
+    protected void onBack() { super.onBack(); }
 
-    private void finishConnectionTest(ConnectionTestContext context, BankConnectionTestRunner.Result result,
-                                      Throwable failure) {
-        testConnectionButton.setDisable(false);
-        saveButton.setDisable(false);
-        if (failure != null) {
-            finishConnectionFailure(context, failure);
-        } else if (!result.connected()) {
-            finishRejectedConnection(context);
-        } else {
-            finishConnectedBank(context, result.accounts());
-        }
-    }
+    @FXML
+    protected void onCancel() { super.onCancel(); }
 
-    private void finishConnectionFailure(ConnectionTestContext context, Throwable failure) {
-        String reason = connectionFailureReason(failure);
-        recordConnectionDiagnostic(context.diagnostics(), "Bank access test failed: " + reason);
-        log.warn("Bank connection test failed for {}: {}", context.bankName(), reason);
-        boolean discoveryFailed = BankingException.FailureReason.ACCOUNT_DISCOVERY_FAILED.name().equals(reason);
-        String messageKey = discoveryFailed
-                ? "message.bankAccounts.discoveryFailed" : "message.fints.connectionTestFailed";
-        showEndpointStatus(I18n.get(messageKey), WARNING_COPY_STYLE_CLASS);
-        recordConnectionOutcome(context, I18n.get(messageKey) + " — " + context.bankName());
-    }
-
-    private void finishRejectedConnection(ConnectionTestContext context) {
-        recordConnectionDiagnostic(context.diagnostics(), "Bank rejected the supplied password / PIN.");
-        log.warn("Bank connection test rejected credentials for {}", context.bankName());
-        String message = I18n.get("message.fints.connectionTestRejected");
-        showEndpointStatus(message, WARNING_COPY_STYLE_CLASS);
-        recordConnectionOutcome(context, message + " — " + context.bankName());
-    }
-
-    private void finishConnectedBank(ConnectionTestContext context, List<DiscoveredBankAccount> discovered) {
-        recordConnectionDiagnostic(context.diagnostics(), "Bank access successfully tested.");
-        log.info("Bank connection test succeeded for {}", context.bankName());
-        String message;
-        if (discovered.isEmpty()) {
-            message = I18n.get("message.bankAccounts.noneFound");
-            showEndpointStatus(message, WARNING_COPY_STYLE_CLASS);
-        } else {
-            message = I18n.get(CONNECTION_TEST_SUCCESS_MESSAGE_KEY);
-            showEndpointStatus(message, SUCCESS_COPY_STYLE_CLASS);
-        }
-        recordConnectionOutcome(context,
-                I18n.get(CONNECTION_TEST_SUCCESS_MESSAGE_KEY) + " — " + context.bankName());
-        if (!discovered.isEmpty()) {
-            accountSelectionPane.setAccounts(discovered,
-                    BankAccountSelectionPane.existingIbans(accountService.getAllAccounts()));
-            accountImportStatusLabel.setText("");
-            wizard.showSelectionPage();
-        }
-    }
-
-    private void recordConnectionOutcome(ConnectionTestContext context, String summary) {
-        String description = summary + ACTIVITY_DIAGNOSTICS_MARKER + String.join("\n", context.diagnostics());
-        activityLogger.log(ActivityAction.EXECUTE, EntityType.ACCOUNT, null, description);
-    }
-
-    private void importSelectedAccounts() {
+    @Override
+    protected void importSelectedAccounts() {
         List<DiscoveredBankAccount> selected = accountSelectionPane.selectedAccounts();
         if (!selected.isEmpty()) {
             importDiscoveredAccounts(selected, normalizeIban(ibanField.getText()), bicField.getText());
@@ -268,24 +140,6 @@ public class AddAccountDialogController extends BankAccountDialogBase {
         matchedBank = bankService.createBank(bankCode, name, bankBic, endpoint, userId,
                 emptyToNull(fintsCustomerIdField.getText()), emptyToNull(bankCommentField.getText()));
         return matchedBank;
-    }
-
-    private void recordConnectionDiagnostic(List<String> diagnostics, String message) {
-        diagnostics.add(LocalDateTime.now(ZoneId.systemDefault()).format(DIAGNOSTIC_TIME) + " " + message);
-    }
-
-    private String connectionFailureReason(Throwable failure) {
-        Throwable cause = failure;
-        while (cause != null && !(cause instanceof BankingException)) {
-            cause = cause.getCause();
-        }
-        return cause instanceof BankingException bankingException
-                ? bankingException.getFailureReason().name() : failure.getClass().getSimpleName();
-    }
-
-    @FXML
-    private void onCancel() {
-        close();
     }
 
     @FXML
@@ -427,12 +281,6 @@ public class AddAccountDialogController extends BankAccountDialogBase {
                 .build();
     }
 
-    protected String promptForPin() {
-        String bankName = bankNameField.getText().isBlank()
-                ? I18n.get("label.bankConnection") : bankNameField.getText().trim();
-        return PinPromptDialog.show(passwordField.getScene().getWindow(), bankName, 1, I18n.get("button.connect"));
-    }
-
     private void setBankProfileReadOnly(boolean readOnly) {
         bankNameField.setEditable(!readOnly);
         bicField.setEditable(!readOnly);
@@ -457,27 +305,6 @@ public class AddAccountDialogController extends BankAccountDialogBase {
         }
     }
 
-    private void close() {
-        passwordField.clear();
-        Stage stage = (Stage) saveButton.getScene().getWindow();
-        stage.close();
-    }
-
-    private void showError(String message) {
-        Alert alert = new Alert(Alert.AlertType.ERROR);
-        alert.setTitle("Error");
-        alert.setContentText(message);
-        FintraxUI.configureDialog(alert);
-        alert.showAndWait();
-    }
-
-    private void showEndpointStatus(String message, String styleClass) {
-        fintsServerStatusLabel.setText(message);
-        fintsServerStatusLabel.getStyleClass().removeAll(HELP_TEXT_STYLE_CLASS, SUCCESS_COPY_STYLE_CLASS,
-                WARNING_COPY_STYLE_CLASS, DANGER_COPY_STYLE_CLASS);
-        fintsServerStatusLabel.getStyleClass().add(styleClass);
-    }
-
     private String normalizeIban(String iban) {
         return iban == null ? "" : iban.trim().replaceAll("\\s+", "").toUpperCase(java.util.Locale.ROOT);
     }
@@ -490,7 +317,4 @@ public class AddAccountDialogController extends BankAccountDialogBase {
         return value == null || value.isBlank() ? null : value.trim();
     }
 
-    private record ConnectionTestContext(BankAccount account, Bank bank, String pin, String bankName,
-                                         List<String> diagnostics) {
-    }
 }
