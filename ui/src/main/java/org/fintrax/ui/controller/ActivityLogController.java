@@ -84,7 +84,6 @@ public class ActivityLogController {
                 cd.getValue().getDescription() != null ? cd.getValue().getDescription() : ""));
         TableCellTooltips.install(logTable);
 
-        setupColumnMenu();
         logTable.setItems(tableData);
 
         actionFilter.getItems().add(I18n.get("activity.allActions"));
@@ -100,6 +99,16 @@ public class ActivityLogController {
         entityTypeFilter.getSelectionModel().selectFirst();
 
         loadLogs();
+        setupColumnMenu();
+        restoreOrInitializeSortOrder();
+    }
+
+    private void restoreOrInitializeSortOrder() {
+        // Apply the first-use default after populating rows so the table retains its sort order.
+        String savedSortOrder = settingsService.getSettingValue(COLUMN_CONFIG_KEY + ".sort");
+        if (savedSortOrder == null || savedSortOrder.isBlank()) {
+            setDefaultSortOrder();
+        }
     }
 
     private void setupColumnMenu() {
@@ -108,7 +117,12 @@ public class ActivityLogController {
                         new TableColumnConfig("action", actionColumn),
                         new TableColumnConfig("entityType", entityTypeColumn),
                         new TableColumnConfig("entityId", entityIdColumn),
-                        new TableColumnConfig("description", descriptionColumn)));
+                        new TableColumnConfig("description", descriptionColumn)), this::setDefaultSortOrder);
+    }
+
+    private void setDefaultSortOrder() {
+        timestampColumn.setSortType(TableColumn.SortType.DESCENDING);
+        logTable.getSortOrder().setAll(timestampColumn);
     }
 
     @FXML
