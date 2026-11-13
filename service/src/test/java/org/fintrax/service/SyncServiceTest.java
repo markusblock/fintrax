@@ -179,14 +179,16 @@ class SyncServiceTest {
     }
 
     @Test
-    void failedSyncReturnsFailureDetailsAndNoReviewableTransactions() {
+    void failedSyncReturnsSafeFailureDetailsAndNoReviewableTransactions() {
         BankAccount account = createAccount();
         bankingProtocol.failure = new BankingException("bank unavailable");
 
         SyncResult result = syncService.syncAccount(account.getId(), "1234");
 
         assertEquals(SyncStatus.FAILED, result.syncLog().getStatus());
-        assertEquals("bank unavailable", result.syncLog().getErrorMessage());
+        assertTrue(result.syncLog().getErrorMessage().contains("UNKNOWN"));
+        assertTrue(result.syncLog().getErrorMessage().contains("BankResponse"));
+        assertFalse(result.syncLog().getErrorMessage().contains("bank unavailable"));
         assertTrue(result.newTransactionIds().isEmpty());
     }
 
