@@ -93,6 +93,60 @@ class SyncServiceTest {
     }
 
     @Test
+    void syncUpgradesMatchingPendingTransactionWithoutDuplicatingIt() {
+        BankAccount account = createAccount();
+        Transaction pending = transaction(account.getId(), "same-checksum", "Pending payee");
+        pending.setBooked(false);
+        transactionService.createTransaction(pending);
+        Transaction booked = transaction(account.getId(), "same-checksum", "Booked payee");
+        bankingProtocol.transactions = List.of(booked);
+
+        SyncResult result = syncService.syncAccount(account.getId(), "1234");
+
+        List<Transaction> stored = transactionService.getTransactionsByAccount(account.getId());
+        assertEquals(1, stored.size());
+        assertEquals(pending.getId(), stored.getFirst().getId());
+        assertTrue(stored.getFirst().isBooked());
+        assertEquals("Booked payee", stored.getFirst().getOriginalPayee());
+        assertEquals(0, result.syncLog().getNewCount());
+        assertEquals(1, result.syncLog().getSkippedCount());
+    }
+
+    @Test
+    void syncDeletesStalePendingTransactionsOnlyAfterCompleteResponse() {
+        BankAccount account = createAccount();
+        Transaction pending = transaction(account.getId(), "stale-pending", "Pending");
+        pending.setBooked(false);
+        transactionService.createTransaction(pending);
+        Transaction booked = transactionService.createTransaction(
+                transaction(account.getId(), "old-booked", "Booked"));
+        bankingProtocol.transactions = List.of(transaction(account.getId(), "incoming", "Incoming"));
+
+        SyncResult result = syncService.syncAccount(account.getId(), "1234");
+
+        List<Transaction> stored = transactionService.getTransactionsByAccount(account.getId());
+        assertEquals(SyncStatus.SUCCESS, result.syncLog().getStatus());
+        assertTrue(stored.stream().noneMatch(transaction -> pending.getId().equals(transaction.getId())));
+        assertTrue(stored.stream().anyMatch(transaction -> booked.getId().equals(transaction.getId())));
+        assertTrue(stored.stream().anyMatch(transaction -> "incoming".equals(transaction.getChecksum())));
+    }
+
+    @Test
+    void failedSyncRetainsPendingTransactions() {
+        BankAccount account = createAccount();
+        Transaction pending = transaction(account.getId(), "pending", "Pending");
+        pending.setBooked(false);
+        transactionService.createTransaction(pending);
+        bankingProtocol.failure = new BankingException("bank unavailable");
+
+        SyncResult result = syncService.syncAccount(account.getId(), "1234");
+
+        assertEquals(SyncStatus.FAILED, result.syncLog().getStatus());
+        assertEquals(1, transactionService.getTransactionsByAccount(account.getId()).size());
+        assertFalse(transactionService.getTransactionsByAccount(account.getId()).getFirst().isBooked());
+    }
+
+    @Test
     void syncUpdatesAccountBalanceFromBankReportedSnapshot() {
         BankAccount account = createAccount();
         Transaction transactionWithDifferentBalance = transaction(account.getId(), "txn", "Purchase");
