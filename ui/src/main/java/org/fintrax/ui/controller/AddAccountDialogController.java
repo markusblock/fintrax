@@ -25,14 +25,9 @@ import java.util.List;
 public class AddAccountDialogController extends BankAccountDialogBase {
     private static final String READ_ONLY_FIELD_STYLE_CLASS = "read-only-field";
     private static final String INVALID_IBAN_MESSAGE_KEY = "message.sync.invalidIban";
-    private static final String CONNECTION_TEST_SUCCESS_MESSAGE_KEY = "message.fints.connectionTestSuccess";
 
     @FXML
     private TextField ibanField;
-    @FXML
-    private TextField bicField;
-    @FXML
-    private TextField bankCodeField;
     @FXML
     private Label wizardStepLabel;
     private Bank matchedBank;
@@ -75,12 +70,15 @@ public class AddAccountDialogController extends BankAccountDialogBase {
     }
 
     @FXML
+    @Override
     protected void onPrimaryAction() { super.onPrimaryAction(); }
 
     @FXML
+    @Override
     protected void onBack() { super.onBack(); }
 
     @FXML
+    @Override
     protected void onCancel() { super.onCancel(); }
 
     @Override

@@ -103,12 +103,15 @@ public class EditAccountDialogController extends BankAccountDialogBase {
     }
 
     @FXML
+    @Override
     protected void onPrimaryAction() { super.onPrimaryAction(); }
 
     @FXML
+    @Override
     protected void onBack() { super.onBack(); }
 
     @FXML
+    @Override
     protected void onCancel() { super.onCancel(); }
 
     @Override
@@ -175,9 +178,6 @@ public class EditAccountDialogController extends BankAccountDialogBase {
 
     private String emptyToNull(String value) {
         return value == null || value.isBlank() ? null : value.trim();
-    }
-
-    private record ConnectionTestContext(Bank bank, String pin, String bankName, List<String> diagnostics) {
     }
 
     private String formatBalance(BankAccount bankAccount) {
