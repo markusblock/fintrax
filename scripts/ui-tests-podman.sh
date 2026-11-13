@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 mode="${1:-focused}"
 original_args=("$@")
 mode_args=()
@@ -94,7 +94,7 @@ if ! podman info >/dev/null 2>&1; then
     exit 1
 fi
 
-vnc_port_setting="${FINTRAX_UI_VNC_PORT:-5900}"
+vnc_port_setting="${FINTRAX_UI_VNC_PORT:-random}"
 use_random_vnc_port=false
 container_name=""
 if [[ "$vnc_port_setting" == "random" ]]; then
@@ -115,20 +115,33 @@ else
 fi
 
 if [[ "${FINTRAX_UI_TEST_LOCK_OWNER_PID:-}" != "$$" ]]; then
-    lock_file="$HOME/.cache/fintrax/ui-tests-podman.lock"
+    worktree_key="$(printf '%s' "$repo_root" | openssl dgst -sha256 | awk '{print substr($NF, 1, 16)}')"
+    lock_directory="$HOME/.cache/fintrax/ui-tests-podman"
+    lock_file="$lock_directory/worktree-$worktree_key.lock"
+    slot_directory="$lock_directory/slots"
     exec bash "$repo_root/scripts/ui-tests-lock.sh" "$lock_file" \
+        --slots "$slot_directory" 1 \
         "$repo_root/scripts/ui-tests-podman.sh" "${original_args[@]}"
 fi
 
 vnc_password="$(openssl rand -hex 4)"
+gradle_cache_directory="${FINTRAX_UI_TEST_GRADLE_CACHE_DIR:-$HOME/.cache/fintrax/test-gradle-podman}"
+mkdir -p "$gradle_cache_directory"
+if [[ ! -e "$gradle_cache_directory/.checkout-cache-seeded" ]]; then
+    if [[ -d "$repo_root/.gradle-podman" ]]; then
+        cp -a "$repo_root/.gradle-podman/." "$gradle_cache_directory/"
+    fi
+    touch "$gradle_cache_directory/.checkout-cache-seeded"
+fi
 
 podman_args=(
     --platform linux/amd64
     --rm
     --userns=keep-id
     --volume "$repo_root:/workspace:rw"
+    --volume "$gradle_cache_directory:/gradle-home:rw"
     --workdir /workspace
-    --env GRADLE_USER_HOME=/workspace/.gradle-podman
+    --env GRADLE_USER_HOME=/gradle-home
     --env FINTRAX_UI_TEST_FAILURE_SCREENSHOT_DIR=/workspace/ui/build/test-failures
     --env "JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=14 -XX:ActiveProcessorCount=2"
     --env "FINTRAX_UI_VNC_PASSWORD=$vnc_password"
@@ -139,7 +152,13 @@ else
     podman_args+=(--publish "127.0.0.1:${vnc_port}:5900")
 fi
 
-image="fintrax-ui-tests:local"
+image_hash="$(
+    cd "$repo_root/tools/ui-tests"
+    { openssl dgst -sha256 Containerfile; openssl dgst -sha256 run-ui-tests.sh; } \
+        | openssl dgst -sha256 \
+        | awk '{print $NF}'
+)"
+image="fintrax-ui-tests:${image_hash}"
 podman build \
     --platform linux/amd64 \
     --file "$repo_root/tools/ui-tests/Containerfile" \
