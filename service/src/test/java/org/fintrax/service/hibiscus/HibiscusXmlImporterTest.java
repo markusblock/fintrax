@@ -1,6 +1,7 @@
 package org.fintrax.service.hibiscus;
 
 import org.fintrax.model.*;
+import org.fintrax.service.BankService;
 import org.fintrax.store.StoreManager;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,13 +22,15 @@ class HibiscusXmlImporterTest {
     private final HibiscusXmlImportTestSupport support = new HibiscusXmlImportTestSupport();
     private Path tempDir;
     private StoreManager store;
+    private BankService bankService;
     private HibiscusXmlImporter importer;
 
     @BeforeEach
     void setUp() throws Exception {
         tempDir = Files.createTempDirectory("fintrax-test");
         store = new StoreManager(tempDir);
-        importer = new HibiscusXmlImporter(store);
+        bankService = new BankService(store, support.noDirectoryProtocol());
+        importer = new HibiscusXmlImporter(store, bankService);
     }
 
     @AfterEach
@@ -77,7 +80,7 @@ class HibiscusXmlImporterTest {
         BankAccount account = store.getRoot().getAccounts().stream()
                 .filter(candidate -> "DE89370400440532013000".equals(candidate.getIban()))
                 .findFirst().orElseThrow();
-        account.setBankName("Edited bank name");
+        account.setAccountName("Edited account name");
         account.setBalance(new BigDecimal("999.99"));
         Rule importedRule = store.getRoot().getRules().stream()
                 .filter(rule -> rule.getName().equals("AGIP"))
@@ -95,7 +98,7 @@ class HibiscusXmlImporterTest {
         assertEquals(5, store.getRoot().getTransactions().size());
         assertEquals(8, store.getRoot().getCategories().size());
         assertEquals(3, store.getRoot().getRules().size());
-        assertEquals("Edited bank name", account.getBankName());
+        assertEquals("Edited account name", account.getAccountName());
         assertEquals(new BigDecimal("999.99"), account.getBalance());
         assertEquals("Renamed imported rule", importedRule.getName());
         assertFalse(importedRule.isEnabled());
@@ -302,11 +305,12 @@ class HibiscusXmlImporterTest {
                 .findFirst().orElse(null);
 
         assertNotNull(firstAccount);
-        assertEquals("Testkonto SEPA", firstAccount.getBankName());
+        assertEquals("Testkonto SEPA", firstAccount.getAccountName());
         assertEquals("Max Mustermann", firstAccount.getAccountHolder());
         assertEquals(new BigDecimal("4.67"), firstAccount.getBalance());
         assertEquals("EUR", firstAccount.getCurrency());
-        assertEquals("COBADEFFXXX", firstAccount.getBic());
+        Bank importedBank = bankService.getBankForAccount(firstAccount).orElseThrow();
+        assertEquals("COBADEFFXXX", importedBank.getBic());
         assertEquals(AccountType.GIRO, firstAccount.getAccountType());
     }
 
@@ -477,7 +481,7 @@ class HibiscusXmlImporterTest {
         importer.importFile(xmlFile, true, true);
 
         BankAccount sparkonto = store.getRoot().getAccounts().stream()
-                .filter(a -> "Sparkasse Sparkonto".equals(a.getBankName()))
+                .filter(a -> "Sparkasse Sparkonto".equals(a.getAccountName()))
                 .findFirst().orElse(null);
 
         assertNotNull(sparkonto);

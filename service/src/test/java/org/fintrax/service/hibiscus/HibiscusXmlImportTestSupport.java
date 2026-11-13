@@ -1,5 +1,9 @@
 package org.fintrax.service.hibiscus;
 
+import org.fintrax.fintx.BankingProtocol;
+import org.fintrax.model.BankAccount;
+import org.fintrax.model.Transaction;
+
 import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -7,8 +11,28 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Comparator;
+import java.util.List;
 
 class HibiscusXmlImportTestSupport {
+
+    BankingProtocol noDirectoryProtocol() {
+        return new BankingProtocol() {
+            @Override
+            public List<Transaction> fetchTransactions(BankAccount account, String pin) {
+                return List.of();
+            }
+
+            @Override
+            public boolean validatePin(BankAccount account, String pin) {
+                return true;
+            }
+
+            @Override
+            public String getProtocolName() {
+                return "Hibiscus import test protocol";
+            }
+        };
+    }
 
     File loadXmlTestData(String resourcePath) {
         java.net.URL url = getClass().getResource(resourcePath);

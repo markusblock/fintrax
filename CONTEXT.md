@@ -87,13 +87,34 @@ The way a Category Rule evaluates its pattern: regex or contains matching.
 
 ### Accounts
 
+**Bank**:
+A bank connection identity shared by one or more Bank Accounts, matched by BLZ when available. Stores bank name, BIC, BLZ, FinTS server address, FinTS User ID, optional Customer ID, and comment; PIN/password is never persisted.
+
+**FinTS User ID**:
+The login identifier used for a Bank's FinTS connection; it is distinct from an account's display name or account holder.
+
+**FinTS Customer ID**:
+A bank-specific identifier supplied separately from the FinTS User ID when required; it may be blank when the bank instructs.
+
+**Bank Account**:
+An individual financial account identified by IBAN and linked to one Bank; its account name, account holder, type, currency, and comment are account-specific.
+
 **Fintrax Account Identity**:
 The stable identity of a Fintrax account: its internal account ID, associated with an IBAN when available. The IBAN identifies the bank account for sync and Hibiscus matching; it is not changed when editing account details.
+
+**Bankleitzahl (BLZ)**:
+The German bank routing code encoded in a German IBAN and used to identify the bank for FinTS.
+
+**BIC**:
+A code identifying a financial institution; it is not a FinTS server address.
+
+**FinTS Server Address**:
+The HTTPS endpoint used to communicate with a bank through FinTS.
 
 ### Account Import
 
 **Hibiscus Account**:
-An account defined in a Hibiscus XML export, carrying an optional IBAN and account details.
+An account defined in a Hibiscus XML export, carrying an optional IBAN and account details. Map `<bezeichnung>` to Bank Account name and `<name>` to Bank Account holder; neither supplies FinTS User ID.
 
 **Account Match**:
 An existing Fintrax account with the same normalized, non-empty IBAN. A match reuses the Fintrax account without changing its details; an account without an IBAN is not matched.
@@ -110,6 +131,15 @@ An association between an incoming Hibiscus Transaction and an existing Fintrax 
 
 **Transaction Details**:
 User-facing information describing a transaction, including its account, dates, payees, purpose, amount, balance, type, booking status, and bank references. Source checksums, internal identifiers, and audit timestamps are not transaction details.
+
+**Booked Transaction**:
+A transaction the financial institution confirms as booked.
+
+**Pending Transaction**:
+A transaction the financial institution reports as unbooked; it may later become a Booked Transaction.
+
+**Bank Transaction Sync**:
+An on-demand retrieval of transactions for a Fintrax Account from its financial institution.
 
 ### Data Reset
 

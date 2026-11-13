@@ -6,6 +6,7 @@ import org.eclipse.store.storage.embedded.types.EmbeddedStorageManager;
 import org.fintrax.model.*;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.HashSet;
 import java.util.Set;
@@ -29,6 +30,10 @@ public class StoreManager {
         log.info("Initializing StoreManager at {}", storagePath);
         storage = EmbeddedStorage.start(storagePath);
         root = storage.ensureRoot(DataRoot::new);
+        if (root.getBanks() == null) {
+            root.setBanks(new ArrayList<>());
+            storage.store(root);
+        }
         log.info("DataRoot initialized");
 
         if (!root.getCategories().isEmpty()) {
@@ -158,10 +163,12 @@ public class StoreManager {
         lock.writeLock().lock();
         try {
             if (groups.contains(ResetGroup.ACCOUNTS_TRANSACTIONS_HISTORY)) {
+                root.getBanks().clear();
                 root.getAccounts().clear();
                 root.getTransactions().clear();
                 root.getSyncLogs().clear();
                 root.getActivityLogs().clear();
+                storage.store(root.getBanks());
                 storage.store(root.getAccounts());
                 storage.store(root.getTransactions());
                 storage.store(root.getSyncLogs());

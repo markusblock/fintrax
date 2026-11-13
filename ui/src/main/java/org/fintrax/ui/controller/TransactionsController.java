@@ -376,6 +376,9 @@ public class TransactionsController {
 
         tableData.setAll(filtered);
         transactionTable.setItems(tableData);
+        if (!transactionTable.getSortOrder().isEmpty()) {
+            transactionTable.sort();
+        }
     }
 
     private void reloadTransactionsKeepingSelection() {

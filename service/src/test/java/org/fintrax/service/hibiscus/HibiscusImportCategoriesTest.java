@@ -1,6 +1,7 @@
 package org.fintrax.service.hibiscus;
 
 import org.fintrax.model.*;
+import org.fintrax.service.BankService;
 import org.fintrax.store.StoreManager;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -41,7 +42,7 @@ class HibiscusImportCategoriesTest {
     void setUp() throws Exception {
         tempDir = Files.createTempDirectory("fintrax-test");
         store = new StoreManager(tempDir);
-        importer = new HibiscusXmlImporter(store);
+        importer = new HibiscusXmlImporter(store, new BankService(store, support.noDirectoryProtocol()));
     }
 
     @AfterEach
@@ -218,7 +219,8 @@ class HibiscusImportCategoriesTest {
         Path reversedDir = Files.createTempDirectory("fintrax-reversed");
         StoreManager reversedStore = new StoreManager(reversedDir);
         try {
-            new HibiscusXmlImporter(reversedStore).importFile(reversed, true, true);
+            BankService reversedBankService = new BankService(reversedStore, support.noDirectoryProtocol());
+            new HibiscusXmlImporter(reversedStore, reversedBankService).importFile(reversed, true, true);
             assertEquals(normalShape, treeShape(reversedStore),
                     "Category tree must not depend on XML object order");
         } finally {

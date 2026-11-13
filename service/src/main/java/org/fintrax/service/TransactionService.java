@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
 import java.util.Collection;
@@ -45,15 +46,42 @@ public class TransactionService {
             transaction.setId(nextId++);
         }
         if (transaction.getCreatedAt() == null) {
-            transaction.setCreatedAt(LocalDateTime.now());
+            transaction.setCreatedAt(LocalDateTime.now(ZoneId.systemDefault()));
         }
-        transaction.setUpdatedAt(LocalDateTime.now());
+        transaction.setUpdatedAt(LocalDateTime.now(ZoneId.systemDefault()));
 
         store.getRoot().getTransactions().add(transaction);
         store.store(store.getRoot().getTransactions());
 
         log.debug("Created transaction {}", transaction.getId());
         return transaction;
+    }
+
+    public Transaction updateFromBank(Transaction stored, Transaction received) {
+        stored.setAccountId(received.getAccountId());
+        if (received.getOriginalPayee() != null) stored.setOriginalPayee(received.getOriginalPayee());
+        if (received.getPurpose() != null && !received.getPurpose().isBlank()) stored.setPurpose(received.getPurpose());
+        if (received.getAmount() != null) stored.setAmount(received.getAmount());
+        if (received.getBookingDate() != null) stored.setBookingDate(received.getBookingDate());
+        if (received.getValueDate() != null) stored.setValueDate(received.getValueDate());
+        if (received.getBalanceAfter() != null) stored.setBalanceAfter(received.getBalanceAfter());
+        if (received.getTransactionType() != null) stored.setTransactionType(received.getTransactionType());
+        if (received.getChecksum() != null) stored.setChecksum(received.getChecksum());
+        if (received.getEndToEndId() != null) stored.setEndToEndId(received.getEndToEndId());
+        if (received.getMandateId() != null) stored.setMandateId(received.getMandateId());
+        if (received.getCreditorId() != null) stored.setCreditorId(received.getCreditorId());
+        stored.setBooked(stored.isBooked() || received.isBooked());
+        stored.setUpdatedAt(LocalDateTime.now(ZoneId.systemDefault()));
+        store.store(stored);
+        return stored;
+    }
+
+    public void deleteTransactions(Collection<Long> transactionIds) {
+        if (transactionIds.isEmpty()) {
+            return;
+        }
+        store.getRoot().getTransactions().removeIf(transaction -> transactionIds.contains(transaction.getId()));
+        store.store(store.getRoot().getTransactions());
     }
 
     public Optional<Transaction> getTransaction(Long id) {
@@ -193,7 +221,7 @@ public class TransactionService {
         }
 
         transaction.setCategoryId(categoryId);
-        transaction.setUpdatedAt(LocalDateTime.now());
+        transaction.setUpdatedAt(LocalDateTime.now(ZoneId.systemDefault()));
 
         store.store(transaction);
 
@@ -210,7 +238,7 @@ public class TransactionService {
         }
 
         transaction.setLabelIds(labelIds);
-        transaction.setUpdatedAt(LocalDateTime.now());
+        transaction.setUpdatedAt(LocalDateTime.now(ZoneId.systemDefault()));
 
         store.store(transaction);
 
@@ -227,7 +255,7 @@ public class TransactionService {
         }
 
         transaction.setNote(note);
-        transaction.setUpdatedAt(LocalDateTime.now());
+        transaction.setUpdatedAt(LocalDateTime.now(ZoneId.systemDefault()));
 
         store.store(transaction);
 
@@ -244,7 +272,7 @@ public class TransactionService {
         }
 
         transaction.setPayeeDisplay(payeeDisplay);
-        transaction.setUpdatedAt(LocalDateTime.now());
+        transaction.setUpdatedAt(LocalDateTime.now(ZoneId.systemDefault()));
 
         store.store(transaction);
 
@@ -270,7 +298,7 @@ public class TransactionService {
                         : new HashSet<>(transaction.getLabelIds());
                 labelIds.add(labelId);
                 transaction.setLabelIds(labelIds);
-                transaction.setUpdatedAt(LocalDateTime.now());
+                transaction.setUpdatedAt(LocalDateTime.now(ZoneId.systemDefault()));
                 store.store(transaction);
             }
         }
@@ -286,7 +314,7 @@ public class TransactionService {
                         : new HashSet<>(transaction.getLabelIds());
                 labelIds.remove(labelId);
                 transaction.setLabelIds(labelIds);
-                transaction.setUpdatedAt(LocalDateTime.now());
+                transaction.setUpdatedAt(LocalDateTime.now(ZoneId.systemDefault()));
                 store.store(transaction);
             }
         }

@@ -10,6 +10,7 @@ import java.util.Map;
 
 @Data
 public class DataRoot {
+    private List<Bank> banks = new ArrayList<>();
     private List<BankAccount> accounts = new ArrayList<>();
     private List<Transaction> transactions = new ArrayList<>();
     private List<Category> categories = new ArrayList<>();

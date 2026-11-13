@@ -3,6 +3,7 @@ package org.fintrax.service.hibiscus;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.fintrax.model.*;
+import org.fintrax.service.BankService;
 import org.fintrax.store.DataRoot;
 import org.fintrax.store.StoreManager;
 import org.springframework.stereotype.Service;
@@ -37,9 +38,11 @@ public class HibiscusXmlImporter {
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd.MM.yyyy[ HH:mm:ss]");
 
     private final StoreManager storeManager;
+    private final BankService bankService;
 
-    public HibiscusXmlImporter(StoreManager storeManager) {
+    public HibiscusXmlImporter(StoreManager storeManager, BankService bankService) {
         this.storeManager = storeManager;
+        this.bankService = bankService;
     }
 
     public ImportResult importFile(File xmlFile, boolean importCategories, boolean importRules) {
@@ -300,6 +303,7 @@ public class HibiscusXmlImporter {
                 activitiesCreated++;
             }
 
+            storeManager.store(root.getBanks());
             storeManager.store(root.getAccounts());
             storeManager.store(root.getTransactions());
             storeManager.store(root.getCategories());
@@ -465,6 +469,7 @@ public class HibiscusXmlImporter {
         String iban = getChildText(elem, "iban");
         String bic = getChildText(elem, "bic");
         String name = getChildText(elem, "name");
+        String comment = getChildText(elem, "kommentar");
         String waehrung = getChildText(elem, "waehrung");
         String saldoStr = getChildText(elem, "saldo");
         String saldoDatumStr = getChildText(elem, "saldo_datum");
@@ -483,6 +488,7 @@ public class HibiscusXmlImporter {
         }
 
         long newId = nextAccountId(root);
+        Bank bank = bankService.findOrCreateForImport(iban, bic);
 
         BigDecimal balance = saldoStr != null ? new BigDecimal(saldoStr) : BigDecimal.ZERO;
         LocalDateTime balanceDate = saldoDatumStr != null ? parseDateTime(saldoDatumStr) : LocalDateTime.now();
@@ -494,12 +500,13 @@ public class HibiscusXmlImporter {
 
         BankAccount account = BankAccount.builder()
                 .id(newId)
+                .bankId(bank.getId())
                 .iban(iban)
-                .bic(bic)
-                .bankName(bezeichnung)
+                .accountName(bezeichnung)
                 .accountHolder(name)
                 .accountType(accountType)
                 .currency(waehrung != null ? waehrung : "EUR")
+                .comment(comment)
                 .balance(balance)
                 .balanceDate(balanceDate)
                 .createdAt(LocalDateTime.now())
@@ -692,16 +699,19 @@ public class HibiscusXmlImporter {
 
     private record CategoryKey(String name, Integer parentHibiscusId) {}
 
-    private record ImportSnapshot(List<BankAccount> accounts, List<Transaction> transactions,
+    private record ImportSnapshot(List<Bank> banks, List<BankAccount> accounts, List<Transaction> transactions,
                                   List<Category> categories, List<Rule> rules,
                                   List<ActivityLog> activityLogs) {
         private static ImportSnapshot capture(DataRoot root) {
-            return new ImportSnapshot(List.copyOf(root.getAccounts()), List.copyOf(root.getTransactions()),
+            return new ImportSnapshot(List.copyOf(root.getBanks()), List.copyOf(root.getAccounts()),
+                    List.copyOf(root.getTransactions()),
                     List.copyOf(root.getCategories()), List.copyOf(root.getRules()),
                     List.copyOf(root.getActivityLogs()));
         }
 
         private void restore(DataRoot root) {
+            root.getBanks().clear();
+            root.getBanks().addAll(banks);
             root.getAccounts().clear();
             root.getAccounts().addAll(accounts);
             root.getTransactions().clear();
@@ -715,6 +725,7 @@ public class HibiscusXmlImporter {
         }
 
         private void persist(DataRoot root, StoreManager storeManager) {
+            storeManager.store(root.getBanks());
             storeManager.store(root.getAccounts());
             storeManager.store(root.getTransactions());
             storeManager.store(root.getCategories());
