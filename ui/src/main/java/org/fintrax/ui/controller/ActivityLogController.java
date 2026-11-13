@@ -84,7 +84,6 @@ public class ActivityLogController {
                 cd.getValue().getDescription() != null ? cd.getValue().getDescription() : ""));
         TableCellTooltips.install(logTable);
 
-        setupColumnMenu();
         logTable.setItems(tableData);
 
         actionFilter.getItems().add(I18n.get("activity.allActions"));
@@ -100,6 +99,7 @@ public class ActivityLogController {
         entityTypeFilter.getSelectionModel().selectFirst();
 
         loadLogs();
+        setupColumnMenu();
         // Apply the first-use default after populating rows so the table retains its sort order.
         String savedSortOrder = settingsService.getSettingValue(COLUMN_CONFIG_KEY + ".sort");
         if (savedSortOrder == null || savedSortOrder.isBlank()) {
