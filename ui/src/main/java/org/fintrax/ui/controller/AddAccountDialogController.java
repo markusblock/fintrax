@@ -109,8 +109,9 @@ public class AddAccountDialogController {
         accountSelectionHost.getChildren().setAll(accountSelectionPane);
         VBox.setVgrow(accountSelectionPane, Priority.ALWAYS);
         wizard = new AccountSetupWizard(connectionPage, accountSelectionPage, backButton, saveButton,
-                testConnectionButton, accountSelectionPane, showingSelection -> wizardStepLabel.setText(
-                        I18n.get(showingSelection ? "wizard.addAccount.accountsStep" : "wizard.addAccount.bankStep")));
+                testConnectionButton, accountSelectionPane,
+                () -> wizardStepLabel.setText(I18n.get("wizard.addAccount.accountsStep")),
+                () -> wizardStepLabel.setText(I18n.get("wizard.addAccount.bankStep")));
         accountSelectionPane.selectedCountProperty().addListener(
                 (observable, oldValue, newValue) -> wizard.updatePrimaryButton());
     }

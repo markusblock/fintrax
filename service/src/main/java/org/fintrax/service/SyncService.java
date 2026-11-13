@@ -127,8 +127,8 @@ public class SyncService {
             validateFetchedTransactions(accountId, fetchedTransactions, currentStage, cancellationRequested);
             currentStage.set(SyncStage.DATA_IMPORT);
             syncLog.setStage(currentStage.get());
-            importFetchedTransactions(accountId, syncData, fetchedTransactions, downloadedCount, importCounts,
-                    syncLog, currentStage, progress, cancellationRequested);
+            importFetchedTransactions(accountId, syncData, importCounts, syncLog, currentStage,
+                    progress, cancellationRequested);
             recordSuccessfulSync(accountId, syncLog, downloadedCount, importCounts, progress);
         } catch (Exception e) {
             if (isCancellationRequested(cancellationRequested)) {
@@ -189,11 +189,12 @@ public class SyncService {
     }
 
     private void importFetchedTransactions(Long accountId, BankingSyncData syncData,
-                                           List<Transaction> fetchedTransactions, int downloadedCount,
                                            ImportCounts importCounts, SyncLog syncLog,
                                            AtomicReference<SyncStage> currentStage,
                                            Consumer<SyncProgress> progress,
                                            BooleanSupplier cancellationRequested) {
+        List<Transaction> fetchedTransactions = syncData.transactions();
+        int downloadedCount = fetchedTransactions.size();
         currentStage.set(SyncStage.DATA_IMPORT);
         syncLog.setStage(currentStage.get());
         reportProgress(progress, accountId, currentStage.get(), downloadedCount, 0, 0);

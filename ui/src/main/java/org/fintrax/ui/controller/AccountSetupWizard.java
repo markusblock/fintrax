@@ -4,8 +4,6 @@ import javafx.scene.Node;
 import javafx.scene.control.Button;
 import org.fintrax.config.I18n;
 
-import java.util.function.Consumer;
-
 final class AccountSetupWizard {
     private final Node connectionPage;
     private final Node selectionPage;
@@ -13,19 +11,21 @@ final class AccountSetupWizard {
     private final Button saveButton;
     private final Button primaryButton;
     private final BankAccountSelectionPane selectionPane;
-    private final Consumer<Boolean> pageChanged;
+    private final Runnable onShowSelectionPage;
+    private final Runnable onShowConnectionPage;
     private boolean showingSelection;
 
     AccountSetupWizard(Node connectionPage, Node selectionPage, Button backButton, Button saveButton,
                        Button primaryButton, BankAccountSelectionPane selectionPane,
-                       Consumer<Boolean> pageChanged) {
+                       Runnable onShowSelectionPage, Runnable onShowConnectionPage) {
         this.connectionPage = connectionPage;
         this.selectionPage = selectionPage;
         this.backButton = backButton;
         this.saveButton = saveButton;
         this.primaryButton = primaryButton;
         this.selectionPane = selectionPane;
-        this.pageChanged = pageChanged == null ? ignored -> { } : pageChanged;
+        this.onShowSelectionPage = onShowSelectionPage == null ? () -> { } : onShowSelectionPage;
+        this.onShowConnectionPage = onShowConnectionPage == null ? () -> { } : onShowConnectionPage;
         showConnectionPage();
     }
 
@@ -39,7 +39,7 @@ final class AccountSetupWizard {
         setManagedVisible(selectionPage, true);
         setManagedVisible(backButton, true);
         setManagedVisible(saveButton, false);
-        pageChanged.accept(true);
+        onShowSelectionPage.run();
         updatePrimaryButton();
     }
 
@@ -49,7 +49,7 @@ final class AccountSetupWizard {
         setManagedVisible(connectionPage, true);
         setManagedVisible(backButton, false);
         setManagedVisible(saveButton, true);
-        pageChanged.accept(false);
+        onShowConnectionPage.run();
         updatePrimaryButton();
     }
 

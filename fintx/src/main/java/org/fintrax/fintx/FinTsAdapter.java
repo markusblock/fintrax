@@ -29,9 +29,10 @@ import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.net.URISyntaxException;
-import java.nio.file.FileSystems;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.attribute.FileAttribute;
+import java.nio.file.attribute.PosixFileAttributeView;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.security.SecureRandom;
@@ -53,6 +54,7 @@ public class FinTsAdapter implements BankingProtocol {
     private static final String PROTOCOL_NAME = "FinTS/HBCI";
     private static final String PASSPORT_FILE_PREFIX = "fintrax_passport_";
     private static final String PASSPORT_FILE_SUFFIX = ".dat";
+    private static final String PASSPORT_DIRECTORY_PREFIX = ".fintrax-passport-";
     private static final String PASSPORT_FILTER_TYPE = "Base64";
     private static final Set<PosixFilePermission> PRIVATE_PASSPORT_FILE_PERMISSIONS =
             PosixFilePermissions.fromString("rw-------");
@@ -101,7 +103,8 @@ public class FinTsAdapter implements BankingProtocol {
             Endpoint endpoint = resolveEndpoint(bank, bankIdentity);
             callback.setEndpoint(endpoint);
 
-            session.passportFile = createPassportTempFile();
+            session.passportDirectory = createPassportTempDirectory();
+            session.passportFile = createPassportTempFile(session.passportDirectory);
             session.passport = AbstractHBCIPassport.getInstance(session.passportFile);
 
             session.passport.setCountry("DE");
@@ -250,7 +253,8 @@ public class FinTsAdapter implements BankingProtocol {
             callback.setEndpoint(endpoint);
 
             reportProgress(progress, "open pin/tan passport");
-            session.passportFile = createPassportTempFile();
+            session.passportDirectory = createPassportTempDirectory();
+            session.passportFile = createPassportTempFile(session.passportDirectory);
             session.passport = AbstractHBCIPassport.getInstance(session.passportFile);
 
             session.passport.setCountry("DE");
@@ -312,7 +316,8 @@ public class FinTsAdapter implements BankingProtocol {
             callback.setEndpoint(endpoint);
 
             reportProgress(progress, "open pin/tan passport");
-            session.passportFile = createPassportTempFile();
+            session.passportDirectory = createPassportTempDirectory();
+            session.passportFile = createPassportTempFile(session.passportDirectory);
             session.passport = AbstractHBCIPassport.getInstance(session.passportFile);
             session.passport.setCountry("DE");
             session.passport.setBLZ(bankIdentity.bankCode());
@@ -484,22 +489,24 @@ public class FinTsAdapter implements BankingProtocol {
         return queryStart < 0 ? endpoint.hostAndPath() : endpoint.hostAndPath().substring(0, queryStart);
     }
 
-    private File createPassportTempFile() throws IOException {
-        if (FileSystems.getDefault().supportedFileAttributeViews().contains("posix")) {
+    private Path createPassportTempDirectory() throws IOException {
+        Path userHome = Path.of(System.getProperty("user.home"));
+        if (Files.getFileAttributeView(userHome, PosixFileAttributeView.class) != null) {
+            FileAttribute<Set<PosixFilePermission>> permissions = PosixFilePermissions
+                    .asFileAttribute(PosixFilePermissions.fromString("rwx------"));
+            return Files.createTempDirectory(userHome, PASSPORT_DIRECTORY_PREFIX, permissions);
+        }
+        return Files.createTempDirectory(userHome, PASSPORT_DIRECTORY_PREFIX);
+    }
+
+    private File createPassportTempFile(Path privateDirectory) throws IOException {
+        if (Files.getFileAttributeView(privateDirectory, PosixFileAttributeView.class) != null) {
             FileAttribute<Set<PosixFilePermission>> permissions = PosixFilePermissions
                     .asFileAttribute(PRIVATE_PASSPORT_FILE_PERMISSIONS);
-            return Files.createTempFile(PASSPORT_FILE_PREFIX, PASSPORT_FILE_SUFFIX, permissions).toFile();
+            return Files.createTempFile(privateDirectory, PASSPORT_FILE_PREFIX, PASSPORT_FILE_SUFFIX,
+                    permissions).toFile();
         }
-
-        File file = Files.createTempFile(PASSPORT_FILE_PREFIX, PASSPORT_FILE_SUFFIX).toFile();
-        file.setReadable(false, false);
-        file.setWritable(false, false);
-        file.setExecutable(false, false);
-        if (!file.setReadable(true, true) || !file.setWritable(true, true)) {
-            Files.deleteIfExists(file.toPath());
-            throw new IOException("Could not restrict temporary passport file permissions.");
-        }
-        return file;
+        return Files.createTempFile(privateDirectory, PASSPORT_FILE_PREFIX, PASSPORT_FILE_SUFFIX).toFile();
     }
 
     private static void reportProgress(Consumer<String> progress, String message) {
@@ -597,39 +604,12 @@ public class FinTsAdapter implements BankingProtocol {
         return false;
     }
 
-    private void closeSession(HBCIHandler handle, HBCIPassport passport, File passportFile,
-                              Consumer<String> progress) {
-        if (handle != null) {
-            try {
-                handle.close();
-            } catch (Exception e) {
-                log.warn("Bank session handler could not be closed");
-            }
-        }
-        if (passport != null) {
-            reportProgress(progress, "closing pin/tan passport");
-            try {
-                passport.close();
-                reportProgress(progress, "pin/tan passport closed");
-            } catch (Exception e) {
-                log.warn("Bank session passport could not be closed");
-            }
-        }
-        if (passportFile != null) {
-            try {
-                Files.deleteIfExists(passportFile.toPath());
-            } catch (Exception e) {
-                log.warn("Temporary bank session file could not be removed");
-            }
-        }
-        HBCIUtils.doneThread();
-    }
-
     private final class PassportSession implements AutoCloseable {
         private final Consumer<String> progress;
         private HBCIPassport passport;
         private HBCIHandler handle;
         private File passportFile;
+        private Path passportDirectory;
 
         private PassportSession(Consumer<String> progress) {
             this.progress = progress;
@@ -637,7 +617,37 @@ public class FinTsAdapter implements BankingProtocol {
 
         @Override
         public void close() {
-            closeSession(handle, passport, passportFile, progress);
+            if (handle != null) {
+                try {
+                    handle.close();
+                } catch (Exception e) {
+                    log.warn("Bank session handler could not be closed");
+                }
+            }
+            if (passport != null) {
+                reportProgress(progress, "closing pin/tan passport");
+                try {
+                    passport.close();
+                    reportProgress(progress, "pin/tan passport closed");
+                } catch (Exception e) {
+                    log.warn("Bank session passport could not be closed");
+                }
+            }
+            if (passportFile != null) {
+                try {
+                    Files.deleteIfExists(passportFile.toPath());
+                } catch (Exception e) {
+                    log.warn("Temporary bank session file could not be removed");
+                }
+            }
+            if (passportDirectory != null) {
+                try {
+                    Files.deleteIfExists(passportDirectory);
+                } catch (Exception e) {
+                    log.warn("Temporary bank session directory could not be removed");
+                }
+            }
+            HBCIUtils.doneThread();
         }
     }
 

@@ -120,7 +120,7 @@ public class EditAccountDialogController {
         accountSelectionHost.getChildren().setAll(accountSelectionPane);
         VBox.setVgrow(accountSelectionPane, Priority.ALWAYS);
         wizard = new AccountSetupWizard(connectionPage, accountSelectionPage, backButton, saveButton,
-                testConnectionButton, accountSelectionPane, null);
+                testConnectionButton, accountSelectionPane, null, null);
         accountSelectionPane.selectedCountProperty().addListener(
                 (observable, oldValue, newValue) -> wizard.updatePrimaryButton());
     }
