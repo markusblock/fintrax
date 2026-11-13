@@ -745,9 +745,13 @@ class RulesControllerTest extends AbstractUITest {
     }
 
     private TableRow<?> rowForRule(TableView<Rule> table, String name) {
+        Rule rule = table.getItems().stream()
+                .filter(item -> item.getName().equals(name)).findFirst().orElseThrow();
+        interact(() -> table.scrollTo(rule));
+        WaitForAsyncUtils.waitForFxEvents();
         return table.lookupAll(".table-row-cell").stream()
                 .filter(node -> node instanceof TableRow<?> row && !row.isEmpty()
-                        && row.getItem() instanceof Rule rule && rule.getName().equals(name))
+                        && row.getItem() instanceof Rule rowRule && rowRule.getName().equals(name))
                 .map(node -> (TableRow<?>) node)
                 .findFirst().orElseThrow();
     }

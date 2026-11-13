@@ -456,8 +456,7 @@ public class RulesController {
 
         Set<Long> selectedIds = selectedRules.stream().map(Rule::getId).collect(Collectors.toSet());
         List<Rule> mergeTargets = ruleData.stream()
-                .filter(rule -> !selectedIds.contains(rule.getId()))
-                .filter(rule -> !hasLegacyNoteAction(rule)).toList();
+                .filter(rule -> !selectedIds.contains(rule.getId())).toList();
         if (selectedRules.size() == 1 && mergeTargets.isEmpty()) {
             showMergeUnavailable("rules.merge.error.noCompatibleTarget");
             return;
@@ -468,6 +467,10 @@ public class RulesController {
                             .filter(rule -> Objects.equals(rule.getId(), options.targetRuleId()))
                             .findFirst().orElse(null);
                     if (options.targetRuleId() != null && target == null) return;
+                    if (target != null && hasLegacyNoteAction(target)) {
+                        showMergeUnavailable("rules.merge.error.legacyNoteTarget");
+                        return;
+                    }
                     openMergedRuleEditor(selectedRules, target, options.deleteSourceRules());
                 });
     }
