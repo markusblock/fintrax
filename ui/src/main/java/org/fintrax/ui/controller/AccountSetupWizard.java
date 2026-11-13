@@ -11,21 +11,19 @@ final class AccountSetupWizard {
     private final Button saveButton;
     private final Button primaryButton;
     private final BankAccountSelectionPane selectionPane;
-    private final Runnable onShowSelectionPage;
-    private final Runnable onShowConnectionPage;
+    private final PageChangeListener pageChanged;
     private boolean showingSelection;
 
     AccountSetupWizard(Node connectionPage, Node selectionPage, Button backButton, Button saveButton,
                        Button primaryButton, BankAccountSelectionPane selectionPane,
-                       Runnable onShowSelectionPage, Runnable onShowConnectionPage) {
+                       PageChangeListener pageChanged) {
         this.connectionPage = connectionPage;
         this.selectionPage = selectionPage;
         this.backButton = backButton;
         this.saveButton = saveButton;
         this.primaryButton = primaryButton;
         this.selectionPane = selectionPane;
-        this.onShowSelectionPage = onShowSelectionPage == null ? () -> { } : onShowSelectionPage;
-        this.onShowConnectionPage = onShowConnectionPage == null ? () -> { } : onShowConnectionPage;
+        this.pageChanged = pageChanged == null ? ignored -> { } : pageChanged;
         showConnectionPage();
     }
 
@@ -39,7 +37,7 @@ final class AccountSetupWizard {
         setManagedVisible(selectionPage, true);
         setManagedVisible(backButton, true);
         setManagedVisible(saveButton, false);
-        onShowSelectionPage.run();
+        pageChanged.changed(true);
         updatePrimaryButton();
     }
 
@@ -49,7 +47,7 @@ final class AccountSetupWizard {
         setManagedVisible(connectionPage, true);
         setManagedVisible(backButton, false);
         setManagedVisible(saveButton, true);
-        onShowConnectionPage.run();
+        pageChanged.changed(false);
         updatePrimaryButton();
     }
 
@@ -67,5 +65,10 @@ final class AccountSetupWizard {
     private void setManagedVisible(Node node, boolean visible) {
         node.setVisible(visible);
         node.setManaged(visible);
+    }
+
+    @FunctionalInterface
+    interface PageChangeListener {
+        void changed(boolean showingSelection);
     }
 }

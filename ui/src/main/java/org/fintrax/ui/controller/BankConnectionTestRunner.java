@@ -21,7 +21,9 @@ final class BankConnectionTestRunner {
             if (!connected) {
                 return new Result(false, List.of());
             }
-            progress.accept("Starting bank account discovery");
+            if (progress != null) {
+                progress.accept("Starting bank account discovery");
+            }
             return new Result(true, protocol.discoverAccounts(account, bank, pin, progress));
         } catch (BankingException e) {
             throw new CompletionException(e);

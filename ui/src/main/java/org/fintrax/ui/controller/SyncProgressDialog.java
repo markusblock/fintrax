@@ -229,9 +229,9 @@ final class SyncProgressDialog {
             }
         }
         accountProgress.setProgress(totalAccounts == 0 ? 0 : (double) finishedAccounts / totalAccounts);
-        String key = totalAccounts == 1
-                ? "message.sync.progress.overview.single" : "message.sync.progress.overview.multiple";
-        summaryLabel.setText(I18n.get(key, totalAccounts, successfulAccounts, failedAccounts));
+        summaryLabel.setText(I18n.get(totalAccounts == 1
+                ? "message.sync.progress.overview.single" : "message.sync.progress.overview.multiple",
+                totalAccounts, successfulAccounts, failedAccounts));
     }
 
     record Account(Long id, String name, String detail) {

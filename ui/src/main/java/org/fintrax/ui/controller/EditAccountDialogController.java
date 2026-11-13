@@ -3,14 +3,10 @@ package org.fintrax.ui.controller;
 import javafx.fxml.FXML;
 import javafx.application.Platform;
 import javafx.scene.control.*;
-import javafx.scene.layout.Priority;
-import javafx.scene.control.ScrollPane;
-import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import lombok.extern.slf4j.Slf4j;
 import org.fintrax.config.I18n;
 import org.fintrax.fintx.BankingException;
-import org.fintrax.fintx.BankDirectoryEntry;
 import org.fintrax.fintx.BankingProtocol;
 import org.fintrax.fintx.DiscoveredBankAccount;
 import org.fintrax.model.ActivityAction;
@@ -36,14 +32,14 @@ import java.util.concurrent.CompletableFuture;
 @Slf4j
 @Component
 @Scope("prototype")
-public class EditAccountDialogController {
+public class EditAccountDialogController extends BankAccountDialogBase {
     private static final DateTimeFormatter DATE_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
     private static final DateTimeFormatter DIAGNOSTIC_TIME = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss");
     private static final String ACTIVITY_DIAGNOSTICS_MARKER = "\n[FINTRAX_SYNC_DIAGNOSTICS]\n";
     private static final String HELP_TEXT_STYLE_CLASS = "help-text";
     private static final String WARNING_COPY_STYLE_CLASS = "warning-copy";
     private static final String SUCCESS_COPY_STYLE_CLASS = "success-copy";
-    private static final String INVALID_IBAN_MESSAGE_KEY = "message.sync.invalidIban";
+    private static final String DANGER_COPY_STYLE_CLASS = "danger-copy";
 
     @FXML
     private TextField bankNameField;
@@ -81,29 +77,12 @@ public class EditAccountDialogController {
     private Label balanceDateValue;
     @FXML
     private Label lastSyncValue;
-    @FXML
-    private Button saveButton;
-    @FXML
-    private Button testConnectionButton;
-    @FXML
-    private Button backButton;
-    @FXML
-    private ScrollPane connectionPage;
-    @FXML
-    private VBox accountSelectionPage;
-    @FXML
-    private VBox accountSelectionHost;
-    @FXML
-    private Label accountImportStatusLabel;
-
     private final AccountService accountService;
     private final BankService bankService;
     private final BankingProtocol bankingProtocol;
     private final ActivityLogger activityLogger;
     private BankAccount account;
     private Bank bank;
-    private BankAccountSelectionPane accountSelectionPane;
-    private AccountSetupWizard wizard;
 
     public EditAccountDialogController(AccountService accountService, BankService bankService,
                                        BankingProtocol bankingProtocol, ActivityLogger activityLogger) {
@@ -116,13 +95,7 @@ public class EditAccountDialogController {
     @FXML
     public void initialize() {
         accountTypeCombo.getItems().setAll(AccountType.values());
-        accountSelectionPane = new BankAccountSelectionPane();
-        accountSelectionHost.getChildren().setAll(accountSelectionPane);
-        VBox.setVgrow(accountSelectionPane, Priority.ALWAYS);
-        wizard = new AccountSetupWizard(connectionPage, accountSelectionPage, backButton, saveButton,
-                testConnectionButton, accountSelectionPane, null, null);
-        accountSelectionPane.selectedCountProperty().addListener(
-                (observable, oldValue, newValue) -> wizard.updatePrimaryButton());
+        initializeAccountWizard(null);
     }
 
     public void setAccount(BankAccount account) {
@@ -153,30 +126,13 @@ public class EditAccountDialogController {
 
     @FXML
     private void onFindFinTsServer() {
-        try {
-            BankDirectoryEntry entry = bankingProtocol.lookupBankDetails(account.getIban());
-            String url = entry == null ? null : entry.pinTanAddress();
-            if (url == null || url.isBlank()) {
-                String messageKey = fintsServerUrlField.getText().isBlank()
-                        ? "message.fints.lookupNotFound" : "message.fints.lookupNotFoundManual";
-                showEndpointStatus(I18n.get(messageKey), WARNING_COPY_STYLE_CLASS);
-                return;
-            }
-            boolean hasManualUrl = !fintsServerUrlField.getText().isBlank();
-            if (!hasManualUrl) {
-                fintsServerUrlField.setText(url);
-            }
-            String messageKey = hasManualUrl
-                    ? "message.fints.lookupFoundManual" : "message.fints.lookupFound";
-            showEndpointStatus(I18n.get(messageKey), SUCCESS_COPY_STYLE_CLASS);
-        } catch (BankingException e) {
-            String messageKey = switch (e.getFailureReason()) {
-                case INVALID_IBAN -> INVALID_IBAN_MESSAGE_KEY;
-                case INVALID_ENDPOINT -> "message.sync.endpointInvalid";
-                default -> "message.fints.lookupFailed";
-            };
-            showEndpointStatus(I18n.get(messageKey), WARNING_COPY_STYLE_CLASS);
+        FinTsEndpointLookup.Result lookup = FinTsEndpointLookup.find(bankService, account.getIban(),
+                fintsServerUrlField.getText(), false);
+        if (lookup.found() && !lookup.manualEndpoint()) {
+            fintsServerUrlField.setText(lookup.endpoint());
         }
+        showEndpointStatus(I18n.get(lookup.messageKey()),
+                lookup.found() ? SUCCESS_COPY_STYLE_CLASS : WARNING_COPY_STYLE_CLASS);
     }
 
     @FXML
@@ -266,9 +222,11 @@ public class EditAccountDialogController {
         recordConnectionDiagnostic(context.diagnostics(), "Bank access successfully tested.");
         log.info("Bank connection test succeeded for {}", context.bankName());
         boolean noAccountsFound = discovered.isEmpty();
-        String messageKey = noAccountsFound
-                ? "message.bankAccounts.noneFound" : "message.fints.connectionTestSuccess";
-        showEndpointStatus(I18n.get(messageKey), noAccountsFound ? WARNING_COPY_STYLE_CLASS : SUCCESS_COPY_STYLE_CLASS);
+        if (noAccountsFound) {
+            showEndpointStatus(I18n.get("message.bankAccounts.noneFound"), WARNING_COPY_STYLE_CLASS);
+        } else {
+            showEndpointStatus(I18n.get("message.fints.connectionTestSuccess"), SUCCESS_COPY_STYLE_CLASS);
+        }
         recordConnectionOutcome(context, I18n.get("message.fints.connectionTestSuccess"));
         if (!noAccountsFound) {
             accountSelectionPane.setAccounts(discovered,
@@ -389,7 +347,7 @@ public class EditAccountDialogController {
     private void showEndpointStatus(String message, String styleClass) {
         fintsServerStatusLabel.setText(message);
         fintsServerStatusLabel.getStyleClass().removeAll(HELP_TEXT_STYLE_CLASS,
-                SUCCESS_COPY_STYLE_CLASS, WARNING_COPY_STYLE_CLASS, "danger-copy");
+                SUCCESS_COPY_STYLE_CLASS, WARNING_COPY_STYLE_CLASS, DANGER_COPY_STYLE_CLASS);
         fintsServerStatusLabel.getStyleClass().add(styleClass);
     }
 
