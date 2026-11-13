@@ -629,7 +629,7 @@ public class ClassificationsController {
         fields.add(new Label(I18n.get("label.comment")), 0, commentRow);
         fields.add(commentField, 1, commentRow);
 
-        VBox content = new VBox(12, fields, errorLabel);
+        VBox content = new VBox(fields, errorLabel);
         content.getStyleClass().add("dialog-content");
         content.setMinWidth(360);
 
@@ -797,7 +797,7 @@ public class ClassificationsController {
 
         Label messageLabel = new Label(message);
         messageLabel.setWrapText(true);
-        VBox content = new VBox(12, messageLabel);
+        VBox content = new VBox(messageLabel);
         content.getStyleClass().add("dialog-content");
         CheckBox moveChildrenCheckBox = null;
         if (!children.isEmpty()) {
@@ -853,7 +853,7 @@ public class ClassificationsController {
         fields.add(new Label(I18n.get("label.comment")), 0, 2);
         fields.add(commentField, 1, 2);
 
-        VBox content = new VBox(12, fields, errorLabel);
+        VBox content = new VBox(fields, errorLabel);
         content.getStyleClass().add("dialog-content");
         content.setMinWidth(360);
 

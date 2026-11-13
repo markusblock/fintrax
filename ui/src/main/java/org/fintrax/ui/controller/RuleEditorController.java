@@ -60,6 +60,8 @@ public class RuleEditorController {
     @FXML
     private Label ruleNameErrorLabel;
     @FXML
+    private Label ruleActionsErrorLabel;
+    @FXML
     private ComboBox<String> conditionMatchModeCombo;
     @FXML
     private VBox conditionsContainer;
@@ -215,13 +217,10 @@ public class RuleEditorController {
 
     public boolean isValid() {
         String name = getRuleName();
-        long categoryActionCount = actionRows.stream()
-                .filter(row -> actionTypeFromText(row.typeCombo.getValue()) == ActionType.ASSIGN_CATEGORY)
-                .count();
         return !name.isEmpty() && ruleNameAvailable.test(name)
                 && !conditionRows.isEmpty() && conditionRows.stream().allMatch(ConditionRow::isValid)
                 && !actionRows.isEmpty() && actionRows.stream().allMatch(ActionRow::isValid)
-                && categoryActionCount <= 1;
+                && !hasMultipleCategoryActions();
     }
 
     @FXML
@@ -381,7 +380,18 @@ public class RuleEditorController {
         ruleNameErrorLabel.setText(I18n.get("rules.name.duplicate"));
         ruleNameErrorLabel.setVisible(duplicateName);
         ruleNameErrorLabel.setManaged(duplicateName);
+        boolean multipleCategoryActions = hasMultipleCategoryActions();
+        ruleActionsErrorLabel.setText(I18n.get("rules.actions.multipleCategories"));
+        ruleActionsErrorLabel.setVisible(multipleCategoryActions);
+        ruleActionsErrorLabel.setManaged(multipleCategoryActions);
         changeListener.run();
+    }
+
+    private boolean hasMultipleCategoryActions() {
+        return actionRows.stream()
+                .filter(row -> actionTypeFromText(row.typeCombo.getValue()) == ActionType.ASSIGN_CATEGORY)
+                .limit(2)
+                .count() > 1;
     }
 
     private String fieldText(MatchField field) {

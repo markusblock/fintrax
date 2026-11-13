@@ -45,6 +45,7 @@ final class RuleMergeDialog {
         newRuleOption.setDisable(!allowNewRule);
         newRuleOption.setSelected(allowNewRule);
         Label newRuleDescription = new Label(I18n.get("rules.merge.dialog.newRule.description"));
+        newRuleDescription.getStyleClass().add("secondary-text");
         newRuleDescription.setWrapText(true);
 
         RadioButton existingRuleOption = new RadioButton(I18n.get("rules.merge.dialog.existingRule"));
@@ -53,6 +54,7 @@ final class RuleMergeDialog {
         existingRuleOption.setDisable(existingRules.isEmpty());
         if (!allowNewRule) existingRuleOption.setSelected(true);
         Label existingRuleDescription = new Label(I18n.get("rules.merge.dialog.existingRule.description"));
+        existingRuleDescription.getStyleClass().add("secondary-text");
         existingRuleDescription.setWrapText(true);
 
         String targetPrompt = I18n.get("rules.merge.dialog.target.prompt");
@@ -68,13 +70,14 @@ final class RuleMergeDialog {
         deleteSourceRules.setId("deleteSourceRulesCheckBox");
         deleteSourceRules.setSelected(true);
         Label deleteHint = new Label(I18n.get("rules.merge.dialog.deleteSources.hint"));
+        deleteHint.getStyleClass().add("secondary-text");
         deleteHint.setWrapText(true);
 
         VBox newRuleChoice = new VBox(8, newRuleOption, newRuleDescription);
         VBox existingRuleChoice = new VBox(8,
                 existingRuleOption, existingRuleDescription, targetRuleButton);
         VBox deleteSection = new VBox(8, new Separator(), deleteSourceRules, deleteHint);
-        VBox content = new VBox(12, newRuleChoice, existingRuleChoice, deleteSection);
+        VBox content = new VBox(newRuleChoice, existingRuleChoice, deleteSection);
         content.getStyleClass().add("dialog-content");
         dialog.getDialogPane().setContent(content);
 

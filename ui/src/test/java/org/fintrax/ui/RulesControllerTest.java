@@ -568,6 +568,17 @@ class RulesControllerTest extends AbstractUITest {
     }
 
     @Test
+    void creatingMergedRuleExplainsMultipleCategoryActionConflict() {
+        TableView<Rule> ruleTable = lookup("#ruleTable").query();
+        openMergeRuleEditor(ruleTable, ruleName, disabledRuleName);
+
+        assertTrue(lookup("#createRuleSave").queryButton().isDisabled());
+        assertTrue(lookup("#ruleActionsErrorLabel").query().isVisible());
+        interact(lookup("#createRuleCancel").queryButton()::fire);
+        WaitForAsyncUtils.waitForFxEvents();
+    }
+
+    @Test
     void creatingMergedRuleMovesPriorityBeforeSelectedRulesInTable() {
         TableView<Rule> ruleTable = lookup("#ruleTable").query();
         RuleService ruleService = applicationContext.getBean(RuleService.class);
@@ -648,16 +659,19 @@ class RulesControllerTest extends AbstractUITest {
     }
 
     private void openMergeRuleEditor(TableView<Rule> ruleTable) {
-        Rule sourceOne = ruleTable.getItems().stream()
-                .filter(rule -> rule.getName().equals(mergeSourceOneName)).findFirst().orElseThrow();
-        Rule sourceTwo = ruleTable.getItems().stream()
-                .filter(rule -> rule.getName().equals(mergeSourceTwoName)).findFirst().orElseThrow();
+        openMergeRuleEditor(ruleTable, mergeSourceOneName, mergeSourceTwoName);
+    }
+
+    private void openMergeRuleEditor(TableView<Rule> ruleTable, String... sourceNames) {
+        List<Rule> sourceRules = java.util.Arrays.stream(sourceNames)
+                .map(name -> ruleTable.getItems().stream()
+                        .filter(rule -> rule.getName().equals(name)).findFirst().orElseThrow())
+                .toList();
         interact(() -> {
             ruleTable.getSelectionModel().clearSelection();
-            ruleTable.getSelectionModel().select(sourceOne);
-            ruleTable.getSelectionModel().select(sourceTwo);
+            sourceRules.forEach(ruleTable.getSelectionModel()::select);
         });
-        TableRow<?> row = rowForRule(ruleTable, mergeSourceOneName);
+        TableRow<?> row = rowForRule(ruleTable, sourceNames[0]);
         Platform.runLater(() -> menuItem(row.getContextMenu(), I18n.get("rules.mergeSelected")).fire());
         WaitForAsyncUtils.waitForFxEvents();
         interact(() -> lookup("#deleteSourceRulesCheckBox").<CheckBox>query().setSelected(false));

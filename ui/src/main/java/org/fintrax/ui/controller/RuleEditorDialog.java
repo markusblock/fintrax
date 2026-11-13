@@ -42,6 +42,7 @@ final class RuleEditorDialog {
         }
         RuleEditorController editor = (RuleEditorController) editorView.getProperties()
                 .get(RuleEditorController.class.getName());
+        editorView.getStyleClass().add("dialog-content");
         initializeEditor.accept(editor);
         editor.setRuleNameAvailability(ruleNameAvailable);
 

@@ -221,7 +221,7 @@ final class RuleReviewDialog {
         onlyFillMissing.selectedProperty().addListener((observable, oldValue, newValue) -> refreshPreview.run());
         refreshPreview.run();
 
-        VBox content = new VBox(12, onlyFillMissing, summary, multipleMatchWarning, emptyResult, table);
+        VBox content = new VBox(onlyFillMissing, summary, multipleMatchWarning, emptyResult, table);
         content.getStyleClass().add("dialog-content");
         content.setMinWidth(1100);
         content.setPrefHeight(420);
