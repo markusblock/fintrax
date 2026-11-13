@@ -20,6 +20,7 @@ import org.kapott.hbci.status.HBCIExecStatus;
 import org.kapott.hbci.structures.Konto;
 
 import java.io.File;
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.net.URI;
 import java.net.ConnectException;
@@ -28,7 +29,11 @@ import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.net.URISyntaxException;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
+import java.nio.file.attribute.FileAttribute;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.security.SecureRandom;
 import javax.net.ssl.SSLException;
 import java.time.LocalDate;
@@ -40,11 +45,17 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Properties;
+import java.util.Set;
 import java.util.function.Consumer;
 
 @Slf4j
 public class FinTsAdapter implements BankingProtocol {
     private static final String PROTOCOL_NAME = "FinTS/HBCI";
+    private static final String PASSPORT_FILE_PREFIX = "fintrax_passport_";
+    private static final String PASSPORT_FILE_SUFFIX = ".dat";
+    private static final String PASSPORT_FILTER_TYPE = "Base64";
+    private static final Set<PosixFilePermission> PRIVATE_PASSPORT_FILE_PERMISSIONS =
+            PosixFilePermissions.fromString("rw-------");
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     @Override
@@ -80,29 +91,26 @@ public class FinTsAdapter implements BankingProtocol {
                                                        Consumer<SyncStage> progress) throws BankingException {
         List<Transaction> transactions = new ArrayList<>();
 
-        HBCIPassport passport = null;
-        HBCIHandler handle = null;
-        File passportFile = null;
         GermanBankIdentity bankIdentity = germanBankIdentity(account.getIban());
         SyncStage stage = SyncStage.CONNECTION;
 
-        try {
+        try (PassportSession session = new PassportSession(null)) {
             validateBankProfile(bank);
             SimpleCallback callback = initializeHBCI(bank, pin, bankIdentity,
                     BankingException.FailureReason.CONNECTION_FAILED, null);
             Endpoint endpoint = resolveEndpoint(bank, bankIdentity);
             callback.setEndpoint(endpoint);
 
-            passportFile = File.createTempFile("fintrax_passport_", ".dat");
-            passport = AbstractHBCIPassport.getInstance(passportFile);
+            session.passportFile = createPassportTempFile();
+            session.passport = AbstractHBCIPassport.getInstance(session.passportFile);
 
-            passport.setCountry("DE");
-            passport.setBLZ(bankIdentity.bankCode());
-            passport.setHost(endpoint.hostAndPath());
-            passport.setPort(endpoint.port());
-            passport.setFilterType("Base64");
+            session.passport.setCountry("DE");
+            session.passport.setBLZ(bankIdentity.bankCode());
+            session.passport.setHost(endpoint.hostAndPath());
+            session.passport.setPort(endpoint.port());
+            session.passport.setFilterType(PASSPORT_FILTER_TYPE);
 
-            handle = new HBCIHandler(HBCIVersion.HBCI_300.getId(), passport);
+            session.handle = new HBCIHandler(HBCIVersion.HBCI_300.getId(), session.passport);
             stage = SyncStage.AUTHENTICATION;
             reportSyncProgress(progress, stage);
 
@@ -111,19 +119,19 @@ public class FinTsAdapter implements BankingProtocol {
             konto.iban = bankIdentity.iban();
             konto.bic = bank.getBic();
 
-            HBCIJob umsatzJob = handle.newJob("KUmsAll");
+            HBCIJob umsatzJob = session.handle.newJob("KUmsAll");
             umsatzJob.setParam("my", konto);
             // Let the bank enforce its advertised history limit; the full available range
             // gives repeated syncs an overlap instead of risking a fixed-window gap.
             umsatzJob.addToQueue();
 
-            HBCIJob saldoJob = handle.newJob("SaldoReq");
+            HBCIJob saldoJob = session.handle.newJob("SaldoReq");
             saldoJob.setParam("my", konto);
             saldoJob.addToQueue();
 
             stage = SyncStage.DATA_RETRIEVAL;
             reportSyncProgress(progress, stage);
-            HBCIExecStatus status = handle.execute();
+            HBCIExecStatus status = session.handle.execute();
 
             if (!status.isOK()) {
                 throw new BankingException(BankingException.FailureReason.BANK_REJECTED,
@@ -173,8 +181,6 @@ public class FinTsAdapter implements BankingProtocol {
             throw new BankingException(BankingException.FailureReason.CONNECTION_FAILED,
                     stageForUnexpectedFailure(e, stage),
                     "Bank transaction sync could not be completed.", e);
-        } finally {
-            closeSession(handle, passport, passportFile);
         }
     }
 
@@ -232,12 +238,9 @@ public class FinTsAdapter implements BankingProtocol {
     @Override
     public synchronized boolean validatePin(BankAccount account, Bank bank, String pin,
                                              Consumer<String> progress) throws BankingException {
-        HBCIPassport passport = null;
-        HBCIHandler handle = null;
-        File passportFile = null;
         GermanBankIdentity bankIdentity = germanBankIdentity(account.getIban());
 
-        try {
+        try (PassportSession session = new PassportSession(progress)) {
             validateBankProfile(bank);
             reportProgress(progress, "HBCI4Java-Version " + hbci4JavaVersion());
             reportProgress(progress, "initializing FinTS/HBCI protocol session");
@@ -247,33 +250,33 @@ public class FinTsAdapter implements BankingProtocol {
             callback.setEndpoint(endpoint);
 
             reportProgress(progress, "open pin/tan passport");
-            passportFile = File.createTempFile("fintrax_passport_", ".dat");
-            passport = AbstractHBCIPassport.getInstance(passportFile);
+            session.passportFile = createPassportTempFile();
+            session.passport = AbstractHBCIPassport.getInstance(session.passportFile);
 
-            passport.setCountry("DE");
-            passport.setBLZ(bankIdentity.bankCode());
-            passport.setHost(endpoint.hostAndPath());
-            passport.setPort(endpoint.port());
-            passport.setFilterType("Base64");
+            session.passport.setCountry("DE");
+            session.passport.setBLZ(bankIdentity.bankCode());
+            session.passport.setHost(endpoint.hostAndPath());
+            session.passport.setPort(endpoint.port());
+            session.passport.setFilterType(PASSPORT_FILTER_TYPE);
 
             reportProgress(progress, "[PIN/TAN] url         : " + safeEndpoint(endpoint));
             reportProgress(progress, "[PIN/TAN] blz         : " + bankIdentity.bankCode());
             reportProgress(progress, "[PIN/TAN] filter      : Base64");
             reportProgress(progress, "[PIN/TAN] HBCI version: " + HBCIVersion.HBCI_300.getId());
 
-            handle = new HBCIHandler(HBCIVersion.HBCI_300.getId(), passport);
+            session.handle = new HBCIHandler(HBCIVersion.HBCI_300.getId(), session.passport);
 
             Konto konto = new Konto(bankIdentity.bankCode(), bankIdentity.accountNumber());
             konto.country = "DE";
             konto.iban = bankIdentity.iban();
             konto.bic = bank.getBic();
 
-            HBCIJob saldoJob = handle.newJob("SaldoReq");
+            HBCIJob saldoJob = session.handle.newJob("SaldoReq");
             saldoJob.setParam("my", konto);
             saldoJob.addToQueue();
 
             reportProgress(progress, "executing balance request");
-            HBCIExecStatus status = handle.execute();
+            HBCIExecStatus status = session.handle.execute();
             reportProgress(progress, "bank access response received");
             return status.isOK();
 
@@ -290,21 +293,16 @@ public class FinTsAdapter implements BankingProtocol {
             log.warn("Bank credential validation could not be completed");
             throw new BankingException(BankingException.FailureReason.CREDENTIAL_VALIDATION_FAILED,
                     "Bank credential validation could not be completed.", e);
-        } finally {
-            closeSession(handle, passport, passportFile, progress);
         }
     }
 
     @Override
     public synchronized List<DiscoveredBankAccount> discoverAccounts(BankAccount account, Bank bank, String pin,
-                                                                      Consumer<String> progress)
+                                                                       Consumer<String> progress)
             throws BankingException {
-        HBCIPassport passport = null;
-        HBCIHandler handle = null;
-        File passportFile = null;
         GermanBankIdentity bankIdentity = germanBankIdentity(account.getIban());
 
-        try {
+        try (PassportSession session = new PassportSession(progress)) {
             validateBankProfile(bank);
             reportProgress(progress, "HBCI4Java-Version " + hbci4JavaVersion());
             reportProgress(progress, "initializing FinTS/HBCI protocol session");
@@ -314,22 +312,22 @@ public class FinTsAdapter implements BankingProtocol {
             callback.setEndpoint(endpoint);
 
             reportProgress(progress, "open pin/tan passport");
-            passportFile = File.createTempFile("fintrax_passport_", ".dat");
-            passport = AbstractHBCIPassport.getInstance(passportFile);
-            passport.setCountry("DE");
-            passport.setBLZ(bankIdentity.bankCode());
-            passport.setHost(endpoint.hostAndPath());
-            passport.setPort(endpoint.port());
-            passport.setFilterType("Base64");
+            session.passportFile = createPassportTempFile();
+            session.passport = AbstractHBCIPassport.getInstance(session.passportFile);
+            session.passport.setCountry("DE");
+            session.passport.setBLZ(bankIdentity.bankCode());
+            session.passport.setHost(endpoint.hostAndPath());
+            session.passport.setPort(endpoint.port());
+            session.passport.setFilterType(PASSPORT_FILTER_TYPE);
 
             reportProgress(progress, "[PIN/TAN] url         : " + safeEndpoint(endpoint));
             reportProgress(progress, "[PIN/TAN] blz         : " + bankIdentity.bankCode());
             reportProgress(progress, "[PIN/TAN] filter      : Base64");
             reportProgress(progress, "[PIN/TAN] HBCI version: " + HBCIVersion.HBCI_300.getId());
 
-            handle = new HBCIHandler(HBCIVersion.HBCI_300.getId(), passport);
+            session.handle = new HBCIHandler(HBCIVersion.HBCI_300.getId(), session.passport);
             reportProgress(progress, "reading accounts from pin/tan passport");
-            org.kapott.hbci.structures.Konto[] passportAccounts = passport.getAccounts();
+            org.kapott.hbci.structures.Konto[] passportAccounts = session.passport.getAccounts();
             if (passportAccounts == null || passportAccounts.length == 0) {
                 reportProgress(progress, "no accounts returned by the bank");
                 return List.of();
@@ -359,8 +357,6 @@ public class FinTsAdapter implements BankingProtocol {
             log.warn("FinTS account discovery could not be completed");
             throw new BankingException(BankingException.FailureReason.ACCOUNT_DISCOVERY_FAILED,
                     "Bank account discovery could not be completed.", e);
-        } finally {
-            closeSession(handle, passport, passportFile, progress);
         }
     }
 
@@ -422,7 +418,7 @@ public class FinTsAdapter implements BankingProtocol {
 
     private GermanBankIdentity germanBankIdentity(String iban) throws BankingException {
         String normalizedIban = iban == null ? "" : iban.replaceAll("\\s+", "").toUpperCase(Locale.ROOT);
-        if (!normalizedIban.matches("DE[0-9]{20}") || !HBCIUtils.checkIBANCRC(normalizedIban)) {
+        if (!normalizedIban.matches("DE\\d{20}") || !HBCIUtils.checkIBANCRC(normalizedIban)) {
             throw new BankingException(BankingException.FailureReason.INVALID_IBAN,
                     "A valid German IBAN is required to derive BLZ and account number.");
         }
@@ -488,6 +484,24 @@ public class FinTsAdapter implements BankingProtocol {
         return queryStart < 0 ? endpoint.hostAndPath() : endpoint.hostAndPath().substring(0, queryStart);
     }
 
+    private File createPassportTempFile() throws IOException {
+        if (FileSystems.getDefault().supportedFileAttributeViews().contains("posix")) {
+            FileAttribute<Set<PosixFilePermission>> permissions = PosixFilePermissions
+                    .asFileAttribute(PRIVATE_PASSPORT_FILE_PERMISSIONS);
+            return Files.createTempFile(PASSPORT_FILE_PREFIX, PASSPORT_FILE_SUFFIX, permissions).toFile();
+        }
+
+        File file = Files.createTempFile(PASSPORT_FILE_PREFIX, PASSPORT_FILE_SUFFIX).toFile();
+        file.setReadable(false, false);
+        file.setWritable(false, false);
+        file.setExecutable(false, false);
+        if (!file.setReadable(true, true) || !file.setWritable(true, true)) {
+            Files.deleteIfExists(file.toPath());
+            throw new IOException("Could not restrict temporary passport file permissions.");
+        }
+        return file;
+    }
+
     private static void reportProgress(Consumer<String> progress, String message) {
         if (progress == null) {
             return;
@@ -532,8 +546,8 @@ public class FinTsAdapter implements BankingProtocol {
                     .mandateId(line.mandateId)
                     .creditorId(line.other == null ? null : line.other.creditorid)
                     .booked(booked)
-                    .createdAt(LocalDateTime.now())
-                    .updatedAt(LocalDateTime.now())
+                    .createdAt(LocalDateTime.now(ZoneId.systemDefault()))
+                    .updatedAt(LocalDateTime.now(ZoneId.systemDefault()))
                     .build();
         } catch (Exception e) {
             throw new BankingException(BankingException.FailureReason.MAPPING_FAILED,
@@ -583,10 +597,6 @@ public class FinTsAdapter implements BankingProtocol {
         return false;
     }
 
-    private void closeSession(HBCIHandler handle, HBCIPassport passport, File passportFile) {
-        closeSession(handle, passport, passportFile, null);
-    }
-
     private void closeSession(HBCIHandler handle, HBCIPassport passport, File passportFile,
                               Consumer<String> progress) {
         if (handle != null) {
@@ -615,6 +625,22 @@ public class FinTsAdapter implements BankingProtocol {
         HBCIUtils.doneThread();
     }
 
+    private final class PassportSession implements AutoCloseable {
+        private final Consumer<String> progress;
+        private HBCIPassport passport;
+        private HBCIHandler handle;
+        private File passportFile;
+
+        private PassportSession(Consumer<String> progress) {
+            this.progress = progress;
+        }
+
+        @Override
+        public void close() {
+            closeSession(handle, passport, passportFile, progress);
+        }
+    }
+
     private static class SimpleCallback extends AbstractHBCICallback {
         private final Bank bank;
         private final String pin;
@@ -639,8 +665,7 @@ public class FinTsAdapter implements BankingProtocol {
         @Override
         public void callback(HBCIPassport passport, int reason, String msg, int datatype, StringBuffer retData) {
             switch (reason) {
-                case NEED_PASSPHRASE_LOAD:
-                case NEED_PASSPHRASE_SAVE:
+                case NEED_PASSPHRASE_LOAD, NEED_PASSPHRASE_SAVE:
                     retData.replace(0, retData.length(), temporaryPassphrase);
                     break;
                 case NEED_PT_PIN:
@@ -678,12 +703,8 @@ public class FinTsAdapter implements BankingProtocol {
                     retData.replace(0, retData.length(), selectedMechanism);
                     reportProgress(progress, "[PIN/TAN] selected sec mech: " + selectedMechanism);
                     break;
-                case NEED_PT_TAN:
-                case NEED_PT_TANMEDIA:
-                case NEED_PT_PHOTOTAN:
-                case NEED_PT_QRTAN:
-                case NEED_PT_DECOUPLED:
-                case NEED_PT_DECOUPLED_RETRY:
+                case NEED_PT_TAN, NEED_PT_TANMEDIA, NEED_PT_PHOTOTAN, NEED_PT_QRTAN,
+                     NEED_PT_DECOUPLED, NEED_PT_DECOUPLED_RETRY:
                     throw new TanRequiredException();
                 default:
                     break;

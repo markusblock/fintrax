@@ -3,7 +3,6 @@ package org.fintrax.service;
 import org.fintrax.fintx.BankingException;
 import org.fintrax.fintx.BankingProtocol;
 import org.fintrax.fintx.BankingSyncData;
-import org.fintrax.fintx.PinStorage;
 import org.fintrax.model.*;
 import org.fintrax.store.StoreManager;
 import org.junit.jupiter.api.AfterEach;
@@ -41,7 +40,7 @@ class SyncServiceTest {
         ruleEngine = new RuleEngine(store, activityLogger);
         bankingProtocol = new FakeBankingProtocol();
         syncService = new SyncService(store, bankingProtocol, transactionService, accountService,
-                activityLogger, new PinStorage(tempDir));
+                activityLogger);
     }
 
     @AfterEach

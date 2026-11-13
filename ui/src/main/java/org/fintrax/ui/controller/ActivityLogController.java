@@ -91,7 +91,12 @@ public class ActivityLogController {
     public void initialize() {
         log.info("ActivityLogController initialized");
         setupDateFilters();
+        setupTable();
+        setupActionAndEntityFilters();
+        loadLogs();
+    }
 
+    private void setupTable() {
         TableViewResizePolicy.fitColumnsAndAllowHorizontalScrolling(logTable);
         timestampColumn.setCellValueFactory(cd -> new SimpleObjectProperty<>(cd.getValue().getTimestamp()));
         timestampColumn.setCellFactory(col -> new TableCell<>() {
@@ -125,7 +130,9 @@ public class ActivityLogController {
         setupColumnMenu();
         logTable.setItems(tableData);
         detailsButton.disableProperty().bind(logTable.getSelectionModel().selectedItemProperty().isNull());
+    }
 
+    private void setupActionAndEntityFilters() {
         actionFilter.getItems().add(I18n.get("activity.allActions"));
         for (ActivityAction action : ActivityAction.values()) {
             actionFilter.getItems().add(action.name());
@@ -139,8 +146,6 @@ public class ActivityLogController {
         entityTypeFilter.getSelectionModel().selectFirst();
         actionFilter.valueProperty().addListener((observable, oldValue, newValue) -> loadLogs());
         entityTypeFilter.valueProperty().addListener((observable, oldValue, newValue) -> loadLogs());
-
-        loadLogs();
     }
 
     private void setupDateFilters() {

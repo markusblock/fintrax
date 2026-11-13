@@ -10,6 +10,8 @@ import org.fintrax.store.StoreManager;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
@@ -33,7 +35,8 @@ class BankServiceTest {
                 paths.sorted(Comparator.reverseOrder()).forEach(path -> {
                     try {
                         Files.deleteIfExists(path);
-                    } catch (Exception ignored) {
+                    } catch (IOException e) {
+                        throw new UncheckedIOException(e);
                     }
                 });
             }

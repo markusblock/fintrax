@@ -34,6 +34,9 @@ import java.util.List;
  * Uses in-memory sample data only; makes no bank calls and persists nothing.
  */
 public final class AccountImportWizardPrototype extends Application {
+    private static final String SAMPLE_ACCOUNT_HOLDER = "Maya Musterfrau";
+    private static final String SAMPLE_ING_BIC = "INGDDEFFXXX";
+    private static final String EDITOR_PANEL_STYLE_CLASS = "editor-panel";
     private final List<DiscoveredAccount> accounts = new ArrayList<>();
     private final VBox pageHost = new VBox(16);
     private final HBox progress = new HBox(8);
@@ -54,14 +57,14 @@ public final class AccountImportWizardPrototype extends Application {
     public void start(Stage stage) {
         this.stage = stage;
         accounts.addAll(List.of(
-                new DiscoveredAccount("Everyday account", "Girokonto", "Maya Musterfrau",
+                new DiscoveredAccount("Everyday account", "Girokonto", SAMPLE_ACCOUNT_HOLDER,
                         "DE89 3704 0044 0532 0130 00", "COBADEFFXXX", "EUR", false),
-                new DiscoveredAccount("Savings account", "Tagesgeld", "Maya Musterfrau",
-                        "DE75 5001 0517 0648 4898 90", "INGDDEFFXXX", "EUR", false),
-                new DiscoveredAccount("Joint account", "Girokonto", "Maya Musterfrau, Alex Beispiel",
-                        "DE44 5001 0517 5407 3249 31", "INGDDEFFXXX", "EUR", true),
-                new DiscoveredAccount("Investment settlement", "Verrechnungskonto", "Maya Musterfrau",
-                        "", "INGDDEFFXXX", "EUR", false)));
+                new DiscoveredAccount("Savings account", "Tagesgeld", SAMPLE_ACCOUNT_HOLDER,
+                        "DE75 5001 0517 0648 4898 90", SAMPLE_ING_BIC, "EUR", false),
+                new DiscoveredAccount("Joint account", "Girokonto", SAMPLE_ACCOUNT_HOLDER + ", Alex Beispiel",
+                        "DE44 5001 0517 5407 3249 31", SAMPLE_ING_BIC, "EUR", true),
+                new DiscoveredAccount("Investment settlement", "Verrechnungskonto", SAMPLE_ACCOUNT_HOLDER,
+                        "", SAMPLE_ING_BIC, "EUR", false)));
         accounts.forEach(account -> account.selectedProperty().addListener(
                 (observable, oldValue, newValue) -> updateSelectionSummary()));
 
@@ -93,7 +96,7 @@ public final class AccountImportWizardPrototype extends Application {
         HBox heading = new HBox(14, new VBox(6, title, subtitle), spacer(), poc);
         heading.setAlignment(Pos.CENTER_LEFT);
         VBox header = new VBox(heading);
-        header.getStyleClass().add("editor-panel");
+        header.getStyleClass().add(EDITOR_PANEL_STYLE_CLASS);
         return header;
     }
 
@@ -128,7 +131,7 @@ public final class AccountImportWizardPrototype extends Application {
         addField(accountFields, 0, "IBAN", new TextField("DE89 3704 0044 0532 0130 00"));
         VBox accountPanel = new VBox(12, new Label("Account details"), accountFields,
                 muted("IBAN identifies the account and helps match accounts already in Fintrax."));
-        accountPanel.getStyleClass().add("editor-panel");
+        accountPanel.getStyleClass().add(EDITOR_PANEL_STYLE_CLASS);
 
         GridPane bankFields = fieldsGrid();
         addField(bankFields, 0, "Bank name", new TextField("Musterbank"));
@@ -143,10 +146,9 @@ public final class AccountImportWizardPrototype extends Application {
         VBox bankPanel = new VBox(12, new Label("Bank connection"), bankFields,
                 muted("Test connection simulates success and proceeds to account selection."),
                 muted("Demo only: no credentials are sent or stored."));
-        bankPanel.getStyleClass().add("editor-panel");
+        bankPanel.getStyleClass().add(EDITOR_PANEL_STYLE_CLASS);
 
-        VBox panels = new VBox(14, accountPanel, bankPanel);
-        return panels;
+        return new VBox(14, accountPanel, bankPanel);
     }
 
     private Node createAccountSelectionPage() {
@@ -186,7 +188,7 @@ public final class AccountImportWizardPrototype extends Application {
         });
 
         VBox details = new VBox(12);
-        details.getStyleClass().add("editor-panel");
+        details.getStyleClass().add(EDITOR_PANEL_STYLE_CLASS);
         list.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, selected) ->
                 showAccountDetails(details, selected));
         list.getSelectionModel().selectFirst();

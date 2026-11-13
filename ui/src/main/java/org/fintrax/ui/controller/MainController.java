@@ -17,6 +17,7 @@ import org.springframework.stereotype.Component;
 @Component
 @Scope("prototype")
 public class MainController {
+    private static final String ACTIVITY_LOG_VIEW = "activityLog";
     @FXML
     private BorderPane rootPane;
 
@@ -105,11 +106,11 @@ public class MainController {
 
     @FXML
     private void onActivityLog() {
-        loadView("activityLog");
+        loadView(ACTIVITY_LOG_VIEW);
     }
 
     public void showActivityLog() {
-        loadView("activityLog");
+        loadView(ACTIVITY_LOG_VIEW);
     }
 
     @FXML
@@ -136,7 +137,7 @@ public class MainController {
             case "transactions" -> transactionsButton;
             case "classifications" -> classificationsButton;
             case "rules" -> rulesButton;
-            case "activityLog" -> activityLogButton;
+            case ACTIVITY_LOG_VIEW -> activityLogButton;
             case "settings" -> settingsButton;
             default -> null;
         };

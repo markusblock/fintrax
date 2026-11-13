@@ -4,8 +4,6 @@ import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ReadOnlyIntegerProperty;
 import javafx.beans.property.ReadOnlyIntegerWrapper;
 import javafx.beans.property.SimpleBooleanProperty;
-import javafx.collections.FXCollections;
-import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
@@ -17,6 +15,8 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import org.fintrax.config.I18n;
+import org.fintrax.model.AccountType;
+import org.fintrax.model.BankAccount;
 import org.fintrax.fintx.DiscoveredBankAccount;
 
 import java.util.ArrayList;
@@ -92,6 +92,29 @@ public final class BankAccountSelectionPane extends VBox {
         return "Bank account " + formatIban(account.iban());
     }
 
+    public static AccountType accountTypeFor(DiscoveredBankAccount discovered) {
+        String bankType = discovered.bankType() == null ? "" : discovered.bankType().toLowerCase(Locale.ROOT);
+        if (bankType.contains("spar") || bankType.contains("saving") || bankType.contains("tagesgeld")) {
+            return AccountType.SAVINGS;
+        }
+        if (bankType.contains("kredit") || bankType.contains("credit") || bankType.contains("karte")) {
+            return AccountType.CREDIT_CARD;
+        }
+        return AccountType.GIRO;
+    }
+
+    public static String defaultCurrency(String currency) {
+        return currency == null || currency.isBlank() ? "EUR" : currency.trim();
+    }
+
+    public static Set<String> existingIbans(List<BankAccount> accounts) {
+        Set<String> ibans = new HashSet<>();
+        accounts.stream().filter(java.util.Objects::nonNull).map(BankAccount::getIban)
+                .map(BankAccountSelectionPane::normalizeIban).filter(iban -> !iban.isBlank())
+                .forEach(ibans::add);
+        return ibans;
+    }
+
     private List<Candidate> createCandidates(List<DiscoveredBankAccount> accounts, Set<String> existingIbans) {
         Set<String> knownIbans = new HashSet<>();
         existingIbans.stream().map(BankAccountSelectionPane::normalizeIban)
@@ -100,7 +123,7 @@ public final class BankAccountSelectionPane extends VBox {
         List<Candidate> result = new ArrayList<>(accounts.size());
         for (DiscoveredBankAccount account : accounts) {
             String iban = normalizeIban(account.iban());
-            boolean needsManualSetup = !iban.matches("DE[0-9]{20}");
+            boolean needsManualSetup = !iban.matches("DE\\d{20}");
             boolean duplicate = !iban.isBlank() && !knownIbans.add(iban);
             result.add(new Candidate(account, duplicate, needsManualSetup));
         }
@@ -191,9 +214,13 @@ public final class BankAccountSelectionPane extends VBox {
         }
 
         private String status() {
-            return duplicate ? I18n.get("message.bankAccounts.alreadyAdded")
-                    : needsManualSetup ? I18n.get("message.bankAccounts.manualSetup")
-                    : I18n.get("message.bankAccounts.newAccount");
+            if (duplicate) {
+                return I18n.get("message.bankAccounts.alreadyAdded");
+            }
+            if (needsManualSetup) {
+                return I18n.get("message.bankAccounts.manualSetup");
+            }
+            return I18n.get("message.bankAccounts.newAccount");
         }
     }
 

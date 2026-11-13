@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
 import java.util.Collection;
@@ -45,9 +46,9 @@ public class TransactionService {
             transaction.setId(nextId++);
         }
         if (transaction.getCreatedAt() == null) {
-            transaction.setCreatedAt(LocalDateTime.now());
+            transaction.setCreatedAt(LocalDateTime.now(ZoneId.systemDefault()));
         }
-        transaction.setUpdatedAt(LocalDateTime.now());
+        transaction.setUpdatedAt(LocalDateTime.now(ZoneId.systemDefault()));
 
         store.getRoot().getTransactions().add(transaction);
         store.store(store.getRoot().getTransactions());
@@ -70,7 +71,7 @@ public class TransactionService {
         if (received.getMandateId() != null) stored.setMandateId(received.getMandateId());
         if (received.getCreditorId() != null) stored.setCreditorId(received.getCreditorId());
         stored.setBooked(stored.isBooked() || received.isBooked());
-        stored.setUpdatedAt(LocalDateTime.now());
+        stored.setUpdatedAt(LocalDateTime.now(ZoneId.systemDefault()));
         store.store(stored);
         return stored;
     }
@@ -220,7 +221,7 @@ public class TransactionService {
         }
 
         transaction.setCategoryId(categoryId);
-        transaction.setUpdatedAt(LocalDateTime.now());
+        transaction.setUpdatedAt(LocalDateTime.now(ZoneId.systemDefault()));
 
         store.store(transaction);
 
@@ -237,7 +238,7 @@ public class TransactionService {
         }
 
         transaction.setLabelIds(labelIds);
-        transaction.setUpdatedAt(LocalDateTime.now());
+        transaction.setUpdatedAt(LocalDateTime.now(ZoneId.systemDefault()));
 
         store.store(transaction);
 
@@ -254,7 +255,7 @@ public class TransactionService {
         }
 
         transaction.setNote(note);
-        transaction.setUpdatedAt(LocalDateTime.now());
+        transaction.setUpdatedAt(LocalDateTime.now(ZoneId.systemDefault()));
 
         store.store(transaction);
 
@@ -271,7 +272,7 @@ public class TransactionService {
         }
 
         transaction.setPayeeDisplay(payeeDisplay);
-        transaction.setUpdatedAt(LocalDateTime.now());
+        transaction.setUpdatedAt(LocalDateTime.now(ZoneId.systemDefault()));
 
         store.store(transaction);
 
@@ -297,7 +298,7 @@ public class TransactionService {
                         : new HashSet<>(transaction.getLabelIds());
                 labelIds.add(labelId);
                 transaction.setLabelIds(labelIds);
-                transaction.setUpdatedAt(LocalDateTime.now());
+                transaction.setUpdatedAt(LocalDateTime.now(ZoneId.systemDefault()));
                 store.store(transaction);
             }
         }
@@ -313,7 +314,7 @@ public class TransactionService {
                         : new HashSet<>(transaction.getLabelIds());
                 labelIds.remove(labelId);
                 transaction.setLabelIds(labelIds);
-                transaction.setUpdatedAt(LocalDateTime.now());
+                transaction.setUpdatedAt(LocalDateTime.now(ZoneId.systemDefault()));
                 store.store(transaction);
             }
         }

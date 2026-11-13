@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 
@@ -58,8 +59,8 @@ public class AccountService {
                 .accountHolder(accountHolder)
                 .accountType(accountType)
                 .comment(comment)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
+                .createdAt(LocalDateTime.now(ZoneId.systemDefault()))
+                .updatedAt(LocalDateTime.now(ZoneId.systemDefault()))
                 .build();
 
         store.getRoot().getAccounts().add(account);
@@ -83,8 +84,8 @@ public class AccountService {
                 .accountType(accountType)
                 .currency(currency == null || currency.isBlank() ? "EUR" : currency.trim())
                 .comment(comment)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
+                .createdAt(LocalDateTime.now(ZoneId.systemDefault()))
+                .updatedAt(LocalDateTime.now(ZoneId.systemDefault()))
                 .build();
         store.getRoot().getAccounts().add(account);
         store.store(store.getRoot().getAccounts());
@@ -123,7 +124,7 @@ public class AccountService {
         account.setAccountHolder(accountHolder);
         account.setAccountType(accountType);
         account.setComment(comment);
-        account.setUpdatedAt(LocalDateTime.now());
+        account.setUpdatedAt(LocalDateTime.now(ZoneId.systemDefault()));
 
         if (bankService != null && account.getBankId() != null) {
             Bank bank = bankService.getBank(account.getBankId()).orElse(null);
@@ -164,7 +165,7 @@ public class AccountService {
         account.setAccountType(accountType);
         account.setCurrency(currency == null || currency.isBlank() ? "EUR" : currency.trim());
         account.setComment(comment);
-        account.setUpdatedAt(LocalDateTime.now());
+        account.setUpdatedAt(LocalDateTime.now(ZoneId.systemDefault()));
         store.store(account);
         activityLogger.log(ActivityAction.UPDATE, EntityType.ACCOUNT, id, "Updated bank account");
         return account;
@@ -198,7 +199,7 @@ public class AccountService {
 
         account.setBalance(balance);
         account.setBalanceDate(balanceDate);
-        account.setUpdatedAt(LocalDateTime.now());
+        account.setUpdatedAt(LocalDateTime.now(ZoneId.systemDefault()));
 
         store.store(account);
     }
@@ -210,7 +211,7 @@ public class AccountService {
         }
 
         account.setLastSyncAt(syncTime);
-        account.setUpdatedAt(LocalDateTime.now());
+        account.setUpdatedAt(LocalDateTime.now(ZoneId.systemDefault()));
 
         store.store(account);
     }

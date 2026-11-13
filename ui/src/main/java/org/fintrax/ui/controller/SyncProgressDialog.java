@@ -4,8 +4,8 @@ import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
-import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBar;
+import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
@@ -25,13 +25,19 @@ import org.fintrax.service.SyncResult;
 import org.fintrax.ui.FintraxUI;
 import org.kordamp.ikonli.javafx.FontIcon;
 
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
 final class SyncProgressDialog {
+    private static final String STATE_PENDING = "pending";
+    private static final String STATE_CURRENT = "current";
+    private static final String STATE_COMPLETE = "complete";
+    private static final String STATE_FAILED = "failed";
+    private static final String ICON_PENDING = "fth-circle";
+    private static final String ICON_COMPLETE = "fth-check-circle";
+    private static final String ICON_FAILED = "fth-alert-circle";
     private static final List<SyncStage> PROGRESS_STAGES = List.of(
             SyncStage.CONNECTION, SyncStage.AUTHENTICATION, SyncStage.DATA_RETRIEVAL, SyncStage.DATA_IMPORT);
 
@@ -73,9 +79,9 @@ final class SyncProgressDialog {
         dialog.getDialogPane().getButtonTypes().setAll(activityLogButton, applyRulesButton, closeButton);
         dialog.getDialogPane().setPrefSize(650, 600);
         dialog.setResizable(false);
-        Button activityLog = (Button) dialog.getDialogPane().lookupButton(activityLogButton);
-        Button applyRules = (Button) dialog.getDialogPane().lookupButton(applyRulesButton);
-        Button close = (Button) dialog.getDialogPane().lookupButton(closeButton);
+        Node activityLog = dialog.getDialogPane().lookupButton(activityLogButton);
+        Node applyRules = dialog.getDialogPane().lookupButton(applyRulesButton);
+        Node close = dialog.getDialogPane().lookupButton(closeButton);
         activityLog.setId("viewSyncActivityLogButton");
         activityLog.setDisable(true);
         applyRules.setId("applyRulesToNewTransactions");
@@ -182,11 +188,13 @@ final class SyncProgressDialog {
     }
 
     void setButtonId(ButtonType buttonType, String id) {
-        ((Button) dialog.getDialogPane().lookupButton(buttonType)).setId(id);
+        Node button = dialog.getDialogPane().lookupButton(buttonType);
+        button.setId(id);
     }
 
     void setButtonDisabled(ButtonType buttonType, boolean disabled) {
-        ((Button) dialog.getDialogPane().lookupButton(buttonType)).setDisable(disabled);
+        Node button = dialog.getDialogPane().lookupButton(buttonType);
+        button.setDisable(disabled);
     }
 
     void setCancelAction(Runnable cancelAction) {
@@ -230,10 +238,9 @@ final class SyncProgressDialog {
     }
 
     private final class AccountPanel {
-        private final Account account;
         private final VBox root = new VBox();
         private final Button toggle = new Button();
-        private final FontIcon statusIcon = new FontIcon("fth-circle");
+        private final FontIcon statusIcon = new FontIcon(ICON_PENDING);
         private final ProgressIndicator statusSpinner = new ProgressIndicator(
                 ProgressIndicator.INDETERMINATE_PROGRESS);
         private final Label accountName = new Label();
@@ -251,8 +258,7 @@ final class SyncProgressDialog {
         private int alreadyKnown;
 
         private AccountPanel(Account account) {
-            this.account = account;
-            root.getStyleClass().addAll("sync-progress-account-card", "pending");
+            root.getStyleClass().addAll("sync-progress-account-card", STATE_PENDING);
 
             statusIcon.setIconSize(18);
             statusIcon.getStyleClass().add("sync-progress-account-icon");
@@ -361,25 +367,45 @@ final class SyncProgressDialog {
             for (int i = 0; i < PROGRESS_STAGES.size(); i++) {
                 SyncStage stage = PROGRESS_STAGES.get(i);
                 StageRow row = stageRows.get(stage);
-                row.setState(i < currentIndex ? StageState.COMPLETE
-                        : i == currentIndex ? StageState.CURRENT : StageState.PENDING);
+                row.setState(stateFor(i, currentIndex));
                 row.setResult(stage, downloaded, imported, alreadyKnown);
             }
         }
 
+        private StageState stateFor(int index, int currentIndex) {
+            if (index < currentIndex) return StageState.COMPLETE;
+            if (index == currentIndex) return StageState.CURRENT;
+            return StageState.PENDING;
+        }
+
         private void setHeaderState() {
-            root.getStyleClass().removeAll("pending", "current", "complete", "failed");
-            root.getStyleClass().add(failed ? "failed" : finished ? "complete" : active ? "current" : "pending");
-            statusIcon.setIconLiteral(failed ? "fth-alert-circle"
-                    : finished ? "fth-check-circle" : "fth-circle");
+            String stateClass = accountStateClass();
+            root.getStyleClass().removeAll(STATE_PENDING, STATE_CURRENT, STATE_COMPLETE, STATE_FAILED);
+            root.getStyleClass().add(stateClass);
+            statusIcon.setIconLiteral(accountStateIcon());
             statusSpinner.setVisible(active && !finished && !failed);
             statusSpinner.setManaged(active && !finished && !failed);
             statusIcon.setVisible(!active || finished || failed);
-            resultLabel.setText(failed
-                    ? I18n.get("message.sync.progress.failed")
-                    : finished ? I18n.get("message.sync.progress.accountResult", downloaded, imported, alreadyKnown)
-                    : active ? I18n.get("message.sync.progress.running")
-                    : I18n.get("message.sync.progress.notStarted"));
+            resultLabel.setText(accountResult());
+        }
+
+        private String accountStateClass() {
+            if (failed) return STATE_FAILED;
+            if (finished) return STATE_COMPLETE;
+            return active ? STATE_CURRENT : STATE_PENDING;
+        }
+
+        private String accountStateIcon() {
+            if (failed) return ICON_FAILED;
+            return finished ? ICON_COMPLETE : ICON_PENDING;
+        }
+
+        private String accountResult() {
+            if (failed) return I18n.get("message.sync.progress.failed");
+            if (finished) {
+                return I18n.get("message.sync.progress.accountResult", downloaded, imported, alreadyKnown);
+            }
+            return I18n.get(active ? "message.sync.progress.running" : "message.sync.progress.notStarted");
         }
 
         private void setExpanded(boolean expanded) {
@@ -402,7 +428,7 @@ final class SyncProgressDialog {
     private static final class StageRow {
         private final SyncStage stage;
         private final HBox root = new HBox(10);
-        private final FontIcon icon = new FontIcon("fth-circle");
+        private final FontIcon icon = new FontIcon(ICON_PENDING);
         private final ProgressIndicator spinner = new ProgressIndicator(ProgressIndicator.INDETERMINATE_PROGRESS);
         private final Label stageLabel;
         private final Label resultLabel = new Label();
@@ -411,7 +437,7 @@ final class SyncProgressDialog {
             this.stage = stage;
             icon.setIconSize(16);
             icon.setId("syncProgressStatus_" + accountId + "_" + stage.name());
-            icon.getStyleClass().addAll("sync-progress-stage-icon", "pending");
+            icon.getStyleClass().addAll("sync-progress-stage-icon", STATE_PENDING);
             spinner.setPrefSize(16, 16);
             spinner.setMaxSize(16, 16);
             spinner.setId("syncProgressSpinner_" + accountId + "_" + stage.name());
@@ -436,29 +462,38 @@ final class SyncProgressDialog {
         }
 
         private void setState(StageState state) {
-            root.getStyleClass().removeAll("pending", "current", "complete", "failed");
-            root.getStyleClass().add(state.name().toLowerCase());
-            icon.getStyleClass().removeAll("pending", "current", "complete", "failed");
-            icon.getStyleClass().add(state.name().toLowerCase());
-            stageLabel.getStyleClass().removeAll("pending", "current", "complete", "failed");
-            stageLabel.getStyleClass().add(state.name().toLowerCase());
-            icon.setIconLiteral(state == StageState.COMPLETE ? "fth-check-circle" : "fth-circle");
+            String stateClass = stateClass(state);
+            root.getStyleClass().removeAll(STATE_PENDING, STATE_CURRENT, STATE_COMPLETE, STATE_FAILED);
+            root.getStyleClass().add(stateClass);
+            icon.getStyleClass().removeAll(STATE_PENDING, STATE_CURRENT, STATE_COMPLETE, STATE_FAILED);
+            icon.getStyleClass().add(stateClass);
+            stageLabel.getStyleClass().removeAll(STATE_PENDING, STATE_CURRENT, STATE_COMPLETE, STATE_FAILED);
+            stageLabel.getStyleClass().add(stateClass);
+            icon.setIconLiteral(state == StageState.COMPLETE ? ICON_COMPLETE : ICON_PENDING);
             icon.setVisible(state != StageState.CURRENT);
             spinner.setVisible(state == StageState.CURRENT);
             spinner.setManaged(state == StageState.CURRENT);
         }
 
         private void setFailed() {
-            root.getStyleClass().removeAll("pending", "current", "complete", "failed");
-            root.getStyleClass().add("failed");
-            icon.getStyleClass().removeAll("pending", "current", "complete", "failed");
-            icon.getStyleClass().add("failed");
-            icon.setIconLiteral("fth-alert-circle");
+            root.getStyleClass().removeAll(STATE_PENDING, STATE_CURRENT, STATE_COMPLETE, STATE_FAILED);
+            root.getStyleClass().add(STATE_FAILED);
+            icon.getStyleClass().removeAll(STATE_PENDING, STATE_CURRENT, STATE_COMPLETE, STATE_FAILED);
+            icon.getStyleClass().add(STATE_FAILED);
+            icon.setIconLiteral(ICON_FAILED);
             icon.setVisible(true);
             spinner.setVisible(false);
             spinner.setManaged(false);
-            stageLabel.getStyleClass().removeAll("pending", "current", "complete");
-            stageLabel.getStyleClass().add("failed");
+            stageLabel.getStyleClass().removeAll(STATE_PENDING, STATE_CURRENT, STATE_COMPLETE);
+            stageLabel.getStyleClass().add(STATE_FAILED);
+        }
+
+        private String stateClass(StageState state) {
+            return switch (state) {
+                case PENDING -> STATE_PENDING;
+                case CURRENT -> STATE_CURRENT;
+                case COMPLETE -> STATE_COMPLETE;
+            };
         }
 
         private void setResult(SyncStage updatedStage, int downloaded, int imported, int alreadyKnown) {

@@ -11,6 +11,7 @@ import org.fintrax.store.StoreManager;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -109,7 +110,7 @@ public class BankService {
         bank.setFintsUserId(trimToNull(fintsUserId));
         bank.setFintsCustomerId(trimToNull(fintsCustomerId));
         bank.setComment(trimToNull(comment));
-        bank.setUpdatedAt(LocalDateTime.now());
+        bank.setUpdatedAt(LocalDateTime.now(ZoneId.systemDefault()));
         store.store(bank);
         return bank;
     }
@@ -163,47 +164,7 @@ public class BankService {
         DataRoot root = store.getRoot();
         boolean changed = false;
         for (BankAccount account : root.getAccounts()) {
-            if (getBank(account.getBankId()).isPresent()) {
-                if (isBlank(account.getAccountName())) {
-                    account.setAccountName(trimToNull(account.getBankName()));
-                    changed = true;
-                }
-                continue;
-            }
-
-            String blz = bankCodeFromIban(account.getIban());
-            Bank bank = (blz == null ? findByBic(account.getBic()) : findByBlz(blz)).orElse(null);
-            BankDirectoryEntry directoryEntry = lookupDirectoryEntry(account.getIban());
-            if (bank == null) {
-                bank = createBankRecord(blz,
-                        firstNonBlank(directoryEntry == null ? null : directoryEntry.name(),
-                                fallbackBankName(blz, account.getBic())),
-                        firstNonBlank(account.getBic(), directoryEntry == null ? null : directoryEntry.bic()),
-                        firstNonBlank(account.getFintsServerUrl(),
-                                directoryEntry == null ? null : directoryEntry.pinTanAddress()),
-                        null, null, null);
-            } else {
-                if (isBlank(bank.getName())) {
-                    bank.setName(firstNonBlank(directoryEntry == null ? null : directoryEntry.name(),
-                            fallbackBankName(blz, account.getBic())));
-                    changed = true;
-                }
-                if (isBlank(bank.getBic())) {
-                    bank.setBic(firstNonBlank(account.getBic(),
-                            directoryEntry == null ? null : directoryEntry.bic()));
-                    changed = true;
-                }
-                if (isBlank(bank.getFintsServerUrl())) {
-                    bank.setFintsServerUrl(firstNonBlank(account.getFintsServerUrl(),
-                            directoryEntry == null ? null : directoryEntry.pinTanAddress()));
-                    changed = true;
-                }
-            }
-            account.setBankId(bank.getId());
-            if (isBlank(account.getAccountName())) {
-                account.setAccountName(trimToNull(account.getBankName()));
-            }
-            changed = true;
+            changed |= migrateLegacyAccount(account);
         }
 
         if (changed) {
@@ -212,9 +173,54 @@ public class BankService {
         }
     }
 
+    private boolean migrateLegacyAccount(BankAccount account) {
+        if (getBank(account.getBankId()).isPresent()) {
+            if (isBlank(account.getAccountName())) {
+                account.setAccountName(trimToNull(account.getBankName()));
+                return true;
+            }
+            return false;
+        }
+
+        String blz = bankCodeFromIban(account.getIban());
+        Bank bank = (blz == null ? findByBic(account.getBic()) : findByBlz(blz)).orElse(null);
+        BankDirectoryEntry directoryEntry = lookupDirectoryEntry(account.getIban());
+        if (bank == null) {
+            bank = createBankRecord(blz,
+                    firstNonBlank(directoryEntry == null ? null : directoryEntry.name(),
+                            fallbackBankName(blz, account.getBic())),
+                    firstNonBlank(account.getBic(), directoryEntry == null ? null : directoryEntry.bic()),
+                    firstNonBlank(account.getFintsServerUrl(),
+                            directoryEntry == null ? null : directoryEntry.pinTanAddress()),
+                    null, null, null);
+        } else {
+            fillMissingLegacyBankDetails(bank, account, blz, directoryEntry);
+        }
+        account.setBankId(bank.getId());
+        if (isBlank(account.getAccountName())) {
+            account.setAccountName(trimToNull(account.getBankName()));
+        }
+        return true;
+    }
+
+    private void fillMissingLegacyBankDetails(Bank bank, BankAccount account, String blz,
+                                               BankDirectoryEntry directoryEntry) {
+        if (isBlank(bank.getName())) {
+            bank.setName(firstNonBlank(directoryEntry == null ? null : directoryEntry.name(),
+                    fallbackBankName(blz, account.getBic())));
+        }
+        if (isBlank(bank.getBic())) {
+            bank.setBic(firstNonBlank(account.getBic(), directoryEntry == null ? null : directoryEntry.bic()));
+        }
+        if (isBlank(bank.getFintsServerUrl())) {
+            bank.setFintsServerUrl(firstNonBlank(account.getFintsServerUrl(),
+                    directoryEntry == null ? null : directoryEntry.pinTanAddress()));
+        }
+    }
+
     private Bank createBankRecord(String blz, String name, String bic, String fintsServerUrl,
                                   String fintsUserId, String fintsCustomerId, String comment) {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(ZoneId.systemDefault());
         Bank bank = Bank.builder()
                 .id(nextId++)
                 .name(trimToNull(name))
@@ -262,7 +268,7 @@ public class BankService {
             return null;
         }
         String normalized = iban.replaceAll("\\s+", "").toUpperCase(Locale.ROOT);
-        return normalized.matches("DE[0-9]{20}") ? normalized.substring(4, 12) : null;
+        return normalized.matches("DE\\d{20}") ? normalized.substring(4, 12) : null;
     }
 
     private String normalizeBlz(String blz) {
@@ -270,7 +276,7 @@ public class BankService {
             return null;
         }
         String normalized = blz.replaceAll("\\s+", "");
-        return normalized.matches("[0-9]{8}") ? normalized : null;
+        return normalized.matches("\\d{8}") ? normalized : null;
     }
 
     private String normalizeBic(String bic) {
@@ -286,7 +292,7 @@ public class BankService {
     }
 
     private String firstNonBlank(String first, String second) {
-        return !isBlank(first) ? first.trim() : trimToNull(second);
+        return isBlank(first) ? trimToNull(second) : first.trim();
     }
 
     private String trimToNull(String value) {
