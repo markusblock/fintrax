@@ -3,6 +3,7 @@ package org.fintrax.ui;
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.geometry.Bounds;
+import javafx.geometry.Pos;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
@@ -120,6 +121,20 @@ class RulesControllerTest extends AbstractUITest {
                 .findFirst().orElseThrow();
         assertEquals(formatDate(transaction.getBookingDate()), bookingDateColumn.getCellData(initialRow));
         assertEquals(formatDate(transaction.getValueDate()), valueDateColumn.getCellData(initialRow));
+        TableColumn<TransactionRulePreview, ?> amountColumn = reviewTable.getColumns().stream()
+                .filter(column -> I18n.get("rules.review.amount").equals(column.getText()))
+                .findFirst().orElseThrow();
+        assertEquals(String.format("%,.2f", transaction.getAmount().doubleValue()),
+                amountColumn.getCellData(initialRow));
+        TableCell<?, ?> amountCell = reviewTable.lookupAll(".table-cell").stream()
+                .filter(TableCell.class::isInstance)
+                .map(node -> (TableCell<?, ?>) node)
+                .filter(cell -> !cell.isEmpty() && cell.getTableColumn() == amountColumn
+                        && cell.getTableRow() != null
+                        && cell.getTableRow().getItem() instanceof TransactionRulePreview preview
+                        && preview.transactionId().equals(transaction.getId()))
+                .findFirst().orElseThrow();
+        assertEquals(Pos.CENTER_RIGHT, amountCell.getAlignment());
         assertEquals(transactionPurpose, reviewTable.getColumns().stream()
                 .filter(column -> I18n.get("col.purpose").equals(column.getText()))
                 .findFirst().orElseThrow().getCellData(initialRow));

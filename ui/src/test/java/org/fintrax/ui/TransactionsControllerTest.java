@@ -4,6 +4,7 @@ import javafx.application.Platform;
 import javafx.geometry.Bounds;
 import javafx.event.Event;
 import javafx.geometry.Orientation;
+import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
@@ -149,6 +150,31 @@ class TransactionsControllerTest extends AbstractUITest {
         assertEquals(label.getName(), chip.getText());
         assertEquals(javafx.scene.paint.Color.web(label.getColor()),
                 chip.getBackground().getFills().getFirst().getFill());
+    }
+
+    @Test
+    void moneyColumnsShowCurrencyInHeadersAndRightAlignValues() {
+        TableView<Transaction> table = lookup("#transactionTable").query();
+        TableColumn<?, ?> amountColumn = table.getColumns().stream()
+                .filter(column -> I18n.get("col.amount").equals(column.getText()))
+                .findFirst().orElseThrow();
+        TableColumn<?, ?> balanceColumn = table.getColumns().stream()
+                .filter(column -> I18n.get("col.balance").equals(column.getText()))
+                .findFirst().orElseThrow();
+
+        interact(() -> table.scrollTo(table.getItems().indexOf(testCategoryTransaction)));
+        WaitForAsyncUtils.waitForFxEvents();
+
+        assertEquals(String.format("%,.2f", testCategoryTransaction.getAmount().doubleValue()),
+                transactionCell(table, amountColumn, testCategoryTransaction).getText());
+        assertEquals(Pos.CENTER_RIGHT,
+                transactionCell(table, amountColumn, testCategoryTransaction).getAlignment());
+        assertEquals(String.format("%,.2f", testCategoryTransaction.getBalanceAfter().doubleValue()),
+                transactionCell(table, balanceColumn, testCategoryTransaction).getText());
+        assertEquals(Pos.CENTER_RIGHT,
+                transactionCell(table, balanceColumn, testCategoryTransaction).getAlignment());
+        assertTrue(I18n.get("col.amount").contains("€"));
+        assertTrue(I18n.get("col.balance").contains("€"));
     }
 
     @Test

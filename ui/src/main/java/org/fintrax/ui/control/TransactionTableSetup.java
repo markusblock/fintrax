@@ -2,6 +2,7 @@ package org.fintrax.ui.control;
 
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
+import javafx.geometry.Pos;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
@@ -173,6 +174,10 @@ public final class TransactionTableSetup {
     private void setupAmountColumn(TableColumn<Transaction, BigDecimal> amountColumn) {
         amountColumn.setCellValueFactory(cell -> new SimpleObjectProperty<>(cell.getValue().getAmount()));
         amountColumn.setCellFactory(column -> new TableCell<>() {
+            {
+                setAlignment(Pos.CENTER_RIGHT);
+            }
+
             @Override
             protected void updateItem(BigDecimal item, boolean empty) {
                 super.updateItem(item, empty);
@@ -180,7 +185,7 @@ public final class TransactionTableSetup {
                 if (empty || item == null) {
                     setText(null);
                 } else {
-                    setText(String.format("%,.2f EUR", item));
+                    setText(String.format("%,.2f", item));
                     getStyleClass().add(item.signum() < 0 ? AMOUNT_NEGATIVE_STYLE : AMOUNT_POSITIVE_STYLE);
                 }
             }
