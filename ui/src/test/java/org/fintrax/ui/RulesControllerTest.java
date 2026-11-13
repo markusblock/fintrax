@@ -613,6 +613,8 @@ class RulesControllerTest extends AbstractUITest {
         assertEquals(ruleTable.getColumns().getFirst(), ruleTable.getSortOrder().getFirst());
         assertTrue(ruleTable.getItems().indexOf(mergedRule) < ruleTable.getItems().indexOf(sourceOne));
         assertTrue(ruleTable.getItems().indexOf(mergedRule) < ruleTable.getItems().indexOf(sourceTwo));
+        assertEquals(List.of(mergedRule.getId()), ruleTable.getSelectionModel().getSelectedItems().stream()
+                .map(Rule::getId).toList());
     }
 
     @Test

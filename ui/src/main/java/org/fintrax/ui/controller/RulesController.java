@@ -568,11 +568,14 @@ public class RulesController {
                 .filter(candidate -> Objects.equals(candidate.getId(), rule.getId()))
                 .findFirst().orElse(null);
         if (matchingRule == null) return;
-        Rule selected = ruleTable.getSelectionModel().getSelectedItem();
-        if (selected != null && Objects.equals(selected.getId(), matchingRule.getId())) {
+        MultipleSelectionModel<Rule> selectionModel = ruleTable.getSelectionModel();
+        Rule selected = selectionModel.getSelectedItem();
+        if (selectionModel.getSelectedItems().size() == 1
+                && selected != null && Objects.equals(selected.getId(), matchingRule.getId())) {
             showSelectedRule(matchingRule);
         } else {
-            ruleTable.getSelectionModel().select(matchingRule);
+            selectionModel.clearSelection();
+            selectionModel.select(matchingRule);
         }
     }
 
