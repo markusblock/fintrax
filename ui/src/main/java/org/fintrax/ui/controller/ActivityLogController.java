@@ -100,6 +100,10 @@ public class ActivityLogController {
 
         loadLogs();
         setupColumnMenu();
+        restoreOrInitializeSortOrder();
+    }
+
+    private void restoreOrInitializeSortOrder() {
         // Apply the first-use default after populating rows so the table retains its sort order.
         String savedSortOrder = settingsService.getSettingValue(COLUMN_CONFIG_KEY + ".sort");
         if (savedSortOrder == null || savedSortOrder.isBlank()) {
