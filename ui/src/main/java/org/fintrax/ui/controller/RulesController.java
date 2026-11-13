@@ -449,11 +449,19 @@ public class RulesController {
         List<Rule> selectedRules = new ArrayList<>(ruleTable.getSelectionModel().getSelectedItems());
         if (selectedRules.isEmpty()) return;
         selectedRules.sort(Comparator.comparingInt(rule -> ruleTable.getItems().indexOf(rule)));
+        if (selectedRules.stream().anyMatch(this::hasLegacyNoteAction)) {
+            showMergeUnavailable("rules.merge.error.legacyNoteSource");
+            return;
+        }
 
         Set<Long> selectedIds = selectedRules.stream().map(Rule::getId).collect(Collectors.toSet());
         List<Rule> mergeTargets = ruleData.stream()
-                .filter(rule -> !selectedIds.contains(rule.getId())).toList();
-        if (selectedRules.size() == 1 && mergeTargets.isEmpty()) return;
+                .filter(rule -> !selectedIds.contains(rule.getId()))
+                .filter(rule -> !hasLegacyNoteAction(rule)).toList();
+        if (selectedRules.size() == 1 && mergeTargets.isEmpty()) {
+            showMergeUnavailable("rules.merge.error.noCompatibleTarget");
+            return;
+        }
         RuleMergeDialog.show(rootPane.getScene().getWindow(), selectedRules, mergeTargets)
                 .ifPresent(options -> {
                     Rule target = options.targetRuleId() == null ? null : mergeTargets.stream()
@@ -462,6 +470,20 @@ public class RulesController {
                     if (options.targetRuleId() != null && target == null) return;
                     openMergedRuleEditor(selectedRules, target, options.deleteSourceRules());
                 });
+    }
+
+    private boolean hasLegacyNoteAction(Rule rule) {
+        return rule.getActions().stream().anyMatch(action -> action.getActionType() == ActionType.SET_NOTE);
+    }
+
+    private void showMergeUnavailable(String messageKey) {
+        Alert alert = new Alert(Alert.AlertType.WARNING);
+        FintraxUI.configureDialog(alert);
+        alert.initOwner(rootPane.getScene().getWindow());
+        alert.setTitle(I18n.get("rules.merge.error.title"));
+        alert.setHeaderText(I18n.get("rules.merge.error.title"));
+        alert.setContentText(I18n.get(messageKey));
+        alert.showAndWait();
     }
 
     private void openMergedRuleEditor(List<Rule> sourceRules, Rule targetRule, boolean deleteSourceRules) {
