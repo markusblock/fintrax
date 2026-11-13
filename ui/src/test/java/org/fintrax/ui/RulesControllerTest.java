@@ -599,6 +599,8 @@ class RulesControllerTest extends AbstractUITest {
             ruleTable.getSortOrder().setAll(ruleNameColumn);
             ruleTable.sort();
         });
+        TextField searchField = lookup("#ruleSearchField").query();
+        interact(() -> searchField.setText("Merge source"));
         openMergeRuleEditor(ruleTable);
 
         String mergedName = "ZZZ merged " + System.nanoTime();
@@ -613,6 +615,7 @@ class RulesControllerTest extends AbstractUITest {
         assertEquals(ruleTable.getColumns().getFirst(), ruleTable.getSortOrder().getFirst());
         assertTrue(ruleTable.getItems().indexOf(mergedRule) < ruleTable.getItems().indexOf(sourceOne));
         assertTrue(ruleTable.getItems().indexOf(mergedRule) < ruleTable.getItems().indexOf(sourceTwo));
+        assertEquals("", searchField.getText());
         assertEquals(List.of(mergedRule.getId()), ruleTable.getSelectionModel().getSelectedItems().stream()
                 .map(Rule::getId).toList());
     }

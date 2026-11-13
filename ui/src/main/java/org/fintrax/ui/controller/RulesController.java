@@ -568,6 +568,7 @@ public class RulesController {
                 .filter(candidate -> Objects.equals(candidate.getId(), rule.getId()))
                 .findFirst().orElse(null);
         if (matchingRule == null) return;
+        if (!ruleTable.getItems().contains(matchingRule)) ruleSearchField.clear();
         MultipleSelectionModel<Rule> selectionModel = ruleTable.getSelectionModel();
         Rule selected = selectionModel.getSelectedItem();
         if (selectionModel.getSelectedItems().size() == 1
