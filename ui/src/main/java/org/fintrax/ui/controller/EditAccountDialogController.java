@@ -13,7 +13,6 @@ import org.fintrax.fintx.BankingException;
 import org.fintrax.fintx.BankDirectoryEntry;
 import org.fintrax.fintx.BankingProtocol;
 import org.fintrax.fintx.DiscoveredBankAccount;
-import org.fintrax.fintx.PinStorage;
 import org.fintrax.model.ActivityAction;
 import org.fintrax.model.Bank;
 import org.fintrax.model.BankAccount;
@@ -62,8 +61,6 @@ public class EditAccountDialogController {
     @FXML
     private PasswordField passwordField;
     @FXML
-    private CheckBox storePasswordCheckBox;
-    @FXML
     private TextField bankCommentField;
     @FXML
     private TextField accountNameField;
@@ -101,7 +98,6 @@ public class EditAccountDialogController {
     private final AccountService accountService;
     private final BankService bankService;
     private final BankingProtocol bankingProtocol;
-    private final PinStorage pinStorage;
     private final ActivityLogger activityLogger;
     private BankAccount account;
     private Bank bank;
@@ -110,12 +106,10 @@ public class EditAccountDialogController {
     private boolean showingAccountSelection;
 
     public EditAccountDialogController(AccountService accountService, BankService bankService,
-                                       BankingProtocol bankingProtocol, PinStorage pinStorage,
-                                       ActivityLogger activityLogger) {
+                                       BankingProtocol bankingProtocol, ActivityLogger activityLogger) {
         this.accountService = accountService;
         this.bankService = bankService;
         this.bankingProtocol = bankingProtocol;
-        this.pinStorage = pinStorage;
         this.activityLogger = activityLogger;
     }
 
@@ -203,9 +197,6 @@ public class EditAccountDialogController {
 
     private void onTestConnection() {
         String pin = passwordField.getText();
-        if (pin == null || pin.isBlank()) {
-            pin = pinStorage.retrievePin(String.valueOf(account.getId()));
-        }
         if (pin == null || pin.isBlank()) {
             pin = promptForPin();
             if (pin == null || pin.isBlank()) {
@@ -318,7 +309,7 @@ public class EditAccountDialogController {
     private void importSelectedAccounts() {
         List<DiscoveredBankAccount> selected = accountSelectionPane.selectedAccounts();
         if (!selected.isEmpty()) {
-            importDiscoveredAccounts(selected, connectionPin);
+            importDiscoveredAccounts(selected);
         }
     }
 
@@ -329,7 +320,7 @@ public class EditAccountDialogController {
         return ibans;
     }
 
-    private void importDiscoveredAccounts(List<DiscoveredBankAccount> discovered, String pin) {
+    private void importDiscoveredAccounts(List<DiscoveredBankAccount> discovered) {
         try {
             String bic = bicField.getText().trim();
             bank = bankService.updateBank(bank.getId(), bankNameField.getText().trim(), bic.isBlank() ? null : bic,
@@ -338,21 +329,14 @@ public class EditAccountDialogController {
             accountService.updateAccount(account.getId(), bank.getId(), accountNameField.getText().trim(),
                     accountHolderField.getText().trim(), accountTypeCombo.getValue(), currencyField.getText().trim(),
                     accountCommentField.getText().trim());
-            if (storePasswordCheckBox.isSelected()) {
-                pinStorage.storePin(String.valueOf(account.getId()), pin);
-            }
-
             int imported = 0;
             for (DiscoveredBankAccount discoveredAccount : discovered) {
                 String iban = BankAccountSelectionPane.normalizeIban(discoveredAccount.iban());
                 if (iban.isBlank()) continue;
-                BankAccount created = accountService.createAccount(bank.getId(), iban,
+                accountService.createAccount(bank.getId(), iban,
                         BankAccountSelectionPane.suggestedAccountName(discoveredAccount),
                         discoveredAccount.accountHolder(), accountTypeFor(discoveredAccount),
                         defaultCurrency(discoveredAccount.currency()), null);
-                if (storePasswordCheckBox.isSelected()) {
-                    pinStorage.storePin(String.valueOf(created.getId()), pin);
-                }
                 imported++;
             }
             if (imported > 0) {
@@ -387,18 +371,6 @@ public class EditAccountDialogController {
 
     @FXML
     private void onSave() {
-        String password = passwordField.getText();
-        if (storePasswordCheckBox.isSelected() && (password == null || password.isBlank())) {
-            password = pinStorage.retrievePin(String.valueOf(account.getId()));
-            if (password == null || password.isBlank()) {
-                password = promptForPin();
-                if (password == null || password.isBlank()) {
-                    return;
-                }
-                passwordField.setText(password);
-            }
-        }
-
         String bic = bicField.getText().trim();
         bank = bankService.updateBank(bank.getId(), bankNameField.getText().trim(), bic.isBlank() ? null : bic,
                 fintsServerUrlField.getText().trim(), fintsUserIdField.getText().trim(),
@@ -406,9 +378,6 @@ public class EditAccountDialogController {
         accountService.updateAccount(account.getId(), bank.getId(), accountNameField.getText().trim(),
                 accountHolderField.getText().trim(), accountTypeCombo.getValue(), currencyField.getText().trim(),
                 accountCommentField.getText().trim());
-        if (storePasswordCheckBox.isSelected()) {
-            pinStorage.storePin(String.valueOf(account.getId()), password);
-        }
         close();
     }
 

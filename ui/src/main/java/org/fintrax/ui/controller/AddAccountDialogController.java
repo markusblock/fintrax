@@ -13,7 +13,6 @@ import org.fintrax.fintx.BankingException;
 import org.fintrax.fintx.BankDirectoryEntry;
 import org.fintrax.fintx.BankingProtocol;
 import org.fintrax.fintx.DiscoveredBankAccount;
-import org.fintrax.fintx.PinStorage;
 import org.fintrax.model.ActivityAction;
 import org.fintrax.model.AccountType;
 import org.fintrax.model.Bank;
@@ -66,8 +65,6 @@ public class AddAccountDialogController {
     @FXML
     private PasswordField passwordField;
     @FXML
-    private CheckBox storePasswordCheckBox;
-    @FXML
     private TextField bankCommentField;
     @FXML
     private Button saveButton;
@@ -87,7 +84,6 @@ public class AddAccountDialogController {
     private final AccountService accountService;
     private final BankingProtocol bankingProtocol;
     private final BankService bankService;
-    private final PinStorage pinStorage;
     private final ActivityLogger activityLogger;
     private Bank matchedBank;
     private String checkedIban;
@@ -97,11 +93,10 @@ public class AddAccountDialogController {
 
     @Autowired
     public AddAccountDialogController(AccountService accountService, BankingProtocol bankingProtocol,
-                                      BankService bankService, PinStorage pinStorage, ActivityLogger activityLogger) {
+                                      BankService bankService, ActivityLogger activityLogger) {
         this.accountService = accountService;
         this.bankingProtocol = bankingProtocol;
         this.bankService = bankService;
-        this.pinStorage = pinStorage;
         this.activityLogger = activityLogger;
     }
 
@@ -284,7 +279,7 @@ public class AddAccountDialogController {
     private void importSelectedAccounts() {
         List<DiscoveredBankAccount> selected = accountSelectionPane.selectedAccounts();
         if (!selected.isEmpty()) {
-            importDiscoveredAccounts(selected, connectionPin, normalizeIban(ibanField.getText()), bicField.getText());
+            importDiscoveredAccounts(selected, normalizeIban(ibanField.getText()), bicField.getText());
         }
     }
 
@@ -295,7 +290,7 @@ public class AddAccountDialogController {
         return ibans;
     }
 
-    private void importDiscoveredAccounts(List<DiscoveredBankAccount> discovered, String pin,
+    private void importDiscoveredAccounts(List<DiscoveredBankAccount> discovered,
                                           String sourceIban, String sourceBic) {
         try {
             Bank bank = ensureBankProfile(sourceIban, sourceBic);
@@ -304,13 +299,10 @@ public class AddAccountDialogController {
             for (DiscoveredBankAccount discoveredAccount : discovered) {
                 String iban = BankAccountSelectionPane.normalizeIban(discoveredAccount.iban());
                 if (iban.isBlank()) continue;
-                BankAccount created = accountService.createAccount(bank.getId(), iban,
+                accountService.createAccount(bank.getId(), iban,
                         BankAccountSelectionPane.suggestedAccountName(discoveredAccount),
                         discoveredAccount.accountHolder(), accountTypeFor(discoveredAccount),
                         defaultCurrency(discoveredAccount.currency()), null);
-                if (storePasswordCheckBox.isSelected()) {
-                    pinStorage.storePin(String.valueOf(created.getId()), pin);
-                }
                 imported++;
             }
             if (imported > 0) {

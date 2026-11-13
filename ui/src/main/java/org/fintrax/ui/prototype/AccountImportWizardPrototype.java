@@ -138,10 +138,8 @@ public final class AccountImportWizardPrototype extends Application {
         addField(bankFields, 4, "Customer ID (optional)", new TextField());
         addField(bankFields, 5, "FinTS server URL", new TextField("https://fints.example.test/fints/"));
         PasswordField password = new PasswordField();
-        password.setPromptText("Password / PIN (optional)");
-        addField(bankFields, 6, "Password / PIN", password);
-        CheckBox storePassword = new CheckBox("Store password (unchecked by default)");
-        bankFields.add(storePassword, 1, 7);
+        password.setPromptText("PIN used for this connection only");
+        addField(bankFields, 6, "PIN for this connection", password);
         VBox bankPanel = new VBox(12, new Label("Bank connection"), bankFields,
                 muted("Test connection simulates success and proceeds to account selection."),
                 muted("Demo only: no credentials are sent or stored."));
