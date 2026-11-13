@@ -108,7 +108,17 @@ public class ActivityLogController {
                         new TableColumnConfig("action", actionColumn),
                         new TableColumnConfig("entityType", entityTypeColumn),
                         new TableColumnConfig("entityId", entityIdColumn),
-                        new TableColumnConfig("description", descriptionColumn)));
+                        new TableColumnConfig("description", descriptionColumn)), this::setDefaultSortOrder);
+
+        String savedSortOrder = settingsService.getSettingValue(COLUMN_CONFIG_KEY + ".sort");
+        if (savedSortOrder == null || savedSortOrder.isBlank()) {
+            setDefaultSortOrder();
+        }
+    }
+
+    private void setDefaultSortOrder() {
+        timestampColumn.setSortType(TableColumn.SortType.DESCENDING);
+        logTable.getSortOrder().setAll(timestampColumn);
     }
 
     @FXML

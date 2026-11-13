@@ -5,6 +5,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.stage.Stage;
 import org.fintrax.config.I18n;
@@ -12,6 +13,7 @@ import org.fintrax.model.ActivityLog;
 import org.fintrax.service.SettingsService;
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -59,6 +61,68 @@ class ActivityLogControllerTest extends AbstractUITest {
                 descriptionItem.setSelected(true);
                 table.getColumns().setAll(originalColumnOrder);
             });
+        }
+    }
+
+    @Test
+    void timestampSortDefaultsToNewestAndPersistsAcrossViewReload() throws Exception {
+        String sortSettingKey = "activity.log.columns.sort";
+        SettingsService settingsService = applicationContext.getBean(SettingsService.class);
+        String previousSortOrder = settingsService.getSettingValue(sortSettingKey);
+        LocalDateTime olderTimestamp = LocalDateTime.of(2025, 1, 1, 10, 0);
+        LocalDateTime newerTimestamp = LocalDateTime.of(2025, 1, 2, 10, 0);
+        ActivityLog olderLog = ActivityLog.builder().id(1L).timestamp(olderTimestamp).build();
+        ActivityLog newerLog = ActivityLog.builder().id(2L).timestamp(newerTimestamp).build();
+
+        try {
+            TableView<ActivityLog> initialTable = lookup("#logTable").query();
+            Stage stage = (Stage) initialTable.getScene().getWindow();
+            settingsService.saveSettingValue(sortSettingKey, "");
+            Parent defaultView = applicationContext.getBean(ViewLoader.class).load("activityLog");
+            interact(() -> stage.getScene().setRoot(defaultView));
+
+            TableView<ActivityLog> table = lookup("#logTable").query();
+            assertEquals(1, table.getSortOrder().size());
+            assertEquals(I18n.get("col.timestamp"), table.getSortOrder().getFirst().getText());
+            assertEquals(TableColumn.SortType.DESCENDING, table.getSortOrder().getFirst().getSortType());
+            assertEquals("timestamp=DESCENDING", settingsService.getSettingValue(sortSettingKey));
+
+            interact(() -> {
+                table.getItems().setAll(olderLog, newerLog);
+                table.sort();
+            });
+            assertEquals(List.of(newerTimestamp, olderTimestamp),
+                    table.getItems().stream().map(ActivityLog::getTimestamp).toList());
+
+            interact(() -> {
+                table.getSortOrder().getFirst().setSortType(TableColumn.SortType.ASCENDING);
+                table.sort();
+            });
+            assertEquals("timestamp=ASCENDING", settingsService.getSettingValue(sortSettingKey));
+
+            Parent restoredView = applicationContext.getBean(ViewLoader.class).load("activityLog");
+            interact(() -> stage.getScene().setRoot(restoredView));
+
+            TableView<ActivityLog> restoredTable = lookup("#logTable").query();
+            assertEquals(1, restoredTable.getSortOrder().size());
+            assertEquals(I18n.get("col.timestamp"), restoredTable.getSortOrder().getFirst().getText());
+            assertEquals(TableColumn.SortType.ASCENDING, restoredTable.getSortOrder().getFirst().getSortType());
+            interact(() -> {
+                restoredTable.getItems().setAll(newerLog, olderLog);
+                restoredTable.sort();
+            });
+            assertEquals(List.of(olderTimestamp, newerTimestamp),
+                    restoredTable.getItems().stream().map(ActivityLog::getTimestamp).toList());
+
+            MenuButton menuButton = lookup("#columnMenuButton").query();
+            interact(menuButton.getItems().getLast()::fire);
+            assertEquals(I18n.get("col.timestamp"), restoredTable.getSortOrder().getFirst().getText());
+            assertEquals(TableColumn.SortType.DESCENDING, restoredTable.getSortOrder().getFirst().getSortType());
+            assertEquals("timestamp=DESCENDING", settingsService.getSettingValue(sortSettingKey));
+            assertEquals(List.of(newerTimestamp, olderTimestamp),
+                    restoredTable.getItems().stream().map(ActivityLog::getTimestamp).toList());
+        } finally {
+            settingsService.saveSettingValue(sortSettingKey, previousSortOrder == null ? "" : previousSortOrder);
         }
     }
 }
