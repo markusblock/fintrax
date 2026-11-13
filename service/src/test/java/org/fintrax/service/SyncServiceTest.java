@@ -13,6 +13,7 @@ import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
 
@@ -86,6 +87,42 @@ class SyncServiceTest {
         assertEquals(0, result.syncLog().getNewCount());
         assertEquals(1, result.syncLog().getSkippedCount());
         assertTrue(result.newTransactionIds().isEmpty());
+    }
+
+    @Test
+    void syncUpdatesAccountBalanceFromLatestBookedTransactionWithBalance() {
+        BankAccount account = createAccount();
+        Transaction older = transaction(account.getId(), "older", "Older");
+        older.setBookingDate(LocalDate.of(2026, 1, 1));
+        older.setBalanceAfter(new BigDecimal("12.34"));
+        Transaction latest = transaction(account.getId(), "latest", "Latest");
+        latest.setBookingDate(LocalDate.of(2026, 1, 2));
+        latest.setBalanceAfter(new BigDecimal("56.78"));
+        Transaction pending = transaction(account.getId(), "pending", "Pending");
+        pending.setBookingDate(LocalDate.of(2026, 1, 3));
+        pending.setBalanceAfter(new BigDecimal("99.99"));
+        pending.setBooked(false);
+        bankingProtocol.transactions = List.of(older, latest, pending);
+
+        syncService.syncAccount(account.getId(), "1234");
+
+        assertEquals(new BigDecimal("56.78"), account.getBalance());
+        assertEquals(LocalDateTime.of(2026, 1, 2, 0, 0), account.getBalanceDate());
+    }
+
+    @Test
+    void syncKeepsAccountBalanceWhenNoBookedTransactionHasBalance() {
+        BankAccount account = createAccount();
+        LocalDateTime balanceDate = LocalDateTime.of(2026, 1, 1, 10, 30);
+        accountService.updateBalance(account.getId(), new BigDecimal("42.00"), balanceDate);
+        Transaction withoutBalance = transaction(account.getId(), "no-balance", "No balance");
+        withoutBalance.setBalanceAfter(null);
+        bankingProtocol.transactions = List.of(withoutBalance);
+
+        syncService.syncAccount(account.getId(), "1234");
+
+        assertEquals(new BigDecimal("42.00"), account.getBalance());
+        assertEquals(balanceDate, account.getBalanceDate());
     }
 
     @Test

@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -159,6 +160,7 @@ public class SyncService {
                     .filter(id -> id != null)
                     .toList();
             transactionService.deleteTransactions(stalePendingIds);
+            updateAccountBalanceFromTransactions(accountId, fetchedTransactions);
 
             LocalDateTime completedAt = LocalDateTime.now();
             syncLog.setCompletedAt(completedAt);
@@ -183,6 +185,17 @@ public class SyncService {
         }
 
         return new SyncResult(syncLog, newTransactionIds);
+    }
+
+    private void updateAccountBalanceFromTransactions(Long accountId, List<Transaction> transactions) {
+        transactions.stream()
+                .filter(Transaction::isBooked)
+                .filter(transaction -> transaction.getBalanceAfter() != null)
+                .max(Comparator.comparing(Transaction::getBookingDate,
+                        Comparator.nullsFirst(Comparator.naturalOrder())))
+                .ifPresent(transaction -> accountService.updateBalance(accountId,
+                        transaction.getBalanceAfter(), transaction.getBookingDate() == null
+                                ? LocalDateTime.now() : transaction.getBookingDate().atStartOfDay()));
     }
 
     private boolean matches(Transaction stored, Transaction received) {
