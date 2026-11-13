@@ -18,7 +18,7 @@
       fx:controller="org.fintrax.ui.controller.AddAccountDialogController"
       styleClass="dialog-content">
     <padding>
-        <Insets top="20" right="20" bottom="20" left="20"/>
+        <Insets top="16" right="16" bottom="16" left="16"/>
     </padding>
 
     <Label text="%dialog.addAccount.title" styleClass="dialog-title"/>
@@ -26,7 +26,7 @@
 
     <Separator/>
 
-    <GridPane hgap="10" vgap="10">
+    <GridPane hgap="12" vgap="12">
         <columnConstraints>
             <ColumnConstraints minWidth="120" prefWidth="140" halignment="RIGHT"/>
             <ColumnConstraints hgrow="ALWAYS" fillWidth="true"/>
@@ -62,7 +62,7 @@
 
     <Separator/>
 
-    <HBox spacing="10" alignment="CENTER_RIGHT">
+    <HBox spacing="8" alignment="CENTER_RIGHT">
         <Region HBox.hgrow="ALWAYS"/>
         <Button text="%button.cancel" onAction="#onCancel" styleClass="button-outlined"/>
         <Button fx:id="saveButton" text="%button.save" onAction="#onSave" styleClass="accent-button">

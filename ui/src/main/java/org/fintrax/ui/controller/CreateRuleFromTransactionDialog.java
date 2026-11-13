@@ -10,7 +10,8 @@ final class CreateRuleFromTransactionDialog {
 
     static void show(Window owner, Transaction transaction, RuleService ruleService, ViewLoader viewLoader) {
         RuleEditorDialog.show(owner, viewLoader, "dialog.createRule.title", "dialog.createRule.header",
-                        "createRuleSave", "createRuleCancel", editor -> editor.setFromTransaction(transaction))
+                        "createRuleSave", "createRuleCancel", editor -> editor.setFromTransaction(transaction),
+                        name -> ruleService.isRuleNameAvailable(name, null))
                 .ifPresent(input -> ruleService.createRule(input.name(), input.conditions(), input.actions(),
                         input.matchMode()));
     }

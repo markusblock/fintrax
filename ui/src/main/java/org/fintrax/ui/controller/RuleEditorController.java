@@ -8,6 +8,7 @@ import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContentDisplay;
+import javafx.scene.control.Label;
 import javafx.scene.control.Separator;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
@@ -42,6 +43,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
@@ -56,6 +58,8 @@ public class RuleEditorController {
     @FXML
     private TextField ruleNameField;
     @FXML
+    private Label ruleNameErrorLabel;
+    @FXML
     private ComboBox<String> conditionMatchModeCombo;
     @FXML
     private VBox conditionsContainer;
@@ -66,6 +70,7 @@ public class RuleEditorController {
     private final LabelService labelService;
     private final List<ConditionRow> conditionRows = new ArrayList<>();
     private final List<ActionRow> actionRows = new ArrayList<>();
+    private Predicate<String> ruleNameAvailable = name -> true;
     private Runnable changeListener = () -> {};
 
     public RuleEditorController(CategoryService categoryService, LabelService labelService) {
@@ -85,6 +90,11 @@ public class RuleEditorController {
 
     public void setOnChange(Runnable listener) {
         changeListener = Objects.requireNonNull(listener);
+        notifyChanged();
+    }
+
+    public void setRuleNameAvailability(Predicate<String> availability) {
+        ruleNameAvailable = Objects.requireNonNull(availability);
         notifyChanged();
     }
 
@@ -204,10 +214,11 @@ public class RuleEditorController {
     }
 
     public boolean isValid() {
+        String name = getRuleName();
         long categoryActionCount = actionRows.stream()
                 .filter(row -> actionTypeFromText(row.typeCombo.getValue()) == ActionType.ASSIGN_CATEGORY)
                 .count();
-        return !getRuleName().isEmpty()
+        return !name.isEmpty() && ruleNameAvailable.test(name)
                 && !conditionRows.isEmpty() && conditionRows.stream().allMatch(ConditionRow::isValid)
                 && !actionRows.isEmpty() && actionRows.stream().allMatch(ActionRow::isValid)
                 && categoryActionCount <= 1;
@@ -365,6 +376,11 @@ public class RuleEditorController {
     }
 
     private void notifyChanged() {
+        String name = getRuleName();
+        boolean duplicateName = !name.isEmpty() && !ruleNameAvailable.test(name);
+        ruleNameErrorLabel.setText(I18n.get("rules.name.duplicate"));
+        ruleNameErrorLabel.setVisible(duplicateName);
+        ruleNameErrorLabel.setManaged(duplicateName);
         changeListener.run();
     }
 

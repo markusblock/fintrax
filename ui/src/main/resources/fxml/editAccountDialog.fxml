@@ -18,7 +18,7 @@
       fx:controller="org.fintrax.ui.controller.EditAccountDialogController"
       styleClass="dialog-content">
     <padding>
-        <Insets top="20" right="20" bottom="20" left="20"/>
+        <Insets top="16" right="16" bottom="16" left="16"/>
     </padding>
 
     <Label text="%dialog.editAccount.title" styleClass="dialog-title"/>
@@ -26,7 +26,7 @@
 
     <Separator/>
 
-    <GridPane hgap="10" vgap="10">
+    <GridPane hgap="12" vgap="12">
         <columnConstraints>
             <ColumnConstraints minWidth="120" prefWidth="140" halignment="RIGHT"/>
             <ColumnConstraints hgrow="ALWAYS" fillWidth="true"/>
@@ -57,16 +57,16 @@
                   GridPane.rowIndex="6" GridPane.columnIndex="1"/>
     </GridPane>
 
-    <VBox styleClass="account-edit-metadata" spacing="5">
-        <HBox spacing="6">
+    <VBox styleClass="account-edit-metadata" spacing="8">
+        <HBox spacing="8">
             <Label text="%label.balance" styleClass="secondary-text"/>
             <Label fx:id="balanceValue" styleClass="secondary-text"/>
         </HBox>
-        <HBox spacing="6">
+        <HBox spacing="8">
             <Label text="%label.balanceDate" styleClass="secondary-text"/>
             <Label fx:id="balanceDateValue" styleClass="secondary-text"/>
         </HBox>
-        <HBox spacing="6">
+        <HBox spacing="8">
             <Label text="%label.lastSync" styleClass="secondary-text"/>
             <Label fx:id="lastSyncValue" styleClass="secondary-text"/>
         </HBox>
@@ -74,7 +74,7 @@
 
     <Separator/>
 
-    <HBox spacing="10" alignment="CENTER_RIGHT">
+    <HBox spacing="8" alignment="CENTER_RIGHT">
         <Region HBox.hgrow="ALWAYS"/>
         <Button text="%button.cancel" onAction="#onCancel" styleClass="button-outlined"/>
         <Button fx:id="saveButton" id="saveAccountButton" text="%button.save"

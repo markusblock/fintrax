@@ -130,21 +130,30 @@ public class RulesController {
         ruleTable.setItems(sortedRules);
         ruleNumberColumn.setSortType(TableColumn.SortType.ASCENDING);
         ruleTable.getSortOrder().setAll(ruleNumberColumn);
+        ruleTable.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
         TableViewResizePolicy.fitColumnsAndAllowHorizontalScrolling(ruleTable);
         TableCellTooltips.install(ruleTable);
-        ruleTable.setRowFactory(table -> new TableRow<>() {
-            @Override
-            protected void updateItem(Rule item, boolean empty) {
-                super.updateItem(item, empty);
-                setStyle("");
-                getStyleClass().remove(DISABLED_RULE_ROW_CLASS);
-                if (empty || item == null) {
-                    setContextMenu(null);
-                } else {
-                    if (!item.isEnabled()) getStyleClass().add(DISABLED_RULE_ROW_CLASS);
-                    setContextMenu(createRuleContextMenu(item));
+        ruleTable.setRowFactory(table -> {
+            TableRow<Rule> row = new TableRow<>() {
+                @Override
+                protected void updateItem(Rule item, boolean empty) {
+                    super.updateItem(item, empty);
+                    setStyle("");
+                    getStyleClass().remove(DISABLED_RULE_ROW_CLASS);
+                    if (empty || item == null) {
+                        setContextMenu(null);
+                    } else {
+                        if (!item.isEnabled()) getStyleClass().add(DISABLED_RULE_ROW_CLASS);
+                        setContextMenu(createRuleContextMenu(item));
+                    }
                 }
-            }
+            };
+            row.setOnContextMenuRequested(event -> {
+                if (!row.isEmpty() && !ruleTable.getSelectionModel().isSelected(row.getIndex())) {
+                    ruleTable.getSelectionModel().clearAndSelect(row.getIndex());
+                }
+            });
+            return row;
         });
         loadRules();
         setupTransactionTable();
@@ -206,6 +215,9 @@ public class RulesController {
         editRule.setGraphic(icon("fth-edit-2", 14));
         editRule.setOnAction(event -> editRule(rule));
 
+        MenuItem mergeRules = new MenuItem(I18n.get("rules.mergeSelected"));
+        mergeRules.setOnAction(event -> mergeSelectedRules());
+
         MenuItem applyRule = new MenuItem(I18n.get("rules.applySelected"));
         applyRule.setGraphic(icon("fth-play", 14));
         applyRule.setDisable(!rule.isEnabled());
@@ -232,12 +244,21 @@ public class RulesController {
         deleteRule.setGraphic(icon("fth-trash-2", 14));
         deleteRule.setOnAction(event -> confirmDeleteRule(rule));
 
-        return new ContextMenu(editRule, applyRule, new SeparatorMenuItem(), moveUp, moveDown,
-                toggleEnabled, new SeparatorMenuItem(), deleteRule);
+        ContextMenu contextMenu = new ContextMenu(editRule, mergeRules, applyRule,
+                new SeparatorMenuItem(), moveUp, moveDown, toggleEnabled,
+                new SeparatorMenuItem(), deleteRule);
+        contextMenu.setOnShowing(event -> {
+            int selectedCount = ruleTable.getSelectionModel().getSelectedItems().size();
+            editRule.setDisable(selectedCount != 1);
+            mergeRules.setDisable(selectedCount == 0 || (selectedCount == 1 && ruleData.size() < 2));
+        });
+        return contextMenu;
     }
 
     private void loadRules() {
         ruleData.setAll(ruleService.getAllRules());
+        ruleTable.sort();
+        ruleTable.refresh();
     }
 
     private void showSelectedRule(Rule rule) {
@@ -415,7 +436,8 @@ public class RulesController {
     private void onAddRule() {
         RuleEditorDialog.show(rootPane.getScene().getWindow(), viewLoader,
                         "dialog.newRule.title", "dialog.newRule.header",
-                        "createRuleSave", "createRuleCancel", RuleEditorController::prepareNewRule)
+                        "createRuleSave", "createRuleCancel", RuleEditorController::prepareNewRule,
+                        name -> ruleService.isRuleNameAvailable(name, null))
                 .ifPresent(input -> {
                     Rule created = ruleService.createRule(input.name(), input.conditions(), input.actions(),
                             input.matchMode());
@@ -423,12 +445,86 @@ public class RulesController {
                 });
     }
 
+    private void mergeSelectedRules() {
+        List<Rule> selectedRules = new ArrayList<>(ruleTable.getSelectionModel().getSelectedItems());
+        if (selectedRules.isEmpty()) return;
+        selectedRules.sort(Comparator.comparingInt(rule -> ruleTable.getItems().indexOf(rule)));
+
+        Set<Long> selectedIds = selectedRules.stream().map(Rule::getId).collect(Collectors.toSet());
+        List<Rule> mergeTargets = ruleData.stream()
+                .filter(rule -> !selectedIds.contains(rule.getId())).toList();
+        if (selectedRules.size() == 1 && mergeTargets.isEmpty()) return;
+        RuleMergeDialog.show(rootPane.getScene().getWindow(), selectedRules, mergeTargets)
+                .ifPresent(options -> {
+                    Rule target = options.targetRuleId() == null ? null : mergeTargets.stream()
+                            .filter(rule -> Objects.equals(rule.getId(), options.targetRuleId()))
+                            .findFirst().orElse(null);
+                    if (options.targetRuleId() != null && target == null) return;
+                    openMergedRuleEditor(selectedRules, target, options.deleteSourceRules());
+                });
+    }
+
+    private void openMergedRuleEditor(List<Rule> sourceRules, Rule targetRule, boolean deleteSourceRules) {
+        List<RuleCondition> conditions = sourceRules.stream()
+                .flatMap(rule -> rule.getConditions().stream()).collect(Collectors.toCollection(ArrayList::new));
+        List<RuleAction> actions = sourceRules.stream()
+                .flatMap(rule -> rule.getActions().stream()).collect(Collectors.toCollection(ArrayList::new));
+        if (targetRule != null) {
+            conditions.addAll(0, targetRule.getConditions());
+            actions.addAll(0, targetRule.getActions());
+        }
+        boolean creatingNewRule = targetRule == null;
+        RuleEditorDialog.show(rootPane.getScene().getWindow(), viewLoader,
+                        creatingNewRule ? "dialog.newRule.title" : "dialog.editRule.title",
+                        creatingNewRule ? "dialog.newRule.header" : "dialog.editRule.header",
+                        creatingNewRule ? "createRuleSave" : "editRuleSave",
+                        creatingNewRule ? "createRuleCancel" : "editRuleCancel",
+                        editor -> editor.setRule(creatingNewRule ? "" : targetRule.getName(),
+                                creatingNewRule ? RuleMatchMode.ANY : targetRule.getMatchMode(),
+                                conditions, actions),
+                        name -> ruleService.isRuleNameAvailable(name,
+                                creatingNewRule ? null : targetRule.getId()))
+                .ifPresent(input -> {
+                    Long mergedRuleId;
+                    if (creatingNewRule) {
+                        Rule created = ruleService.createRule(input.name(), input.conditions(), input.actions(),
+                                input.matchMode());
+                        moveCreatedRuleBeforeSources(created, sourceRules);
+                        mergedRuleId = created.getId();
+                    } else {
+                        ruleService.updateRule(targetRule.getId(), input.name(), input.conditions(), input.actions(),
+                                input.matchMode());
+                        mergedRuleId = targetRule.getId();
+                    }
+                    if (deleteSourceRules) deleteMergedSourceRules(sourceRules);
+                    reloadRulesAndSelect(mergedRuleId);
+                });
+    }
+
+    private void moveCreatedRuleBeforeSources(Rule created, List<Rule> sourceRules) {
+        int firstSourceIndex = sourceRules.stream()
+                .mapToInt(sourceRule -> indexOfRule(sourceRule.getId()))
+                .min().orElse(ruleData.size());
+        List<Long> orderedRuleIds = ruleData.stream().map(Rule::getId)
+                .collect(Collectors.toCollection(ArrayList::new));
+        orderedRuleIds.add(firstSourceIndex, created.getId());
+        ruleService.reorderRules(orderedRuleIds);
+        ruleNumberColumn.setSortType(TableColumn.SortType.ASCENDING);
+        ruleTable.getSortOrder().setAll(ruleNumberColumn);
+    }
+
+    private void deleteMergedSourceRules(List<Rule> sourceRules) {
+        sourceRules.forEach(rule -> ruleService.deleteRule(rule.getId()));
+        ruleService.reorderRules(ruleService.getAllRules().stream().map(Rule::getId).toList());
+    }
+
     private void editRule(Rule rule) {
         RuleEditorDialog.show(rootPane.getScene().getWindow(), viewLoader,
                         "dialog.editRule.title", "dialog.editRule.header",
                         "editRuleSave", "editRuleCancel",
                         editor -> editor.setRule(rule.getName(), rule.getMatchMode(),
-                                rule.getConditions(), rule.getActions()))
+                                rule.getConditions(), rule.getActions()),
+                        name -> ruleService.isRuleNameAvailable(name, rule.getId()))
                 .ifPresent(input -> {
                     ruleService.updateRule(rule.getId(), input.name(), input.conditions(), input.actions(),
                             input.matchMode());

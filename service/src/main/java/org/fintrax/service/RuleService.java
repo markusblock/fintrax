@@ -303,12 +303,16 @@ public class RuleService {
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException("Rule name is required");
         }
-        boolean duplicate = store.getRoot().getRules().stream()
-                .anyMatch(rule -> (exceptId == null || !Objects.equals(rule.getId(), exceptId))
-                        && rule.getName() != null && rule.getName().equalsIgnoreCase(name));
-        if (duplicate) {
+        if (!isRuleNameAvailable(name, exceptId)) {
             throw new IllegalArgumentException("Rule with name already exists: " + name);
         }
+    }
+
+    public boolean isRuleNameAvailable(String name, Long exceptId) {
+        if (name == null || name.isBlank()) return false;
+        return store.getRoot().getRules().stream()
+                .noneMatch(rule -> (exceptId == null || !Objects.equals(rule.getId(), exceptId))
+                        && rule.getName() != null && rule.getName().equalsIgnoreCase(name));
     }
 
     private String normalizeName(String name) {

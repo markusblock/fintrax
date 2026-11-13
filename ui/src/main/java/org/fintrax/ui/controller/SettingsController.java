@@ -201,7 +201,7 @@ public class SettingsController {
         CheckBox rulesBox = new CheckBox(I18n.get("settings.import.rules"));
         rulesBox.setSelected(true);
 
-        VBox content = new VBox(10, categoriesBox, rulesBox);
+        VBox content = new VBox(12, categoriesBox, rulesBox);
         content.getStyleClass().add("dialog-content");
         dialog.getDialogPane().setContent(content);
 
@@ -332,7 +332,7 @@ public class SettingsController {
         warning.getStyleClass().add("danger-copy");
 
         Map<ResetGroup, CheckBox> choices = new LinkedHashMap<>();
-        VBox content = new VBox(10, warning);
+        VBox content = new VBox(12, warning);
         content.getStyleClass().add("dialog-content");
         addResetChoice(content, choices, ResetGroup.ACCOUNTS_TRANSACTIONS_HISTORY,
                 "settings.reset.accounts");
@@ -343,7 +343,7 @@ public class SettingsController {
         addResetChoice(content, choices, ResetGroup.APPLICATION_SETTINGS,
                 "settings.reset.settings");
 
-        HBox selectionButtons = new HBox(10);
+        HBox selectionButtons = new HBox(8);
         Button selectAll = new Button(I18n.get("button.selectAll"));
         selectAll.setGraphic(icon("fth-check-square", 14));
         selectAll.getStyleClass().add("button-outlined");
