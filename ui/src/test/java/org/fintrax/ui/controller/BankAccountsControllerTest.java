@@ -37,6 +37,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -202,14 +203,19 @@ class BankAccountsControllerTest extends AbstractUITest {
 
     @Test
     void syncProgressDialogShowsStagesAndAdvancesStatusIcons() {
-        Window owner = lookup(".account-card").query().getScene().getWindow();
-        SyncProgressDialog progressDialog = new SyncProgressDialog(owner);
         SyncProgressDialog.Account target = new SyncProgressDialog.Account(account.getId(),
                 "Sync Bank · Girokonto", "•••• 3000");
         AtomicBoolean cancelled = new AtomicBoolean();
-        progressDialog.setCancelAction(() -> cancelled.set(true));
+        AtomicReference<SyncProgressDialog> progressDialogRef = new AtomicReference<>();
 
-        interact(() -> progressDialog.show(List.of(target)));
+        interact(() -> {
+            Window owner = lookup(".account-card").query().getScene().getWindow();
+            SyncProgressDialog progressDialog = new SyncProgressDialog(owner);
+            progressDialog.setCancelAction(() -> cancelled.set(true));
+            progressDialog.show(List.of(target));
+            progressDialogRef.set(progressDialog);
+        });
+        SyncProgressDialog progressDialog = progressDialogRef.get();
         WaitForAsyncUtils.waitForFxEvents();
 
         Stage dialogStage = Window.getWindows().stream()
