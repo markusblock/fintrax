@@ -206,20 +206,26 @@ public class TransactionsController {
     }
 
     private void setupFutureTransactionRows() {
-        transactionTable.setRowFactory(table -> new TableRow<>() {
-            @Override
-            protected void updateItem(Transaction transaction, boolean empty) {
-                super.updateItem(transaction, empty);
-                getStyleClass().remove("future-transaction-row");
-                if (!empty && transaction != null && isFutureTransaction(transaction)) {
-                    getStyleClass().add("future-transaction-row");
-                }
-            }
+        var existingRowFactory = transactionTable.getRowFactory();
+        transactionTable.setRowFactory(table -> {
+            TableRow<Transaction> row = existingRowFactory == null
+                    ? new TableRow<>() : existingRowFactory.call(table);
+            row.itemProperty().addListener((observable, oldTransaction, newTransaction) ->
+                    updateFutureTransactionStyle(row, newTransaction));
+            updateFutureTransactionStyle(row, row.getItem());
+            return row;
         });
     }
 
+    private void updateFutureTransactionStyle(TableRow<Transaction> row, Transaction transaction) {
+        row.getStyleClass().remove("future-transaction-row");
+        if (isFutureTransaction(transaction)) {
+            row.getStyleClass().add("future-transaction-row");
+        }
+    }
+
     private boolean isFutureTransaction(Transaction transaction) {
-        return transaction.getBookingDate() != null
+        return transaction != null && transaction.getBookingDate() != null
                 && transaction.getBookingDate().isAfter(LocalDate.now());
     }
 

@@ -244,10 +244,13 @@ public class RulesController {
         MenuItem applyRule = new MenuItem(I18n.get("rules.applySelected"));
         applyRule.setGraphic(icon("fth-play", 14));
         applyRule.setDisable(!rule.isEnabled());
-        applyRule.setOnAction(event -> new RuleReviewDialog(rootPane.getScene().getWindow(),
-                new RuleReviewDialog.Services(ruleService, accountService, categoryService, labelService,
-                        settingsService),
-                onlyFillMissing -> ruleService.previewSingleRule(rule.getId(), onlyFillMissing), true).show());
+        applyRule.setOnAction(event -> {
+            boolean applied = new RuleReviewDialog(rootPane.getScene().getWindow(),
+                    new RuleReviewDialog.Services(ruleService, accountService, categoryService, labelService,
+                            settingsService),
+                    onlyFillMissing -> ruleService.previewSingleRule(rule.getId(), onlyFillMissing), true).show();
+            if (applied) reloadSelectedTransactionsKeepingSelection();
+        });
 
         int ruleIndex = indexOfRule(rule.getId());
         MenuItem moveUp = new MenuItem(I18n.get("button.moveUp"));
@@ -626,10 +629,11 @@ public class RulesController {
 
     @FXML
     private void onApplyAll() {
-        new RuleReviewDialog(rootPane.getScene().getWindow(),
+        boolean applied = new RuleReviewDialog(rootPane.getScene().getWindow(),
                 new RuleReviewDialog.Services(ruleService, accountService, categoryService, labelService,
                         settingsService),
                 ruleService::previewAllRules, false).show();
+        if (applied) reloadSelectedTransactionsKeepingSelection();
     }
 
     private void confirmDeleteRule(Rule rule) {
