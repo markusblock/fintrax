@@ -101,7 +101,8 @@
                                     <Label fx:id="bookingStatusValue" styleClass="detail-status-badge"/>
                                 </children>
                             </StackPane>
-                            <TitledPane fx:id="additionalInformationPane" expanded="false" collapsible="true"
+                            <TitledPane fx:id="additionalInformationPane" styleClass="additional-information-pane"
+                                        expanded="false" collapsible="true"
                                         maxWidth="Infinity"
                                         GridPane.rowIndex="8" GridPane.columnIndex="0" GridPane.columnSpan="4">
                                 <graphic>
