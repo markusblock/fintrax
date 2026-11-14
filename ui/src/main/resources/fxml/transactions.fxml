@@ -1,17 +1,37 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 <?import org.kordamp.ikonli.javafx.FontIcon?>
 <BorderPane fx:id="rootPane" xmlns:fx="http://javafx.com/fxml"
             fx:controller="org.fintrax.ui.controller.TransactionsController" styleClass="transactions-view">
+    <fx:define>
+        <TableColumn fx:id="bookingDateColumn" text="%col.bookingDate" minWidth="115" prefWidth="115"
+                     maxWidth="115" resizable="false"/>
+        <TableColumn fx:id="valueDateColumn" text="%col.valueDate" minWidth="115" prefWidth="115"
+                     maxWidth="115" resizable="false"/>
+        <TableColumn fx:id="payeeColumn" text="%col.payee" minWidth="100" prefWidth="140"/>
+        <TableColumn fx:id="accountColumn" text="%col.account" minWidth="110" prefWidth="150"/>
+        <TableColumn fx:id="purposeColumn" text="%col.purpose" minWidth="120" prefWidth="180"/>
+        <TableColumn fx:id="amountColumn" text="%col.amount" minWidth="90" prefWidth="110"/>
+        <TableColumn fx:id="balanceColumn" text="%col.balance" minWidth="90" prefWidth="110"/>
+        <TableColumn fx:id="categoryColumn" text="%col.category" minWidth="90" prefWidth="130"/>
+        <TableColumn fx:id="labelsColumn" text="%col.labels" minWidth="90" prefWidth="130"/>
+        <TableColumn fx:id="columnMenuColumn" minWidth="17" prefWidth="17" maxWidth="17"
+                     resizable="false" sortable="false" reorderable="false">
+            <graphic>
+                <MenuButton fx:id="columnMenuButton" accessibleText="%button.columns"
+                            styleClass="column-menu-button"/>
+            </graphic>
+        </TableColumn>
+    </fx:define>
     <top>
         <VBox styleClass="transactions-header">
             <HBox spacing="10" alignment="CENTER_LEFT">
                 <Label text="%view.transactions" styleClass="page-title"/>
                 <Region HBox.hgrow="ALWAYS"/>
-                <Button fx:id="detailToggleButton" text="%button.toggleDetail" onAction="#onToggleDetail" styleClass="button-outlined">
+                <Button fx:id="detailToggleButton" text="%button.toggleDetail" onAction="#onToggleDetail"
+                        styleClass="button-outlined">
                     <graphic><FontIcon iconLiteral="fth-eye" iconSize="15"/></graphic>
                 </Button>
             </HBox>
@@ -21,113 +41,7 @@
         <VBox styleClass="transactions-content-area">
             <VBox fx:id="transactionsPanel" spacing="12" styleClass="content-panel,transactions-content-panel"
                   VBox.vgrow="ALWAYS">
-                <fx:include fx:id="transactionFilterPanel" source="transactionFilterPanel.fxml"/>
-                <SplitPane fx:id="splitPane" orientation="VERTICAL" dividerPositions="1.0" VBox.vgrow="ALWAYS">
-            <TableView fx:id="transactionTable" SplitPane.resizableWithParent="true">
-                <columns>
-                    <TableColumn fx:id="bookingDateColumn" text="%col.bookingDate" minWidth="115" prefWidth="115" maxWidth="115"
-                                 resizable="false"/>
-                    <TableColumn fx:id="valueDateColumn" text="%col.valueDate" minWidth="115" prefWidth="115" maxWidth="115"
-                                 resizable="false"/>
-                    <TableColumn fx:id="payeeColumn" text="%col.payee" minWidth="100" prefWidth="140"/>
-                    <TableColumn fx:id="accountColumn" text="%col.account" minWidth="110" prefWidth="150"/>
-                    <TableColumn fx:id="purposeColumn" text="%col.purpose" minWidth="120" prefWidth="180"/>
-                    <TableColumn fx:id="amountColumn" text="%col.amount" minWidth="90" prefWidth="110"/>
-                    <TableColumn fx:id="balanceColumn" text="%col.balance" minWidth="90" prefWidth="110"/>
-                    <TableColumn fx:id="categoryColumn" text="%col.category" minWidth="90" prefWidth="130"/>
-                    <TableColumn fx:id="labelsColumn" text="%col.labels" minWidth="90" prefWidth="130"/>
-                    <TableColumn fx:id="columnMenuColumn" minWidth="17" prefWidth="17" maxWidth="17"
-                                 resizable="false" sortable="false" reorderable="false">
-                        <graphic>
-                            <MenuButton fx:id="columnMenuButton" accessibleText="%button.columns"
-                                        styleClass="column-menu-button"/>
-                        </graphic>
-                    </TableColumn>
-                </columns>
-            </TableView>
-            <VBox fx:id="detailPanel" visible="false" managed="false" spacing="10"
-                  styleClass="transaction-detail-panel">
-                <padding>
-                    <Insets top="15" right="20" bottom="15" left="20"/>
-                </padding>
-                <HBox spacing="10" alignment="CENTER_LEFT">
-                    <Label text="%detail.title" styleClass="section-title"/>
-                    <Region HBox.hgrow="ALWAYS"/>
-                    <Button text="%button.close" onAction="#onToggleDetail" styleClass="button-outlined"/>
-                </HBox>
-                <ScrollPane fx:id="detailScrollPane" fitToWidth="true" hbarPolicy="NEVER"
-                            styleClass="transaction-detail-scroll"
-                            VBox.vgrow="ALWAYS">
-                    <content>
-                        <GridPane fx:id="detailForm" styleClass="transaction-property-table" hgap="0" vgap="0">
-                            <columnConstraints>
-                                <ColumnConstraints minWidth="105" prefWidth="120"/>
-                                <ColumnConstraints hgrow="ALWAYS" fillWidth="true"/>
-                                <ColumnConstraints minWidth="105" prefWidth="120"/>
-                                <ColumnConstraints hgrow="ALWAYS" fillWidth="true"/>
-                            </columnConstraints>
-                            <Label fx:id="amountKey" text="%detail.amount" styleClass="detail-property-key" wrapText="true" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
-                            <Label fx:id="amountValue" styleClass="detail-property-value,detail-primary-value" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
-                            <Label fx:id="balanceKey" text="%detail.balance" styleClass="detail-property-key" wrapText="true" GridPane.rowIndex="0" GridPane.columnIndex="2"/>
-                            <Label fx:id="balanceValue" styleClass="detail-property-value,detail-primary-value" GridPane.rowIndex="0" GridPane.columnIndex="3"/>
-                            <Label fx:id="categoryKey" text="%detail.category" styleClass="detail-property-key" wrapText="true" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
-                            <Label fx:id="categoryValue" styleClass="detail-property-value,detail-category-value" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
-                            <Label fx:id="labelsKey" text="%detail.labels" styleClass="detail-property-key" wrapText="true" GridPane.rowIndex="1" GridPane.columnIndex="2"/>
-                            <FlowPane fx:id="labelsValue" styleClass="detail-property-value,detail-label-flow"
-                                      maxWidth="Infinity"
-                                      GridPane.rowIndex="1" GridPane.columnIndex="3"/>
-                            <Label fx:id="noteKey" text="%detail.note" styleClass="detail-property-key" wrapText="true" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
-                            <Label fx:id="noteValue" styleClass="detail-property-value" wrapText="true"
-                                   GridPane.rowIndex="2" GridPane.columnIndex="1" GridPane.columnSpan="3"/>
-                            <Label fx:id="bookingDateKey" text="%detail.bookingDate" styleClass="detail-property-key" wrapText="true" GridPane.rowIndex="3" GridPane.columnIndex="0"/>
-                            <Label fx:id="bookingDateValue" styleClass="detail-property-value" GridPane.rowIndex="3" GridPane.columnIndex="1"/>
-                            <Label fx:id="valueDateKey" text="%detail.valueDate" styleClass="detail-property-key" wrapText="true" GridPane.rowIndex="3" GridPane.columnIndex="2"/>
-                            <Label fx:id="valueDateValue" styleClass="detail-property-value" GridPane.rowIndex="3" GridPane.columnIndex="3"/>
-                            <Label fx:id="accountKey" text="%detail.account" styleClass="detail-property-key" wrapText="true" GridPane.rowIndex="4" GridPane.columnIndex="0"/>
-                            <Label fx:id="accountValue" styleClass="detail-property-value" GridPane.rowIndex="4" GridPane.columnIndex="1"/>
-                            <Label fx:id="transactionTypeKey" text="%detail.transactionType" styleClass="detail-property-key" wrapText="true" GridPane.rowIndex="4" GridPane.columnIndex="2"/>
-                            <Label fx:id="transactionTypeValue" styleClass="detail-property-value" GridPane.rowIndex="4" GridPane.columnIndex="3"/>
-                            <Label fx:id="payeeKey" text="%detail.payee" styleClass="detail-property-key" wrapText="true" GridPane.rowIndex="5" GridPane.columnIndex="0"/>
-                            <Label fx:id="payeeValue" styleClass="detail-property-value" wrapText="true" GridPane.rowIndex="5" GridPane.columnIndex="1"/>
-                            <Label fx:id="originalPayeeKey" text="%detail.originalPayee" styleClass="detail-property-key" wrapText="true" GridPane.rowIndex="5" GridPane.columnIndex="2"/>
-                            <Label fx:id="originalPayeeValue" styleClass="detail-property-value" wrapText="true" GridPane.rowIndex="5" GridPane.columnIndex="3"/>
-                            <Label fx:id="purposeKey" text="%detail.purpose" styleClass="detail-property-key" wrapText="true" GridPane.rowIndex="6" GridPane.columnIndex="0"/>
-                            <Label fx:id="purposeValue" styleClass="detail-property-value" wrapText="true"
-                                   GridPane.rowIndex="6" GridPane.columnIndex="1" GridPane.columnSpan="3"/>
-                            <Label fx:id="bookingStatusKey" text="%detail.bookingStatus" styleClass="detail-property-key" wrapText="true" GridPane.rowIndex="7" GridPane.columnIndex="0"/>
-                            <StackPane styleClass="detail-property-value,detail-status-cell"
-                                       GridPane.rowIndex="7" GridPane.columnIndex="1">
-                                <children>
-                                    <Label fx:id="bookingStatusValue" styleClass="detail-status-badge"/>
-                                </children>
-                            </StackPane>
-                            <Label fx:id="endToEndIdKey" text="%detail.endToEndId" styleClass="detail-property-key" wrapText="true" GridPane.rowIndex="7" GridPane.columnIndex="2"/>
-                            <Label fx:id="endToEndIdValue" styleClass="detail-property-value" wrapText="true" GridPane.rowIndex="7" GridPane.columnIndex="3"/>
-                            <Label fx:id="mandateIdKey" text="%detail.mandateId" styleClass="detail-property-key" wrapText="true" GridPane.rowIndex="8" GridPane.columnIndex="0"/>
-                            <Label fx:id="mandateIdValue" styleClass="detail-property-value" wrapText="true" GridPane.rowIndex="8" GridPane.columnIndex="1"/>
-                            <Label fx:id="creditorIdKey" text="%detail.creditorId" styleClass="detail-property-key" wrapText="true" GridPane.rowIndex="8" GridPane.columnIndex="2"/>
-                            <Label fx:id="creditorIdValue" styleClass="detail-property-value" wrapText="true" GridPane.rowIndex="8" GridPane.columnIndex="3"/>
-                            <Region styleClass="detail-row-separator" minHeight="1" prefHeight="1" maxHeight="1" maxWidth="Infinity"
-                                    GridPane.rowIndex="0" GridPane.columnIndex="0" GridPane.columnSpan="4" GridPane.valignment="BOTTOM"/>
-                            <Region styleClass="detail-row-separator" minHeight="1" prefHeight="1" maxHeight="1" maxWidth="Infinity"
-                                    GridPane.rowIndex="1" GridPane.columnIndex="0" GridPane.columnSpan="4" GridPane.valignment="BOTTOM"/>
-                            <Region styleClass="detail-row-separator" minHeight="1" prefHeight="1" maxHeight="1" maxWidth="Infinity"
-                                    GridPane.rowIndex="2" GridPane.columnIndex="0" GridPane.columnSpan="4" GridPane.valignment="BOTTOM"/>
-                            <Region styleClass="detail-row-separator" minHeight="1" prefHeight="1" maxHeight="1" maxWidth="Infinity"
-                                    GridPane.rowIndex="3" GridPane.columnIndex="0" GridPane.columnSpan="4" GridPane.valignment="BOTTOM"/>
-                            <Region styleClass="detail-row-separator" minHeight="1" prefHeight="1" maxHeight="1" maxWidth="Infinity"
-                                    GridPane.rowIndex="4" GridPane.columnIndex="0" GridPane.columnSpan="4" GridPane.valignment="BOTTOM"/>
-                            <Region styleClass="detail-row-separator" minHeight="1" prefHeight="1" maxHeight="1" maxWidth="Infinity"
-                                    GridPane.rowIndex="5" GridPane.columnIndex="0" GridPane.columnSpan="4" GridPane.valignment="BOTTOM"/>
-                            <Region styleClass="detail-row-separator" minHeight="1" prefHeight="1" maxHeight="1" maxWidth="Infinity"
-                                    GridPane.rowIndex="6" GridPane.columnIndex="0" GridPane.columnSpan="4" GridPane.valignment="BOTTOM"/>
-                            <Region styleClass="detail-row-separator" minHeight="1" prefHeight="1" maxHeight="1" maxWidth="Infinity"
-                                    GridPane.rowIndex="7" GridPane.columnIndex="0" GridPane.columnSpan="4" GridPane.valignment="BOTTOM"/>
-                        </GridPane>
-                    </content>
-                </ScrollPane>
-            </VBox>
-                </SplitPane>
+                <fx:include fx:id="transactionWorkspace" source="transactionWorkspace.fxml" VBox.vgrow="ALWAYS"/>
             </VBox>
         </VBox>
     </center>
