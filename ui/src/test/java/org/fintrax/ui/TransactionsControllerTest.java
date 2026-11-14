@@ -54,7 +54,6 @@ import org.fintrax.service.RuleService;
 import org.fintrax.service.SettingsService;
 import org.fintrax.service.TransactionService;
 import org.kordamp.ikonli.javafx.FontIcon;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.testfx.util.WaitForAsyncUtils;
 
@@ -371,7 +370,6 @@ class TransactionsControllerTest extends AbstractUITest {
     }
 
     @Test
-    @Disabled("Picker open/close timing is flaky in emulation; tracked by #161")
     void clickingCategoryOrLabelPickerButtonsOpensDropdowns() throws TimeoutException {
         TableView<Transaction> table = lookup("#transactionTable").query();
         List<Transaction> transactions = List.of(testCategoryTransaction, detailSparseTransaction);
@@ -398,7 +396,9 @@ class TransactionsControllerTest extends AbstractUITest {
             waitForPicker();
             assertFalse(lookup("#detailPanel").query().isVisible());
         }
-        press(KeyCode.ESCAPE);
+        TextField searchField = lookup("#pickerSearch").query();
+        interact(() -> Event.fireEvent(searchField, new KeyEvent(KeyEvent.KEY_PRESSED, "", "", KeyCode.ESCAPE,
+                false, false, false, false)));
         WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS,
                 () -> lookup("#pickerSearch").tryQuery().isEmpty());
     }
