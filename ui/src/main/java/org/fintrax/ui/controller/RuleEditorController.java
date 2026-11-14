@@ -44,6 +44,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
@@ -58,6 +59,10 @@ public class RuleEditorController {
     @FXML
     private TextField ruleNameField;
     @FXML
+    private Label ruleNameErrorLabel;
+    @FXML
+    private Label ruleActionsErrorLabel;
+    @FXML
     private ComboBox<String> conditionMatchModeCombo;
     @FXML
     private VBox conditionsContainer;
@@ -68,6 +73,7 @@ public class RuleEditorController {
     private final LabelService labelService;
     private final List<ConditionRow> conditionRows = new ArrayList<>();
     private final List<ActionRow> actionRows = new ArrayList<>();
+    private Predicate<String> ruleNameAvailable = name -> true;
     private Runnable changeListener = () -> {};
 
     public RuleEditorController(CategoryService categoryService, LabelService labelService) {
@@ -87,6 +93,11 @@ public class RuleEditorController {
 
     public void setOnChange(Runnable listener) {
         changeListener = Objects.requireNonNull(listener);
+        notifyChanged();
+    }
+
+    public void setRuleNameAvailability(Predicate<String> availability) {
+        ruleNameAvailable = Objects.requireNonNull(availability);
         notifyChanged();
     }
 
@@ -206,13 +217,11 @@ public class RuleEditorController {
     }
 
     public boolean isValid() {
-        long categoryActionCount = actionRows.stream()
-                .filter(row -> actionTypeFromText(row.typeCombo.getValue()) == ActionType.ASSIGN_CATEGORY)
-                .count();
-        return !getRuleName().isEmpty()
+        String name = getRuleName();
+        return !name.isEmpty() && ruleNameAvailable.test(name)
                 && !conditionRows.isEmpty() && conditionRows.stream().allMatch(ConditionRow::isValid)
                 && !actionRows.isEmpty() && actionRows.stream().allMatch(ActionRow::isValid)
-                && categoryActionCount <= 1;
+                && !hasMultipleCategoryActions();
     }
 
     @FXML
@@ -241,7 +250,7 @@ public class RuleEditorController {
         if (existing != null) {
             row.fieldCombo.setValue(fieldText(existing.getMatchField()));
             row.operatorCombo.setValue(operatorText(existing.getOperator()));
-            row.valueField.setText(existing.getValue() == null ? "" : existing.getValue());
+            row.valueField.setText(conditionEditorValue(existing));
         }
         row.fieldCombo.valueProperty().addListener((observable, oldValue, newValue) -> notifyChanged());
         row.operatorCombo.valueProperty().addListener((observable, oldValue, newValue) -> {
@@ -264,6 +273,18 @@ public class RuleEditorController {
         conditionRows.add(row);
         conditionsContainer.getChildren().add(row.content);
         notifyChanged();
+    }
+
+    private String conditionEditorValue(RuleCondition condition) {
+        if (condition.getOperator() == Operator.AMOUNT_RANGE
+                && (condition.getAmountMin() != null || condition.getAmountMax() != null)) {
+            return amountText(condition.getAmountMin()) + ";" + amountText(condition.getAmountMax());
+        }
+        return condition.getValue() == null ? "" : condition.getValue();
+    }
+
+    private String amountText(BigDecimal amount) {
+        return amount == null ? "" : amount.toPlainString();
     }
 
     private void addActionRow(RuleAction existing) {
@@ -370,7 +391,23 @@ public class RuleEditorController {
     }
 
     private void notifyChanged() {
+        String name = getRuleName();
+        boolean duplicateName = !name.isEmpty() && !ruleNameAvailable.test(name);
+        ruleNameErrorLabel.setText(I18n.get("rules.name.duplicate"));
+        ruleNameErrorLabel.setVisible(duplicateName);
+        ruleNameErrorLabel.setManaged(duplicateName);
+        boolean multipleCategoryActions = hasMultipleCategoryActions();
+        ruleActionsErrorLabel.setText(I18n.get("rules.actions.multipleCategories"));
+        ruleActionsErrorLabel.setVisible(multipleCategoryActions);
+        ruleActionsErrorLabel.setManaged(multipleCategoryActions);
         changeListener.run();
+    }
+
+    private boolean hasMultipleCategoryActions() {
+        return actionRows.stream()
+                .filter(row -> actionTypeFromText(row.typeCombo.getValue()) == ActionType.ASSIGN_CATEGORY)
+                .limit(2)
+                .count() > 1;
     }
 
     private String fieldText(MatchField field) {

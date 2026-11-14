@@ -712,8 +712,8 @@
 
 .dialog-content {
     -fx-background-color: -color-bg-default;
-    -fx-spacing: 14;
-    -fx-padding: 18;
+    -fx-spacing: 12;
+    -fx-padding: 16;
 }
 
 .dialog-title {

@@ -6,7 +6,6 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
-import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.input.MouseButton;
@@ -621,8 +620,8 @@ public class ClassificationsController {
         errorLabel.setId("errorLabel");
 
         GridPane fields = new GridPane();
-        fields.setHgap(10);
-        fields.setVgap(10);
+        fields.setHgap(12);
+        fields.setVgap(12);
         fields.getColumnConstraints().addAll(new ColumnConstraints(90), new ColumnConstraints());
         fields.add(new Label(I18n.get("label.name")), 0, 0);
         fields.add(nameField, 1, 0);
@@ -630,9 +629,8 @@ public class ClassificationsController {
         fields.add(new Label(I18n.get("label.comment")), 0, commentRow);
         fields.add(commentField, 1, commentRow);
 
-        VBox content = new VBox(10, fields, errorLabel);
+        VBox content = new VBox(fields, errorLabel);
         content.getStyleClass().add("dialog-content");
-        content.setPadding(new Insets(5, 0, 0, 0));
         content.setMinWidth(360);
 
         ButtonType saveType = new ButtonType(I18n.get("button.save"), ButtonBar.ButtonData.OK_DONE);
@@ -799,7 +797,7 @@ public class ClassificationsController {
 
         Label messageLabel = new Label(message);
         messageLabel.setWrapText(true);
-        VBox content = new VBox(10, messageLabel);
+        VBox content = new VBox(messageLabel);
         content.getStyleClass().add("dialog-content");
         CheckBox moveChildrenCheckBox = null;
         if (!children.isEmpty()) {
@@ -845,8 +843,8 @@ public class ClassificationsController {
         errorLabel.setId("labelErrorLabel");
 
         GridPane fields = new GridPane();
-        fields.setHgap(10);
-        fields.setVgap(10);
+        fields.setHgap(12);
+        fields.setVgap(12);
         fields.getColumnConstraints().addAll(new ColumnConstraints(90), new ColumnConstraints());
         fields.add(new Label(I18n.get("label.name")), 0, 0);
         fields.add(nameField, 1, 0);
@@ -855,9 +853,8 @@ public class ClassificationsController {
         fields.add(new Label(I18n.get("label.comment")), 0, 2);
         fields.add(commentField, 1, 2);
 
-        VBox content = new VBox(10, fields, errorLabel);
+        VBox content = new VBox(fields, errorLabel);
         content.getStyleClass().add("dialog-content");
-        content.setPadding(new Insets(5, 0, 0, 0));
         content.setMinWidth(360);
 
         ButtonType saveType = new ButtonType(I18n.get("button.save"), ButtonBar.ButtonData.OK_DONE);
