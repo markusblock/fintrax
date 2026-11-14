@@ -1,11 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import javafx.scene.control.*?>
-<?import javafx.scene.control.SplitPane?>
 <?import javafx.scene.layout.*?>
+<?import org.kordamp.ikonli.javafx.FontIcon?>
 <VBox xmlns:fx="http://javafx.com/fxml"
       fx:controller="org.fintrax.ui.controller.TransactionWorkspaceController"
       spacing="12">
+    <HBox alignment="CENTER_LEFT" spacing="10" styleClass="transaction-workspace-heading">
+        <Label fx:id="workspaceTitle" text="%view.transactions" styleClass="section-heading"/>
+        <Region HBox.hgrow="ALWAYS"/>
+        <Label fx:id="transactionCountValue" styleClass="transaction-count-badge"/>
+        <Label text="%transactionWorkspace.total" styleClass="secondary-text"/>
+        <Label fx:id="transactionTotalAmount" styleClass="transaction-workspace-total,amount-positive"/>
+        <Button fx:id="detailToggleButton" text="%button.toggleDetail" onAction="#onToggleDetails"
+                styleClass="button-outlined" visible="false" managed="false">
+            <graphic><FontIcon iconLiteral="fth-eye" iconSize="15"/></graphic>
+        </Button>
+    </HBox>
     <fx:include fx:id="transactionFilterPanel" source="transactionFilterPanel.fxml"/>
     <SplitPane fx:id="transactionSplitPane" orientation="VERTICAL" dividerPositions="1.0"
                VBox.vgrow="ALWAYS">
