@@ -185,8 +185,9 @@ class SyncServiceTest {
         accountService.setSyncExcluded(account.getId(), true);
         bankingProtocol.accountBalance = new BigDecimal("999.00");
         bankingProtocol.transactions = List.of(transaction(account.getId(), "bank", "Bank"));
+        Long accountId = account.getId();
 
-        assertThrows(IllegalStateException.class, () -> syncService.syncAccount(account.getId(), "1234"));
+        assertThrows(IllegalStateException.class, () -> syncService.syncAccount(accountId, "1234"));
 
         assertEquals(0, bankingProtocol.fetchCount);
         assertTrue(store.getRoot().getSyncLogs().isEmpty());
