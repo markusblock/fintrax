@@ -91,6 +91,10 @@
     -fx-font-weight: bold;
 }
 
+.success-copy {
+    -fx-text-fill: -color-success-fg;
+}
+
 .warning-copy {
     -fx-text-fill: -color-warning-fg;
     -fx-font-weight: bold;
@@ -732,6 +736,149 @@
     -fx-padding: 10 12;
     -fx-background-color: -color-bg-subtle;
     -fx-background-radius: 6;
+}
+
+.sync-progress-content {
+    -fx-padding: 16;
+    -fx-spacing: 12;
+}
+
+.sync-progress-content > .scroll-pane,
+.sync-progress-content > .scroll-pane > .viewport {
+    -fx-background-color: transparent;
+}
+
+.sync-progress-account {
+    -fx-font-weight: bold;
+}
+
+.sync-progress-accounts,
+.sync-progress-stage-list {
+    -fx-spacing: 8;
+}
+
+.sync-progress-account-card {
+    -fx-background-color: -color-bg-subtle;
+    -fx-border-color: -color-border-default;
+    -fx-border-radius: 9;
+    -fx-background-radius: 9;
+}
+
+.sync-progress-account-card.current {
+    -fx-border-color: -color-accent-fg;
+}
+
+.sync-progress-account-toggle {
+    -fx-background-color: transparent;
+    -fx-padding: 10 12;
+    -fx-alignment: CENTER_LEFT;
+    -fx-background-radius: 8;
+}
+
+.sync-progress-account-toggle:hover {
+    -fx-background-color: -color-bg-muted;
+}
+
+.sync-progress-account-name {
+    -fx-font-weight: bold;
+}
+
+.sync-progress-account-detail,
+.sync-progress-account-result,
+.sync-progress-stage-result {
+    -fx-text-fill: -color-fg-muted;
+    -fx-font-size: 11px;
+}
+
+.sync-progress-account-card.current .sync-progress-account-result {
+    -fx-text-fill: -color-accent-fg;
+}
+
+.sync-progress-account-card.current .sync-progress-account-icon {
+    -fx-icon-color: -color-accent-fg;
+}
+
+.sync-progress-account-card.complete .sync-progress-account-result {
+    -fx-text-fill: -color-success-fg;
+}
+
+.sync-progress-account-card.complete .sync-progress-account-icon {
+    -fx-icon-color: -color-success-fg;
+}
+
+.sync-progress-account-card.failed .sync-progress-account-result,
+.sync-progress-error {
+    -fx-text-fill: -color-danger-fg;
+}
+
+.sync-progress-account-card.failed .sync-progress-account-icon {
+    -fx-icon-color: -color-danger-fg;
+}
+
+.sync-progress-account-body {
+    -fx-padding: 10 14 14 18;
+    -fx-border-color: -color-border-default transparent transparent transparent;
+}
+
+.sync-progress-stage-row {
+    -fx-alignment: CENTER_LEFT;
+    -fx-min-height: 28;
+}
+
+.sync-progress-stage-icon.pending {
+    -fx-icon-color: -color-fg-muted;
+}
+
+.sync-progress-stage-icon.current {
+    -fx-icon-color: -color-accent-fg;
+}
+
+.sync-progress-stage-icon.complete {
+    -fx-icon-color: -color-success-fg;
+}
+
+.sync-progress-stage-icon.failed {
+    -fx-icon-color: -color-danger-fg;
+}
+
+.sync-progress-stage-label.failed {
+    -fx-font-weight: bold;
+    -fx-text-fill: -color-danger-fg;
+}
+
+.sync-progress-stage-label.pending {
+    -fx-text-fill: -color-fg-muted;
+}
+
+.sync-progress-stage-label.current {
+    -fx-font-weight: bold;
+    -fx-text-fill: -color-fg-default;
+}
+
+.sync-progress-stage-label.complete {
+    -fx-text-fill: -color-fg-default;
+}
+
+.sync-progress-stage-result {
+    -fx-wrap-text: true;
+}
+
+.sync-progress-stage-row.current .sync-progress-stage-result {
+    -fx-text-fill: -color-accent-fg;
+}
+
+.sync-progress-error {
+    -fx-padding: 8 10;
+    -fx-background-color: -color-danger-subtle;
+    -fx-background-radius: 6;
+}
+
+.sync-progress-chevron {
+    -fx-text-fill: -color-fg-muted;
+}
+
+.sync-progress-account-toggle:expanded .sync-progress-chevron {
+    -fx-rotate: 180;
 }
 
 .rule-condition-row,

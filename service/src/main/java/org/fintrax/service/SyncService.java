@@ -1,40 +1,60 @@
 package org.fintrax.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.fintrax.config.I18n;
 import org.fintrax.fintx.BankingException;
 import org.fintrax.fintx.BankingProtocol;
-import org.fintrax.fintx.PinStorage;
+import org.fintrax.fintx.BankingSyncData;
 import org.fintrax.model.*;
 import org.fintrax.store.StoreManager;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.CancellationException;
+import java.util.function.Consumer;
+import java.util.function.BooleanSupplier;
 
 @Slf4j
 @Service
 public class SyncService {
+    private static final String DIAGNOSTIC_DETAILS_MARKER = "\n[FINTRAX_SYNC_DIAGNOSTICS]\n";
     private final StoreManager store;
     private final BankingProtocol bankingProtocol;
     private final TransactionService transactionService;
     private final AccountService accountService;
     private final ActivityLogger activityLogger;
-    private final PinStorage pinStorage;
+    private final BankService bankService;
     private final AtomicInteger activeSyncs = new AtomicInteger();
     private long nextId = 1;
 
+    @Autowired
     public SyncService(StoreManager store, BankingProtocol bankingProtocol,
                        TransactionService transactionService, AccountService accountService,
-                       ActivityLogger activityLogger, PinStorage pinStorage) {
+                       ActivityLogger activityLogger, BankService bankService) {
         this.store = store;
         this.bankingProtocol = bankingProtocol;
         this.transactionService = transactionService;
         this.accountService = accountService;
         this.activityLogger = activityLogger;
-        this.pinStorage = pinStorage;
+        this.bankService = bankService;
         initializeNextId();
+    }
+
+    public SyncService(StoreManager store, BankingProtocol bankingProtocol,
+                       TransactionService transactionService, AccountService accountService,
+                       ActivityLogger activityLogger) {
+        this(store, bankingProtocol, transactionService, accountService, activityLogger, (BankService) null);
     }
 
     private void initializeNextId() {
@@ -44,10 +64,19 @@ public class SyncService {
                 .orElse(0) + 1;
     }
 
-    public SyncResult syncAccount(Long accountId, String pin) {
+    public synchronized SyncResult syncAccount(Long accountId, String pin) {
+        return syncAccount(accountId, pin, null);
+    }
+
+    public synchronized SyncResult syncAccount(Long accountId, String pin, Consumer<SyncProgress> progress) {
+        return syncAccount(accountId, pin, progress, () -> false);
+    }
+
+    public synchronized SyncResult syncAccount(Long accountId, String pin, Consumer<SyncProgress> progress,
+                                               BooleanSupplier cancellationRequested) {
         activeSyncs.incrementAndGet();
         try {
-            return syncAccountInternal(accountId, pin);
+            return syncAccountInternal(accountId, pin, progress, cancellationRequested);
         } finally {
             activeSyncs.decrementAndGet();
         }
@@ -57,74 +86,336 @@ public class SyncService {
         return activeSyncs.get() > 0;
     }
 
-    private SyncResult syncAccountInternal(Long accountId, String pin) {
+    private SyncResult syncAccountInternal(Long accountId, String pin, Consumer<SyncProgress> progress,
+                                           BooleanSupplier cancellationRequested) {
         BankAccount account = store.getAccount(accountId);
         if (account == null) {
             throw new IllegalArgumentException("Account not found: " + accountId);
+        }
+        if (pin == null || pin.isBlank()) {
+            throw new IllegalArgumentException("A PIN is required for each bank sync.");
         }
 
         SyncLog syncLog = SyncLog.builder()
                 .id(nextId++)
                 .bankAccountId(accountId)
-                .startedAt(LocalDateTime.now())
+                .startedAt(LocalDateTime.now(ZoneId.systemDefault()))
                 .status(SyncStatus.PARTIAL)
+                .stage(SyncStage.CONNECTION)
                 .build();
-
         store.getRoot().getSyncLogs().add(syncLog);
         store.store(store.getRoot().getSyncLogs());
+        reportProgress(progress, accountId, SyncStage.CONNECTION, 0, 0, 0);
 
-        List<Long> newTransactionIds = new ArrayList<>();
+        ImportCounts importCounts = new ImportCounts();
+        AtomicReference<SyncStage> currentStage = new AtomicReference<>(SyncStage.CONNECTION);
+        int downloadedCount = 0;
         try {
-            List<Transaction> fetchedTransactions = bankingProtocol.fetchTransactions(account, pin);
-
-            int newCount = 0;
-            int skippedCount = 0;
-
-            for (Transaction fetched : fetchedTransactions) {
-                boolean exists = store.getRoot().getTransactions().stream()
-                        .anyMatch(t -> t.getChecksum().equals(fetched.getChecksum()));
-
-                if (!exists) {
-                    Transaction created = transactionService.createTransaction(fetched);
-                    newTransactionIds.add(created.getId());
-                    newCount++;
-                } else {
-                    skippedCount++;
-                }
+            throwIfCancelled(cancellationRequested);
+            BankingSyncData syncData = fetchBankSyncData(account, pin, currentStage, progress,
+                    cancellationRequested);
+            currentStage.set(SyncStage.DATA_RETRIEVAL);
+            syncLog.setStage(currentStage.get());
+            if (syncData == null || syncData.transactions() == null) {
+                throw new BankingException(BankingException.FailureReason.INCOMPLETE_RESPONSE, currentStage.get(),
+                        "Bank returned no complete transaction response.");
             }
-
-            syncLog.setCompletedAt(LocalDateTime.now());
-            syncLog.setStatus(SyncStatus.SUCCESS);
-            syncLog.setNewCount(newCount);
-            syncLog.setSkippedCount(skippedCount);
-
-            accountService.updateLastSync(accountId, LocalDateTime.now());
-
-            store.store(syncLog);
-
-            activityLogger.log(ActivityAction.SYNC, EntityType.ACCOUNT, accountId,
-                    String.format("Synced account: %d new, %d skipped", newCount, skippedCount));
-
-            log.info("Synced account {}: {} new, {} skipped", accountId, newCount, skippedCount);
-
-        } catch (BankingException e) {
-            syncLog.setCompletedAt(LocalDateTime.now());
-            syncLog.setStatus(SyncStatus.FAILED);
-            syncLog.setErrorMessage(e.getMessage());
-            store.store(syncLog);
-
-            activityLogger.log(ActivityAction.SYNC, EntityType.ACCOUNT, accountId,
-                    "Sync failed: " + e.getMessage());
-
-            log.error("Sync failed for account {}", accountId, e);
+            throwIfCancelled(cancellationRequested);
+            List<Transaction> fetchedTransactions = syncData.transactions();
+            downloadedCount = fetchedTransactions.size();
+            reportProgress(progress, accountId, SyncStage.DATA_RETRIEVAL, downloadedCount, 0, 0);
+            validateFetchedTransactions(accountId, fetchedTransactions, currentStage, cancellationRequested);
+            currentStage.set(SyncStage.DATA_IMPORT);
+            syncLog.setStage(currentStage.get());
+            importFetchedTransactions(accountId, syncData, importCounts, syncLog, currentStage,
+                    progress, cancellationRequested);
+            recordSuccessfulSync(accountId, syncLog, downloadedCount, importCounts, progress);
+        } catch (Exception e) {
+            if (isCancellationRequested(cancellationRequested)) {
+                syncLog.setCompletedAt(LocalDateTime.now(ZoneId.systemDefault()));
+                syncLog.setStatus(SyncStatus.PARTIAL);
+                syncLog.setStage(currentStage.get());
+                syncLog.setNewCount(importCounts.newCount());
+                syncLog.setSkippedCount(importCounts.knownCount());
+                syncLog.setErrorMessage(I18n.get("message.sync.cancelled"));
+                store.store(syncLog);
+                activityLogger.log(ActivityAction.SYNC, EntityType.ACCOUNT, accountId, "Bank sync cancelled");
+                log.info("Bank sync cancelled for account {}", accountId);
+            } else {
+                recordFailedSync(accountId, syncLog, e, failureStage(e, currentStage.get()));
+            }
         }
 
-        return new SyncResult(syncLog, newTransactionIds);
+        return new SyncResult(syncLog, importCounts.newTransactionIds());
+    }
+
+    private BankingSyncData fetchBankSyncData(BankAccount account, String pin,
+                                               AtomicReference<SyncStage> currentStage,
+                                               Consumer<SyncProgress> progress,
+                                               BooleanSupplier cancellationRequested) throws BankingException {
+        Bank bank = bankService == null ? null : bankService.getBankForAccount(account).orElse(null);
+        if (bankService != null && bank == null) {
+            throw new BankingException(BankingException.FailureReason.MISSING_BANK_PROFILE,
+                    SyncStage.CONNECTION, "No bank profile is linked to this account.");
+        }
+        if (bank != null && (bank.getFintsUserId() == null || bank.getFintsUserId().isBlank())) {
+            throw new BankingException(BankingException.FailureReason.MISSING_USER_ID,
+                    SyncStage.AUTHENTICATION, "FinTS user ID is missing from the bank profile.");
+        }
+
+        currentStage.set(SyncStage.AUTHENTICATION);
+        reportProgress(progress, account.getId(), currentStage.get(), 0, 0, 0);
+        Consumer<SyncStage> bankingProgress = stage -> {
+            currentStage.set(stage);
+            reportProgress(progress, account.getId(), stage, 0, 0, 0);
+        };
+        throwIfCancelled(cancellationRequested);
+        return bankService == null
+                ? bankingProtocol.fetchSyncData(account, pin, bankingProgress)
+                : bankingProtocol.fetchSyncData(account, bank, pin, bankingProgress);
+    }
+
+    private void validateFetchedTransactions(Long accountId, List<Transaction> fetchedTransactions,
+                                              AtomicReference<SyncStage> currentStage,
+                                              BooleanSupplier cancellationRequested) throws BankingException {
+        for (Transaction fetched : fetchedTransactions) {
+            throwIfCancelled(cancellationRequested);
+            if (fetched == null || (fetched.getAccountId() != null && !accountId.equals(fetched.getAccountId()))) {
+                throw new BankingException(BankingException.FailureReason.ACCOUNT_MISMATCH,
+                        currentStage.get(), "Bank returned transaction data for an unexpected account.");
+            }
+            fetched.setAccountId(accountId);
+        }
+    }
+
+    private void importFetchedTransactions(Long accountId, BankingSyncData syncData,
+                                           ImportCounts importCounts, SyncLog syncLog,
+                                           AtomicReference<SyncStage> currentStage,
+                                           Consumer<SyncProgress> progress,
+                                           BooleanSupplier cancellationRequested) {
+        List<Transaction> fetchedTransactions = syncData.transactions();
+        int downloadedCount = fetchedTransactions.size();
+        currentStage.set(SyncStage.DATA_IMPORT);
+        syncLog.setStage(currentStage.get());
+        reportProgress(progress, accountId, currentStage.get(), downloadedCount, 0, 0);
+        List<Transaction> localTransactions = new ArrayList<>(transactionService.getTransactionsByAccount(accountId));
+        Set<Transaction> matchedTransactions = Collections.newSetFromMap(new IdentityHashMap<>());
+
+        for (Transaction fetched : fetchedTransactions) {
+            throwIfCancelled(cancellationRequested);
+            Transaction existing = localTransactions.stream()
+                    .filter(candidate -> !matchedTransactions.contains(candidate))
+                    .filter(candidate -> matches(candidate, fetched))
+                    .findFirst()
+                    .orElse(null);
+
+            if (existing == null) {
+                Transaction created = transactionService.createTransaction(fetched);
+                localTransactions.add(created);
+                matchedTransactions.add(created);
+                importCounts.addNew(created.getId());
+            } else {
+                transactionService.updateFromBank(existing, fetched);
+                matchedTransactions.add(existing);
+                importCounts.markKnown();
+            }
+            reportProgress(progress, accountId, SyncStage.DATA_IMPORT, downloadedCount,
+                    importCounts.newCount(), importCounts.knownCount());
+        }
+
+        List<Long> stalePendingIds = localTransactions.stream()
+                .filter(transaction -> !transaction.isBooked())
+                .filter(transaction -> !matchedTransactions.contains(transaction))
+                .map(Transaction::getId)
+                .filter(Objects::nonNull)
+                .toList();
+        throwIfCancelled(cancellationRequested);
+        transactionService.deleteTransactions(stalePendingIds);
+        if (syncData.accountBalance() != null) {
+            accountService.updateBalance(accountId, syncData.accountBalance(), syncData.balanceDate());
+        }
+    }
+
+    private void recordSuccessfulSync(Long accountId, SyncLog syncLog, int downloadedCount,
+                                      ImportCounts importCounts, Consumer<SyncProgress> progress) {
+        LocalDateTime completedAt = LocalDateTime.now(ZoneId.systemDefault());
+        syncLog.setCompletedAt(completedAt);
+        syncLog.setStatus(SyncStatus.SUCCESS);
+        syncLog.setStage(SyncStage.COMPLETE);
+        syncLog.setNewCount(importCounts.newCount());
+        syncLog.setSkippedCount(importCounts.knownCount());
+        accountService.updateLastSync(accountId, completedAt);
+        store.store(syncLog);
+        reportProgress(progress, accountId, SyncStage.COMPLETE, downloadedCount,
+                importCounts.newCount(), importCounts.knownCount());
+        activityLogger.log(ActivityAction.SYNC, EntityType.ACCOUNT, accountId, "Bank sync completed");
+    }
+
+    private void recordFailedSync(Long accountId, SyncLog syncLog, Exception exception, SyncStage stage) {
+        syncLog.setCompletedAt(LocalDateTime.now(ZoneId.systemDefault()));
+        syncLog.setStatus(SyncStatus.FAILED);
+        syncLog.setStage(stage);
+        syncLog.setErrorMessage(safeFailureMessage(exception));
+        store.store(syncLog);
+        activityLogger.log(ActivityAction.SYNC, EntityType.ACCOUNT, accountId,
+                detailedFailureMessage(stage, exception));
+        log.error("Bank sync failed for account {} [{}]:\n{}", accountId, failureReason(exception),
+                redactedStackTrace(exception));
+    }
+
+    private void reportProgress(Consumer<SyncProgress> progress, Long accountId, SyncStage stage,
+                                int downloadedCount, int importedCount, int alreadyKnownCount) {
+        if (progress != null) {
+            progress.accept(new SyncProgress(accountId, stage, downloadedCount, importedCount, alreadyKnownCount));
+        }
+    }
+
+    private void throwIfCancelled(BooleanSupplier cancellationRequested) {
+        if (isCancellationRequested(cancellationRequested)) {
+            throw new CancellationException("Bank sync cancelled");
+        }
+    }
+
+    private boolean isCancellationRequested(BooleanSupplier cancellationRequested) {
+        return (cancellationRequested != null && cancellationRequested.getAsBoolean())
+                || Thread.currentThread().isInterrupted();
+    }
+
+    private boolean matches(Transaction stored, Transaction received) {
+        String storedChecksum = normalizeChecksum(stored.getChecksum());
+        String receivedChecksum = normalizeChecksum(received.getChecksum());
+        if (storedChecksum != null && receivedChecksum != null) {
+            return storedChecksum.equals(receivedChecksum);
+        }
+
+        return java.util.Objects.equals(stored.getBookingDate(), received.getBookingDate())
+                && stored.getAmount() != null
+                && received.getAmount() != null
+                && stored.getAmount().compareTo(received.getAmount()) == 0
+                && normalizeText(stored.getOriginalPayee()).equals(normalizeText(received.getOriginalPayee()))
+                && normalizeText(stored.getPurpose()).equals(normalizeText(received.getPurpose()));
+    }
+
+    private String normalizeChecksum(String checksum) {
+        if (checksum == null || checksum.isBlank()) {
+            return null;
+        }
+        return checksum.trim();
+    }
+
+    private String normalizeText(String value) {
+        return value == null ? "" : value.trim().replaceAll("\\s+", " ").toLowerCase(Locale.ROOT);
+    }
+
+    private String safeFailureMessage(Exception exception) {
+        if (exception instanceof BankingException bankingException) {
+            if (bankingException.getFailureReason() == BankingException.FailureReason.MISSING_BANK_PROFILE) {
+                return I18n.get("message.sync.bankProfileMissing");
+            }
+            if (bankingException.getFailureReason() == BankingException.FailureReason.MISSING_USER_ID) {
+                return I18n.get("message.sync.userIdMissing");
+            }
+        }
+        BankingException.FailureReason reason = failureReason(exception);
+        String causeType = rootCauseType(exception);
+        if (reason == BankingException.FailureReason.TAN_REQUIRED) {
+            return I18n.get("message.sync.tanRequiredDiagnostic", causeType);
+        }
+        return I18n.get("message.sync.failedDiagnostic", reason.name(), causeType);
+    }
+
+    private SyncStage failureStage(Exception exception, SyncStage currentStage) {
+        if (exception instanceof BankingException bankingException) {
+            if (bankingException.getSyncStage() != null) {
+                return bankingException.getSyncStage();
+            }
+            return switch (bankingException.getFailureReason()) {
+                case TAN_REQUIRED -> SyncStage.AUTHENTICATION;
+                case BANK_REJECTED, INCOMPLETE_RESPONSE, MAPPING_FAILED, ACCOUNT_MISMATCH -> SyncStage.DATA_RETRIEVAL;
+                default -> currentStage;
+            };
+        }
+        return currentStage;
+    }
+
+    private String detailedFailureMessage(SyncStage stage, Exception exception) {
+        String stageLabel = I18n.get("sync.failureStage." + stage.name());
+        String reason = failureReason(exception).name();
+        String causeType = rootCauseType(exception);
+        String diagnostics = DIAGNOSTIC_DETAILS_MARKER + I18n.get("activity.sync.stackTraceHeader")
+                + "\n" + redactedStackTrace(exception);
+        return I18n.get("activity.sync.failureDetails", stageLabel, reason, causeType,
+                diagnostics);
+    }
+
+    private BankingException.FailureReason failureReason(Throwable error) {
+        return error instanceof BankingException bankingException
+                ? bankingException.getFailureReason() : BankingException.FailureReason.UNKNOWN;
+    }
+
+    private Throwable rootCause(Throwable error) {
+        Throwable cause = error;
+        Set<Throwable> seen = Collections.newSetFromMap(new IdentityHashMap<>());
+        while (cause.getCause() != null && seen.add(cause) && cause.getCause() != cause) {
+            cause = cause.getCause();
+        }
+        return cause;
+    }
+
+    private String rootCauseType(Throwable error) {
+        if (error instanceof BankingException && error.getCause() == null) {
+            return "BankResponse";
+        }
+        return rootCause(error).getClass().getSimpleName();
+    }
+
+    private String redactedStackTrace(Throwable error) {
+        StringBuilder stackTrace = new StringBuilder();
+        Set<Throwable> seen = Collections.newSetFromMap(new IdentityHashMap<>());
+        Throwable cause = error;
+        while (cause != null && seen.add(cause)) {
+            if (!stackTrace.isEmpty()) {
+                stackTrace.append("\nCaused by: ");
+            }
+            stackTrace.append(cause.getClass().getName());
+            for (StackTraceElement frame : cause.getStackTrace()) {
+                stackTrace.append("\n\tat ").append(frame);
+            }
+            cause = cause.getCause();
+        }
+        return stackTrace.toString();
+    }
+
+    private static final class ImportCounts {
+        private final List<Long> newTransactionIds = new ArrayList<>();
+        private int newCount;
+        private int knownCount;
+
+        private void addNew(Long transactionId) {
+            newTransactionIds.add(transactionId);
+            newCount++;
+        }
+
+        private void markKnown() {
+            knownCount++;
+        }
+
+        private int newCount() {
+            return newCount;
+        }
+
+        private int knownCount() {
+            return knownCount;
+        }
+
+        private List<Long> newTransactionIds() {
+            return List.copyOf(newTransactionIds);
+        }
     }
 
     public List<SyncLog> getSyncLogs(Long accountId) {
         return store.getRoot().getSyncLogs().stream()
-                .filter(l -> l.getBankAccountId().equals(accountId))
+                .filter(log -> log.getBankAccountId().equals(accountId))
                 .toList();
     }
 }

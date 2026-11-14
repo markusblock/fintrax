@@ -22,6 +22,12 @@ public final class TableColumnVisibilityMenu {
 
     public static <S> void install(TableView<S> table, MenuButton menuButton, String settingKey,
                                    SettingsService settingsService, List<TableColumnConfig> columns) {
+        install(table, menuButton, settingKey, settingsService, columns, () -> {});
+    }
+
+    public static <S> void install(TableView<S> table, MenuButton menuButton, String settingKey,
+                                   SettingsService settingsService, List<TableColumnConfig> columns,
+                                   Runnable resetSortOrder) {
         restoreColumnVisibility(settingKey, settingsService, columns);
         restoreColumnOrder(table, settingKey, settingsService, columns);
         TableSortOrderPersistence.install(table, settingKey + ".sort", settingsService, columns);
@@ -30,7 +36,7 @@ public final class TableColumnVisibilityMenu {
                 .toList());
         menuButton.getItems().add(new SeparatorMenuItem());
         MenuItem resetItem = new MenuItem(I18n.get("button.columns.reset"));
-        resetItem.setOnAction(event -> resetToDefaults(table, settingKey, settingsService, columns));
+        resetItem.setOnAction(event -> resetToDefaults(table, settingKey, settingsService, columns, resetSortOrder));
         menuButton.getItems().add(resetItem);
         table.getColumns().addListener((javafx.collections.ListChangeListener<TableColumn<S, ?>>) change ->
                 saveColumnOrder(table, settingKey, settingsService, columns));
@@ -77,10 +83,12 @@ public final class TableColumnVisibilityMenu {
     }
 
     private static <S> void resetToDefaults(TableView<S> table, String settingKey,
-                                            SettingsService settingsService, List<TableColumnConfig> columns) {
+                                            SettingsService settingsService, List<TableColumnConfig> columns,
+                                            Runnable resetSortOrder) {
         columns.forEach(config -> config.column().setVisible(true));
         applyColumnOrder(table, columns, columns.stream().map(TableColumnConfig::key).toList());
         table.getSortOrder().clear();
+        resetSortOrder.run();
         saveColumnVisibility(settingKey, settingsService, columns);
         saveColumnOrder(table, settingKey, settingsService, columns);
     }

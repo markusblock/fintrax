@@ -130,7 +130,9 @@ public class SettingsController {
         for (BankAccount account : accounts) {
             String pin = pinStorage.retrievePin(String.valueOf(account.getId()));
             String status = pin != null ? I18n.get("settings.credential.stored") : I18n.get("settings.credential.missing");
-            credentialTable.getItems().add(new CredentialRow(account.getId(), account.getBankName(), status));
+            String accountName = account.getAccountName() != null
+                    ? account.getAccountName() : account.getBankName();
+            credentialTable.getItems().add(new CredentialRow(account.getId(), accountName, status));
         }
     }
 

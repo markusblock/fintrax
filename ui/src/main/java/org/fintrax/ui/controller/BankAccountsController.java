@@ -14,10 +14,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.kordamp.ikonli.javafx.FontIcon;
 import org.fintrax.config.I18n;
 import org.fintrax.fintx.PinStorage;
+import org.fintrax.model.Bank;
 import org.fintrax.model.BankAccount;
 import org.fintrax.model.SyncLog;
 import org.fintrax.model.SyncStatus;
 import org.fintrax.service.AccountService;
+import org.fintrax.service.BankService;
 import org.fintrax.service.CategoryService;
 import org.fintrax.service.LabelService;
 import org.fintrax.service.RuleService;
@@ -36,8 +38,13 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
 @Component
@@ -45,6 +52,8 @@ import java.util.concurrent.Executors;
 public class BankAccountsController {
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
     private static final String ACCOUNT_ACTION_BUTTON_STYLE_CLASS = "account-action-button";
+    private static final String SYNC_BUTTON_LABEL_KEY = "button.sync";
+    private static final String SAFE_SYNC_FAILURE_MESSAGE_KEY = "message.sync.failedSafe";
 
     @FXML
     private BorderPane rootPane;
@@ -64,6 +73,7 @@ public class BankAccountsController {
     private VBox syncLogContainer;
 
     private final AccountService accountService;
+    private final BankService bankService;
     private final SyncService syncService;
     private final RuleService ruleService;
     private final SettingsService settingsService;
@@ -77,11 +87,12 @@ public class BankAccountsController {
         return t;
     });
 
-    public BankAccountsController(AccountService accountService, SyncService syncService,
+    public BankAccountsController(AccountService accountService, BankService bankService, SyncService syncService,
                                   PinStorage pinStorage, ViewLoader viewLoader, RuleService ruleService,
                                   CategoryService categoryService, LabelService labelService,
                                   SettingsService settingsService) {
         this.accountService = accountService;
+        this.bankService = bankService;
         this.syncService = syncService;
         this.pinStorage = pinStorage;
         this.viewLoader = viewLoader;
@@ -116,6 +127,9 @@ public class BankAccountsController {
     }
 
     private VBox createAccountCard(BankAccount account) {
+        if (account == null) {
+            throw new IllegalArgumentException("Account is required to create an account card.");
+        }
         VBox card = new VBox(8);
         card.getStyleClass().add("account-card");
         card.setPrefWidth(300);
@@ -124,7 +138,12 @@ public class BankAccountsController {
         HBox header = new HBox(8);
         header.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
 
-        Label bankNameLabel = new Label(account.getBankName() != null ? account.getBankName() : "Unknown Bank");
+        Bank bank = bankService.getBankForAccount(account).orElse(null);
+        String bankName = bank == null ? null : bank.getName();
+        if (bankName == null || bankName.isBlank()) {
+            bankName = account.getBankName();
+        }
+        Label bankNameLabel = new Label(bankName != null ? bankName : "Unknown Bank");
         bankNameLabel.getStyleClass().add("account-name");
 
         Region spacer = new Region();
@@ -134,6 +153,10 @@ public class BankAccountsController {
         typeLabel.getStyleClass().add("account-type");
 
         header.getChildren().addAll(bankNameLabel, spacer, typeLabel);
+
+        String accountName = account.getAccountName() == null ? account.getBankName() : account.getAccountName();
+        Label accountNameLabel = new Label(accountName == null ? "" : accountName);
+        accountNameLabel.getStyleClass().add("account-holder");
 
         Label holderLabel = new Label(account.getAccountHolder() != null ? account.getAccountHolder() : "");
         holderLabel.getStyleClass().add("account-holder");
@@ -159,8 +182,8 @@ public class BankAccountsController {
         Button syncButton = new Button();
         syncButton.getStyleClass().addAll("sync-button", ACCOUNT_ACTION_BUTTON_STYLE_CLASS);
         syncButton.setGraphic(icon("fth-refresh-cw", 14));
-        syncButton.setTooltip(new Tooltip(I18n.get("button.sync")));
-        syncButton.setAccessibleText(I18n.get("button.sync"));
+        syncButton.setTooltip(new Tooltip(I18n.get(SYNC_BUTTON_LABEL_KEY)));
+        syncButton.setAccessibleText(I18n.get(SYNC_BUTTON_LABEL_KEY));
         syncButton.setOnAction(e -> onSyncAccount(account.getId()));
 
         Button editButton = new Button();
@@ -180,7 +203,8 @@ public class BankAccountsController {
 
         buttonBox.getChildren().addAll(syncButton, editButton, deleteButton);
 
-        card.getChildren().addAll(header, holderLabel, ibanLabel, balanceLabel, lastSyncLabel, buttonBox);
+        card.getChildren().addAll(header, accountNameLabel, holderLabel, ibanLabel, balanceLabel, lastSyncLabel,
+                buttonBox);
         return card;
     }
 
@@ -202,12 +226,13 @@ public class BankAccountsController {
             Stage dialog = new Stage();
             dialog.setTitle(I18n.get("dialog.addAccount.title"));
             dialog.initModality(Modality.WINDOW_MODAL);
-            Scene dialogScene = new Scene(root, 450, 500);
-            FintraxUI.configureScene(dialogScene);
-            dialog.setScene(dialogScene);
-
             Window ownerWindow = addAccountButton.getScene().getWindow();
             dialog.initOwner(ownerWindow);
+            Scene dialogScene = new Scene(root);
+            FintraxUI.configureScene(dialogScene);
+            dialog.setScene(dialogScene);
+            dialog.setMinWidth(560);
+            dialog.sizeToScene();
 
             dialog.showAndWait();
             loadAccounts();
@@ -228,7 +253,7 @@ public class BankAccountsController {
             dialog.setTitle(I18n.get("dialog.editAccount.title"));
             dialog.initModality(Modality.WINDOW_MODAL);
             dialog.initOwner(rootPane.getScene().getWindow());
-            Scene dialogScene = new Scene(root, 500, 600);
+            Scene dialogScene = new Scene(root, 560, 680);
             FintraxUI.configureScene(dialogScene);
             dialog.setScene(dialogScene);
 
@@ -242,86 +267,193 @@ public class BankAccountsController {
 
     @FXML
     private void onSyncAll() {
-        List<BankAccount> accounts = accountService.getAllAccounts();
-        Map<Long, String> accountPins = new LinkedHashMap<>();
-        for (BankAccount account : accounts) {
-            String pin = pinStorage.retrievePin(String.valueOf(account.getId()));
-            if (pin == null) {
-                pin = showPinDialog(account.getId());
-            }
-            if (pin != null) {
-                accountPins.put(account.getId(), pin);
-            }
-        }
-        if (accountPins.isEmpty()) return;
+        SyncBatch batch = prepareSyncBatch();
+        if (batch == null) return;
 
-        executor.submit(() -> {
+        List<SyncProgressDialog.Account> progressAccounts = batch.accounts().stream()
+                .map(this::syncProgressAccount).toList();
+        SyncProgressDialog progressDialog = new SyncProgressDialog(rootPane.getScene().getWindow());
+        AtomicBoolean cancellationRequested = new AtomicBoolean();
+        AtomicReference<Future<?>> worker = new AtomicReference<>();
+        progressDialog.setCancelAction(() -> {
+            requestSyncCancellation(cancellationRequested, worker);
+            batch.passwordsByBank().clear();
+        });
+        progressDialog.show(progressAccounts);
+
+        Future<?> task = executor.submit(() -> {
             List<SyncResult> results = new ArrayList<>();
             Map<Long, String> failures = new LinkedHashMap<>();
-            accountPins.forEach((accountId, pin) -> {
-                try {
-                    results.add(syncService.syncAccount(accountId, pin));
-                } catch (Exception e) {
-                    log.error("Sync failed for account {}", accountId, e);
-                    failures.put(accountId, errorMessage(e));
-                }
-            });
+            boolean allCompleted;
+            try {
+                allCompleted = syncBatchAccounts(batch, progressDialog, cancellationRequested, results, failures);
+            } finally {
+                batch.passwordsByBank().clear();
+            }
+            if (!allCompleted || isSyncCancellationRequested(cancellationRequested)) {
+                refreshAfterSync();
+                return;
+            }
             Platform.runLater(() -> {
                 loadAccounts();
                 loadSyncLogs();
-                showSyncReport(results, failures);
+                showSyncReport(results, failures, progressDialog);
             });
         });
+        worker.set(task);
+    }
+
+    private SyncBatch prepareSyncBatch() {
+        List<BankAccount> accounts = accountService.getAllAccounts().stream()
+                .filter(java.util.Objects::nonNull)
+                .toList();
+        Map<String, List<BankAccount>> accountsByBank = new LinkedHashMap<>();
+        for (BankAccount account : accounts) {
+            accountsByBank.computeIfAbsent(syncBankKey(account), ignored -> new ArrayList<>()).add(account);
+        }
+
+        Map<String, String> passwordsByBank = new LinkedHashMap<>();
+        for (Map.Entry<String, List<BankAccount>> entry : accountsByBank.entrySet()) {
+            List<BankAccount> bankAccounts = entry.getValue();
+            String pin = showPinDialog(bankDisplayName(bankAccounts.getFirst()), bankAccounts.size());
+            if (pin != null) {
+                passwordsByBank.put(entry.getKey(), pin);
+            }
+        }
+        if (passwordsByBank.isEmpty()) return null;
+
+        List<BankAccount> selectedAccounts = accounts.stream()
+                .filter(account -> passwordsByBank.containsKey(syncBankKey(account)))
+                .toList();
+        return new SyncBatch(selectedAccounts, passwordsByBank);
+    }
+
+    private boolean syncBatchAccounts(SyncBatch batch, SyncProgressDialog progressDialog,
+                                      AtomicBoolean cancellationRequested, List<SyncResult> results,
+                                      Map<Long, String> failures) {
+        for (BankAccount account : batch.accounts()) {
+            if (isSyncCancellationRequested(cancellationRequested)) return false;
+            progressDialog.activateAccount(account.getId());
+            try {
+                SyncResult result = syncService.syncAccount(account.getId(),
+                        batch.passwordsByBank().get(syncBankKey(account)),
+                        progressDialog::updateProgress, cancellationRequested::get);
+                if (isSyncCancellationRequested(cancellationRequested)) return false;
+                results.add(result);
+                progressDialog.finishAccount(result);
+            } catch (Exception e) {
+                if (isSyncCancellationRequested(cancellationRequested)) return false;
+                log.warn("Bank sync failed for account {}", account.getId());
+                failures.put(account.getId(), I18n.get(SAFE_SYNC_FAILURE_MESSAGE_KEY));
+                progressDialog.failAccount(account.getId(), I18n.get(SAFE_SYNC_FAILURE_MESSAGE_KEY));
+            }
+        }
+        return true;
     }
 
     private void onSyncAccount(Long accountId) {
-        String pin = pinStorage.retrievePin(String.valueOf(accountId));
-
-        if (pin == null) {
-            pin = showPinDialog(accountId);
-            if (pin == null) return;
-        }
+        Optional<BankAccount> account = accountService.getAccount(accountId);
+        if (account.isEmpty()) return;
+        String pin = showPinDialog(bankDisplayName(account.get()), 1);
+        if (pin == null) return;
 
         final String finalPin = pin;
-        executor.submit(() -> {
+        SyncProgressDialog progressDialog = new SyncProgressDialog(rootPane.getScene().getWindow());
+        AtomicBoolean cancellationRequested = new AtomicBoolean();
+        AtomicReference<Future<?>> worker = new AtomicReference<>();
+        progressDialog.setCancelAction(() -> requestSyncCancellation(cancellationRequested, worker));
+        progressDialog.show(List.of(syncProgressAccount(account.get())));
+        Future<?> task = executor.submit(() -> {
             try {
-                SyncResult syncResult = syncService.syncAccount(accountId, finalPin);
+                SyncResult syncResult = syncService.syncAccount(accountId, finalPin,
+                        progressDialog::updateProgress, cancellationRequested::get);
+                if (isSyncCancellationRequested(cancellationRequested)) {
+                    refreshAfterSync();
+                    return;
+                }
+                progressDialog.finishAccount(syncResult);
                 Platform.runLater(() -> {
                     loadAccounts();
                     loadSyncLogs();
-                    showSyncReport(List.of(syncResult), Map.of());
+                    showSyncReport(List.of(syncResult), Map.of(), progressDialog);
                 });
             } catch (Exception e) {
-                log.error("Sync failed for account {}", accountId, e);
+                if (isSyncCancellationRequested(cancellationRequested)) {
+                    refreshAfterSync();
+                    return;
+                }
+                log.warn("Bank sync failed for account {}", accountId);
+                progressDialog.failAccount(accountId, I18n.get(SAFE_SYNC_FAILURE_MESSAGE_KEY));
                 Platform.runLater(() -> {
                     loadSyncLogs();
-                    showSyncReport(List.of(), Map.of(accountId, errorMessage(e)));
+                    showSyncReport(List.of(), Map.of(accountId, I18n.get(SAFE_SYNC_FAILURE_MESSAGE_KEY)),
+                            progressDialog);
                 });
             }
         });
+        worker.set(task);
     }
 
-    private String showPinDialog(Long accountId) {
-        Optional<BankAccount> accountOpt = accountService.getAccount(accountId);
-        if (accountOpt.isEmpty()) return null;
+    private void requestSyncCancellation(AtomicBoolean cancellationRequested, AtomicReference<Future<?>> worker) {
+        cancellationRequested.set(true);
+        Future<?> task = worker.get();
+        if (task != null) {
+            task.cancel(true);
+        }
+    }
 
-        TextInputDialog dialog = new TextInputDialog();
-        dialog.setTitle(I18n.get("dialog.pin.title"));
-        dialog.setHeaderText(I18n.get("dialog.pin.header", accountOpt.get().getBankName()));
-        dialog.setContentText(I18n.get("dialog.pin.prompt"));
-        dialog.initModality(Modality.APPLICATION_MODAL);
+    private boolean isSyncCancellationRequested(AtomicBoolean cancellationRequested) {
+        return cancellationRequested.get() || Thread.currentThread().isInterrupted();
+    }
 
-        FintraxUI.configureDialog(dialog);
+    private void refreshAfterSync() {
+        Platform.runLater(() -> {
+            loadAccounts();
+            loadSyncLogs();
+        });
+    }
 
-        Optional<String> result = dialog.showAndWait();
-        return result.orElse(null);
+    private String showPinDialog(String bankName, int accountCount) {
+        return PinPromptDialog.show(rootPane.getScene().getWindow(), bankName, accountCount,
+                I18n.get(SYNC_BUTTON_LABEL_KEY));
+    }
+
+    private String syncBankKey(BankAccount account) {
+        return account.getBankId() == null
+                ? "account:" + account.getId() : "bank:" + account.getBankId();
+    }
+
+    private String bankDisplayName(BankAccount account) {
+        if (account == null) {
+            return "";
+        }
+        return bankService.getBankForAccount(account)
+                .map(Bank::getName)
+                .filter(name -> name != null && !name.isBlank())
+                .orElse(account.getBankName() == null ? account.getAccountName() : account.getBankName());
+    }
+
+    private String accountDisplayName(BankAccount account) {
+        if (account == null) return "";
+        String bankName = bankDisplayName(account);
+        String accountName = account.getAccountName();
+        if (accountName == null || accountName.isBlank() || accountName.equals(bankName)) {
+            return bankName == null ? "" : bankName;
+        }
+        return bankName == null || bankName.isBlank() ? accountName : bankName + " · " + accountName;
+    }
+
+    private SyncProgressDialog.Account syncProgressAccount(BankAccount account) {
+        String name = accountDisplayName(account);
+        return new SyncProgressDialog.Account(account.getId(),
+                name.isBlank() ? account.getIban() : name, maskIban(account.getIban()));
     }
 
     private void onDeleteAccount(BankAccount account) {
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
         alert.setTitle(I18n.get("dialog.deleteAccount.title"));
         alert.setHeaderText(I18n.get("dialog.deleteAccount.header"));
-        alert.setContentText(I18n.get("dialog.deleteAccount.content", account.getBankName(), account.getIban()));
+        alert.setContentText(I18n.get("dialog.deleteAccount.content", accountDisplayName(account), account.getIban()));
         FintraxUI.configureDialog(alert);
 
         Optional<ButtonType> result = alert.showAndWait();
@@ -370,12 +502,21 @@ public class BankAccountsController {
             case FAILED -> "status-error";
             case PARTIAL -> "status-warning";
         });
-        Label accountLabel = new Label(account.getBankName() != null ? account.getBankName() : account.getIban());
+        String accountDisplayName = accountDisplayName(account);
+        Label accountLabel = new Label(accountDisplayName.isBlank() ? account.getIban() : accountDisplayName);
         accountLabel.getStyleClass().add("sync-account-name");
 
         String message;
         if (syncLog.getStatus() == SyncStatus.FAILED) {
-            message = I18n.get("message.sync.failed", syncLog.getErrorMessage() != null ? syncLog.getErrorMessage() : "Unknown error");
+            String error = syncLog.getErrorMessage() != null
+                    ? syncLog.getErrorMessage() : I18n.get("message.sync.report.noErrorDetails");
+            message = syncLog.getStage() == null
+                    ? I18n.get("message.sync.failed", error)
+                    : I18n.get("message.sync.failedAtStage",
+                            I18n.get("sync.failureStage." + syncLog.getStage().name()), error);
+        } else if (syncLog.getStatus() == SyncStatus.PARTIAL) {
+            message = syncLog.getErrorMessage() == null || syncLog.getErrorMessage().isBlank()
+                    ? I18n.get("message.sync.partial") : syncLog.getErrorMessage();
         } else {
             message = I18n.get("message.sync.success", syncLog.getNewCount(), syncLog.getSkippedCount());
         }
@@ -400,75 +541,76 @@ public class BankAccountsController {
     }
 
     void showSyncReport(List<SyncResult> results, Map<Long, String> failures) {
-        int newCount = results.stream().filter(result -> result.syncLog().getStatus() == SyncStatus.SUCCESS)
-                .mapToInt(result -> result.syncLog().getNewCount()).sum();
-        int skippedCount = results.stream().filter(result -> result.syncLog().getStatus() == SyncStatus.SUCCESS)
-                .mapToInt(result -> result.syncLog().getSkippedCount()).sum();
+        LinkedHashSet<Long> accountIds = new LinkedHashSet<>();
+        results.stream().map(result -> result.syncLog().getBankAccountId()).forEach(accountIds::add);
+        accountIds.addAll(failures.keySet());
+        List<Long> allAccountIds = new ArrayList<>(accountIds);
+        List<SyncProgressDialog.Account> progressAccounts = new ArrayList<>();
+        for (Long accountId : allAccountIds) {
+            progressAccounts.add(accountService.getAccount(accountId)
+                    .map(this::syncProgressAccount)
+                    .orElse(new SyncProgressDialog.Account(accountId, String.valueOf(accountId), "")));
+        }
+        SyncProgressDialog progressDialog = new SyncProgressDialog(rootPane.getScene().getWindow());
+        progressDialog.show(progressAccounts);
+        results.forEach(progressDialog::finishAccount);
+        failures.forEach(progressDialog::failAccount);
+        showSyncReport(results, failures, progressDialog);
+    }
+
+    private void showSyncReport(List<SyncResult> results, Map<Long, String> failures,
+                                SyncProgressDialog progressDialog) {
         List<Long> newTransactionIds = results.stream()
                 .filter(result -> result.syncLog().getStatus() == SyncStatus.SUCCESS)
                 .flatMap(result -> result.newTransactionIds().stream()).toList();
 
-        List<String> details = new ArrayList<>();
-        for (SyncResult result : results) {
-            SyncLog syncLog = result.syncLog();
-            String accountName = accountName(syncLog.getBankAccountId());
-            if (syncLog.getStatus() == SyncStatus.FAILED) {
-                details.add(I18n.get("message.sync.report.failure", accountName, syncLog.getErrorMessage()));
-            } else {
-                details.add(I18n.get("message.sync.report.account", accountName,
-                        syncLog.getNewCount(), syncLog.getSkippedCount()));
-            }
-        }
-        failures.forEach((accountId, error) -> details.add(
-                I18n.get("message.sync.report.failure", accountName(accountId), error)));
-
-        boolean hasFailures = !failures.isEmpty() || results.stream()
-                .anyMatch(result -> result.syncLog().getStatus() == SyncStatus.FAILED);
-        Alert report = new Alert(hasFailures ? Alert.AlertType.WARNING : Alert.AlertType.INFORMATION);
-        report.setTitle(I18n.get("message.sync.report.title"));
-        report.setHeaderText(I18n.get("message.sync.report.title"));
-        String summary = I18n.get("message.sync.report.summary", newCount, skippedCount);
-        report.setContentText(details.isEmpty() ? summary : summary + "\n" + String.join("\n", details));
-        report.initOwner(rootPane.getScene().getWindow());
-        FintraxUI.configureDialog(report);
+        List<Map.Entry<Long, String>> additionalFailures = failures.entrySet().stream()
+                .filter(failure -> results.stream().noneMatch(result ->
+                        java.util.Objects.equals(result.syncLog().getBankAccountId(), failure.getKey())))
+                .toList();
+        int successfulAccounts = (int) results.stream()
+                .filter(result -> result.syncLog().getStatus() == SyncStatus.SUCCESS).count();
+        int failedAccounts = results.size() - successfulAccounts + additionalFailures.size();
+        boolean hasFailures = failedAccounts > 0;
 
         ButtonType closeType = new ButtonType(I18n.get("button.close"), ButtonBar.ButtonData.CANCEL_CLOSE);
-        if (newTransactionIds.isEmpty()) {
-            report.getButtonTypes().setAll(closeType);
-            ((Button) report.getDialogPane().lookupButton(closeType)).setId("syncReportCloseButton");
-        } else {
-            ButtonType applyRulesType = new ButtonType(
-                    I18n.get("button.applyRulesToNewTransactions"), ButtonBar.ButtonData.OK_DONE);
-            report.getButtonTypes().setAll(applyRulesType, closeType);
-            ((Button) report.getDialogPane().lookupButton(applyRulesType)).setId("applyRulesToNewTransactions");
-            ((Button) report.getDialogPane().lookupButton(closeType)).setId("syncReportCloseButton");
-            report.showAndWait().ifPresent(button -> {
-                if (button == applyRulesType) {
-                    new RuleReviewDialog(rootPane.getScene().getWindow(),
-                            new RuleReviewDialog.Services(ruleService, accountService, categoryService, labelService,
-                                    settingsService),
-                            onlyFillMissing -> ruleService.previewRulesForTransactions(
-                                    newTransactionIds, onlyFillMissing), false).show();
-                }
-            });
+        ButtonType viewActivityLogType = new ButtonType(
+                I18n.get("button.viewActivityLog"), ButtonBar.ButtonData.HELP);
+        ButtonType applyRulesType = new ButtonType(
+                I18n.get("button.applyRulesToNewTransactions"), ButtonBar.ButtonData.OK_DONE);
+        List<ButtonType> buttons = new ArrayList<>();
+        if (hasFailures) {
+            buttons.add(viewActivityLogType);
+        }
+        buttons.add(applyRulesType);
+        buttons.add(closeType);
+        progressDialog.showReport(I18n.get("message.sync.report.title"), buttons, button -> {
+            if (button == viewActivityLogType) {
+                openActivityLog();
+            } else if (button == applyRulesType) {
+                new RuleReviewDialog(rootPane.getScene().getWindow(),
+                        new RuleReviewDialog.Services(ruleService, accountService, categoryService, labelService,
+                                settingsService),
+                        onlyFillMissing -> ruleService.previewRulesForTransactions(
+                                newTransactionIds, onlyFillMissing), false).show();
+            }
+        });
+        progressDialog.setButtonId(applyRulesType, "applyRulesToNewTransactions");
+        progressDialog.setButtonDisabled(applyRulesType, newTransactionIds.isEmpty());
+        progressDialog.setButtonId(closeType, "syncReportCloseButton");
+        if (buttons.contains(viewActivityLogType)) {
+            progressDialog.setButtonId(viewActivityLogType, "viewSyncActivityLogButton");
+        }
+    }
+
+    private void openActivityLog() {
+        if (rootPane.getScene() == null) {
             return;
         }
-        report.showAndWait();
-    }
-
-    private String accountName(Long accountId) {
-        return accountService.getAccount(accountId)
-                .map(account -> {
-                    String name = account.getBankName() == null ? "" : account.getBankName();
-                    String iban = maskIban(account.getIban());
-                    String label = iban.isBlank() ? name : name + " (" + iban + ")";
-                    return label.isBlank() ? String.valueOf(accountId) : label;
-                })
-                .orElse(String.valueOf(accountId));
-    }
-
-    private String errorMessage(Exception exception) {
-        return exception.getMessage() == null ? exception.toString() : exception.getMessage();
+        Object controller = rootPane.getScene().getRoot().getProperties().get(MainController.class.getName());
+        if (controller instanceof MainController mainController) {
+            mainController.showActivityLog();
+        }
     }
 
     @FXML
@@ -492,6 +634,9 @@ public class BankAccountsController {
         alert.setContentText(message);
         FintraxUI.configureDialog(alert);
         alert.showAndWait();
+    }
+
+    private record SyncBatch(List<BankAccount> accounts, Map<String, String> passwordsByBank) {
     }
 
 }

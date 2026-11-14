@@ -52,6 +52,10 @@ public final class TableSortOrderPersistence {
             }
         }
         table.getSortOrder().setAll(sortOrder);
+        if (!sortOrder.isEmpty()) {
+            // Restoring sortOrder restores the header indicator but does not always reorder preloaded items.
+            table.sort();
+        }
     }
 
     private static <S> void saveSortOrder(TableView<S> table, String settingKey,

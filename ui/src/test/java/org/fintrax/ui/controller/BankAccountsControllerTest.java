@@ -13,16 +13,21 @@ import javafx.scene.layout.BackgroundFill;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
+import javafx.stage.Window;
+import org.fintrax.config.I18n;
 import org.fintrax.model.*;
 import org.fintrax.service.AccountService;
+import org.fintrax.service.BankService;
 import org.fintrax.service.CategoryService;
 import org.fintrax.service.RuleService;
+import org.fintrax.service.SyncProgress;
 import org.fintrax.service.SyncResult;
 import org.fintrax.service.TransactionRulePreview;
 import org.fintrax.service.TransactionService;
 import org.fintrax.ui.AbstractUITest;
 import org.fintrax.ui.FintraxUI;
 import org.fintrax.ui.ViewLoader;
+import org.kordamp.ikonli.javafx.FontIcon;
 import org.junit.jupiter.api.Test;
 import org.testfx.util.WaitForAsyncUtils;
 
@@ -31,6 +36,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -111,6 +118,7 @@ class BankAccountsControllerTest extends AbstractUITest {
         accountService.updateBalance(account.getId(), new BigDecimal("42.50"), balanceDate);
         accountService.updateLastSync(account.getId(), syncDate);
         LocalDateTime createdAt = account.getCreatedAt();
+        BankService bankService = applicationContext.getBean(BankService.class);
 
         clickOn("#editAccountButton-" + account.getId());
 
@@ -121,16 +129,18 @@ class BankAccountsControllerTest extends AbstractUITest {
         interact(() -> {
             lookup("#bankNameField").<TextField>query().setText("Updated Bank");
             lookup("#bicField").<TextField>query().setText("NEWBIC");
+            lookup("#accountNameField").<TextField>query().setText("Updated account");
             lookup("#accountHolderField").<TextField>query().setText("Updated holder");
             lookup("#accountTypeCombo").<ComboBox<AccountType>>query().setValue(AccountType.SAVINGS);
-            lookup("#commentField").<TextArea>query().setText("Updated comment");
+            lookup("#accountCommentField").<TextArea>query().setText("Updated comment");
         });
         clickOn("#saveAccountButton");
         WaitForAsyncUtils.waitForFxEvents();
 
         BankAccount updated = accountService.getAccount(account.getId()).orElseThrow();
-        assertEquals("Updated Bank", updated.getBankName());
-        assertEquals("NEWBIC", updated.getBic());
+        assertEquals("Updated account", updated.getAccountName());
+        assertEquals("Updated Bank", bankService.getBankForAccount(updated).orElseThrow().getName());
+        assertEquals("NEWBIC", bankService.getBankForAccount(updated).orElseThrow().getBic());
         assertEquals("Updated holder", updated.getAccountHolder());
         assertEquals(AccountType.SAVINGS, updated.getAccountType());
         assertEquals("Updated comment", updated.getComment());
@@ -186,8 +196,86 @@ class BankAccountsControllerTest extends AbstractUITest {
         Platform.runLater(() -> controller.showSyncReport(List.of(result), Map.of()));
         WaitForAsyncUtils.waitForFxEvents();
 
-        assertTrue(lookup("#applyRulesToNewTransactions").queryAll().isEmpty());
+        Button applyRules = lookup("#applyRulesToNewTransactions").query();
+        assertTrue(applyRules.isDisabled());
         clickOn(lookup("#syncReportCloseButton").<Button>query());
+    }
+
+    @Test
+    void syncProgressDialogShowsStagesAndAdvancesStatusIcons() {
+        SyncProgressDialog.Account target = new SyncProgressDialog.Account(account.getId(),
+                "Sync Bank · Girokonto", "•••• 3000");
+        AtomicBoolean cancelled = new AtomicBoolean();
+        AtomicReference<SyncProgressDialog> progressDialogRef = new AtomicReference<>();
+
+        interact(() -> {
+            Window owner = lookup(".account-card").query().getScene().getWindow();
+            SyncProgressDialog progressDialog = new SyncProgressDialog(owner);
+            progressDialog.setCancelAction(() -> cancelled.set(true));
+            progressDialog.show(List.of(target));
+            progressDialogRef.set(progressDialog);
+        });
+        SyncProgressDialog progressDialog = progressDialogRef.get();
+        WaitForAsyncUtils.waitForFxEvents();
+
+        Stage dialogStage = Window.getWindows().stream()
+                .filter(Stage.class::isInstance)
+                .map(Stage.class::cast)
+                .filter(Stage::isShowing)
+                .filter(stage -> stage.getScene().getRoot().lookup(".sync-progress-account-card") != null)
+                .findFirst().orElseThrow();
+        Parent dialogRoot = dialogStage.getScene().getRoot();
+        assertTrue(dialogStage.isShowing());
+        assertEquals(I18n.get("message.sync.progress.overview.single", 1, 0, 0),
+                ((Label) dialogRoot.lookup("#syncProgressOverview")).getText());
+        assertFalse(((Button) dialogRoot.lookup("#syncReportCloseButton")).isDisabled());
+        assertTrue(((Button) dialogRoot.lookup("#viewSyncActivityLogButton")).isDisabled());
+        assertTrue(((Button) dialogRoot.lookup("#applyRulesToNewTransactions")).isDisabled());
+        assertEquals(I18n.get("sync.progressStage.CONNECTION"), ((Label) dialogRoot.lookup(
+                "#syncProgressStage_" + account.getId() + "_CONNECTION")).getText());
+        for (SyncStage stage : List.of(SyncStage.CONNECTION, SyncStage.AUTHENTICATION,
+                SyncStage.DATA_RETRIEVAL, SyncStage.DATA_IMPORT)) {
+            assertEquals("fth-circle", ((FontIcon) dialogRoot.lookup(
+                    "#syncProgressStatus_" + account.getId() + "_" + stage.name()))
+                    .getIconLiteral());
+        }
+
+        progressDialog.updateProgress(new SyncProgress(account.getId(), SyncStage.CONNECTION, 0, 0, 0));
+        WaitForAsyncUtils.waitForFxEvents();
+
+        assertTrue(dialogRoot.lookup("#syncProgressSpinner_" + account.getId() + "_CONNECTION").isVisible());
+        progressDialog.updateProgress(new SyncProgress(account.getId(), SyncStage.AUTHENTICATION, 0, 0, 0));
+        WaitForAsyncUtils.waitForFxEvents();
+        assertEquals("fth-check-circle", ((FontIcon) dialogRoot.lookup(
+                "#syncProgressStatus_" + account.getId() + "_CONNECTION"))
+                .getIconLiteral());
+        progressDialog.updateProgress(new SyncProgress(account.getId(), SyncStage.DATA_RETRIEVAL, 12, 0, 0));
+        WaitForAsyncUtils.waitForFxEvents();
+        assertEquals(I18n.get("message.sync.progress.downloaded", 12),
+                ((Label) dialogRoot.lookup("#syncProgressResult_" + account.getId() + "_DATA_RETRIEVAL"))
+                        .getText());
+        progressDialog.updateProgress(new SyncProgress(account.getId(), SyncStage.DATA_IMPORT, 12, 9, 3));
+        WaitForAsyncUtils.waitForFxEvents();
+        assertEquals(I18n.get("message.sync.progress.imported", 9, 12, 3),
+                ((Label) dialogRoot.lookup("#syncProgressResult_" + account.getId() + "_DATA_IMPORT"))
+                        .getText());
+
+        SyncLog syncLog = SyncLog.builder().bankAccountId(account.getId()).status(SyncStatus.SUCCESS)
+                .newCount(9).skippedCount(3).build();
+        progressDialog.finishAccount(new SyncResult(syncLog, List.of()));
+        WaitForAsyncUtils.waitForFxEvents();
+        assertEquals(I18n.get("message.sync.progress.overview.single", 1, 1, 0),
+                ((Label) dialogRoot.lookup("#syncProgressOverview")).getText());
+        for (SyncStage stage : List.of(SyncStage.CONNECTION, SyncStage.AUTHENTICATION,
+                SyncStage.DATA_RETRIEVAL, SyncStage.DATA_IMPORT)) {
+            assertEquals("fth-check-circle", ((FontIcon) dialogRoot.lookup(
+                    "#syncProgressStatus_" + account.getId() + "_" + stage.name()))
+                    .getIconLiteral());
+        }
+        assertFalse(dialogRoot.lookup("#syncProgressAccountBody_" + account.getId()).isVisible());
+        clickOn("#syncReportCloseButton");
+        assertTrue(cancelled.get());
+        assertFalse(dialogStage.isShowing());
     }
 
     private Transaction transaction(String checksum, String payee) {

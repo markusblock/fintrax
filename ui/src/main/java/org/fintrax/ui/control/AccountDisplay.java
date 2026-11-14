@@ -13,20 +13,21 @@ public final class AccountDisplay {
         if (account == null) {
             return "";
         }
-        String bankName = account.getBankName() == null ? "" : account.getBankName().trim();
+        String accountName = account.getAccountName() == null ? account.getBankName() : account.getAccountName();
+        accountName = accountName == null ? "" : accountName.trim();
         String iban = account.getIban() == null ? "" : account.getIban().trim();
         String maskedIban = iban.length() < MIN_MASKED_IBAN_LENGTH ? iban
                 : iban.substring(0, IBAN_EDGE_LENGTH) + "****"
                         + iban.substring(iban.length() - IBAN_EDGE_LENGTH);
-        if (bankName.isBlank() && maskedIban.isBlank()) {
+        if (accountName.isBlank() && maskedIban.isBlank()) {
             return "";
         }
-        if (bankName.isBlank()) {
+        if (accountName.isBlank()) {
             return maskedIban;
         }
         if (maskedIban.isBlank()) {
-            return bankName;
+            return accountName;
         }
-        return bankName + " (" + maskedIban + ")";
+        return accountName + " (" + maskedIban + ")";
     }
 }
