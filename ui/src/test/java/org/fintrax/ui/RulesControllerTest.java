@@ -537,6 +537,44 @@ class RulesControllerTest extends AbstractUITest {
         assertFalse(lookup("#ruleConflictSummary").query().isVisible());
     }
 
+    @Test
+    void hoveringRegexOperatorShowsGuideInSettingsLanguage() {
+        SettingsService settingsService = applicationContext.getBean(SettingsService.class);
+        String originalLanguage = settingsService.getLanguage();
+        String editMenuItemText = I18n.get("button.edit");
+        try {
+            settingsService.saveLanguage("de");
+            I18n.setLocale(settingsService.getLocale());
+
+            TableView<Rule> ruleTable = lookup("#ruleTable").query();
+            Rule selectedRule = ruleTable.getItems().stream()
+                    .filter(rule -> rule.getName().equals(ruleName)).findFirst().orElseThrow();
+            TableRow<?> row = rowForRule(ruleTable, ruleName);
+            interact(() -> ruleTable.getSelectionModel().select(selectedRule));
+            Platform.runLater(() -> menuItem(row.getContextMenu(), editMenuItemText).fire());
+            WaitForAsyncUtils.waitForFxEvents();
+
+            ComboBox<String> operator = lookup(".rule-condition-operator").query();
+            moveTo("#ruleNameField");
+            interact(() -> operator.setValue(I18n.get("ruleEditor.operator.matchesRegex")));
+            assertFalse(lookup(".regex-help-guide").query().isVisible());
+
+            moveTo(operator);
+            WaitForAsyncUtils.waitForFxEvents();
+            assertTrue(lookup(".regex-help-guide").query().isVisible());
+            assertEquals("Regex-Kurzübersicht", lookup(".regex-help-title").queryLabeled().getText());
+            assertTrue(lookup(".regex-help-example").queryLabeled().getText().contains(".*Miete.*"));
+            assertTrue(lookup(".regex-help-example").queryLabeled().getText().contains("Monatliche Mietzahlung"));
+
+            moveTo("#ruleNameField");
+            WaitForAsyncUtils.waitForFxEvents();
+            assertFalse(lookup(".regex-help-guide").query().isVisible());
+        } finally {
+            settingsService.saveLanguage(originalLanguage);
+            I18n.setLocale(settingsService.getLocale());
+        }
+    }
+
     private TransactionRulePreview rowFor(TableView<TransactionRulePreview> table, Long transactionId) {
         return table.getItems().stream()
                 .filter(row -> row.transactionId().equals(transactionId))

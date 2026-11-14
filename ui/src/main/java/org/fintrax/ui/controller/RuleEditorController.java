@@ -8,11 +8,13 @@ import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContentDisplay;
+import javafx.scene.control.Label;
 import javafx.scene.control.Separator;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.ColumnConstraints;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -242,7 +244,10 @@ public class RuleEditorController {
             row.valueField.setText(existing.getValue() == null ? "" : existing.getValue());
         }
         row.fieldCombo.valueProperty().addListener((observable, oldValue, newValue) -> notifyChanged());
-        row.operatorCombo.valueProperty().addListener((observable, oldValue, newValue) -> notifyChanged());
+        row.operatorCombo.valueProperty().addListener((observable, oldValue, newValue) -> {
+            row.updateRegexHelpVisibility();
+            notifyChanged();
+        });
         row.valueField.textProperty().addListener((observable, oldValue, newValue) -> notifyChanged());
         row.removeButton.setOnAction(event -> {
             if (conditionRows.size() == 1) {
@@ -252,12 +257,12 @@ public class RuleEditorController {
                 notifyChanged();
                 return;
             }
-            conditionsContainer.getChildren().removeAll(row.grid, row.separator);
+            conditionsContainer.getChildren().remove(row.content);
             conditionRows.remove(row);
             notifyChanged();
         });
         conditionRows.add(row);
-        conditionsContainer.getChildren().addAll(row.grid, row.separator);
+        conditionsContainer.getChildren().add(row.content);
         notifyChanged();
     }
 
@@ -434,16 +439,21 @@ public class RuleEditorController {
 
     private static final class ConditionRow {
         private final GridPane grid = conditionRowGrid();
+        private final VBox content = new VBox(4);
+        private final VBox regexHelpGuide = regexHelpGuide();
         private final ComboBox<String> fieldCombo = new ComboBox<>();
         private final ComboBox<String> operatorCombo = new ComboBox<>();
         private final TextField valueField = new TextField();
         private final Button removeButton = removeButton();
         private final Separator separator = new Separator();
+        private boolean hoveringOperator;
 
         private ConditionRow() {
+            content.getStyleClass().add("rule-condition-content");
+            content.setMaxWidth(Double.MAX_VALUE);
             grid.getStyleClass().add("rule-condition-row");
             fieldCombo.getStyleClass().add(RULE_ROW_CONTROL_STYLE_CLASS);
-            operatorCombo.getStyleClass().add(RULE_ROW_CONTROL_STYLE_CLASS);
+            operatorCombo.getStyleClass().addAll(RULE_ROW_CONTROL_STYLE_CLASS, "rule-condition-operator");
             valueField.getStyleClass().add(RULE_ROW_CONTROL_STYLE_CLASS);
             valueField.setPrefColumnCount(25);
             valueField.setMinWidth(Region.USE_PREF_SIZE);
@@ -452,10 +462,67 @@ public class RuleEditorController {
             operatorCombo.setMaxWidth(Double.MAX_VALUE);
             valueField.setMaxWidth(Double.MAX_VALUE);
             separator.getStyleClass().add("rule-row-separator");
+            regexHelpGuide.setVisible(false);
+            regexHelpGuide.setManaged(false);
             grid.add(fieldCombo, 0, 0);
             grid.add(operatorCombo, 1, 0);
             grid.add(valueField, 2, 0);
             grid.add(removeButton, 3, 0);
+            content.getChildren().addAll(grid, regexHelpGuide, separator);
+            operatorCombo.setOnMouseEntered(event -> {
+                hoveringOperator = true;
+                updateRegexHelpVisibility();
+            });
+            content.setOnMouseExited(event -> {
+                hoveringOperator = false;
+                updateRegexHelpVisibility();
+            });
+            operatorCombo.focusedProperty().addListener((observable, oldValue, focused) ->
+                    updateRegexHelpVisibility());
+        }
+
+        private void updateRegexHelpVisibility() {
+            Operator operator = operatorFromText(operatorCombo.getValue());
+            boolean showGuide = (operator == Operator.REGEX || operator == Operator.NOT_REGEX)
+                    && (hoveringOperator || operatorCombo.isFocused());
+            regexHelpGuide.setVisible(showGuide);
+            regexHelpGuide.setManaged(showGuide);
+        }
+
+        private static VBox regexHelpGuide() {
+            Label title = new Label(I18n.get("ruleEditor.regexHelp.title"));
+            title.getStyleClass().add("regex-help-title");
+            FlowPane tokens = new FlowPane(14, 7);
+            tokens.getStyleClass().add("regex-help-tokens");
+            addRegexToken(tokens, ".", "anyCharacter");
+            addRegexToken(tokens, "*", "zeroOrMore");
+            addRegexToken(tokens, "+", "oneOrMore");
+            addRegexToken(tokens, "?", "optional");
+            addRegexToken(tokens, "[abc]", "characterSet");
+            addRegexToken(tokens, "(abc)", "group");
+            addRegexToken(tokens, "|", "alternative");
+            addRegexToken(tokens, "^", "start");
+            addRegexToken(tokens, "$", "end");
+            addRegexToken(tokens, I18n.get("ruleEditor.regexHelp.digitToken"), "digit");
+            Label example = new Label(I18n.get("ruleEditor.regexHelp.example",
+                    I18n.get("ruleEditor.field.purpose"),
+                    I18n.get("ruleEditor.regexHelp.examplePattern"),
+                    I18n.get("ruleEditor.regexHelp.exampleValue"),
+                    I18n.get("ruleEditor.regexHelp.exampleSearch")));
+            example.getStyleClass().add("regex-help-example");
+            example.setWrapText(true);
+            VBox guide = new VBox(8, title, tokens, example);
+            guide.getStyleClass().add("regex-help-guide");
+            guide.setMaxWidth(Double.MAX_VALUE);
+            return guide;
+        }
+
+        private static void addRegexToken(FlowPane tokens, String token, String descriptionKey) {
+            Label tokenLabel = new Label(token);
+            tokenLabel.getStyleClass().add("regex-help-token");
+            Label description = new Label(I18n.get("ruleEditor.regexHelp." + descriptionKey));
+            description.getStyleClass().add("regex-help-description");
+            tokens.getChildren().add(new HBox(5, tokenLabel, description));
         }
 
         private static GridPane conditionRowGrid() {
