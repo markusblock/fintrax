@@ -154,6 +154,7 @@ public class TransactionsController {
         transactionTableActions.installContextMenu(
                 transactionTable, this::reloadTransactionsKeepingSelection, this::createRuleFromTransaction);
         setupTableColumns();
+        setupFutureTransactionRows();
         TableCellTooltips.install(transactionTable);
         transactionFilterPanelController.setCollapsible(true);
         transactionFilterPanelController.restoreForView(SessionViewState.TRANSACTIONS_VIEW);
@@ -223,7 +224,8 @@ public class TransactionsController {
             }
         });
 
-        balanceColumn.setCellValueFactory(cd -> new SimpleObjectProperty<>(cd.getValue().getBalanceAfter()));
+        balanceColumn.setCellValueFactory(cd -> new SimpleObjectProperty<>(isFutureTransaction(cd.getValue())
+                ? null : cd.getValue().getBalanceAfter()));
         balanceColumn.setCellFactory(col -> new TableCell<>() {
             {
                 setAlignment(Pos.CENTER_RIGHT);
@@ -254,6 +256,24 @@ public class TransactionsController {
             return new SimpleStringProperty(text);
         });
         labelsColumn.setCellFactory(column -> createLabelChipCell(this::onSetLabels));
+    }
+
+    private void setupFutureTransactionRows() {
+        transactionTable.setRowFactory(table -> new TableRow<>() {
+            @Override
+            protected void updateItem(Transaction transaction, boolean empty) {
+                super.updateItem(transaction, empty);
+                getStyleClass().remove("future-transaction-row");
+                if (!empty && transaction != null && isFutureTransaction(transaction)) {
+                    getStyleClass().add("future-transaction-row");
+                }
+            }
+        });
+    }
+
+    private boolean isFutureTransaction(Transaction transaction) {
+        return transaction.getBookingDate() != null
+                && transaction.getBookingDate().isAfter(LocalDate.now());
     }
 
     private void setupDateColumn(TableColumn<Transaction, LocalDate> column,
@@ -442,7 +462,7 @@ public class TransactionsController {
         String currency = accountCurrency(account);
 
         setAmountValue(amountValue, transaction.getAmount(), currency);
-        setAmountValue(balanceValue, transaction.getBalanceAfter(), currency);
+        setAmountValue(balanceValue, isFutureTransaction(transaction) ? null : transaction.getBalanceAfter(), currency);
         setPropertyText(categoryValue, categoryName(transaction.getCategoryId()));
         setDetailLabels(transaction.getLabelIds());
         setPropertyText(noteValue, transaction.getNote());
