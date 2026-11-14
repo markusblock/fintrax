@@ -4,7 +4,7 @@
 
 ### Issue tracker
 
-Issues and PRDs for this repo live as GitHub issues, managed via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+Issues and PRDs for this repo live as GitHub issues, managed via the `gh` CLI. See `docs/agents/issue-tracker.md` for ticket operations and CI monitoring.
 
 ### Triage labels
 
