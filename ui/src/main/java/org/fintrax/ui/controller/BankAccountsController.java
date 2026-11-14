@@ -182,8 +182,10 @@ public class BankAccountsController {
         Button syncButton = new Button();
         syncButton.getStyleClass().addAll("sync-button", ACCOUNT_ACTION_BUTTON_STYLE_CLASS);
         syncButton.setGraphic(icon("fth-refresh-cw", 14));
-        syncButton.setTooltip(new Tooltip(I18n.get(SYNC_BUTTON_LABEL_KEY)));
-        syncButton.setAccessibleText(I18n.get(SYNC_BUTTON_LABEL_KEY));
+        String syncButtonLabel = I18n.get(account.isSyncExcluded() ? "button.syncExcluded" : SYNC_BUTTON_LABEL_KEY);
+        syncButton.setDisable(account.isSyncExcluded());
+        syncButton.setTooltip(new Tooltip(syncButtonLabel));
+        syncButton.setAccessibleText(syncButtonLabel);
         syncButton.setOnAction(e -> onSyncAccount(account.getId()));
 
         Button editButton = new Button();
@@ -306,6 +308,7 @@ public class BankAccountsController {
     private SyncBatch prepareSyncBatch() {
         List<BankAccount> accounts = accountService.getAllAccounts().stream()
                 .filter(java.util.Objects::nonNull)
+                .filter(account -> !account.isSyncExcluded())
                 .toList();
         Map<String, List<BankAccount>> accountsByBank = new LinkedHashMap<>();
         for (BankAccount account : accounts) {

@@ -139,7 +139,10 @@ A transaction the financial institution confirms as booked.
 A transaction the financial institution reports as unbooked; it may later become a Booked Transaction.
 
 **Bank Transaction Sync**:
-An on-demand retrieval of transactions for a Fintrax Account from its financial institution.
+An on-demand retrieval of transactions for a Fintrax Account from its financial institution. Bank Sync Exclusion omits an account from this operation while keeping its existing local data.
+
+**Bank Sync Exclusion**:
+A per-Bank Account setting that prevents it from being included in Bank Transaction Sync, including Sync All. Existing local transactions and account data remain available.
 
 ### Data Reset
 
