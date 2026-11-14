@@ -297,6 +297,33 @@ class ClassificationsControllerTest extends AbstractUITest {
     }
 
     @Test
+    void doubleClickingClassificationTransactionOpensDetailsBelowTable() throws Exception {
+        Category category = categoryService().createCategory("Transaction details " + System.nanoTime(), null, null);
+        Transaction transaction = createTransaction(category.getId(), "Details payee", "12",
+                LocalDate.of(2025, 2, 1));
+
+        reloadClassificationsView();
+        TreeView<String> tree = lookup("#classificationTree").query();
+        interact(() -> tree.getSelectionModel().select(categoryTreeItem(tree, category.getName())));
+        TableView<Transaction> table = lookup("#classificationTransactionsTable").query();
+        TableColumn<?, ?> payeeColumn = table.getColumns().stream()
+                .filter(column -> I18n.get("col.payee").equals(column.getText()))
+                .findFirst().orElseThrow();
+        TableCell<?, ?> payeeCell = cellForTransaction(table, payeeColumn, transaction);
+
+        assertFalse(lookup("#detailPanel").query().isVisible());
+        interact(() -> Event.fireEvent(payeeCell, new MouseEvent(MouseEvent.MOUSE_CLICKED,
+                1, 1, 1, 1, MouseButton.PRIMARY, 2,
+                false, false, false, false,
+                false, false, false, true, false, true,
+                new PickResult(payeeCell, 1, 1))));
+        WaitForAsyncUtils.waitForFxEvents();
+
+        assertTrue(lookup("#detailPanel").query().isVisible());
+        assertEquals(transaction.getOriginalPayee(), lookup("#originalPayeeValue").queryLabeled().getText());
+    }
+
+    @Test
     void classificationSortOrderIsSharedAcrossCategoriesAndViewReloads() throws Exception {
         String sortSettingKey = "classification.transaction.columns.sort";
         SettingsService settingsService = applicationContext.getBean(SettingsService.class);
@@ -468,7 +495,7 @@ class ClassificationsControllerTest extends AbstractUITest {
     }
 
     @Test
-    void classificationTransactionFooterShowsSumOfFilteredAmounts() throws Exception {
+    void transactionHeadlineShowsCountAndSumOfFilteredAmounts() throws Exception {
         Category category = categoryService().createCategory("Amount total " + System.nanoTime(), null, null);
         Category otherCategory = categoryService().createCategory("Other total " + System.nanoTime(), null, null);
         createTransaction(category.getId(), "Income", "25", LocalDate.of(2025, 2, 1));
@@ -478,13 +505,16 @@ class ClassificationsControllerTest extends AbstractUITest {
         reloadClassificationsView();
         TreeView<String> tree = lookup("#classificationTree").query();
         interact(() -> tree.getSelectionModel().select(categoryTreeItem(tree, category.getName())));
-        javafx.scene.control.Label total = lookup("#classificationTransactionsTotalAmount").query();
+        javafx.scene.control.Label count = lookup("#transactionCountValue").query();
+        javafx.scene.control.Label total = lookup("#transactionTotalAmount").query();
 
-        assertEquals(String.format("%,.2f EUR", new BigDecimal("17")), total.getText());
+        assertEquals(I18n.get("transactionWorkspace.count.many", 2), count.getText());
+        assertEquals(String.format(I18n.getCurrentLocale(), "%,.2f EUR", new BigDecimal("17")), total.getText());
 
         interact(() -> lookup("#searchField").<TextField>query().setText("Expense"));
 
-        assertEquals(String.format("%,.2f EUR", new BigDecimal("-8")), total.getText());
+        assertEquals(I18n.get("transactionWorkspace.count.one", 1), count.getText());
+        assertEquals(String.format(I18n.getCurrentLocale(), "%,.2f EUR", new BigDecimal("-8")), total.getText());
     }
 
     @Test

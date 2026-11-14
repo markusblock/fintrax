@@ -48,8 +48,6 @@ import java.util.stream.Collectors;
 @Scope("prototype")
 public class ClassificationsController {
     private static final String COLUMN_CONFIG_KEY = "classification.transaction.columns";
-    private static final String AMOUNT_POSITIVE_STYLE = "amount-positive";
-    private static final String AMOUNT_NEGATIVE_STYLE = "amount-negative";
 
     @FXML
     private BorderPane rootPane;
@@ -59,12 +57,28 @@ public class ClassificationsController {
     private TextField classificationSearchField;
     @FXML
     private Button classificationSearchClearButton;
-    @FXML
     private TableView<Transaction> classificationTransactionsTable;
-    @FXML
-    private Label classificationTransactionsTotalAmount;
-    @FXML
     private TransactionFilterPanelController transactionFilterPanelController;
+    @FXML
+    private TransactionWorkspaceController transactionWorkspaceController;
+    @FXML
+    private TableColumn<Transaction, LocalDate> transactionDateColumn;
+    @FXML
+    private TableColumn<Transaction, LocalDate> transactionValueDateColumn;
+    @FXML
+    private TableColumn<Transaction, String> transactionPayeeColumn;
+    @FXML
+    private TableColumn<Transaction, String> transactionAccountColumn;
+    @FXML
+    private TableColumn<Transaction, String> transactionPurposeColumn;
+    @FXML
+    private TableColumn<Transaction, BigDecimal> transactionAmountColumn;
+    @FXML
+    private TableColumn<Transaction, String> transactionCategoryColumn;
+    @FXML
+    private TableColumn<Transaction, String> transactionLabelsColumn;
+    @FXML
+    private TableColumn<Transaction, ?> transactionColumnMenuColumn;
 
     private final CategoryService categoryService;
     private final LabelService labelService;
@@ -110,16 +124,19 @@ public class ClassificationsController {
                 classificationSearchField.textProperty().isNotEmpty());
         classificationSearchClearButton.managedProperty().bind(classificationSearchClearButton.visibleProperty());
         classificationSearchField.textProperty().addListener((observable, oldValue, newValue) -> rebuildTree(newValue));
+        classificationTransactionsTable = transactionWorkspaceController.table();
+        classificationTransactionsTable.setId("classificationTransactionsTable");
+        if (!classificationTransactionsTable.getStyleClass().contains("dense")) {
+            classificationTransactionsTable.getStyleClass().add("dense");
+        }
+        transactionFilterPanelController = transactionWorkspaceController.filterPanel();
         loadTree();
         configureContextMenu();
         classificationTree.setCellFactory(this::createClassificationCell);
         setupTransactionTable();
         TableCellTooltips.install(classificationTransactionsTable);
-        classificationTransactionsTable.setItems(displayedTransactions);
+        transactionWorkspaceController.setTableItems(displayedTransactions);
         setupColumnMenu();
-        displayedTransactions.addListener((javafx.collections.ListChangeListener<Transaction>) change ->
-                updateTransactionTotal());
-        updateTransactionTotal();
         transactionTableActions.installContextMenu(
                 classificationTransactionsTable, this::reloadSelectedTransactionsKeepingSelection, null);
         transactionFilterPanelController.setCollapsible(true);
@@ -139,6 +156,10 @@ public class ClassificationsController {
     private void setupTransactionTable() {
         transactionTableSetup = new TransactionTableSetup(classificationTransactionsTable,
                 accountService, categoryService, labelService);
+        transactionWorkspaceController.setTableColumns(List.of(transactionDateColumn, transactionValueDateColumn,
+                transactionPayeeColumn, transactionAccountColumn, transactionPurposeColumn,
+                transactionAmountColumn, transactionCategoryColumn, transactionLabelsColumn,
+                transactionColumnMenuColumn));
         transactionTableSetup.configure();
         transactionTableSetup.categoryColumn().setCellFactory(column -> createAssignmentCell(anchor ->
                 transactionTableActions.setCategory(classificationTransactionsTable, anchor,
@@ -146,22 +167,8 @@ public class ClassificationsController {
         transactionTableSetup.labelsColumn().setCellFactory(column -> createLabelChipCell(anchor ->
                 transactionTableActions.setLabels(classificationTransactionsTable, anchor,
                         this::reloadSelectedTransactionsKeepingSelection)));
-    }
-
-    private void updateTransactionTotal() {
-        BigDecimal total = displayedTransactions.stream()
-                .map(Transaction::getAmount)
-                .filter(Objects::nonNull)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        classificationTransactionsTotalAmount.setText(formatAmount(total));
-        classificationTransactionsTotalAmount.getStyleClass()
-                .removeAll(AMOUNT_POSITIVE_STYLE, AMOUNT_NEGATIVE_STYLE);
-        classificationTransactionsTotalAmount.getStyleClass()
-                .add(total.signum() < 0 ? AMOUNT_NEGATIVE_STYLE : AMOUNT_POSITIVE_STYLE);
-    }
-
-    private String formatAmount(BigDecimal amount) {
-        return String.format("%,.2f EUR", amount);
+        transactionWorkspaceController.attachDetails(
+                Set.of(transactionTableSetup.categoryColumn(), transactionTableSetup.labelsColumn()));
     }
 
     private TableCell<Transaction, String> createAssignmentCell(java.util.function.Consumer<Node> openSelection) {
