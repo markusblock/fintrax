@@ -576,6 +576,12 @@
     -fx-background-radius: 8;
 }
 
+.additional-information-pane > .content {
+    -fx-padding: 0;
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
 .detail-property-key,
 .detail-property-value {
     -fx-padding: 7 10;

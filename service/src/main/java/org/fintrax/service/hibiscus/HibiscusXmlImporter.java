@@ -34,6 +34,7 @@ import java.util.Set;
 @Slf4j
 @Service
 public class HibiscusXmlImporter {
+    private static final int HIBISCUS_FLAG_NOT_BOOKED = 1 << 1;
     private static final DateTimeFormatter DATE_TIME_FMT = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss");
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd.MM.yyyy[ HH:mm:ss]");
 
@@ -218,6 +219,13 @@ public class HibiscusXmlImporter {
                             .balanceAfter(txImport.balanceAfter)
                             .transactionType(txImport.transactionType)
                             .checksum(txImport.checksum)
+                            .customerReference(txImport.customerReference)
+                            .primanota(txImport.primanota)
+                            .gvCode(txImport.gvCode)
+                            .endToEndId(txImport.endToEndId)
+                            .mandateId(txImport.mandateId)
+                            .creditorId(txImport.creditorId)
+                            .booked(txImport.booked)
                             .categoryId(txImport.categoryHibiscusId == null ? null
                                     : hibiscusToFintraxCategoryIdMap.get(txImport.categoryHibiscusId))
                             .createdAt(LocalDateTime.now())
@@ -535,6 +543,7 @@ public class HibiscusXmlImporter {
         String checksumStr = getChildText(elem, "checksum");
         String kontoIdStr = getChildText(elem, "konto_id");
         String categoryIdStr = getChildText(elem, "umsatztyp_id");
+        String flagsStr = getChildText(elem, "flags");
 
         tx.bookingDate = datumStr != null ? parseDate(datumStr) : LocalDate.now();
         tx.valueDate = valutaStr != null ? parseDate(valutaStr) : LocalDate.now();
@@ -544,6 +553,14 @@ public class HibiscusXmlImporter {
         tx.balanceAfter = saldoStr != null ? new BigDecimal(saldoStr) : null;
         tx.transactionType = art;
         tx.checksum = checksumStr;
+        tx.customerReference = getChildText(elem, "customerref");
+        tx.primanota = getChildText(elem, "primanota");
+        tx.gvCode = getChildText(elem, "gvcode");
+        tx.endToEndId = getChildText(elem, "endtoendid");
+        tx.mandateId = getChildText(elem, "mandateid");
+        tx.creditorId = getChildText(elem, "creditorid");
+        int hibiscusFlags = flagsStr == null || flagsStr.isBlank() ? 0 : Integer.parseInt(flagsStr);
+        tx.booked = (hibiscusFlags & HIBISCUS_FLAG_NOT_BOOKED) == 0;
         tx.accountHibiscusId = kontoIdStr != null ? Integer.parseInt(kontoIdStr) : null;
         tx.categoryHibiscusId = categoryIdStr != null && !categoryIdStr.isBlank()
                 ? Integer.parseInt(categoryIdStr) : null;
@@ -687,6 +704,13 @@ public class HibiscusXmlImporter {
         BigDecimal balanceAfter;
         String transactionType;
         String checksum;
+        String customerReference;
+        String primanota;
+        String gvCode;
+        String endToEndId;
+        String mandateId;
+        String creditorId;
+        boolean booked = true;
     }
 
     private static class CategoryImport {

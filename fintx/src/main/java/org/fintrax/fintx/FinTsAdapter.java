@@ -522,7 +522,7 @@ public class FinTsAdapter implements BankingProtocol {
         }
     }
 
-    private Transaction mapUmsLine(UmsLine line, Long accountId, boolean booked) throws BankingException {
+    Transaction mapUmsLine(UmsLine line, Long accountId, boolean booked) throws BankingException {
         try {
             if (line == null || line.value == null) {
                 throw new IllegalArgumentException("Transaction amount is missing");
@@ -551,6 +551,9 @@ public class FinTsAdapter implements BankingProtocol {
                     .endToEndId(line.endToEndId)
                     .mandateId(line.mandateId)
                     .creditorId(line.other == null ? null : line.other.creditorid)
+                    .customerReference(line.customerref)
+                    .primanota(line.primanota)
+                    .gvCode(line.gvcode)
                     .booked(booked)
                     .createdAt(LocalDateTime.now(ZoneId.systemDefault()))
                     .updatedAt(LocalDateTime.now(ZoneId.systemDefault()))

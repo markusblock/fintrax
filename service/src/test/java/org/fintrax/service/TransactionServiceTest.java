@@ -69,6 +69,29 @@ class TransactionServiceTest {
     }
 
     @Test
+    void updateFromBankStoresAllFinTsTransactionReferences() {
+        Transaction stored = transactionService.createTransaction(Transaction.builder().build());
+        Transaction received = Transaction.builder()
+                .endToEndId("E2E-123")
+                .mandateId("MANDATE-123")
+                .creditorId("CREDITOR-123")
+                .customerReference("CUSTOMER-123")
+                .primanota("PRIMANOTA-123")
+                .gvCode("166")
+                .build();
+
+        transactionService.updateFromBank(stored, received);
+
+        Transaction reloaded = transactionService.getTransaction(stored.getId()).orElseThrow();
+        assertEquals("E2E-123", reloaded.getEndToEndId());
+        assertEquals("MANDATE-123", reloaded.getMandateId());
+        assertEquals("CREDITOR-123", reloaded.getCreditorId());
+        assertEquals("CUSTOMER-123", reloaded.getCustomerReference());
+        assertEquals("PRIMANOTA-123", reloaded.getPrimanota());
+        assertEquals("166", reloaded.getGvCode());
+    }
+
+    @Test
     void testFilterByDateRange() {
         BankAccount account = accountService.createAccount(
                 "DE89370400440532013000", null, "Bank", "User", AccountType.GIRO, null);
