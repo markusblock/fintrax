@@ -79,6 +79,7 @@ class TransactionsControllerTest extends AbstractUITest {
     private Category testCategory;
     private Transaction testCategoryTransaction;
     private Transaction detailSparseTransaction;
+    private Transaction futureTransaction;
 
     @Override
     public void start(Stage stage) throws Exception {
@@ -105,6 +106,13 @@ class TransactionsControllerTest extends AbstractUITest {
                 .mandateId("MANDATE-123")
                 .creditorId("CREDITOR-123")
                 .booked(false)
+                .build());
+        futureTransaction = applicationContext.getBean(TransactionService.class).createTransaction(Transaction.builder()
+                .accountId(detailAccount.getId())
+                .originalPayee("Future transaction test")
+                .amount(new BigDecimal("45.67"))
+                .bookingDate(LocalDate.now().plusDays(1))
+                .balanceAfter(new BigDecimal("724.57"))
                 .build());
         for (int i = 0; i < 2; i++) {
             Transaction transaction = applicationContext.getBean(TransactionService.class).createTransaction(Transaction.builder()
@@ -176,6 +184,34 @@ class TransactionsControllerTest extends AbstractUITest {
                 transactionCell(table, balanceColumn, testCategoryTransaction).getAlignment());
         assertTrue(I18n.get("col.amount").contains("€"));
         assertTrue(I18n.get("col.balance").contains("€"));
+    }
+
+    @Test
+    void futureBookingDatesAreMutedAndDoNotShowSaldo() throws TimeoutException {
+        TableView<Transaction> table = lookup("#transactionTable").query();
+        TableColumn<?, ?> balanceColumn = table.getColumns().stream()
+                .filter(column -> I18n.get("col.balance").equals(column.getText()))
+                .findFirst().orElseThrow();
+        TableColumn<?, ?> payeeColumn = table.getColumns().stream()
+                .filter(column -> I18n.get("col.payee").equals(column.getText()))
+                .findFirst().orElseThrow();
+
+        int futureRowIndex = table.getItems().indexOf(futureTransaction);
+        assertTrue(futureRowIndex >= 0);
+        scrollToRow(table, futureRowIndex);
+        TableCell<?, ?> futurePayeeCell = transactionCell(table, payeeColumn, futureTransaction);
+        var futurePayeeTextFill = futurePayeeCell.getTextFill();
+        assertNull(transactionCell(table, balanceColumn, futureTransaction).getText());
+
+        int todayRowIndex = table.getItems().indexOf(testCategoryTransaction);
+        scrollToRow(table, todayRowIndex);
+        assertFalse(futurePayeeTextFill.equals(
+                transactionCell(table, payeeColumn, testCategoryTransaction).getTextFill()));
+        assertEquals(String.format("%,.2f", testCategoryTransaction.getBalanceAfter().doubleValue()),
+                transactionCell(table, balanceColumn, testCategoryTransaction).getText());
+
+        showTransactionDetail(futureTransaction);
+        assertEquals("", detailText("#balanceValue"));
     }
 
     @Test
