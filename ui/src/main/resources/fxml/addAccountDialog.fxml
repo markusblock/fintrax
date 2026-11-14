@@ -12,15 +12,10 @@
 <?import javafx.scene.control.PasswordField?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Separator?>
-<?import javafx.geometry.Insets?>
 
 <VBox xmlns:fx="http://javafx.com/fxml"
       fx:controller="org.fintrax.ui.controller.AddAccountDialogController"
       styleClass="dialog-content">
-    <padding>
-        <Insets top="20" right="20" bottom="20" left="20"/>
-    </padding>
-
     <Label text="%dialog.addAccount.title" styleClass="dialog-title"/>
     <Label text="%dialog.addAccount.subtitle" styleClass="dialog-subtitle" wrapText="true"/>
     <Label fx:id="wizardStepLabel" text="%wizard.addAccount.bankStep" styleClass="secondary-text"/>
@@ -29,10 +24,10 @@
         <ScrollPane fx:id="connectionPage" fitToWidth="true" minHeight="0" prefViewportHeight="520"
                     hbarPolicy="NEVER" vbarPolicy="AS_NEEDED" styleClass="account-scroll">
             <content>
-                <VBox spacing="14">
-                    <VBox styleClass="editor-panel" spacing="10">
+                <VBox spacing="12">
+                    <VBox styleClass="editor-panel" spacing="8">
                         <Label text="%label.accountIdentity" styleClass="section-title"/>
-                        <GridPane hgap="10" vgap="10">
+                        <GridPane hgap="12" vgap="12">
                             <columnConstraints>
                                 <ColumnConstraints minWidth="120" prefWidth="140" halignment="RIGHT"/>
                                 <ColumnConstraints hgrow="ALWAYS" fillWidth="true"/>
@@ -43,9 +38,9 @@
                         </GridPane>
                     </VBox>
 
-                    <VBox styleClass="editor-panel" spacing="10">
+                    <VBox styleClass="editor-panel" spacing="8">
                         <Label text="%label.bankConnection" styleClass="section-title"/>
-                        <GridPane hgap="10" vgap="10">
+                        <GridPane hgap="12" vgap="12">
                             <columnConstraints>
                                 <ColumnConstraints minWidth="120" prefWidth="140" halignment="RIGHT"/>
                                 <ColumnConstraints hgrow="ALWAYS" fillWidth="true"/>
@@ -91,7 +86,7 @@
 
     <Separator/>
 
-    <HBox spacing="10" alignment="CENTER_RIGHT">
+    <HBox spacing="8" alignment="CENTER_RIGHT">
         <Region HBox.hgrow="ALWAYS"/>
         <Button text="%button.cancel" onAction="#onCancel" styleClass="button-outlined"/>
         <Button fx:id="backButton" text="%button.back" onAction="#onBack"
