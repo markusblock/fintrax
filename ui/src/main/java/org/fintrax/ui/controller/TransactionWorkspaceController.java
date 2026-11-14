@@ -44,7 +44,6 @@ public class TransactionWorkspaceController {
 
     @FXML
     public void initialize() {
-        transactionTable.itemsProperty().addListener((observable, oldItems, newItems) -> observeItems(newItems));
         observeItems(transactionTable.getItems());
     }
 
@@ -62,6 +61,11 @@ public class TransactionWorkspaceController {
 
     public void setTableColumns(List<TableColumn<Transaction, ?>> columns) {
         transactionTable.getColumns().setAll(columns);
+    }
+
+    public void setTableItems(ObservableList<Transaction> items) {
+        transactionTable.setItems(items);
+        observeItems(items);
     }
 
     public void attachDetails(Set<TableColumn<?, ?>> interactiveColumns) {

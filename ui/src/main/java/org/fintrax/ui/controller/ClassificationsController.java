@@ -135,7 +135,7 @@ public class ClassificationsController {
         classificationTree.setCellFactory(this::createClassificationCell);
         setupTransactionTable();
         TableCellTooltips.install(classificationTransactionsTable);
-        classificationTransactionsTable.setItems(displayedTransactions);
+        transactionWorkspaceController.setTableItems(displayedTransactions);
         setupColumnMenu();
         transactionTableActions.installContextMenu(
                 classificationTransactionsTable, this::reloadSelectedTransactionsKeepingSelection, null);

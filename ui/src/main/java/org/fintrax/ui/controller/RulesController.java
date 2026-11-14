@@ -180,7 +180,7 @@ public class RulesController {
         setupTransactionTable();
         setupRuleMatchColumns();
         TableCellTooltips.install(ruleTransactionsTable);
-        ruleTransactionsTable.setItems(displayedTransactions);
+        transactionWorkspaceController.setTableItems(displayedTransactions);
         setupColumnMenu();
         transactionTableActions.installContextMenu(
                 ruleTransactionsTable, this::reloadSelectedTransactionsKeepingSelection, null);

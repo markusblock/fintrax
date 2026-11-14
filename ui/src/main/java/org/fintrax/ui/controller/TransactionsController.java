@@ -298,7 +298,7 @@ public class TransactionsController {
         List<Transaction> filtered = transactionService.filterTransactions(criteria.get());
 
         tableData.setAll(filtered);
-        transactionTable.setItems(tableData);
+        transactionWorkspaceController.setTableItems(tableData);
         if (!transactionTable.getSortOrder().isEmpty()) {
             transactionTable.sort();
         }
