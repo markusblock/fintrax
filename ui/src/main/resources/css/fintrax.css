@@ -917,7 +917,7 @@
     -fx-text-fill: -color-fg-muted;
 }
 
-.regex-example-match {
+.regex-example-text {
     -fx-font-family: monospace;
     -fx-text-fill: -color-fg-default;
 }

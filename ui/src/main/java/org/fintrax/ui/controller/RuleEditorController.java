@@ -520,15 +520,15 @@ public class RuleEditorController {
             VBox guide = new VBox();
             guide.getStyleClass().add("regex-help-guide");
             guide.setMaxWidth(Double.MAX_VALUE);
-            for (int index = 1; index <= 5; index++) {
+            for (int index = 1; index <= 6; index++) {
                 String exampleKey = "ruleEditor.regexHelp.example." + index;
                 Label pattern = new Label(I18n.get(exampleKey + ".pattern"));
                 pattern.getStyleClass().add("regex-example-pattern");
                 Label arrow = new Label("→");
                 arrow.getStyleClass().add("regex-example-arrow");
-                Label match = new Label(I18n.get(exampleKey + ".match"));
-                match.getStyleClass().add("regex-example-match");
-                HBox demonstration = new HBox(8, pattern, arrow, match);
+                Label exampleText = new Label(I18n.get(exampleKey + ".text"));
+                exampleText.getStyleClass().add("regex-example-text");
+                HBox demonstration = new HBox(8, pattern, arrow, exampleText);
                 demonstration.getStyleClass().add("regex-example-demonstration");
                 Label explanation = new Label(I18n.get(exampleKey + ".explanation"));
                 explanation.getStyleClass().add("regex-example-explanation");

@@ -587,18 +587,22 @@ class RulesControllerTest extends AbstractUITest {
             clickOn(valueField);
             WaitForAsyncUtils.waitForFxEvents();
             assertTrue(lookup(".regex-help-guide").query().isVisible());
-            assertEquals(5, lookup(".regex-example-row").queryAll().size());
+            assertEquals(6, lookup(".regex-example-row").queryAll().size());
             List<String> patterns = lookup(".regex-example-pattern").queryAll().stream()
                     .map(node -> ((Label) node).getText()).toList();
-            assertEquals(List.of(".*Miete.*", "Miete.+", "Miete(n)?", "Miete|Nebenkosten", "^Rechnung-\\d+$"),
+            assertEquals(List.of(".*Miete.*", "Miete.+", "Miete(n)?", "Miete|Nebenkosten", "^Rechnung-\\d+$",
+                            "^Miete$"),
                     patterns);
-            List<String> matches = lookup(".regex-example-match").queryAll().stream()
+            List<String> exampleTexts = lookup(".regex-example-text").queryAll().stream()
                     .map(node -> ((Label) node).getText()).toList();
-            assertTrue(matches.contains("Monatliche Mietzahlung"));
-            assertTrue(matches.contains("Mieten"));
+            assertTrue(exampleTexts.contains("Monatliche Mietzahlung"));
+            assertTrue(exampleTexts.contains("Mieten"));
             assertTrue(lookup(".regex-example-explanation").queryAll().stream()
                     .map(node -> ((Label) node).getText())
                     .anyMatch(text -> text.contains("beliebige Zeichen, beliebig oft")));
+            assertTrue(lookup(".regex-example-explanation").queryAll().stream()
+                    .map(node -> ((Label) node).getText())
+                    .anyMatch(text -> text.startsWith("Passt nicht auf:")));
 
             interact(() -> operator.setValue(I18n.get("ruleEditor.operator.contains")));
             WaitForAsyncUtils.waitForFxEvents();
