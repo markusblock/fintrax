@@ -90,6 +90,8 @@ public class TransactionsController {
     @FXML
     private ScrollPane detailScrollPane;
     @FXML
+    private TitledPane additionalInformationPane;
+    @FXML
     private Label accountValue;
     @FXML
     private Label bookingDateValue;
@@ -121,6 +123,12 @@ public class TransactionsController {
     private Label mandateIdValue;
     @FXML
     private Label creditorIdValue;
+    @FXML
+    private Label customerReferenceValue;
+    @FXML
+    private Label primanotaValue;
+    @FXML
+    private Label gvCodeValue;
 
     private final TransactionService transactionService;
     private final AccountService accountService;
@@ -174,6 +182,9 @@ public class TransactionsController {
             if (detailVisible) Platform.runLater(this::sizeDetailPanelToContent);
         });
         detailScrollPane.widthProperty().addListener((observable, oldWidth, newWidth) -> {
+            if (detailVisible) Platform.runLater(this::sizeDetailPanelToContent);
+        });
+        additionalInformationPane.expandedProperty().addListener((observable, oldExpanded, expanded) -> {
             if (detailVisible) Platform.runLater(this::sizeDetailPanelToContent);
         });
         Platform.runLater(rootPane::applyCss);
@@ -460,6 +471,9 @@ public class TransactionsController {
         setPropertyText(endToEndIdValue, transaction.getEndToEndId());
         setPropertyText(mandateIdValue, transaction.getMandateId());
         setPropertyText(creditorIdValue, transaction.getCreditorId());
+        setPropertyText(customerReferenceValue, transaction.getCustomerReference());
+        setPropertyText(primanotaValue, transaction.getPrimanota());
+        setPropertyText(gvCodeValue, transaction.getGvCode());
     }
 
     private void clearDetail() {
@@ -469,7 +483,8 @@ public class TransactionsController {
         balanceValue.getStyleClass().removeAll(AMOUNT_POSITIVE_STYLE_CLASS, AMOUNT_NEGATIVE_STYLE_CLASS);
         for (Label value : List.of(accountValue, bookingDateValue, valueDateValue, originalPayeeValue,
                 payeeValue, purposeValue, categoryValue, noteValue, amountValue, balanceValue,
-                transactionTypeValue, bookingStatusValue, endToEndIdValue, mandateIdValue, creditorIdValue)) {
+                transactionTypeValue, bookingStatusValue, endToEndIdValue, mandateIdValue, creditorIdValue,
+                customerReferenceValue, primanotaValue, gvCodeValue)) {
             value.setText("");
         }
     }

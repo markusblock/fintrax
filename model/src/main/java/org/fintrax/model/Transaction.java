@@ -34,6 +34,9 @@ public class Transaction {
     private String endToEndId;
     private String mandateId;
     private String creditorId;
+    private String customerReference;
+    private String primanota;
+    private String gvCode;
     @Builder.Default
     private boolean booked = true;
     private LocalDateTime createdAt;
