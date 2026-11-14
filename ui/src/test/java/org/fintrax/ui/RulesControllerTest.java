@@ -560,7 +560,7 @@ class RulesControllerTest extends AbstractUITest {
     }
 
     @Test
-    void hoveringRegexOperatorShowsGuideInSettingsLanguage() {
+    void focusingRegexValueFieldShowsGuideInSettingsLanguage() {
         SettingsService settingsService = applicationContext.getBean(SettingsService.class);
         String originalLanguage = settingsService.getLanguage();
         String editMenuItemText = I18n.get("button.edit");
@@ -579,18 +579,18 @@ class RulesControllerTest extends AbstractUITest {
             WaitForAsyncUtils.waitForFxEvents();
 
             ComboBox<String> operator = lookup(".rule-condition-operator").query();
-            moveTo("#ruleNameField");
+            TextField valueField = lookup(".rule-condition-value").query();
             interact(() -> operator.setValue(I18n.get("ruleEditor.operator.matchesRegex")));
             assertFalse(lookup(".regex-help-guide").query().isVisible());
 
-            moveTo(operator);
+            clickOn(valueField);
             WaitForAsyncUtils.waitForFxEvents();
             assertTrue(lookup(".regex-help-guide").query().isVisible());
             assertEquals("Regex-Kurzübersicht", lookup(".regex-help-title").queryLabeled().getText());
             assertTrue(lookup(".regex-help-example").queryLabeled().getText().contains(".*Miete.*"));
             assertTrue(lookup(".regex-help-example").queryLabeled().getText().contains("Monatliche Mietzahlung"));
 
-            moveTo("#ruleNameField");
+            interact(() -> operator.setValue(I18n.get("ruleEditor.operator.contains")));
             WaitForAsyncUtils.waitForFxEvents();
             assertFalse(lookup(".regex-help-guide").query().isVisible());
         } finally {

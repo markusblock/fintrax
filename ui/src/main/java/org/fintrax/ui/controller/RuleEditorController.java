@@ -483,7 +483,6 @@ public class RuleEditorController {
         private final TextField valueField = new TextField();
         private final Button removeButton = removeButton();
         private final Separator separator = new Separator();
-        private boolean hoveringOperator;
 
         private ConditionRow() {
             content.getStyleClass().add("rule-condition-content");
@@ -491,7 +490,7 @@ public class RuleEditorController {
             grid.getStyleClass().add("rule-condition-row");
             fieldCombo.getStyleClass().add(RULE_ROW_CONTROL_STYLE_CLASS);
             operatorCombo.getStyleClass().addAll(RULE_ROW_CONTROL_STYLE_CLASS, "rule-condition-operator");
-            valueField.getStyleClass().add(RULE_ROW_CONTROL_STYLE_CLASS);
+            valueField.getStyleClass().addAll(RULE_ROW_CONTROL_STYLE_CLASS, "rule-condition-value");
             valueField.setPrefColumnCount(25);
             valueField.setMinWidth(Region.USE_PREF_SIZE);
             fieldCombo.setMaxWidth(Double.MAX_VALUE);
@@ -506,22 +505,14 @@ public class RuleEditorController {
             grid.add(valueField, 2, 0);
             grid.add(removeButton, 3, 0);
             content.getChildren().addAll(grid, regexHelpGuide, separator);
-            operatorCombo.setOnMouseEntered(event -> {
-                hoveringOperator = true;
-                updateRegexHelpVisibility();
-            });
-            content.setOnMouseExited(event -> {
-                hoveringOperator = false;
-                updateRegexHelpVisibility();
-            });
-            operatorCombo.focusedProperty().addListener((observable, oldValue, focused) ->
+            valueField.focusedProperty().addListener((observable, oldValue, focused) ->
                     updateRegexHelpVisibility());
         }
 
         private void updateRegexHelpVisibility() {
             Operator operator = operatorFromText(operatorCombo.getValue());
             boolean showGuide = (operator == Operator.REGEX || operator == Operator.NOT_REGEX)
-                    && (hoveringOperator || operatorCombo.isFocused());
+                    && valueField.isFocused();
             regexHelpGuide.setVisible(showGuide);
             regexHelpGuide.setManaged(showGuide);
         }
