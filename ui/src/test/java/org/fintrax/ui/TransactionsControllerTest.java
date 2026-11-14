@@ -725,30 +725,6 @@ class TransactionsControllerTest extends AbstractUITest {
     }
 
     @Test
-    void transactionWorkspaceHeadlineTracksFilteredCountAndAmountTotal() {
-        TableView<Transaction> table = lookup("#transactionTable").query();
-        TextField searchField = lookup("#searchField").query();
-        String displayedAmount = String.format(I18n.getCurrentLocale(), "%,.2f EUR",
-                testCategoryTransaction.getAmount());
-
-        interact(() -> searchField.setText(displayedAmount));
-
-        assertEquals(List.of(testCategoryTransaction.getId()),
-                table.getItems().stream().map(Transaction::getId).toList());
-        assertEquals(I18n.get("transactionWorkspace.count.one", 1),
-                lookup("#transactionCountValue").queryLabeled().getText());
-        assertEquals(displayedAmount, lookup("#transactionTotalAmount").queryLabeled().getText());
-
-        interact(() -> searchField.setText("no transaction matches this"));
-
-        assertTrue(table.getItems().isEmpty());
-        assertEquals(I18n.get("transactionWorkspace.count.many", 0),
-                lookup("#transactionCountValue").queryLabeled().getText());
-        assertEquals(String.format(I18n.getCurrentLocale(), "%,.2f EUR", BigDecimal.ZERO),
-                lookup("#transactionTotalAmount").queryLabeled().getText());
-    }
-
-    @Test
     void categoryActionOpensSearchablePicker() throws TimeoutException {
         TableView<Transaction> table = lookup("#transactionTable").query();
         int rowIndex = indexOfTransactionWithCategory(table);

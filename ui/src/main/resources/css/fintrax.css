@@ -38,7 +38,7 @@
 }
 
 .transactions-content-area {
-    -fx-padding: 12;
+    -fx-padding: 0 12 12 12;
 }
 
 .transactions-content-panel {
@@ -104,21 +104,13 @@
     -fx-cell-size: 2.4em;
 }
 
-.transaction-workspace-heading {
-    -fx-padding: 0 0 2 0;
+.classification-transactions-footer {
+    -fx-padding: 8 12 0 12;
+    -fx-border-color: -color-border-default transparent transparent transparent;
 }
 
-.transaction-count-badge {
-    -fx-padding: 3 9;
-    -fx-background-color: -color-bg-default;
-    -fx-border-color: -color-border-default;
-    -fx-border-radius: 12;
-    -fx-background-radius: 12;
-    -fx-font-size: 11px;
-    -fx-text-fill: -color-fg-muted;
-}
-
-.transaction-workspace-total {
+.classification-transactions-footer .amount-positive,
+.classification-transactions-footer .amount-negative {
     -fx-font-weight: bold;
 }
 
@@ -499,6 +491,11 @@
 .column-menu-button:hover {
     -fx-background-color: -color-neutral-muted;
     -fx-background-radius: 4;
+}
+
+.transactions-header {
+    -fx-padding: 22 24 16 24;
+    -fx-spacing: 14;
 }
 
 .page-title {

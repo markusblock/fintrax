@@ -107,8 +107,6 @@ public class TransactionsController {
         log.info("TransactionsController initialized");
         transactionTable = transactionWorkspaceController.table();
         transactionFilterPanelController = transactionWorkspaceController.filterPanel();
-        transactionWorkspaceController.setHeadlineAsPageTitle();
-        transactionWorkspaceController.setDetailToggleVisible(true);
         transactionWorkspaceController.setTableId("transactionTable");
         transactionWorkspaceController.setTableColumns(List.of(bookingDateColumn, valueDateColumn, payeeColumn,
                 accountColumn, purposeColumn, amountColumn, balanceColumn, categoryColumn, labelsColumn,
@@ -316,6 +314,11 @@ public class TransactionsController {
                 transactionTable.getSelectionModel().select(index);
             }
         }
+    }
+
+    @FXML
+    private void onToggleDetail() {
+        transactionWorkspaceController.toggleDetails();
     }
 
     @FXML

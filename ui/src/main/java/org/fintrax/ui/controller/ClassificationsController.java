@@ -48,6 +48,8 @@ import java.util.stream.Collectors;
 @Scope("prototype")
 public class ClassificationsController {
     private static final String COLUMN_CONFIG_KEY = "classification.transaction.columns";
+    private static final String AMOUNT_POSITIVE_STYLE = "amount-positive";
+    private static final String AMOUNT_NEGATIVE_STYLE = "amount-negative";
 
     @FXML
     private BorderPane rootPane;
@@ -58,6 +60,8 @@ public class ClassificationsController {
     @FXML
     private Button classificationSearchClearButton;
     private TableView<Transaction> classificationTransactionsTable;
+    @FXML
+    private Label classificationTransactionsTotalAmount;
     private TransactionFilterPanelController transactionFilterPanelController;
     @FXML
     private TransactionWorkspaceController transactionWorkspaceController;
@@ -137,6 +141,9 @@ public class ClassificationsController {
         TableCellTooltips.install(classificationTransactionsTable);
         classificationTransactionsTable.setItems(displayedTransactions);
         setupColumnMenu();
+        displayedTransactions.addListener((javafx.collections.ListChangeListener<Transaction>) change ->
+                updateTransactionTotal());
+        updateTransactionTotal();
         transactionTableActions.installContextMenu(
                 classificationTransactionsTable, this::reloadSelectedTransactionsKeepingSelection, null);
         transactionFilterPanelController.setCollapsible(true);
@@ -169,6 +176,22 @@ public class ClassificationsController {
                         this::reloadSelectedTransactionsKeepingSelection)));
         transactionWorkspaceController.attachDetails(
                 Set.of(transactionTableSetup.categoryColumn(), transactionTableSetup.labelsColumn()));
+    }
+
+    private void updateTransactionTotal() {
+        BigDecimal total = displayedTransactions.stream()
+                .map(Transaction::getAmount)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        classificationTransactionsTotalAmount.setText(formatAmount(total));
+        classificationTransactionsTotalAmount.getStyleClass()
+                .removeAll(AMOUNT_POSITIVE_STYLE, AMOUNT_NEGATIVE_STYLE);
+        classificationTransactionsTotalAmount.getStyleClass()
+                .add(total.signum() < 0 ? AMOUNT_NEGATIVE_STYLE : AMOUNT_POSITIVE_STYLE);
+    }
+
+    private String formatAmount(BigDecimal amount) {
+        return String.format("%,.2f EUR", amount);
     }
 
     private TableCell<Transaction, String> createAssignmentCell(java.util.function.Consumer<Node> openSelection) {

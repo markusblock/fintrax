@@ -495,7 +495,7 @@ class ClassificationsControllerTest extends AbstractUITest {
     }
 
     @Test
-    void transactionHeadlineShowsCountAndSumOfFilteredAmounts() throws Exception {
+    void classificationTransactionFooterShowsSumOfFilteredAmounts() throws Exception {
         Category category = categoryService().createCategory("Amount total " + System.nanoTime(), null, null);
         Category otherCategory = categoryService().createCategory("Other total " + System.nanoTime(), null, null);
         createTransaction(category.getId(), "Income", "25", LocalDate.of(2025, 2, 1));
@@ -505,16 +505,13 @@ class ClassificationsControllerTest extends AbstractUITest {
         reloadClassificationsView();
         TreeView<String> tree = lookup("#classificationTree").query();
         interact(() -> tree.getSelectionModel().select(categoryTreeItem(tree, category.getName())));
-        javafx.scene.control.Label count = lookup("#transactionCountValue").query();
-        javafx.scene.control.Label total = lookup("#transactionTotalAmount").query();
+        javafx.scene.control.Label total = lookup("#classificationTransactionsTotalAmount").query();
 
-        assertEquals(I18n.get("transactionWorkspace.count.many", 2), count.getText());
-        assertEquals(String.format(I18n.getCurrentLocale(), "%,.2f EUR", new BigDecimal("17")), total.getText());
+        assertEquals(String.format("%,.2f EUR", new BigDecimal("17")), total.getText());
 
         interact(() -> lookup("#searchField").<TextField>query().setText("Expense"));
 
-        assertEquals(I18n.get("transactionWorkspace.count.one", 1), count.getText());
-        assertEquals(String.format(I18n.getCurrentLocale(), "%,.2f EUR", new BigDecimal("-8")), total.getText());
+        assertEquals(String.format("%,.2f EUR", new BigDecimal("-8")), total.getText());
     }
 
     @Test

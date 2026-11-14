@@ -63,7 +63,12 @@
                 <padding>
                     <Insets top="15" right="20" bottom="15" left="20"/>
                 </padding>
+                <Label text="%view.transactions" styleClass="section-heading"/>
                 <fx:include fx:id="transactionWorkspace" source="transactionWorkspace.fxml" VBox.vgrow="ALWAYS"/>
+                <HBox alignment="CENTER_RIGHT" spacing="8" styleClass="classification-transactions-footer">
+                    <Label text="%classifications.transactions.total" styleClass="secondary-text"/>
+                    <Label fx:id="classificationTransactionsTotalAmount" styleClass="amount-positive"/>
+                </HBox>
             </VBox>
         </SplitPane>
     </center>

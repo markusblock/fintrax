@@ -528,17 +528,6 @@ class RulesControllerTest extends AbstractUITest {
         interact(() -> ruleTable.getSelectionModel().select(selectedRule));
 
         TableView<Transaction> transactions = lookup("#ruleTransactionsTable").query();
-        int transactionCount = transactions.getItems().size();
-        BigDecimal totalAmount = transactions.getItems().stream()
-                .map(Transaction::getAmount)
-                .filter(amount -> amount != null)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        String countKey = transactionCount == 1
-                ? "transactionWorkspace.count.one" : "transactionWorkspace.count.many";
-        assertEquals(I18n.get(countKey, transactionCount),
-                lookup("#transactionCountValue").queryLabeled().getText());
-        assertEquals(String.format(I18n.getCurrentLocale(), "%,.2f EUR", totalAmount),
-                lookup("#transactionTotalAmount").queryLabeled().getText());
         TableColumn<?, ?> categoryColumn = transactions.getColumns().stream()
                 .filter(column -> I18n.get("col.category").equals(column.getText()))
                 .findFirst().orElseThrow();
