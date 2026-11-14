@@ -92,7 +92,6 @@
                     </GridPane>
                     <CheckBox fx:id="syncExcludedCheckBox" id="syncExcludedCheckBox"
                               text="%label.skipBankSync"/>
-                    <Label text="%help.skipBankSync" wrapText="true" styleClass="help-text"/>
                 </VBox>
 
                 <VBox styleClass="account-edit-metadata" spacing="5">
