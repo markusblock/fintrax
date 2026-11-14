@@ -14,7 +14,6 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.ColumnConstraints;
-import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -518,39 +517,27 @@ public class RuleEditorController {
         }
 
         private static VBox regexHelpGuide() {
-            Label title = new Label(I18n.get("ruleEditor.regexHelp.title"));
-            title.getStyleClass().add("regex-help-title");
-            FlowPane tokens = new FlowPane(14, 7);
-            tokens.getStyleClass().add("regex-help-tokens");
-            addRegexToken(tokens, ".", "anyCharacter");
-            addRegexToken(tokens, "*", "zeroOrMore");
-            addRegexToken(tokens, "+", "oneOrMore");
-            addRegexToken(tokens, "?", "optional");
-            addRegexToken(tokens, "[abc]", "characterSet");
-            addRegexToken(tokens, "(abc)", "group");
-            addRegexToken(tokens, "|", "alternative");
-            addRegexToken(tokens, "^", "start");
-            addRegexToken(tokens, "$", "end");
-            addRegexToken(tokens, I18n.get("ruleEditor.regexHelp.digitToken"), "digit");
-            Label example = new Label(I18n.get("ruleEditor.regexHelp.example",
-                    I18n.get("ruleEditor.field.purpose"),
-                    I18n.get("ruleEditor.regexHelp.examplePattern"),
-                    I18n.get("ruleEditor.regexHelp.exampleValue"),
-                    I18n.get("ruleEditor.regexHelp.exampleSearch")));
-            example.getStyleClass().add("regex-help-example");
-            example.setWrapText(true);
-            VBox guide = new VBox(8, title, tokens, example);
+            VBox guide = new VBox();
             guide.getStyleClass().add("regex-help-guide");
             guide.setMaxWidth(Double.MAX_VALUE);
+            for (int index = 1; index <= 5; index++) {
+                String exampleKey = "ruleEditor.regexHelp.example." + index;
+                Label pattern = new Label(I18n.get(exampleKey + ".pattern"));
+                pattern.getStyleClass().add("regex-example-pattern");
+                Label arrow = new Label("→");
+                arrow.getStyleClass().add("regex-example-arrow");
+                Label match = new Label(I18n.get(exampleKey + ".match"));
+                match.getStyleClass().add("regex-example-match");
+                HBox demonstration = new HBox(8, pattern, arrow, match);
+                demonstration.getStyleClass().add("regex-example-demonstration");
+                Label explanation = new Label(I18n.get(exampleKey + ".explanation"));
+                explanation.getStyleClass().add("regex-example-explanation");
+                explanation.setWrapText(true);
+                VBox example = new VBox(4, demonstration, explanation);
+                example.getStyleClass().add("regex-example-row");
+                guide.getChildren().add(example);
+            }
             return guide;
-        }
-
-        private static void addRegexToken(FlowPane tokens, String token, String descriptionKey) {
-            Label tokenLabel = new Label(token);
-            tokenLabel.getStyleClass().add("regex-help-token");
-            Label description = new Label(I18n.get("ruleEditor.regexHelp." + descriptionKey));
-            description.getStyleClass().add("regex-help-description");
-            tokens.getChildren().add(new HBox(5, tokenLabel, description));
         }
 
         private static GridPane conditionRowGrid() {

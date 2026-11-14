@@ -14,6 +14,7 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.DialogPane;
+import javafx.scene.control.Label;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.RadioButton;
@@ -560,7 +561,7 @@ class RulesControllerTest extends AbstractUITest {
     }
 
     @Test
-    void focusingRegexValueFieldShowsGuideInSettingsLanguage() {
+    void focusingRegexValueFieldShowsExamplesInSettingsLanguage() {
         SettingsService settingsService = applicationContext.getBean(SettingsService.class);
         String originalLanguage = settingsService.getLanguage();
         String editMenuItemText = I18n.get("button.edit");
@@ -586,9 +587,18 @@ class RulesControllerTest extends AbstractUITest {
             clickOn(valueField);
             WaitForAsyncUtils.waitForFxEvents();
             assertTrue(lookup(".regex-help-guide").query().isVisible());
-            assertEquals("Regex-Kurzübersicht", lookup(".regex-help-title").queryLabeled().getText());
-            assertTrue(lookup(".regex-help-example").queryLabeled().getText().contains(".*Miete.*"));
-            assertTrue(lookup(".regex-help-example").queryLabeled().getText().contains("Monatliche Mietzahlung"));
+            assertEquals(5, lookup(".regex-example-row").queryAll().size());
+            List<String> patterns = lookup(".regex-example-pattern").queryAll().stream()
+                    .map(node -> ((Label) node).getText()).toList();
+            assertEquals(List.of(".*Miete.*", "Miete.+", "Miete(n)?", "Miete|Nebenkosten", "^Rechnung-\\d+$"),
+                    patterns);
+            List<String> matches = lookup(".regex-example-match").queryAll().stream()
+                    .map(node -> ((Label) node).getText()).toList();
+            assertTrue(matches.contains("Monatliche Mietzahlung"));
+            assertTrue(matches.contains("Mieten"));
+            assertTrue(lookup(".regex-example-explanation").queryAll().stream()
+                    .map(node -> ((Label) node).getText())
+                    .anyMatch(text -> text.contains("beliebige Zeichen, beliebig oft")));
 
             interact(() -> operator.setValue(I18n.get("ruleEditor.operator.contains")));
             WaitForAsyncUtils.waitForFxEvents();

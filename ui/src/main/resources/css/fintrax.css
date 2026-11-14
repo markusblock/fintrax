@@ -888,7 +888,6 @@
 }
 
 .regex-help-guide {
-    -fx-spacing: 8;
     -fx-padding: 10 12;
     -fx-background-color: -color-bg-default;
     -fx-border-color: -color-border-default;
@@ -896,28 +895,34 @@
     -fx-background-radius: 6;
 }
 
-.regex-help-title {
-    -fx-font-weight: bold;
-    -fx-text-fill: -color-fg-default;
+.regex-example-row {
+    -fx-spacing: 4;
+    -fx-padding: 7 0;
+    -fx-border-color: transparent transparent -color-border-default transparent;
 }
 
-.regex-help-tokens {
-    -fx-hgap: 14;
-    -fx-vgap: 7;
+.regex-example-demonstration {
+    -fx-spacing: 8;
+    -fx-alignment: CENTER_LEFT;
 }
 
-.regex-help-token {
+.regex-example-pattern {
     -fx-font-family: monospace;
     -fx-font-weight: bold;
     -fx-text-fill: -color-accent-fg;
 }
 
-.regex-help-description,
-.regex-help-example {
+.regex-example-arrow,
+.regex-example-explanation {
     -fx-text-fill: -color-fg-muted;
 }
 
-.regex-help-example {
+.regex-example-match {
+    -fx-font-family: monospace;
+    -fx-text-fill: -color-fg-default;
+}
+
+.regex-example-explanation {
     -fx-wrap-text: true;
 }
 
