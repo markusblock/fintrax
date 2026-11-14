@@ -2,8 +2,10 @@ package org.fintrax.ui;
 
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
+import javafx.event.Event;
 import javafx.geometry.Bounds;
 import javafx.geometry.Pos;
+import javafx.geometry.Side;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
@@ -14,6 +16,8 @@ import javafx.scene.control.ContextMenu;
 import javafx.scene.control.DialogPane;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.RadioButton;
+import javafx.scene.control.ListView;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.TableCell;
@@ -22,6 +26,8 @@ import javafx.scene.control.TableColumnBase;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.stage.Stage;
 import org.fintrax.config.I18n;
 import org.fintrax.model.*;
@@ -52,6 +58,9 @@ class RulesControllerTest extends AbstractUITest {
     private String proposedLabelName;
     private String ruleName;
     private String disabledRuleName;
+    private String mergeSourceOneName;
+    private String mergeSourceTwoName;
+    private String mergeAmountSourceName;
     private String transactionPurpose;
 
     @Override
@@ -86,6 +95,19 @@ class RulesControllerTest extends AbstractUITest {
                 List.of(RuleAction.builder().actionType(ActionType.ASSIGN_CATEGORY)
                         .categoryId(proposedCategory.getId()).build()));
         ruleService.toggleRule(disabledRule.getId());
+        mergeSourceOneName = "Merge source one " + suffix;
+        mergeSourceTwoName = "Merge source two " + suffix;
+        ruleService.createRule(mergeSourceOneName, List.of(RuleCondition.builder()
+                        .matchField(MatchField.PAYEE_NAME).operator(Operator.CONTAINS).value("MERGE-ONE").build()),
+                List.of(RuleAction.builder().actionType(ActionType.ADD_LABEL).labelId(proposedLabelId).build()));
+        ruleService.createRule(mergeSourceTwoName, List.of(RuleCondition.builder()
+                        .matchField(MatchField.PAYEE_NAME).operator(Operator.CONTAINS).value("MERGE-TWO").build()),
+                List.of(RuleAction.builder().actionType(ActionType.ADD_LABEL).labelId(proposedLabelId).build()));
+        mergeAmountSourceName = "Merge amount source " + suffix;
+        ruleService.createRule(mergeAmountSourceName, List.of(RuleCondition.builder()
+                        .matchField(MatchField.AMOUNT).operator(Operator.AMOUNT_RANGE)
+                        .amountMin(new BigDecimal("1234.56")).amountMax(new BigDecimal("1234.57")).build()),
+                List.of(RuleAction.builder().actionType(ActionType.ADD_LABEL).labelId(proposedLabelId).build()));
         transaction = transactionService.createTransaction(Transaction.builder()
                 .accountId(account.getId()).originalPayee("REVIEW-" + suffix + " purchase").amount(BigDecimal.TEN)
                 .bookingDate(LocalDate.of(2025, 2, 1)).valueDate(LocalDate.of(2025, 2, 4))
@@ -537,6 +559,158 @@ class RulesControllerTest extends AbstractUITest {
         assertFalse(lookup("#ruleConflictSummary").query().isVisible());
     }
 
+    @Test
+    void creatingMergedRuleRejectsCaseInsensitiveDuplicateNameInEditor() {
+        TableView<Rule> ruleTable = lookup("#ruleTable").query();
+        openMergeRuleEditor(ruleTable);
+
+        TextField nameField = lookup("#ruleNameField").query();
+        interact(() -> nameField.setText(ruleName.toUpperCase(Locale.ROOT)));
+
+        assertTrue(lookup("#createRuleSave").queryButton().isDisabled());
+        assertTrue(lookup("#ruleNameErrorLabel").query().isVisible());
+        interact(lookup("#createRuleCancel").queryButton()::fire);
+        WaitForAsyncUtils.waitForFxEvents();
+    }
+
+    @Test
+    void creatingMergedRuleExplainsMultipleCategoryActionConflict() {
+        TableView<Rule> ruleTable = lookup("#ruleTable").query();
+        openMergeRuleEditor(ruleTable, ruleName, disabledRuleName);
+
+        assertTrue(lookup("#createRuleSave").queryButton().isDisabled());
+        assertTrue(lookup("#ruleActionsErrorLabel").query().isVisible());
+        interact(lookup("#createRuleCancel").queryButton()::fire);
+        WaitForAsyncUtils.waitForFxEvents();
+    }
+
+    @Test
+    void creatingMergedRuleMovesPriorityBeforeSelectedRulesInTable() {
+        TableView<Rule> ruleTable = lookup("#ruleTable").query();
+        RuleService ruleService = applicationContext.getBean(RuleService.class);
+        Rule sourceOne = ruleService.getAllRules().stream()
+                .filter(rule -> rule.getName().equals(mergeSourceOneName)).findFirst().orElseThrow();
+        Rule sourceTwo = ruleService.getAllRules().stream()
+                .filter(rule -> rule.getName().equals(mergeSourceTwoName)).findFirst().orElseThrow();
+        int expectedPriority = sourceOne.getPriority();
+        TableColumn<Rule, ?> ruleNameColumn = ruleTable.getColumns().get(1);
+        interact(() -> {
+            ruleNameColumn.setSortType(TableColumn.SortType.ASCENDING);
+            ruleTable.getSortOrder().setAll(ruleNameColumn);
+            ruleTable.sort();
+        });
+        TextField searchField = lookup("#ruleSearchField").query();
+        interact(() -> searchField.setText("Merge source"));
+        openMergeRuleEditor(ruleTable);
+
+        String mergedName = "ZZZ merged " + System.nanoTime();
+        TextField nameField = lookup("#ruleNameField").query();
+        interact(() -> nameField.setText(mergedName));
+        interact(lookup("#createRuleSave").queryButton()::fire);
+        WaitForAsyncUtils.waitForFxEvents();
+
+        Rule mergedRule = ruleService.getAllRules().stream()
+                .filter(rule -> rule.getName().equals(mergedName)).findFirst().orElseThrow();
+        assertEquals(expectedPriority, mergedRule.getPriority());
+        assertEquals(ruleTable.getColumns().getFirst(), ruleTable.getSortOrder().getFirst());
+        assertTrue(ruleTable.getItems().indexOf(mergedRule) < ruleTable.getItems().indexOf(sourceOne));
+        assertTrue(ruleTable.getItems().indexOf(mergedRule) < ruleTable.getItems().indexOf(sourceTwo));
+        assertEquals("", searchField.getText());
+        assertEquals(List.of(mergedRule.getId()), ruleTable.getSelectionModel().getSelectedItems().stream()
+                .map(Rule::getId).toList());
+    }
+
+    @Test
+    void creatingMergedRulePreservesAmountRangeBounds() {
+        TableView<Rule> ruleTable = lookup("#ruleTable").query();
+        openMergeRuleEditor(ruleTable, mergeSourceOneName, mergeAmountSourceName);
+
+        String mergedName = "Merged amount rule " + System.nanoTime();
+        TextField nameField = lookup("#ruleNameField").query();
+        interact(() -> nameField.setText(mergedName));
+        assertFalse(lookup("#createRuleSave").queryButton().isDisabled());
+        interact(lookup("#createRuleSave").queryButton()::fire);
+        WaitForAsyncUtils.waitForFxEvents();
+
+        Rule mergedRule = applicationContext.getBean(RuleService.class).getAllRules().stream()
+                .filter(rule -> rule.getName().equals(mergedName)).findFirst().orElseThrow();
+        RuleCondition amountRange = mergedRule.getConditions().stream()
+                .filter(condition -> condition.getOperator() == Operator.AMOUNT_RANGE)
+                .findFirst().orElseThrow();
+        assertEquals(new BigDecimal("1234.56"), amountRange.getAmountMin());
+        assertEquals(new BigDecimal("1234.57"), amountRange.getAmountMax());
+    }
+
+    @Test
+    void mergingOneSelectedRuleIntoAnExistingRuleIsAvailable() {
+        TableView<Rule> ruleTable = lookup("#ruleTable").query();
+        RuleService ruleService = applicationContext.getBean(RuleService.class);
+        Rule sourceRule = ruleService.getAllRules().stream()
+                .filter(rule -> rule.getName().equals(mergeSourceOneName)).findFirst().orElseThrow();
+        Rule targetRule = ruleService.getAllRules().stream()
+                .filter(rule -> rule.getName().equals(mergeSourceTwoName)).findFirst().orElseThrow();
+        interact(() -> {
+            ruleTable.getSelectionModel().clearSelection();
+            ruleTable.getSelectionModel().select(sourceRule);
+        });
+
+        TableRow<?> row = rowForRule(ruleTable, mergeSourceOneName);
+        ContextMenu contextMenu = row.getContextMenu();
+        interact(() -> contextMenu.show(row, Side.RIGHT, 0, 0));
+        WaitForAsyncUtils.waitForFxEvents();
+        MenuItem mergeItem = menuItem(contextMenu, I18n.get("rules.mergeSelected"));
+        assertFalse(mergeItem.isDisable());
+        interact(mergeItem::fire);
+        WaitForAsyncUtils.waitForFxEvents();
+
+        RadioButton newRuleOption = lookup("#mergeIntoNewRule").query();
+        RadioButton existingRuleOption = lookup("#mergeIntoExistingRule").query();
+        assertTrue(newRuleOption.isDisable());
+        assertTrue(existingRuleOption.isSelected());
+        assertTrue(lookup("#deleteSourceRulesCheckBox").<CheckBox>query().isSelected());
+        Button targetSelector = lookup("#mergeTargetRuleButton").query();
+        interact(targetSelector::fire);
+        TextField targetSearch = lookup("#pickerSearch").query();
+        ListView<Rule> targetOptions = lookup("#pickerList").query();
+        interact(() -> targetSearch.setText(targetRule.getName()));
+        WaitForAsyncUtils.waitForFxEvents();
+        assertEquals(targetRule, targetOptions.getItems().getFirst());
+        interact(() -> Event.fireEvent(targetSearch, new KeyEvent(KeyEvent.KEY_PRESSED,
+                "", "", KeyCode.ENTER, false, false, false, false)));
+        WaitForAsyncUtils.waitForFxEvents();
+        interact(lookup("#mergeRulesContinue").queryButton()::fire);
+        WaitForAsyncUtils.waitForFxEvents();
+        assertFalse(lookup("#editRuleSave").queryButton().isDisabled());
+        interact(lookup("#editRuleSave").queryButton()::fire);
+        WaitForAsyncUtils.waitForFxEvents();
+
+        Rule mergedTarget = ruleService.getRule(targetRule.getId()).orElseThrow();
+        assertEquals(2, mergedTarget.getConditions().size());
+        assertEquals(2, mergedTarget.getActions().size());
+        assertTrue(ruleService.getRule(sourceRule.getId()).isEmpty());
+    }
+
+    private void openMergeRuleEditor(TableView<Rule> ruleTable) {
+        openMergeRuleEditor(ruleTable, mergeSourceOneName, mergeSourceTwoName);
+    }
+
+    private void openMergeRuleEditor(TableView<Rule> ruleTable, String... sourceNames) {
+        List<Rule> sourceRules = java.util.Arrays.stream(sourceNames)
+                .map(name -> ruleTable.getItems().stream()
+                        .filter(rule -> rule.getName().equals(name)).findFirst().orElseThrow())
+                .toList();
+        interact(() -> {
+            ruleTable.getSelectionModel().clearSelection();
+            sourceRules.forEach(ruleTable.getSelectionModel()::select);
+        });
+        TableRow<?> row = rowForRule(ruleTable, sourceNames[0]);
+        Platform.runLater(() -> menuItem(row.getContextMenu(), I18n.get("rules.mergeSelected")).fire());
+        WaitForAsyncUtils.waitForFxEvents();
+        interact(() -> lookup("#deleteSourceRulesCheckBox").<CheckBox>query().setSelected(false));
+        interact(lookup("#mergeRulesContinue").queryButton()::fire);
+        WaitForAsyncUtils.waitForFxEvents();
+    }
+
     private TransactionRulePreview rowFor(TableView<TransactionRulePreview> table, Long transactionId) {
         return table.getItems().stream()
                 .filter(row -> row.transactionId().equals(transactionId))
@@ -576,9 +750,13 @@ class RulesControllerTest extends AbstractUITest {
     }
 
     private TableRow<?> rowForRule(TableView<Rule> table, String name) {
+        Rule rule = table.getItems().stream()
+                .filter(item -> item.getName().equals(name)).findFirst().orElseThrow();
+        interact(() -> table.scrollTo(rule));
+        WaitForAsyncUtils.waitForFxEvents();
         return table.lookupAll(".table-row-cell").stream()
                 .filter(node -> node instanceof TableRow<?> row && !row.isEmpty()
-                        && row.getItem() instanceof Rule rule && rule.getName().equals(name))
+                        && row.getItem() instanceof Rule rowRule && rowRule.getName().equals(name))
                 .map(node -> (TableRow<?>) node)
                 .findFirst().orElseThrow();
     }

@@ -9,13 +9,17 @@
 <?import org.kordamp.ikonli.javafx.FontIcon?>
 
 <VBox xmlns:fx="http://javafx.com/fxml" fx:controller="org.fintrax.ui.controller.RuleEditorController"
-      spacing="10" styleClass="rule-editor-panel">
-    <HBox spacing="10" alignment="CENTER_LEFT">
-        <Label text="%label.ruleName" styleClass="section-heading"/>
-        <TextField fx:id="ruleNameField" HBox.hgrow="ALWAYS"/>
-    </HBox>
+      styleClass="rule-editor-panel">
+    <VBox spacing="4">
+        <HBox spacing="8" alignment="CENTER_LEFT">
+            <Label text="%label.ruleName" styleClass="section-heading"/>
+            <TextField fx:id="ruleNameField" HBox.hgrow="ALWAYS"/>
+        </HBox>
+        <Label fx:id="ruleNameErrorLabel" styleClass="danger-copy" wrapText="true"
+               visible="false" managed="false"/>
+    </VBox>
     <VBox spacing="8" styleClass="rule-condition-group">
-        <HBox spacing="7" alignment="CENTER_LEFT" styleClass="rule-sentence">
+            <HBox spacing="8" alignment="CENTER_LEFT" styleClass="rule-sentence">
             <Label fx:id="ruleEditorConditionHeading" text="%ruleEditor.ifPrefix"
                    styleClass="rule-sentence-heading"/>
             <ComboBox fx:id="conditionMatchModeCombo" styleClass="rule-match-mode"/>
@@ -35,5 +39,7 @@
                 onAction="#onAddAction" styleClass="button-outlined group-add-button">
             <graphic><FontIcon iconLiteral="fth-plus" iconSize="14"/></graphic>
         </Button>
+        <Label fx:id="ruleActionsErrorLabel" styleClass="danger-copy" wrapText="true"
+               visible="false" managed="false"/>
     </VBox>
 </VBox>
