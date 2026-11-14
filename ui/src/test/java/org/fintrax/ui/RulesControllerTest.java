@@ -28,6 +28,9 @@ import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
+import javafx.scene.input.PickResult;
 import javafx.stage.Stage;
 import org.fintrax.config.I18n;
 import org.fintrax.model.*;
@@ -515,6 +518,31 @@ class RulesControllerTest extends AbstractUITest {
         interact(() -> search.setText("REVIEW-"));
         assertEquals(List.of(transaction.getId(), nonConflictingTransaction.getId()),
                 transactions.getItems().stream().map(Transaction::getId).toList());
+    }
+
+    @Test
+    void doubleClickingRuleTransactionOpensDetailsBelowTable() {
+        TableView<Rule> ruleTable = lookup("#ruleTable").query();
+        Rule selectedRule = ruleTable.getItems().stream()
+                .filter(rule -> rule.getName().equals(ruleName)).findFirst().orElseThrow();
+        interact(() -> ruleTable.getSelectionModel().select(selectedRule));
+
+        TableView<Transaction> transactions = lookup("#ruleTransactionsTable").query();
+        TableColumn<?, ?> payeeColumn = transactions.getColumns().stream()
+                .filter(column -> I18n.get("col.payee").equals(column.getText()))
+                .findFirst().orElseThrow();
+        TableCell<?, ?> payeeCell = cellForTransaction(transactions, payeeColumn, transaction);
+
+        assertFalse(lookup("#detailPanel").query().isVisible());
+        interact(() -> Event.fireEvent(payeeCell, new MouseEvent(MouseEvent.MOUSE_CLICKED,
+                1, 1, 1, 1, MouseButton.PRIMARY, 2,
+                false, false, false, false,
+                false, false, false, true, false, true,
+                new PickResult(payeeCell, 1, 1))));
+        WaitForAsyncUtils.waitForFxEvents();
+
+        assertTrue(lookup("#detailPanel").query().isVisible());
+        assertEquals(transaction.getOriginalPayee(), lookup("#originalPayeeValue").queryLabeled().getText());
     }
 
     @Test

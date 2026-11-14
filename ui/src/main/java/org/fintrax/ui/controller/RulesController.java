@@ -25,6 +25,7 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -62,15 +63,33 @@ public class RulesController {
     @FXML
     private Label ruleConflictSummary;
     @FXML
+    private TransactionWorkspaceController transactionWorkspaceController;
     private TableView<Transaction> ruleTransactionsTable;
+    @FXML
+    private TableColumn<Transaction, LocalDate> transactionDateColumn;
+    @FXML
+    private TableColumn<Transaction, LocalDate> transactionValueDateColumn;
+    @FXML
+    private TableColumn<Transaction, String> transactionPayeeColumn;
+    @FXML
+    private TableColumn<Transaction, String> transactionAccountColumn;
+    @FXML
+    private TableColumn<Transaction, String> transactionPurposeColumn;
+    @FXML
+    private TableColumn<Transaction, BigDecimal> transactionAmountColumn;
+    @FXML
+    private TableColumn<Transaction, String> transactionCategoryColumn;
+    @FXML
+    private TableColumn<Transaction, String> transactionLabelsColumn;
     @FXML
     private TableColumn<Transaction, Number> transactionRuleCountColumn;
     @FXML
     private TableColumn<Transaction, String> transactionMatchedRulesColumn;
     @FXML
     private Label ruleTransactionsTotalAmount;
-    @FXML
     private TransactionFilterPanelController transactionFilterPanelController;
+    @FXML
+    private TableColumn<Transaction, ?> transactionColumnMenuColumn;
 
     private final RuleService ruleService;
     private final AccountService accountService;
@@ -108,6 +127,12 @@ public class RulesController {
     @FXML
     public void initialize() {
         log.info("RulesController initialized");
+        ruleTransactionsTable = transactionWorkspaceController.table();
+        ruleTransactionsTable.setId("ruleTransactionsTable");
+        if (!ruleTransactionsTable.getStyleClass().contains("dense")) {
+            ruleTransactionsTable.getStyleClass().add("dense");
+        }
+        transactionFilterPanelController = transactionWorkspaceController.filterPanel();
         ruleNumberColumn.setCellValueFactory(cell ->
                 new SimpleIntegerProperty(cell.getValue().getPriority()));
         ruleNameColumn.setCellValueFactory(cell ->
@@ -182,9 +207,15 @@ public class RulesController {
     }
 
     private void setupTransactionTable() {
+        transactionWorkspaceController.setTableColumns(List.of(transactionDateColumn, transactionValueDateColumn,
+                transactionPayeeColumn, transactionAccountColumn, transactionPurposeColumn,
+                transactionAmountColumn, transactionCategoryColumn, transactionLabelsColumn,
+                transactionRuleCountColumn, transactionMatchedRulesColumn, transactionColumnMenuColumn));
         transactionTableSetup = new TransactionTableSetup(ruleTransactionsTable,
                 accountService, categoryService, labelService);
         transactionTableSetup.configure();
+        transactionWorkspaceController.attachDetails(
+                transactionTableSetup.categoryColumn(), transactionTableSetup.labelsColumn());
     }
 
     private void setupRuleMatchColumns() {

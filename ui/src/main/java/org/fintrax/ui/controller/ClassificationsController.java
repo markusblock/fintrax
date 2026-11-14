@@ -59,12 +59,30 @@ public class ClassificationsController {
     private TextField classificationSearchField;
     @FXML
     private Button classificationSearchClearButton;
-    @FXML
     private TableView<Transaction> classificationTransactionsTable;
     @FXML
     private Label classificationTransactionsTotalAmount;
-    @FXML
     private TransactionFilterPanelController transactionFilterPanelController;
+    @FXML
+    private TransactionWorkspaceController transactionWorkspaceController;
+    @FXML
+    private TableColumn<Transaction, LocalDate> transactionDateColumn;
+    @FXML
+    private TableColumn<Transaction, LocalDate> transactionValueDateColumn;
+    @FXML
+    private TableColumn<Transaction, String> transactionPayeeColumn;
+    @FXML
+    private TableColumn<Transaction, String> transactionAccountColumn;
+    @FXML
+    private TableColumn<Transaction, String> transactionPurposeColumn;
+    @FXML
+    private TableColumn<Transaction, BigDecimal> transactionAmountColumn;
+    @FXML
+    private TableColumn<Transaction, String> transactionCategoryColumn;
+    @FXML
+    private TableColumn<Transaction, String> transactionLabelsColumn;
+    @FXML
+    private TableColumn<Transaction, ?> transactionColumnMenuColumn;
 
     private final CategoryService categoryService;
     private final LabelService labelService;
@@ -110,6 +128,12 @@ public class ClassificationsController {
                 classificationSearchField.textProperty().isNotEmpty());
         classificationSearchClearButton.managedProperty().bind(classificationSearchClearButton.visibleProperty());
         classificationSearchField.textProperty().addListener((observable, oldValue, newValue) -> rebuildTree(newValue));
+        classificationTransactionsTable = transactionWorkspaceController.table();
+        classificationTransactionsTable.setId("classificationTransactionsTable");
+        if (!classificationTransactionsTable.getStyleClass().contains("dense")) {
+            classificationTransactionsTable.getStyleClass().add("dense");
+        }
+        transactionFilterPanelController = transactionWorkspaceController.filterPanel();
         loadTree();
         configureContextMenu();
         classificationTree.setCellFactory(this::createClassificationCell);
@@ -139,6 +163,10 @@ public class ClassificationsController {
     private void setupTransactionTable() {
         transactionTableSetup = new TransactionTableSetup(classificationTransactionsTable,
                 accountService, categoryService, labelService);
+        transactionWorkspaceController.setTableColumns(List.of(transactionDateColumn, transactionValueDateColumn,
+                transactionPayeeColumn, transactionAccountColumn, transactionPurposeColumn,
+                transactionAmountColumn, transactionCategoryColumn, transactionLabelsColumn,
+                transactionColumnMenuColumn));
         transactionTableSetup.configure();
         transactionTableSetup.categoryColumn().setCellFactory(column -> createAssignmentCell(anchor ->
                 transactionTableActions.setCategory(classificationTransactionsTable, anchor,
@@ -146,6 +174,8 @@ public class ClassificationsController {
         transactionTableSetup.labelsColumn().setCellFactory(column -> createLabelChipCell(anchor ->
                 transactionTableActions.setLabels(classificationTransactionsTable, anchor,
                         this::reloadSelectedTransactionsKeepingSelection)));
+        transactionWorkspaceController.attachDetails(
+                transactionTableSetup.categoryColumn(), transactionTableSetup.labelsColumn());
     }
 
     private void updateTransactionTotal() {

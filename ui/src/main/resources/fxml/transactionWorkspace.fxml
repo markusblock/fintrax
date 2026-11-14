@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.control.SplitPane?>
+<?import javafx.scene.layout.*?>
+<VBox xmlns:fx="http://javafx.com/fxml"
+      fx:controller="org.fintrax.ui.controller.TransactionWorkspaceController"
+      spacing="12">
+    <fx:include fx:id="transactionFilterPanel" source="transactionFilterPanel.fxml"/>
+    <SplitPane fx:id="transactionSplitPane" orientation="VERTICAL" dividerPositions="1.0"
+               VBox.vgrow="ALWAYS">
+        <TableView fx:id="transactionTable" SplitPane.resizableWithParent="true"/>
+        <fx:include fx:id="transactionDetailsPanel" source="transactionDetailsPanel.fxml"/>
+    </SplitPane>
+</VBox>

@@ -5,7 +5,6 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.TableColumn?>
-<?import javafx.scene.control.TableView?>
 <?import javafx.scene.control.TreeView?>
 <?import javafx.scene.control.SplitPane?>
 <?import javafx.scene.control.Button?>
@@ -18,6 +17,25 @@
 
 <BorderPane fx:id="rootPane" xmlns:fx="http://javafx.com/fxml"
             fx:controller="org.fintrax.ui.controller.ClassificationsController" styleClass="view-root">
+    <fx:define>
+        <TableColumn fx:id="transactionDateColumn" text="%col.bookingDate" minWidth="105" prefWidth="105"
+                     maxWidth="105" resizable="false" sortable="true"/>
+        <TableColumn fx:id="transactionValueDateColumn" text="%col.valueDate" minWidth="105" prefWidth="105"
+                     maxWidth="105" resizable="false" sortable="true"/>
+        <TableColumn fx:id="transactionPayeeColumn" text="%col.payee" minWidth="85" prefWidth="115" sortable="true"/>
+        <TableColumn fx:id="transactionAccountColumn" text="%col.account" minWidth="90" prefWidth="120" sortable="true"/>
+        <TableColumn fx:id="transactionPurposeColumn" text="%col.purpose" minWidth="95" prefWidth="135" sortable="true"/>
+        <TableColumn fx:id="transactionAmountColumn" text="%col.amount" minWidth="80" prefWidth="95" sortable="true"/>
+        <TableColumn fx:id="transactionCategoryColumn" text="%col.category" minWidth="95" prefWidth="115" sortable="true"/>
+        <TableColumn fx:id="transactionLabelsColumn" text="%col.labels" minWidth="90" prefWidth="120" sortable="true"/>
+        <TableColumn fx:id="transactionColumnMenuColumn" minWidth="17" prefWidth="17" maxWidth="17"
+                     resizable="false" sortable="false" reorderable="false">
+            <graphic>
+                <MenuButton fx:id="columnMenuButton" accessibleText="%button.columns"
+                            styleClass="column-menu-button"/>
+            </graphic>
+        </TableColumn>
+    </fx:define>
     <top>
         <VBox styleClass="view-header">
             <Label text="%view.classifications" styleClass="page-title"/>
@@ -46,28 +64,7 @@
                     <Insets top="15" right="20" bottom="15" left="20"/>
                 </padding>
                 <Label text="%view.transactions" styleClass="section-heading"/>
-                <fx:include fx:id="transactionFilterPanel" source="transactionFilterPanel.fxml"/>
-                <TableView fx:id="classificationTransactionsTable" styleClass="dense" VBox.vgrow="ALWAYS">
-                    <columns>
-                        <TableColumn fx:id="transactionDateColumn" text="%col.bookingDate" minWidth="105" prefWidth="105"
-                                     maxWidth="105" resizable="false" sortable="true"/>
-                        <TableColumn text="%col.valueDate" minWidth="105" prefWidth="105"
-                                     maxWidth="105" resizable="false" sortable="true"/>
-                        <TableColumn fx:id="transactionPayeeColumn" text="%col.payee" minWidth="85" prefWidth="115" sortable="true"/>
-                        <TableColumn fx:id="transactionAccountColumn" text="%col.account" minWidth="90" prefWidth="120" sortable="true"/>
-                        <TableColumn fx:id="transactionPurposeColumn" text="%col.purpose" minWidth="95" prefWidth="135" sortable="true"/>
-                        <TableColumn fx:id="transactionAmountColumn" text="%col.amount" minWidth="80" prefWidth="95" sortable="true"/>
-                        <TableColumn fx:id="transactionCategoryColumn" text="%col.category" minWidth="95" prefWidth="115" sortable="true"/>
-                        <TableColumn fx:id="transactionLabelsColumn" text="%col.labels" minWidth="90" prefWidth="120" sortable="true"/>
-                        <TableColumn minWidth="17" prefWidth="17" maxWidth="17"
-                                     resizable="false" sortable="false" reorderable="false">
-                            <graphic>
-                                <MenuButton fx:id="columnMenuButton" accessibleText="%button.columns"
-                                            styleClass="column-menu-button"/>
-                            </graphic>
-                        </TableColumn>
-                    </columns>
-                </TableView>
+                <fx:include fx:id="transactionWorkspace" source="transactionWorkspace.fxml" VBox.vgrow="ALWAYS"/>
                 <HBox alignment="CENTER_RIGHT" spacing="8" styleClass="classification-transactions-footer">
                     <Label text="%classifications.transactions.total" styleClass="secondary-text"/>
                     <Label fx:id="classificationTransactionsTotalAmount" styleClass="amount-positive"/>
