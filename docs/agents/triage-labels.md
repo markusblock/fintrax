@@ -1,15 +1,13 @@
 # Triage Labels
 
-The skills speak in terms of five canonical triage roles. This file maps those roles to the actual label strings used in this repo's issue tracker.
+Skills may refer to these canonical triage roles. Use the mapped GitHub label only when one exists; don't substitute an issue-type label for a missing status label.
 
-| Label in mattpocock/skills | Label in our tracker | Meaning                                  |
-| -------------------------- | -------------------- | ---------------------------------------- |
-| `needs-triage`             | `needs-triage`       | Maintainer needs to evaluate this issue  |
-| `needs-info`               | `needs-info`         | Waiting on reporter for more information |
-| `ready-for-agent`          | `ready-for-agent`    | Fully specified, ready for an AFK agent  |
-| `ready-for-human`          | `ready-for-human`    | Requires human implementation            |
-| `wontfix`                  | `wontfix`            | Will not be actioned                     |
+| Canonical role | GitHub label | Meaning |
+| --- | --- | --- |
+| `needs-triage` | Not configured | Maintainer needs to evaluate this issue. Leave unlabeled until triaged. |
+| `needs-info` | Not configured | Waiting on reporter for more information. Ask in a comment; no status label is available. |
+| `ready-for-agent` | `ready-for-agent` | Fully specified and ready for an agent. |
+| `ready-for-human` | Not configured | Requires human implementation; no status label is available. |
+| `wontfix` | `wontfix` | Will not be actioned. |
 
-When a skill mentions a role (e.g. "apply the AFK-ready triage label"), use the corresponding label string from this table.
-
-Edit the right-hand column to match whatever vocabulary you actually use.
+Check the live repository labels with `gh label list --repo markusblock/fintrax`. If a missing status label is needed, ask a maintainer to add it rather than repurposing `bug`, `enhancement`, `question`, or another issue-type label.
