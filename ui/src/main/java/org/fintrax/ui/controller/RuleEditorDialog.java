@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 final class RuleEditorDialog {
     private static final double DIALOG_WIDTH = 900;
@@ -31,7 +32,8 @@ final class RuleEditorDialog {
     static Optional<RuleInput> show(Window owner, ViewLoader viewLoader,
                                    String titleKey, String headerKey,
                                    String saveButtonId, String cancelButtonId,
-                                   Consumer<RuleEditorController> initializeEditor) {
+                                   Consumer<RuleEditorController> initializeEditor,
+                                   Predicate<String> ruleNameAvailable) {
         Parent editorView;
         try {
             editorView = viewLoader.load("ruleEditor");
@@ -40,7 +42,9 @@ final class RuleEditorDialog {
         }
         RuleEditorController editor = (RuleEditorController) editorView.getProperties()
                 .get(RuleEditorController.class.getName());
+        editorView.getStyleClass().add("dialog-content");
         initializeEditor.accept(editor);
+        editor.setRuleNameAvailability(ruleNameAvailable);
 
         Dialog<ButtonType> dialog = new Dialog<>();
         FintraxUI.configureDialog(dialog);

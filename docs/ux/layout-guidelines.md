@@ -73,6 +73,7 @@ Use subtle status fills with matching status text. Pair status colors with text 
 
 - Use a dialog for a focused decision, form, or review. Use an anchored popup for a short action on its source item; use a tooltip only for supplemental help.
 - Size dialogs by content: compact prompts/pickers target 420 px wide (350 px minimum); forms target 560 px; wide reviews use available width. Cap all widths at viewport minus 48 px.
+- Give dialog content the default surface, 16 px inset, and 12 px between sections. Use 8 px between related controls and 4 px for tight inline spacing; avoid per-dialog spacing or padding overrides.
 - Limit dialog height to viewport minus 48 px. Keep title and actions visible; scroll the body when content exceeds the limit. Make advanced or dense dialogs (such as Apply Rules review) resizable.
 - Keep the dialog connected to the view that opened it. Block the task only when a decision is required before continuing.
 - Order content as title/context, task controls, then actions. Put cancel/secondary actions before the primary action; keep destructive actions separate.
