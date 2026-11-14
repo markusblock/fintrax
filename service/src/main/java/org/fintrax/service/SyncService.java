@@ -92,6 +92,9 @@ public class SyncService {
         if (account == null) {
             throw new IllegalArgumentException("Account not found: " + accountId);
         }
+        if (account.isSyncExcluded()) {
+            throw new IllegalStateException("Bank sync is disabled for account: " + accountId);
+        }
         if (pin == null || pin.isBlank()) {
             throw new IllegalArgumentException("A PIN is required for each bank sync.");
         }

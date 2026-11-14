@@ -37,6 +37,8 @@ public class EditAccountDialogController extends BankAccountDialogBase {
     @FXML
     private TextArea accountCommentField;
     @FXML
+    private CheckBox syncExcludedCheckBox;
+    @FXML
     private Label balanceValue;
     @FXML
     private Label balanceDateValue;
@@ -75,6 +77,7 @@ public class EditAccountDialogController extends BankAccountDialogBase {
         ibanField.setText(valueOrEmpty(account.getIban()));
         currencyField.setText(valueOrEmpty(account.getCurrency()));
         accountCommentField.setText(valueOrEmpty(account.getComment()));
+        syncExcludedCheckBox.setSelected(account.isSyncExcluded());
         balanceValue.setText(formatBalance(account));
         balanceDateValue.setText(account.getBalanceDate() == null
                 ? "—" : account.getBalanceDate().format(DATE_TIME_FORMAT));
@@ -131,6 +134,7 @@ public class EditAccountDialogController extends BankAccountDialogBase {
             accountService.updateAccount(account.getId(), bank.getId(), accountNameField.getText().trim(),
                     accountHolderField.getText().trim(), accountTypeCombo.getValue(), currencyField.getText().trim(),
                     accountCommentField.getText().trim());
+            accountService.setSyncExcluded(account.getId(), syncExcludedCheckBox.isSelected());
             int imported = importDiscoveredAccounts(bank, discovered);
             if (imported > 0) {
                 log.info("Imported {} bank account(s) from {}", imported, bank.getName());
@@ -151,6 +155,7 @@ public class EditAccountDialogController extends BankAccountDialogBase {
         accountService.updateAccount(account.getId(), bank.getId(), accountNameField.getText().trim(),
                 accountHolderField.getText().trim(), accountTypeCombo.getValue(), currencyField.getText().trim(),
                 accountCommentField.getText().trim());
+        accountService.setSyncExcluded(account.getId(), syncExcludedCheckBox.isSelected());
         close();
     }
 

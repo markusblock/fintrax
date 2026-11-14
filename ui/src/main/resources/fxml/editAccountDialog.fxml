@@ -14,6 +14,7 @@
 <?import javafx.scene.control.ComboBox?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Separator?>
+<?import javafx.scene.control.CheckBox?>
 <?import javafx.geometry.Insets?>
 <?import org.kordamp.ikonli.javafx.FontIcon?>
 
@@ -89,6 +90,9 @@
                         <TextArea fx:id="accountCommentField" wrapText="true" prefRowCount="2"
                                   GridPane.rowIndex="5" GridPane.columnIndex="1"/>
                     </GridPane>
+                    <CheckBox fx:id="syncExcludedCheckBox" id="syncExcludedCheckBox"
+                              text="%label.skipBankSync"/>
+                    <Label text="%help.skipBankSync" wrapText="true" styleClass="help-text"/>
                 </VBox>
 
                 <VBox styleClass="account-edit-metadata" spacing="5">

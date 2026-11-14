@@ -85,6 +85,24 @@ class AccountServiceTest {
     }
 
     @Test
+    void syncExclusionPersistsAndSurvivesAccountEdits() {
+        BankAccount account = accountService.createAccount(
+                "DE89370400440532013000", "COBADEFFXXX", "Commerzbank",
+                "Max Mustermann", AccountType.GIRO, null);
+
+        assertFalse(account.isSyncExcluded());
+        accountService.setSyncExcluded(account.getId(), true);
+        accountService.updateAccount(account.getId(), "Updated Bank", "NEWBIC",
+                "Updated holder", AccountType.SAVINGS, "New comment");
+
+        assertTrue(account.isSyncExcluded());
+        store.shutdown();
+        store = new StoreManager(tempDir);
+
+        assertTrue(store.getAccount(account.getId()).isSyncExcluded());
+    }
+
+    @Test
     void testDeleteAccount() {
         BankAccount account = accountService.createAccount(
                 "DE89370400440532013000", "COBADEFFXXX", "Commerzbank",

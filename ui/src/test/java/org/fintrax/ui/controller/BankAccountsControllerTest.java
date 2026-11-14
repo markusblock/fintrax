@@ -4,6 +4,7 @@ import javafx.application.Platform;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TableView;
@@ -122,6 +123,9 @@ class BankAccountsControllerTest extends AbstractUITest {
 
         clickOn("#editAccountButton-" + account.getId());
 
+        CheckBox skipBankSync = lookup("#syncExcludedCheckBox").query();
+        assertFalse(skipBankSync.isSelected());
+
         TextField ibanField = lookup("#ibanField").query();
         TextField currencyField = lookup("#currencyField").query();
         assertFalse(ibanField.isEditable());
@@ -133,6 +137,7 @@ class BankAccountsControllerTest extends AbstractUITest {
             lookup("#accountHolderField").<TextField>query().setText("Updated holder");
             lookup("#accountTypeCombo").<ComboBox<AccountType>>query().setValue(AccountType.SAVINGS);
             lookup("#accountCommentField").<TextArea>query().setText("Updated comment");
+            skipBankSync.setSelected(true);
         });
         clickOn("#saveAccountButton");
         WaitForAsyncUtils.waitForFxEvents();
@@ -151,6 +156,8 @@ class BankAccountsControllerTest extends AbstractUITest {
         assertEquals(balanceDate, updated.getBalanceDate());
         assertEquals(syncDate, updated.getLastSyncAt());
         assertEquals(createdAt, updated.getCreatedAt());
+        assertTrue(updated.isSyncExcluded());
+        assertTrue(lookup(".sync-button").<Button>query().isDisabled());
     }
 
     @Test
