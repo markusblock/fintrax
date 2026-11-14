@@ -24,6 +24,7 @@ public class BankAccount {
     private BigDecimal balance;
     private LocalDateTime balanceDate;
     private LocalDateTime lastSyncAt;
+    private boolean syncExcluded;
     private String comment;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

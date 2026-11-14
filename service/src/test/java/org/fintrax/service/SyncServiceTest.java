@@ -176,6 +176,28 @@ class SyncServiceTest {
     }
 
     @Test
+    void syncExcludedAccountIsNotContactedOrChanged() {
+        BankAccount account = createAccount();
+        Transaction existing = transactionService.createTransaction(transaction(account.getId(), "existing", "Local"));
+        accountService.updateBalance(account.getId(), new BigDecimal("42.00"),
+                LocalDateTime.of(2026, 1, 1, 10, 30));
+        accountService.updateLastSync(account.getId(), LocalDateTime.of(2026, 1, 2, 10, 30));
+        accountService.setSyncExcluded(account.getId(), true);
+        bankingProtocol.accountBalance = new BigDecimal("999.00");
+        bankingProtocol.transactions = List.of(transaction(account.getId(), "bank", "Bank"));
+        Long accountId = account.getId();
+
+        assertThrows(IllegalStateException.class, () -> syncService.syncAccount(accountId, "1234"));
+
+        assertEquals(0, bankingProtocol.fetchCount);
+        assertTrue(store.getRoot().getSyncLogs().isEmpty());
+        assertEquals(List.of(existing.getId()), transactionService.getTransactionsByAccount(account.getId()).stream()
+                .map(Transaction::getId).toList());
+        assertEquals(new BigDecimal("42.00"), account.getBalance());
+        assertEquals(LocalDateTime.of(2026, 1, 2, 10, 30), account.getLastSyncAt());
+    }
+
+    @Test
     void syncReportsProgressStagesInOrder() {
         BankAccount account = createAccount();
         List<SyncProgress> progress = new ArrayList<>();
@@ -260,6 +282,7 @@ class SyncServiceTest {
         private BigDecimal accountBalance;
         private LocalDateTime balanceDate;
         private BankingException failure;
+        private int fetchCount;
 
         @Override
         public List<Transaction> fetchTransactions(BankAccount account, String pin) throws BankingException {
@@ -269,6 +292,7 @@ class SyncServiceTest {
 
         @Override
         public BankingSyncData fetchSyncData(BankAccount account, String pin) throws BankingException {
+            fetchCount++;
             return new BankingSyncData(fetchTransactions(account, pin), accountBalance, balanceDate);
         }
 
