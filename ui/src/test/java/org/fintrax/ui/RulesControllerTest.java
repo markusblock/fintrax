@@ -14,6 +14,7 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.DialogPane;
+import javafx.scene.control.Label;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.RadioButton;
@@ -557,6 +558,61 @@ class RulesControllerTest extends AbstractUITest {
         assertEquals(I18n.get("rules.matchCount", 1), lookup("#ruleMatchSummary").queryLabeled().getText());
         assertEquals("", lookup("#ruleConflictSummary").queryLabeled().getText());
         assertFalse(lookup("#ruleConflictSummary").query().isVisible());
+    }
+
+    @Test
+    void focusingRegexValueFieldShowsExamplesInSettingsLanguage() {
+        SettingsService settingsService = applicationContext.getBean(SettingsService.class);
+        String originalLanguage = settingsService.getLanguage();
+        String editMenuItemText = I18n.get("button.edit");
+        try {
+            interact(() -> {
+                settingsService.saveLanguage("de");
+                I18n.setLocale(settingsService.getLocale());
+            });
+
+            TableView<Rule> ruleTable = lookup("#ruleTable").query();
+            Rule selectedRule = ruleTable.getItems().stream()
+                    .filter(rule -> rule.getName().equals(ruleName)).findFirst().orElseThrow();
+            TableRow<?> row = rowForRule(ruleTable, ruleName);
+            interact(() -> ruleTable.getSelectionModel().select(selectedRule));
+            Platform.runLater(() -> menuItem(row.getContextMenu(), editMenuItemText).fire());
+            WaitForAsyncUtils.waitForFxEvents();
+
+            ComboBox<String> operator = lookup(".rule-condition-operator").query();
+            TextField valueField = lookup(".rule-condition-value").query();
+            interact(() -> operator.setValue(I18n.get("ruleEditor.operator.matchesRegex")));
+            assertFalse(lookup(".regex-help-guide").query().isVisible());
+
+            clickOn(valueField);
+            WaitForAsyncUtils.waitForFxEvents();
+            assertTrue(lookup(".regex-help-guide").query().isVisible());
+            assertEquals(6, lookup(".regex-example-row").queryAll().size());
+            List<String> patterns = lookup(".regex-example-pattern").queryAll().stream()
+                    .map(node -> ((Label) node).getText()).toList();
+            assertEquals(List.of(".*Miete.*", "Miete.+", "Miete(n)?", "Miete|Nebenkosten", "^Rechnung-\\d+$",
+                            "^Miete$"),
+                    patterns);
+            List<String> exampleTexts = lookup(".regex-example-text").queryAll().stream()
+                    .map(node -> ((Label) node).getText()).toList();
+            assertTrue(exampleTexts.contains("Monatliche Mietzahlung"));
+            assertTrue(exampleTexts.contains("Mieten"));
+            assertTrue(lookup(".regex-example-explanation").queryAll().stream()
+                    .map(node -> ((Label) node).getText())
+                    .anyMatch(text -> text.contains("beliebige Zeichen, beliebig oft")));
+            assertTrue(lookup(".regex-example-explanation").queryAll().stream()
+                    .map(node -> ((Label) node).getText())
+                    .anyMatch(text -> text.startsWith("Passt nicht auf:")));
+
+            interact(() -> operator.setValue(I18n.get("ruleEditor.operator.contains")));
+            WaitForAsyncUtils.waitForFxEvents();
+            assertFalse(lookup(".regex-help-guide").query().isVisible());
+        } finally {
+            interact(() -> {
+                settingsService.saveLanguage(originalLanguage);
+                I18n.setLocale(settingsService.getLocale());
+            });
+        }
     }
 
     @Test
