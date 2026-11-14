@@ -70,6 +70,9 @@ public class TransactionService {
         if (received.getEndToEndId() != null) stored.setEndToEndId(received.getEndToEndId());
         if (received.getMandateId() != null) stored.setMandateId(received.getMandateId());
         if (received.getCreditorId() != null) stored.setCreditorId(received.getCreditorId());
+        if (received.getCustomerReference() != null) stored.setCustomerReference(received.getCustomerReference());
+        if (received.getPrimanota() != null) stored.setPrimanota(received.getPrimanota());
+        if (received.getGvCode() != null) stored.setGvCode(received.getGvCode());
         stored.setBooked(stored.isBooked() || received.isBooked());
         stored.setUpdatedAt(LocalDateTime.now(ZoneId.systemDefault()));
         store.store(stored);

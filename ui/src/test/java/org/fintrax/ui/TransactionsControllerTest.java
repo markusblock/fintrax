@@ -24,6 +24,7 @@ import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
+import javafx.scene.control.TitledPane;
 import javafx.scene.control.TextField;
 import javafx.scene.control.ListView;
 import javafx.scene.input.KeyCode;
@@ -104,6 +105,9 @@ class TransactionsControllerTest extends AbstractUITest {
                 .endToEndId("E2E-123")
                 .mandateId("MANDATE-123")
                 .creditorId("CREDITOR-123")
+                .customerReference("CUSTOMER-123")
+                .primanota("PRIMANOTA-123")
+                .gvCode("166")
                 .booked(false)
                 .build());
         for (int i = 0; i < 2; i++) {
@@ -1292,6 +1296,9 @@ class TransactionsControllerTest extends AbstractUITest {
     @Test
     void detailPanelShowsTransactionProperties() {
         showTransactionDetail(testCategoryTransaction);
+        TitledPane additionalInformationPane = lookup("#additionalInformationPane").query();
+        assertFalse(additionalInformationPane.isExpanded());
+        interact(() -> additionalInformationPane.setExpanded(true));
         DateTimeFormatter dateFormatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT)
                 .withLocale(I18n.getCurrentLocale());
         assertEquals("Detail test bank (DE89****3000)", detailText("#accountValue"));
@@ -1319,6 +1326,9 @@ class TransactionsControllerTest extends AbstractUITest {
         assertEquals("E2E-123", detailText("#endToEndIdValue"));
         assertEquals("MANDATE-123", detailText("#mandateIdValue"));
         assertEquals("CREDITOR-123", detailText("#creditorIdValue"));
+        assertEquals("CUSTOMER-123", detailText("#customerReferenceValue"));
+        assertEquals("PRIMANOTA-123", detailText("#primanotaValue"));
+        assertEquals("166", detailText("#gvCodeValue"));
         assertEquals("Display popup test", detailText("#payeeValue"));
     }
 
@@ -1361,6 +1371,7 @@ class TransactionsControllerTest extends AbstractUITest {
     @Test
     void detailPanelKeepsUnavailablePropertiesWithEmptyValues() {
         showTransactionDetail(detailSparseTransaction);
+        interact(() -> lookup("#additionalInformationPane").<TitledPane>query().setExpanded(true));
 
         assertPropertyEmpty("#accountKey", "#accountValue");
         assertPropertyEmpty("#valueDateKey", "#valueDateValue");
@@ -1374,6 +1385,9 @@ class TransactionsControllerTest extends AbstractUITest {
         assertPropertyEmpty("#endToEndIdKey", "#endToEndIdValue");
         assertPropertyEmpty("#mandateIdKey", "#mandateIdValue");
         assertPropertyEmpty("#creditorIdKey", "#creditorIdValue");
+        assertPropertyEmpty("#customerReferenceKey", "#customerReferenceValue");
+        assertPropertyEmpty("#primanotaKey", "#primanotaValue");
+        assertPropertyEmpty("#gvCodeKey", "#gvCodeValue");
         assertTrue(detailPropertyIsVisible("#bookingDateKey", "#bookingDateValue"));
         assertTrue(detailPropertyIsVisible("#originalPayeeKey", "#originalPayeeValue"));
         assertEquals(2, GridPane.getColumnIndex(lookup("#originalPayeeKey").query()));

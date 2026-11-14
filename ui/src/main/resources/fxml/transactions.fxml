@@ -101,12 +101,32 @@
                                     <Label fx:id="bookingStatusValue" styleClass="detail-status-badge"/>
                                 </children>
                             </StackPane>
-                            <Label fx:id="endToEndIdKey" text="%detail.endToEndId" styleClass="detail-property-key" wrapText="true" GridPane.rowIndex="7" GridPane.columnIndex="2"/>
-                            <Label fx:id="endToEndIdValue" styleClass="detail-property-value" wrapText="true" GridPane.rowIndex="7" GridPane.columnIndex="3"/>
-                            <Label fx:id="mandateIdKey" text="%detail.mandateId" styleClass="detail-property-key" wrapText="true" GridPane.rowIndex="8" GridPane.columnIndex="0"/>
-                            <Label fx:id="mandateIdValue" styleClass="detail-property-value" wrapText="true" GridPane.rowIndex="8" GridPane.columnIndex="1"/>
-                            <Label fx:id="creditorIdKey" text="%detail.creditorId" styleClass="detail-property-key" wrapText="true" GridPane.rowIndex="8" GridPane.columnIndex="2"/>
-                            <Label fx:id="creditorIdValue" styleClass="detail-property-value" wrapText="true" GridPane.rowIndex="8" GridPane.columnIndex="3"/>
+                            <TitledPane fx:id="additionalInformationPane" text="%detail.additionalInformation"
+                                        expanded="false" collapsible="true" maxWidth="Infinity"
+                                        GridPane.rowIndex="8" GridPane.columnIndex="0" GridPane.columnSpan="4">
+                                <content>
+                                    <GridPane hgap="0" vgap="0" styleClass="transaction-property-table">
+                                        <columnConstraints>
+                                            <ColumnConstraints minWidth="105" prefWidth="120"/>
+                                            <ColumnConstraints hgrow="ALWAYS" fillWidth="true"/>
+                                            <ColumnConstraints minWidth="105" prefWidth="120"/>
+                                            <ColumnConstraints hgrow="ALWAYS" fillWidth="true"/>
+                                        </columnConstraints>
+                                        <Label fx:id="endToEndIdKey" text="%detail.endToEndId" styleClass="detail-property-key" wrapText="true" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+                                        <Label fx:id="endToEndIdValue" styleClass="detail-property-value" wrapText="true" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
+                                        <Label fx:id="mandateIdKey" text="%detail.mandateId" styleClass="detail-property-key" wrapText="true" GridPane.rowIndex="0" GridPane.columnIndex="2"/>
+                                        <Label fx:id="mandateIdValue" styleClass="detail-property-value" wrapText="true" GridPane.rowIndex="0" GridPane.columnIndex="3"/>
+                                        <Label fx:id="creditorIdKey" text="%detail.creditorId" styleClass="detail-property-key" wrapText="true" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
+                                        <Label fx:id="creditorIdValue" styleClass="detail-property-value" wrapText="true" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
+                                        <Label fx:id="customerReferenceKey" text="%detail.customerReference" styleClass="detail-property-key" wrapText="true" GridPane.rowIndex="1" GridPane.columnIndex="2"/>
+                                        <Label fx:id="customerReferenceValue" styleClass="detail-property-value" wrapText="true" GridPane.rowIndex="1" GridPane.columnIndex="3"/>
+                                        <Label fx:id="primanotaKey" text="%detail.primanota" styleClass="detail-property-key" wrapText="true" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
+                                        <Label fx:id="primanotaValue" styleClass="detail-property-value" wrapText="true" GridPane.rowIndex="2" GridPane.columnIndex="1"/>
+                                        <Label fx:id="gvCodeKey" text="%detail.gvCode" styleClass="detail-property-key" wrapText="true" GridPane.rowIndex="2" GridPane.columnIndex="2"/>
+                                        <Label fx:id="gvCodeValue" styleClass="detail-property-value" wrapText="true" GridPane.rowIndex="2" GridPane.columnIndex="3"/>
+                                    </GridPane>
+                                </content>
+                            </TitledPane>
                             <Region styleClass="detail-row-separator" minHeight="1" prefHeight="1" maxHeight="1" maxWidth="Infinity"
                                     GridPane.rowIndex="0" GridPane.columnIndex="0" GridPane.columnSpan="4" GridPane.valignment="BOTTOM"/>
                             <Region styleClass="detail-row-separator" minHeight="1" prefHeight="1" maxHeight="1" maxWidth="Infinity"
