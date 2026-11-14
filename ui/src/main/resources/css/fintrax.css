@@ -887,6 +887,40 @@
     -fx-padding: 7 0;
 }
 
+.regex-help-guide {
+    -fx-spacing: 8;
+    -fx-padding: 10 12;
+    -fx-background-color: -color-bg-default;
+    -fx-border-color: -color-border-default;
+    -fx-border-radius: 6;
+    -fx-background-radius: 6;
+}
+
+.regex-help-title {
+    -fx-font-weight: bold;
+    -fx-text-fill: -color-fg-default;
+}
+
+.regex-help-tokens {
+    -fx-hgap: 14;
+    -fx-vgap: 7;
+}
+
+.regex-help-token {
+    -fx-font-family: monospace;
+    -fx-font-weight: bold;
+    -fx-text-fill: -color-accent-fg;
+}
+
+.regex-help-description,
+.regex-help-example {
+    -fx-text-fill: -color-fg-muted;
+}
+
+.regex-help-example {
+    -fx-wrap-text: true;
+}
+
 .rule-condition-group,
 .rule-action-group {
     -fx-padding: 12;

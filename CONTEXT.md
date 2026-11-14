@@ -71,7 +71,7 @@ A portable archive containing a selected set of data and only the references nee
 A merge that adds new rules and updates same-name rules while leaving local rules absent from the export unchanged. Missing or ambiguous category, label, or account references make the whole import invalid.
 
 **Rule Condition**:
-A comparison between a transaction field and a search value. Text comparisons, including regular expressions, ignore letter case.
+A comparison between a transaction field and a search value. Text comparisons, including regular expressions, ignore letter case. A regular expression must match the whole field value; use `.*term.*` to match text containing `term`.
 
 **Rule Match Mode**:
 How a rule combines its conditions: **all** requires every condition to match; **any** requires at least one. Existing rules without an explicit match mode use **all**.
