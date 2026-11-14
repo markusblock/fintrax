@@ -29,6 +29,9 @@ import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
+import javafx.scene.input.PickResult;
 import javafx.stage.Stage;
 import org.fintrax.config.I18n;
 import org.fintrax.model.*;
@@ -516,6 +519,42 @@ class RulesControllerTest extends AbstractUITest {
         interact(() -> search.setText("REVIEW-"));
         assertEquals(List.of(transaction.getId(), nonConflictingTransaction.getId()),
                 transactions.getItems().stream().map(Transaction::getId).toList());
+    }
+
+    @Test
+    void doubleClickingReadOnlyRuleCategoryOpensDetailsBelowTable() {
+        TableView<Rule> ruleTable = lookup("#ruleTable").query();
+        Rule selectedRule = ruleTable.getItems().stream()
+                .filter(rule -> rule.getName().equals(ruleName)).findFirst().orElseThrow();
+        interact(() -> ruleTable.getSelectionModel().select(selectedRule));
+
+        TableView<Transaction> transactions = lookup("#ruleTransactionsTable").query();
+        int transactionCount = transactions.getItems().size();
+        BigDecimal totalAmount = transactions.getItems().stream()
+                .map(Transaction::getAmount)
+                .filter(amount -> amount != null)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        String countKey = transactionCount == 1
+                ? "transactionWorkspace.count.one" : "transactionWorkspace.count.many";
+        assertEquals(I18n.get(countKey, transactionCount),
+                lookup("#transactionCountValue").queryLabeled().getText());
+        assertEquals(String.format(I18n.getCurrentLocale(), "%,.2f EUR", totalAmount),
+                lookup("#transactionTotalAmount").queryLabeled().getText());
+        TableColumn<?, ?> categoryColumn = transactions.getColumns().stream()
+                .filter(column -> I18n.get("col.category").equals(column.getText()))
+                .findFirst().orElseThrow();
+        TableCell<?, ?> categoryCell = cellForTransaction(transactions, categoryColumn, transaction);
+
+        assertFalse(lookup("#detailPanel").query().isVisible());
+        interact(() -> Event.fireEvent(categoryCell, new MouseEvent(MouseEvent.MOUSE_CLICKED,
+                1, 1, 1, 1, MouseButton.PRIMARY, 2,
+                false, false, false, false,
+                false, false, false, true, false, true,
+                new PickResult(categoryCell, 1, 1))));
+        WaitForAsyncUtils.waitForFxEvents();
+
+        assertTrue(lookup("#detailPanel").query().isVisible());
+        assertEquals(currentCategory.getName(), lookup("#categoryValue").queryLabeled().getText());
     }
 
     @Test
