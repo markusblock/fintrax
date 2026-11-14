@@ -328,6 +328,49 @@ class HibiscusXmlImporterTest {
         assertNotNull(firstTx.getAccountId());
         assertTrue(firstTx.getPurpose().contains("SVWZ+NR XXXX 1024 Pforzheim"));
         assertEquals("Lastschrifteinzug", firstTx.getTransactionType());
+        assertEquals("NONREF", firstTx.getCustomerReference());
+        assertEquals("009500", firstTx.getPrimanota());
+        assertEquals("005", firstTx.getGvCode());
+        assertTrue(firstTx.isBooked());
+    }
+
+    @Test
+    void importsHibiscusExtendedReferences() throws IOException {
+        String xml = Files.readString(support.loadXmlTestData(IMPORT_TEST_DATA).toPath());
+        xml = appendToTransaction(xml, 1, """
+                <endtoendid type="java.lang.String">E2E-123</endtoendid>
+                <mandateid type="java.lang.String">MANDATE-456</mandateid>
+                <creditorid type="java.lang.String">CREDITOR-789</creditorid>
+                """);
+        File xmlFile = writeImportFile("extended-references.xml", xml);
+
+        importer.importFile(xmlFile, false, false);
+
+        Transaction importedTransaction = store.getRoot().getTransactions().stream()
+                .filter(transaction -> "VISA Test GmbH".equals(transaction.getOriginalPayee()))
+                .findFirst().orElseThrow();
+        assertEquals("E2E-123", importedTransaction.getEndToEndId());
+        assertEquals("MANDATE-456", importedTransaction.getMandateId());
+        assertEquals("CREDITOR-789", importedTransaction.getCreditorId());
+    }
+
+    @Test
+    void mapsHibiscusNotBookedFlagAsABitmask() throws IOException {
+        String xml = Files.readString(support.loadXmlTestData(IMPORT_TEST_DATA).toPath());
+        xml = appendToTransaction(xml, 1, "<flags type=\"java.lang.Integer\">3</flags>");
+        xml = appendToTransaction(xml, 2, "<flags type=\"java.lang.Integer\">1</flags>");
+        File xmlFile = writeImportFile("booking-flags.xml", xml);
+
+        importer.importFile(xmlFile, false, false);
+
+        Transaction notBooked = store.getRoot().getTransactions().stream()
+                .filter(transaction -> "VISA Test GmbH".equals(transaction.getOriginalPayee()))
+                .findFirst().orElseThrow();
+        Transaction checked = store.getRoot().getTransactions().stream()
+                .filter(transaction -> "REWE Filiale".equals(transaction.getOriginalPayee()))
+                .findFirst().orElseThrow();
+        assertFalse(notBooked.isBooked());
+        assertTrue(checked.isBooked());
     }
 
     @Test
@@ -492,5 +535,13 @@ class HibiscusXmlImporterTest {
         Path path = tempDir.resolve(name);
         Files.writeString(path, xml);
         return path.toFile();
+    }
+
+    private String appendToTransaction(String xml, int transactionId, String fields) {
+        String startTag = "<object type=\"de.willuhn.jameica.hbci.server.UmsatzImpl\" id=\""
+                + transactionId + "\">";
+        int start = xml.indexOf(startTag);
+        int end = xml.indexOf("</object>", start);
+        return xml.substring(0, end) + fields + xml.substring(end);
     }
 }
