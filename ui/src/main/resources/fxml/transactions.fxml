@@ -2,7 +2,6 @@
 
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<?import org.kordamp.ikonli.javafx.FontIcon?>
 <BorderPane fx:id="rootPane" xmlns:fx="http://javafx.com/fxml"
             fx:controller="org.fintrax.ui.controller.TransactionsController" styleClass="transactions-view">
     <fx:define>
@@ -25,18 +24,6 @@
             </graphic>
         </TableColumn>
     </fx:define>
-    <top>
-        <VBox styleClass="transactions-header">
-            <HBox spacing="10" alignment="CENTER_LEFT">
-                <Label text="%view.transactions" styleClass="page-title"/>
-                <Region HBox.hgrow="ALWAYS"/>
-                <Button fx:id="detailToggleButton" text="%button.toggleDetail" onAction="#onToggleDetail"
-                        styleClass="button-outlined">
-                    <graphic><FontIcon iconLiteral="fth-eye" iconSize="15"/></graphic>
-                </Button>
-            </HBox>
-        </VBox>
-    </top>
     <center>
         <VBox styleClass="transactions-content-area">
             <VBox fx:id="transactionsPanel" spacing="12" styleClass="content-panel,transactions-content-panel"

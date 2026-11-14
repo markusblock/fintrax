@@ -35,8 +35,6 @@ import java.util.stream.Collectors;
 @Scope("prototype")
 public class RulesController {
     private static final String COLUMN_CONFIG_KEY = "rules.transaction.columns";
-    private static final String AMOUNT_POSITIVE_STYLE = "amount-positive";
-    private static final String AMOUNT_NEGATIVE_STYLE = "amount-negative";
     private static final String DISABLED_RULE_ROW_CLASS = "disabled-rule-row";
     private static final String WARNING_COPY_STYLE = "warning-copy";
 
@@ -85,8 +83,6 @@ public class RulesController {
     private TableColumn<Transaction, Number> transactionRuleCountColumn;
     @FXML
     private TableColumn<Transaction, String> transactionMatchedRulesColumn;
-    @FXML
-    private Label ruleTransactionsTotalAmount;
     private TransactionFilterPanelController transactionFilterPanelController;
     @FXML
     private TableColumn<Transaction, ?> transactionColumnMenuColumn;
@@ -186,9 +182,6 @@ public class RulesController {
         TableCellTooltips.install(ruleTransactionsTable);
         ruleTransactionsTable.setItems(displayedTransactions);
         setupColumnMenu();
-        displayedTransactions.addListener((javafx.collections.ListChangeListener<Transaction>) change ->
-                updateTransactionTotal());
-        updateTransactionTotal();
         transactionTableActions.installContextMenu(
                 ruleTransactionsTable, this::reloadSelectedTransactionsKeepingSelection, null);
         transactionFilterPanelController.setCollapsible(true);
@@ -445,21 +438,6 @@ public class RulesController {
                 ruleTransactionsTable.getSelectionModel().select(index);
             }
         }
-    }
-
-    private void updateTransactionTotal() {
-        BigDecimal total = displayedTransactions.stream()
-                .map(Transaction::getAmount)
-                .filter(Objects::nonNull)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        ruleTransactionsTotalAmount.setText(formatAmount(total));
-        ruleTransactionsTotalAmount.getStyleClass().removeAll(AMOUNT_POSITIVE_STYLE, AMOUNT_NEGATIVE_STYLE);
-        ruleTransactionsTotalAmount.getStyleClass()
-                .add(total.signum() < 0 ? AMOUNT_NEGATIVE_STYLE : AMOUNT_POSITIVE_STYLE);
-    }
-
-    private String formatAmount(BigDecimal amount) {
-        return String.format("%,.2f EUR", amount);
     }
 
     @FXML
