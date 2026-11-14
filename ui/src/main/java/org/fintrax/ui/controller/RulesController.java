@@ -214,8 +214,7 @@ public class RulesController {
         transactionTableSetup = new TransactionTableSetup(ruleTransactionsTable,
                 accountService, categoryService, labelService);
         transactionTableSetup.configure();
-        transactionWorkspaceController.attachDetails(
-                transactionTableSetup.categoryColumn(), transactionTableSetup.labelsColumn());
+        transactionWorkspaceController.attachDetails(Set.of());
     }
 
     private void setupRuleMatchColumns() {

@@ -111,7 +111,7 @@ public class TransactionsController {
         transactionWorkspaceController.setTableColumns(List.of(bookingDateColumn, valueDateColumn, payeeColumn,
                 accountColumn, purposeColumn, amountColumn, balanceColumn, categoryColumn, labelsColumn,
                 columnMenuColumn));
-        transactionWorkspaceController.attachDetails(categoryColumn, labelsColumn);
+        transactionWorkspaceController.attachDetails(Set.of(categoryColumn, labelsColumn));
         transactionTableActions.installContextMenu(
                 transactionTable, this::reloadTransactionsKeepingSelection, this::createRuleFromTransaction);
         setupTableColumns();

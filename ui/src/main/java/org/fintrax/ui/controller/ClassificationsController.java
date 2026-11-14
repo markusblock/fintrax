@@ -175,7 +175,7 @@ public class ClassificationsController {
                 transactionTableActions.setLabels(classificationTransactionsTable, anchor,
                         this::reloadSelectedTransactionsKeepingSelection)));
         transactionWorkspaceController.attachDetails(
-                transactionTableSetup.categoryColumn(), transactionTableSetup.labelsColumn());
+                Set.of(transactionTableSetup.categoryColumn(), transactionTableSetup.labelsColumn()));
     }
 
     private void updateTransactionTotal() {

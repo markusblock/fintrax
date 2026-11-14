@@ -92,8 +92,7 @@ public class TransactionDetailsPanelController {
     private final LabelService labelService;
     private TableView<Transaction> transactionTable;
     private SplitPane splitPane;
-    private TableColumn<?, ?> categoryColumn;
-    private TableColumn<?, ?> labelsColumn;
+    private Set<TableColumn<?, ?>> interactiveColumns = Set.of();
     private boolean detailVisible;
 
     public TransactionDetailsPanelController(AccountService accountService,
@@ -105,11 +104,10 @@ public class TransactionDetailsPanelController {
     }
 
     public void attach(TableView<Transaction> table, SplitPane detailsSplitPane,
-                       TableColumn<?, ?> transactionCategoryColumn, TableColumn<?, ?> transactionLabelsColumn) {
+                       Set<TableColumn<?, ?>> transactionInteractiveColumns) {
         transactionTable = table;
         splitPane = detailsSplitPane;
-        categoryColumn = transactionCategoryColumn;
-        labelsColumn = transactionLabelsColumn;
+        interactiveColumns = Set.copyOf(transactionInteractiveColumns);
         transactionTable.getSelectionModel().selectedItemProperty().addListener((observable, oldTransaction,
                                                                                   newTransaction) -> {
             if (detailVisible) {
@@ -134,7 +132,7 @@ public class TransactionDetailsPanelController {
         TableCell<?, ?> clickedCell = findTableCell(target);
         if (clickedCell == null || clickedCell.isEmpty()) return;
         TableColumn<?, ?> clickedColumn = clickedCell.getTableColumn();
-        if (clickedColumn == null || clickedColumn == categoryColumn || clickedColumn == labelsColumn
+        if (clickedColumn == null || interactiveColumns.contains(clickedColumn)
                 || clickedColumn.getGraphic() instanceof MenuButton) return;
 
         int rowIndex = clickedCell.getIndex();

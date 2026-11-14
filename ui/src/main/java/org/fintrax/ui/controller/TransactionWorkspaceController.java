@@ -9,6 +9,7 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Set;
 
 /** Shared filter, transaction table, and transaction details workspace used by transaction views. */
 @Component
@@ -39,9 +40,9 @@ public class TransactionWorkspaceController {
         transactionTable.getColumns().setAll(columns);
     }
 
-    public void attachDetails(TableColumn<?, ?> categoryColumn, TableColumn<?, ?> labelsColumn) {
+    public void attachDetails(Set<TableColumn<?, ?>> interactiveColumns) {
         transactionDetailsPanelController.attach(
-                transactionTable, transactionSplitPane, categoryColumn, labelsColumn);
+                transactionTable, transactionSplitPane, interactiveColumns);
     }
 
     public void toggleDetails() {
