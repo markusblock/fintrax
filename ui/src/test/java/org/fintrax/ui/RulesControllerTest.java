@@ -565,8 +565,10 @@ class RulesControllerTest extends AbstractUITest {
         String originalLanguage = settingsService.getLanguage();
         String editMenuItemText = I18n.get("button.edit");
         try {
-            settingsService.saveLanguage("de");
-            I18n.setLocale(settingsService.getLocale());
+            interact(() -> {
+                settingsService.saveLanguage("de");
+                I18n.setLocale(settingsService.getLocale());
+            });
 
             TableView<Rule> ruleTable = lookup("#ruleTable").query();
             Rule selectedRule = ruleTable.getItems().stream()
@@ -592,8 +594,10 @@ class RulesControllerTest extends AbstractUITest {
             WaitForAsyncUtils.waitForFxEvents();
             assertFalse(lookup(".regex-help-guide").query().isVisible());
         } finally {
-            settingsService.saveLanguage(originalLanguage);
-            I18n.setLocale(settingsService.getLocale());
+            interact(() -> {
+                settingsService.saveLanguage(originalLanguage);
+                I18n.setLocale(settingsService.getLocale());
+            });
         }
     }
 
