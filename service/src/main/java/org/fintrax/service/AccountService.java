@@ -171,6 +171,22 @@ public class AccountService {
         return account;
     }
 
+    public BankAccount setSyncExcluded(Long id, boolean syncExcluded) {
+        BankAccount account = store.getAccount(id);
+        if (account == null) {
+            throw new IllegalArgumentException("Account not found: " + id);
+        }
+        if (account.isSyncExcluded() == syncExcluded) {
+            return account;
+        }
+
+        account.setSyncExcluded(syncExcluded);
+        account.setUpdatedAt(LocalDateTime.now(ZoneId.systemDefault()));
+        store.store(account);
+        activityLogger.log(ActivityAction.UPDATE, EntityType.ACCOUNT, id, "Changed bank sync exclusion");
+        return account;
+    }
+
     public void deleteAccount(Long id) {
         BankAccount account = store.getAccount(id);
         if (account == null) {
