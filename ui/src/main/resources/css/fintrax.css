@@ -890,6 +890,45 @@
     -fx-padding: 7 0;
 }
 
+.regex-help-guide {
+    -fx-padding: 10 12;
+    -fx-background-color: -color-bg-default;
+    -fx-border-color: -color-border-default;
+    -fx-border-radius: 6;
+    -fx-background-radius: 6;
+}
+
+.regex-example-row {
+    -fx-spacing: 4;
+    -fx-padding: 7 0;
+    -fx-border-color: transparent transparent -color-border-default transparent;
+}
+
+.regex-example-demonstration {
+    -fx-spacing: 8;
+    -fx-alignment: CENTER_LEFT;
+}
+
+.regex-example-pattern {
+    -fx-font-family: monospace;
+    -fx-font-weight: bold;
+    -fx-text-fill: -color-accent-fg;
+}
+
+.regex-example-arrow,
+.regex-example-explanation {
+    -fx-text-fill: -color-fg-muted;
+}
+
+.regex-example-text {
+    -fx-font-family: monospace;
+    -fx-text-fill: -color-fg-default;
+}
+
+.regex-example-explanation {
+    -fx-wrap-text: true;
+}
+
 .rule-condition-group,
 .rule-action-group {
     -fx-padding: 12;
