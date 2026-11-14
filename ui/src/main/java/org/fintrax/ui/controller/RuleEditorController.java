@@ -252,7 +252,10 @@ public class RuleEditorController {
             row.valueField.setText(conditionEditorValue(existing));
         }
         row.fieldCombo.valueProperty().addListener((observable, oldValue, newValue) -> notifyChanged());
-        row.operatorCombo.valueProperty().addListener((observable, oldValue, newValue) -> notifyChanged());
+        row.operatorCombo.valueProperty().addListener((observable, oldValue, newValue) -> {
+            row.updateRegexHelpVisibility();
+            notifyChanged();
+        });
         row.valueField.textProperty().addListener((observable, oldValue, newValue) -> notifyChanged());
         row.removeButton.setOnAction(event -> {
             if (conditionRows.size() == 1) {
@@ -262,12 +265,12 @@ public class RuleEditorController {
                 notifyChanged();
                 return;
             }
-            conditionsContainer.getChildren().removeAll(row.grid, row.separator);
+            conditionsContainer.getChildren().remove(row.content);
             conditionRows.remove(row);
             notifyChanged();
         });
         conditionRows.add(row);
-        conditionsContainer.getChildren().addAll(row.grid, row.separator);
+        conditionsContainer.getChildren().add(row.content);
         notifyChanged();
     }
 
@@ -472,6 +475,8 @@ public class RuleEditorController {
 
     private static final class ConditionRow {
         private final GridPane grid = conditionRowGrid();
+        private final VBox content = new VBox(4);
+        private final VBox regexHelpGuide = regexHelpGuide();
         private final ComboBox<String> fieldCombo = new ComboBox<>();
         private final ComboBox<String> operatorCombo = new ComboBox<>();
         private final TextField valueField = new TextField();
@@ -479,10 +484,12 @@ public class RuleEditorController {
         private final Separator separator = new Separator();
 
         private ConditionRow() {
+            content.getStyleClass().add("rule-condition-content");
+            content.setMaxWidth(Double.MAX_VALUE);
             grid.getStyleClass().add("rule-condition-row");
             fieldCombo.getStyleClass().add(RULE_ROW_CONTROL_STYLE_CLASS);
-            operatorCombo.getStyleClass().add(RULE_ROW_CONTROL_STYLE_CLASS);
-            valueField.getStyleClass().add(RULE_ROW_CONTROL_STYLE_CLASS);
+            operatorCombo.getStyleClass().addAll(RULE_ROW_CONTROL_STYLE_CLASS, "rule-condition-operator");
+            valueField.getStyleClass().addAll(RULE_ROW_CONTROL_STYLE_CLASS, "rule-condition-value");
             valueField.setPrefColumnCount(25);
             valueField.setMinWidth(Region.USE_PREF_SIZE);
             fieldCombo.setMaxWidth(Double.MAX_VALUE);
@@ -490,10 +497,47 @@ public class RuleEditorController {
             operatorCombo.setMaxWidth(Double.MAX_VALUE);
             valueField.setMaxWidth(Double.MAX_VALUE);
             separator.getStyleClass().add("rule-row-separator");
+            regexHelpGuide.setVisible(false);
+            regexHelpGuide.setManaged(false);
             grid.add(fieldCombo, 0, 0);
             grid.add(operatorCombo, 1, 0);
             grid.add(valueField, 2, 0);
             grid.add(removeButton, 3, 0);
+            content.getChildren().addAll(grid, regexHelpGuide, separator);
+            valueField.focusedProperty().addListener((observable, oldValue, focused) ->
+                    updateRegexHelpVisibility());
+        }
+
+        private void updateRegexHelpVisibility() {
+            Operator operator = operatorFromText(operatorCombo.getValue());
+            boolean showGuide = (operator == Operator.REGEX || operator == Operator.NOT_REGEX)
+                    && valueField.isFocused();
+            regexHelpGuide.setVisible(showGuide);
+            regexHelpGuide.setManaged(showGuide);
+        }
+
+        private static VBox regexHelpGuide() {
+            VBox guide = new VBox();
+            guide.getStyleClass().add("regex-help-guide");
+            guide.setMaxWidth(Double.MAX_VALUE);
+            for (int index = 1; index <= 6; index++) {
+                String exampleKey = "ruleEditor.regexHelp.example." + index;
+                Label pattern = new Label(I18n.get(exampleKey + ".pattern"));
+                pattern.getStyleClass().add("regex-example-pattern");
+                Label arrow = new Label("→");
+                arrow.getStyleClass().add("regex-example-arrow");
+                Label exampleText = new Label(I18n.get(exampleKey + ".text"));
+                exampleText.getStyleClass().add("regex-example-text");
+                HBox demonstration = new HBox(8, pattern, arrow, exampleText);
+                demonstration.getStyleClass().add("regex-example-demonstration");
+                Label explanation = new Label(I18n.get(exampleKey + ".explanation"));
+                explanation.getStyleClass().add("regex-example-explanation");
+                explanation.setWrapText(true);
+                VBox example = new VBox(4, demonstration, explanation);
+                example.getStyleClass().add("regex-example-row");
+                guide.getChildren().add(example);
+            }
+            return guide;
         }
 
         private static GridPane conditionRowGrid() {
