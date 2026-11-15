@@ -14,7 +14,7 @@ class StartupFailureMessagesTest {
     void storageInUseMessageNamesStorageAndExplainsHowToRecover() {
         I18n.setLocale(Locale.ENGLISH);
 
-        String message = StartupFailureMessages.storageInUse(Path.of("/home/alex/.fintrax/data"));
+        String message = I18n.get("startup.storageInUse.message", Path.of("/home/alex/.fintrax/data"));
 
         assertAll(
                 () -> assertTrue(message.contains("/home/alex/.fintrax/data")),
@@ -27,7 +27,7 @@ class StartupFailureMessagesTest {
     void storageInUseMessageCanUseGermanLocale() {
         I18n.setLocale(Locale.GERMAN);
 
-        String message = StartupFailureMessages.storageInUse(Path.of("/home/alex/.fintrax/data"));
+        String message = I18n.get("startup.storageInUse.message", Path.of("/home/alex/.fintrax/data"));
 
         assertAll(
                 () -> assertTrue(message.contains("/home/alex/.fintrax/data")),

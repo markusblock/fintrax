@@ -22,7 +22,7 @@ public final class StartupErrorApplication extends Application {
         Alert alert = new Alert(Alert.AlertType.ERROR);
         alert.setTitle(I18n.get("app.name"));
         alert.setHeaderText(I18n.get("startup.storageInUse.title"));
-        alert.setContentText(StartupFailureMessages.storageInUse(storagePath));
+        alert.setContentText(I18n.get("startup.storageInUse.message", storagePath));
         alert.showAndWait();
     }
 }
