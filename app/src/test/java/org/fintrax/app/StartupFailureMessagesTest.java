@@ -7,6 +7,7 @@ import java.nio.file.Path;
 import java.util.Locale;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class StartupFailureMessagesTest {
@@ -27,12 +28,11 @@ class StartupFailureMessagesTest {
     void storageInUseMessageCanUseGermanLocale() {
         I18n.setLocale(Locale.GERMAN);
 
-        String message = I18n.get("startup.storageInUse.message", Path.of("/home/alex/.fintrax/data"));
+        String storagePath = "/home/alex/.fintrax/data";
+        String message = I18n.get("startup.storageInUse.message", Path.of(storagePath));
 
-        assertAll(
-                () -> assertTrue(message.contains("/home/alex/.fintrax/data")),
-                () -> assertTrue(message.contains("Schließen Sie die andere Instanz")),
-                () -> assertTrue(message.contains("versuchen Sie es erneut"))
-        );
+        assertEquals("Fintrax ist bereits gestartet und kann nicht ein weiteres Mal gestartet werden.\n"
+                + "Speicherort: " + storagePath + "\n"
+                + "Schließen Sie die andere Instanz und versuchen Sie es erneut.", message);
     }
 }
