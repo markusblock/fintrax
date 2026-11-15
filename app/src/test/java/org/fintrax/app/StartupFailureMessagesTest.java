@@ -28,6 +28,8 @@ class StartupFailureMessagesTest {
     void storageInUseMessageCanUseGermanLocale() {
         I18n.setLocale(Locale.GERMAN);
 
+        assertEquals("Fintrax bereits gestartet", I18n.get("startup.storageInUse.title"));
+
         String storagePath = "/home/alex/.fintrax/data";
         String message = I18n.get("startup.storageInUse.message", Path.of(storagePath));
 
