@@ -16,7 +16,7 @@ import org.fintrax.service.RuleService;
 import org.fintrax.service.SettingsService;
 import org.fintrax.service.SyncService;
 import org.fintrax.service.TransactionService;
-import org.fintrax.store.BackupConfiguration;
+import org.fintrax.store.FintraxProperties;
 import org.fintrax.store.StorageAlreadyInUseException;
 import org.fintrax.store.StoreManager;
 import org.fintrax.ui.ViewLoader;
@@ -85,8 +85,8 @@ class FintraxSpringBootstrapTest {
                 "--spring.main.banner-mode=off",
                 "--fintrax.storage.path=" + storagePath,
                 "--fintrax.backup.path=" + storagePath.resolve("backups"),
-                "--fintrax.backup.config=" + tempDir.resolve("unavailable-backup.properties"))) {
-            assertFalse(context.getBean(BackupConfiguration.class).isAvailable());
+                "--fintrax.config.path=" + tempDir.resolve("unavailable-fintrax.properties"))) {
+            assertFalse(context.getBean(FintraxProperties.class).isAvailable());
             assertNotNull(context.getBean(StoreManager.class).getRoot());
         }
     }
@@ -96,7 +96,7 @@ class FintraxSpringBootstrapTest {
                 "--spring.main.banner-mode=off",
                 "--fintrax.storage.path=" + tempDir.resolve("data"),
                 "--fintrax.backup.path=" + tempDir.resolve("backups"),
-                "--fintrax.backup.config=" + tempDir.resolve("backup.properties"));
+                "--fintrax.config.path=" + tempDir.resolve("fintrax.properties"));
     }
 
     @Test

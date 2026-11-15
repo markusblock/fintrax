@@ -16,7 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.fintrax.config.I18n;
 import org.fintrax.service.BackupService;
 import org.fintrax.service.SettingsService;
-import org.fintrax.store.BackupConfiguration;
+import org.fintrax.store.FintraxProperties;
 import org.fintrax.ui.controller.SessionViewState;
 import org.springframework.context.ApplicationContext;
 
@@ -72,7 +72,7 @@ public class FintraxUI extends Application {
     }
 
     private static void promptBackupRecovery(Stage owner, Throwable failure) {
-        BackupConfiguration backupConfiguration = getApplicationContext().getBean(BackupConfiguration.class);
+        FintraxProperties backupConfiguration = getApplicationContext().getBean(FintraxProperties.class);
         while (owner.isShowing()) {
             Alert alert = new Alert(Alert.AlertType.WARNING);
             configureDialog(alert);

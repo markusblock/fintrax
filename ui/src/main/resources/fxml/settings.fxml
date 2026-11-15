@@ -56,6 +56,11 @@
                     <Label fx:id="dataDirLabel" styleClass="path-value"
                            GridPane.rowIndex="0" GridPane.columnIndex="1"/>
                 </GridPane>
+                    <Label fx:id="storageStatusLabel" wrapText="true" styleClass="help-text"/>
+                    <HBox spacing="10" alignment="CENTER_RIGHT">
+                        <Button fx:id="chooseStorageDirectoryButton" text="%settings.storage.choose"
+                                onAction="#onChooseStorageDirectory" styleClass="button-outlined"/>
+                    </HBox>
                 </VBox>
 
                 <VBox styleClass="settings-card">

@@ -37,7 +37,7 @@ public abstract class AbstractUITest extends ApplicationTest {
                 new MapPropertySource("test-properties", Map.of(
                         "fintrax.storage.path", tempDir.resolve("data").toString(),
                         "fintrax.backup.path", tempDir.resolve("backups").toString(),
-                        "fintrax.backup.config", tempDir.resolve("backup.properties").toString())));
+                        "fintrax.config.path", tempDir.resolve("fintrax.properties").toString())));
         applicationContext.register(StoreConfiguration.class, FintxConfiguration.class,
                 ServiceConfiguration.class, UiModule.class);
         applicationContext.refresh();

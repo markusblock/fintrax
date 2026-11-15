@@ -3,7 +3,7 @@ package org.fintrax.app;
 import lombok.extern.slf4j.Slf4j;
 import org.eclipse.store.storage.exceptions.StorageException;
 import org.springframework.context.ConfigurableApplicationContext;
-import org.fintrax.store.BackupConfiguration;
+import org.fintrax.store.FintraxProperties;
 import org.fintrax.store.StorageAlreadyInUseException;
 import org.fintrax.store.StoragePathResolver;
 import org.fintrax.ui.FintraxUI;
@@ -31,11 +31,11 @@ public final class FintraxApplication {
                 throw exception;
             }
 
-            Path storagePath = resolveStoragePath(args);
-            BackupConfiguration backupConfiguration = resolveBackupConfiguration(storagePath, args);
+            FintraxProperties fintraxProperties = resolveFintraxProperties(args);
+            Path storagePath = StoragePathResolver.resolve(fintraxProperties.storagePath().toString());
             log.error("Fintrax cannot open storage at {}", storagePath, exception);
             boolean restored = StartupErrorApplication.showStorageFailure(
-                    storagePath, backupConfiguration, storageFailure, args);
+                    storagePath, fintraxProperties, storageFailure, args);
             System.exit(restored ? 0 : 1);
             return;
         }
@@ -65,16 +65,11 @@ public final class FintraxApplication {
         return storageFailure;
     }
 
-    private static Path resolveStoragePath(String[] args) {
-        return StoragePathResolver.resolve(optionValue(args, "fintrax.storage.path", "~/.fintrax/data"));
-    }
-
-    private static BackupConfiguration resolveBackupConfiguration(Path storagePath, String[] args) {
-        String configurationFile = optionValue(args, "fintrax.backup.config", "~/.fintrax/backup.properties");
-        String defaultDestination = optionValue(args, "fintrax.backup.default-path", "~/.fintrax/backups");
-        String destinationOverride = optionValue(args, "fintrax.backup.path", null);
-        return new BackupConfiguration(storagePath, Path.of(configurationFile), Path.of(defaultDestination),
-                destinationOverride);
+    private static FintraxProperties resolveFintraxProperties(String[] args) {
+        String configurationFile = optionValue(args, "fintrax.config.path", FintraxProperties.DEFAULT_FILE);
+        String storageOverride = optionValue(args, "fintrax.storage.path", null);
+        String backupOverride = optionValue(args, "fintrax.backup.path", null);
+        return new FintraxProperties(Path.of(configurationFile), storageOverride, backupOverride);
     }
 
     private static String optionValue(String[] args, String option, String defaultValue) {

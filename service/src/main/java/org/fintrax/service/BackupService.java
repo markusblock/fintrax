@@ -2,7 +2,7 @@ package org.fintrax.service;
 
 import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
-import org.fintrax.store.BackupConfiguration;
+import org.fintrax.store.FintraxProperties;
 import org.fintrax.store.StoreManager;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -39,7 +39,7 @@ public class BackupService implements AutoCloseable {
     private static final DateTimeFormatter SNAPSHOT_TIMESTAMP = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH-mm-ss-SSS");
 
     private final StoreManager storeManager;
-    private final BackupConfiguration configuration;
+    private final FintraxProperties configuration;
     private final Clock clock;
     private final ScheduledExecutorService executor;
     private Consumer<Throwable> failureHandler = ignored -> { };
@@ -48,11 +48,11 @@ public class BackupService implements AutoCloseable {
 
     /** Creates the startup backup coordinator using the system's local clock. */
     @Autowired
-    public BackupService(StoreManager storeManager, BackupConfiguration configuration) {
+    public BackupService(StoreManager storeManager, FintraxProperties configuration) {
         this(storeManager, configuration, Clock.systemDefaultZone());
     }
 
-    BackupService(StoreManager storeManager, BackupConfiguration configuration, Clock clock) {
+    BackupService(StoreManager storeManager, FintraxProperties configuration, Clock clock) {
         this.storeManager = storeManager;
         this.configuration = configuration;
         this.clock = clock;

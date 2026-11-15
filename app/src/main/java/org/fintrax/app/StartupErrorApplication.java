@@ -16,7 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.fintrax.config.I18n;
 import org.fintrax.service.BackupRestoreService;
 import org.fintrax.service.BackupRestoreService.RestoreResult;
-import org.fintrax.store.BackupConfiguration;
+import org.fintrax.store.FintraxProperties;
 import org.fintrax.ui.FintraxUI;
 import org.springframework.context.ConfigurableApplicationContext;
 
@@ -40,10 +40,10 @@ public final class StartupErrorApplication extends Application {
         Application.launch(StartupErrorApplication.class);
     }
 
-    public static boolean showStorageFailure(Path storagePath, BackupConfiguration backupConfiguration,
+    public static boolean showStorageFailure(Path storagePath, FintraxProperties fintraxProperties,
                                              Throwable failure, String... args) {
         storageInUsePath = null;
-        recoveryRequest = new RecoveryRequest(storagePath, backupConfiguration, failure, List.of(args));
+        recoveryRequest = new RecoveryRequest(storagePath, fintraxProperties, failure, List.of(args));
         restoredFromBackup = false;
         Application.launch(StartupErrorApplication.class);
         recoveryRequest = null;
@@ -74,62 +74,71 @@ public final class StartupErrorApplication extends Application {
 
     private void showStorageRecovery(Stage owner, RecoveryRequest request) {
         BackupRestoreService restoreService = new BackupRestoreService();
-        RecoveryRequest currentRequest = request;
-        while (true) {
-            List<Path> backups = listFullBackups(restoreService, currentRequest.backupConfiguration());
+        List<Path> backups = listFullBackups(restoreService, request.fintraxProperties());
+        switch (showStorageErrorDialog(owner, request, backups)) {
+            case EXIT -> Platform.exit();
+            case CHANGE_BACKUP -> chooseBackupDirectory(owner, request);
+            case RESTORE -> chooseFullBackup(owner, request, backups, restoreService);
+        }
+    }
 
-            Alert alert = createStorageErrorAlert(currentRequest.storagePath(), currentRequest.failure(), backups);
-            ButtonType exit = alert.getButtonTypes().getLast();
-            ButtonType restore = new ButtonType(I18n.get("startup.storageError.restore"));
-            ButtonType changeBackup = new ButtonType(I18n.get("startup.storageError.changeBackup"));
-            alert.getButtonTypes().setAll(backups.isEmpty()
-                    ? List.of(changeBackup, exit) : List.of(restore, changeBackup, exit));
-            Optional<ButtonType> choice = alert.showAndWait();
-            if (choice.isEmpty() || choice.get() == exit) {
-                Platform.exit();
-                return;
-            }
-            if (choice.get() == changeBackup) {
-                try {
-                    DirectoryChooser chooser = new DirectoryChooser();
-                    chooser.setTitle(I18n.get("settings.backup.choose.title"));
-                    Path currentDestination = currentRequest.backupConfiguration().destination();
-                    if (currentDestination.toFile().isDirectory()) {
-                        chooser.setInitialDirectory(currentDestination.toFile());
-                    }
-                    File selectedFolder = chooser.showDialog(null);
-                    if (selectedFolder == null) {
-                        continue;
-                    }
-                    currentRequest.backupConfiguration().saveDestination(selectedFolder.toPath());
-                    Alert restart = new Alert(Alert.AlertType.INFORMATION,
-                            I18n.get("settings.backup.restartToResume"));
-                    FintraxUI.configureDialog(restart);
-                    restart.setTitle(I18n.get("settings.backup.failed.title"));
-                    restart.setHeaderText(I18n.get("settings.backup.failed.title"));
-                    restart.showAndWait();
-                    Platform.exit();
-                    return;
-                } catch (RuntimeException exception) {
-                    currentRequest = currentRequest.withFailure(exception);
-                    continue;
-                }
-            }
+    private StorageErrorAction showStorageErrorDialog(Stage owner, RecoveryRequest request, List<Path> backups) {
+        Alert alert = createStorageErrorAlert(request.storagePath(), request.failure(), backups);
+        ButtonType exit = new ButtonType(I18n.get("startup.storageError.exit"));
+        ButtonType changeBackup = new ButtonType(I18n.get("startup.storageError.changeBackup"));
+        ButtonType restore = new ButtonType(I18n.get("startup.storageError.restore"));
+        alert.getButtonTypes().setAll(backups.isEmpty()
+                ? List.of(changeBackup, exit) : List.of(restore, changeBackup, exit));
+        alert.initOwner(owner);
+        Optional<ButtonType> choice = alert.showAndWait();
+        if (choice.isEmpty() || choice.get() == exit) {
+            return StorageErrorAction.EXIT;
+        }
+        return choice.get() == changeBackup ? StorageErrorAction.CHANGE_BACKUP : StorageErrorAction.RESTORE;
+    }
 
-            if (backups.isEmpty()) {
-                continue;
-            }
-            ChoiceDialog<Path> backupChoice = new ChoiceDialog<>(backups.getFirst(), backups);
-            FintraxUI.configureDialog(backupChoice);
-            backupChoice.setTitle(I18n.get("startup.storageError.choose.title"));
-            backupChoice.setHeaderText(I18n.get("startup.storageError.choose.header"));
-            Optional<Path> selectedBackup = backupChoice.showAndWait();
-            if (selectedBackup.isEmpty()) {
-                continue;
-            }
-            startRestore(owner, currentRequest, selectedBackup.get(), restoreService);
+    private void chooseBackupDirectory(Stage owner, RecoveryRequest request) {
+        DirectoryChooser chooser = new DirectoryChooser();
+        chooser.setTitle(I18n.get("settings.backup.choose.title"));
+        Path currentDestination = request.fintraxProperties().configuredDestination();
+        if (currentDestination.toFile().isDirectory()) {
+            chooser.setInitialDirectory(currentDestination.toFile());
+        }
+        File selectedFolder = chooser.showDialog(owner);
+        if (selectedFolder == null) {
+            retryStorageErrorDialog(owner, request);
             return;
         }
+
+        try {
+            request.fintraxProperties().saveDestination(selectedFolder.toPath());
+            Alert restart = new Alert(Alert.AlertType.INFORMATION,
+                    I18n.get("settings.backup.restartToResume"));
+            FintraxUI.configureDialog(restart);
+            restart.initOwner(owner);
+            restart.setTitle(I18n.get("settings.backup.failed.title"));
+            restart.setHeaderText(I18n.get("settings.backup.failed.title"));
+            restart.showAndWait();
+            Platform.exit();
+        } catch (RuntimeException exception) {
+            retryStorageErrorDialog(owner, request.withFailure(exception));
+        }
+    }
+
+    private void chooseFullBackup(Stage owner, RecoveryRequest request,
+                                  List<Path> backups, BackupRestoreService restoreService) {
+        ChoiceDialog<Path> backupChoice = new ChoiceDialog<>(backups.getFirst(), backups);
+        FintraxUI.configureDialog(backupChoice);
+        backupChoice.initOwner(owner);
+        backupChoice.setTitle(I18n.get("startup.storageError.choose.title"));
+        backupChoice.setHeaderText(I18n.get("startup.storageError.choose.header"));
+        backupChoice.showAndWait().ifPresentOrElse(
+                backup -> startRestore(owner, request, backup, restoreService),
+                () -> retryStorageErrorDialog(owner, request));
+    }
+
+    private void retryStorageErrorDialog(Stage owner, RecoveryRequest request) {
+        Platform.runLater(() -> showStorageRecovery(owner, request));
     }
 
     static Alert createStorageErrorAlert(Path storagePath, Throwable failure, List<Path> backups) {
@@ -143,16 +152,13 @@ public final class StartupErrorApplication extends Application {
         }
         alert.setContentText(message);
 
-        ButtonType exit = new ButtonType(I18n.get("startup.storageError.exit"));
-        ButtonType restore = new ButtonType(I18n.get("startup.storageError.restore"));
-        alert.getButtonTypes().setAll(backups.isEmpty() ? List.of(exit) : List.of(restore, exit));
         return alert;
     }
 
     private List<Path> listFullBackups(BackupRestoreService restoreService,
-                                       BackupConfiguration backupConfiguration) {
+                                       FintraxProperties fintraxProperties) {
         try {
-            return restoreService.listFullBackups(backupConfiguration.snapshotsDirectory());
+            return restoreService.listFullBackups(fintraxProperties.snapshotsDirectory());
         } catch (Exception exception) {
             log.warn("Cannot list full backups", exception);
             return List.of();
@@ -177,8 +183,8 @@ public final class StartupErrorApplication extends Application {
             @Override
             protected RestoreResult call() throws Exception {
                 return restoreService.restoreFullBackup(selectedBackup,
-                        request.backupConfiguration().snapshotsDirectory(), request.storagePath(),
-                        request.backupConfiguration().continuousBackupDirectory());
+                        request.fintraxProperties().snapshotsDirectory(), request.storagePath(),
+                        request.fintraxProperties().continuousBackupDirectory());
             }
         };
         restoreTask.setOnSucceeded(event -> {
@@ -242,14 +248,20 @@ public final class StartupErrorApplication extends Application {
         Platform.exit();
     }
 
-    private record RecoveryRequest(Path storagePath, BackupConfiguration backupConfiguration,
+    private record RecoveryRequest(Path storagePath, FintraxProperties fintraxProperties,
                                    Throwable failure, List<String> arguments) {
         RecoveryRequest {
             arguments = List.copyOf(arguments);
         }
 
         RecoveryRequest withFailure(Throwable replacementFailure) {
-            return new RecoveryRequest(storagePath, backupConfiguration, replacementFailure, arguments);
+            return new RecoveryRequest(storagePath, fintraxProperties, replacementFailure, arguments);
         }
+    }
+
+    private enum StorageErrorAction {
+        RESTORE,
+        CHANGE_BACKUP,
+        EXIT
     }
 }

@@ -54,6 +54,8 @@ public class SettingsController {
     @FXML
     private Label dataDirLabel;
     @FXML
+    private Label storageStatusLabel;
+    @FXML
     private Label backupDirLabel;
     @FXML
     private Label backupStatusLabel;
@@ -74,14 +76,12 @@ public class SettingsController {
     private final RuleArchiveService ruleArchiveService;
     private final CategoryService categoryService;
     private final LabelService labelService;
-    private final Path storagePath;
 
     public SettingsController(AccountService accountService, PinStorage pinStorage,
                                HibiscusXmlImporter hibiscusXmlImporter, ResetService resetService,
                                SyncService syncService, SettingsService settingsService,
                                RuleService ruleService, RuleArchiveService ruleArchiveService,
-                               CategoryService categoryService, LabelService labelService,
-                               Path storagePath) {
+                               CategoryService categoryService, LabelService labelService) {
         this.accountService = accountService;
         this.pinStorage = pinStorage;
         this.hibiscusXmlImporter = hibiscusXmlImporter;
@@ -92,7 +92,6 @@ public class SettingsController {
         this.ruleArchiveService = ruleArchiveService;
         this.categoryService = categoryService;
         this.labelService = labelService;
-        this.storagePath = storagePath;
     }
 
     @FXML
@@ -115,7 +114,7 @@ public class SettingsController {
             }
         });
 
-        dataDirLabel.setText(storagePath.toString());
+        dataDirLabel.setText(settingsService.getStoragePath().toString());
         backupDirLabel.setText(settingsService.getBackupDestination().toString());
         settingsService.getBackupWarning().ifPresent(warning ->
                 backupStatusLabel.setText(I18n.get("settings.backup.unavailable", warning)));
@@ -179,6 +178,31 @@ public class SettingsController {
         File selected = chooser.showDialog(rootPane.getScene().getWindow());
         if (selected != null) {
             saveBackupDestination(selected.toPath());
+        }
+    }
+
+    @FXML
+    private void onChooseStorageDirectory() {
+        DirectoryChooser chooser = new DirectoryChooser();
+        chooser.setTitle(I18n.get("settings.storage.choose.title"));
+        Path currentStoragePath = settingsService.getStoragePath();
+        if (currentStoragePath.toFile().isDirectory()) {
+            chooser.setInitialDirectory(currentStoragePath.toFile());
+        }
+        File selected = chooser.showDialog(rootPane.getScene().getWindow());
+        if (selected != null) {
+            saveStoragePath(selected.toPath());
+        }
+    }
+
+    void saveStoragePath(Path path) {
+        try {
+            settingsService.saveStoragePath(path);
+            dataDirLabel.setText(path.toAbsolutePath().normalize().toString());
+            storageStatusLabel.setText(I18n.get("settings.storage.restartRequired"));
+        } catch (RuntimeException exception) {
+            log.warn("Cannot save storage directory {}", path, exception);
+            storageStatusLabel.setText(I18n.get("settings.storage.saveError", exception.getMessage()));
         }
     }
 

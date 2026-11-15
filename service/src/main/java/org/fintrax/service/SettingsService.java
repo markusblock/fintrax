@@ -1,7 +1,7 @@
 package org.fintrax.service;
 
 import org.fintrax.model.AppSetting;
-import org.fintrax.store.BackupConfiguration;
+import org.fintrax.store.FintraxProperties;
 import org.fintrax.store.StoreManager;
 import org.springframework.stereotype.Service;
 
@@ -18,11 +18,11 @@ public class SettingsService {
     public static final String DEFAULT_THEME = "light";
 
     private final StoreManager storeManager;
-    private final BackupConfiguration backupConfiguration;
+    private final FintraxProperties fintraxProperties;
 
-    public SettingsService(StoreManager storeManager, BackupConfiguration backupConfiguration) {
+    public SettingsService(StoreManager storeManager, FintraxProperties fintraxProperties) {
         this.storeManager = storeManager;
-        this.backupConfiguration = Objects.requireNonNull(backupConfiguration);
+        this.fintraxProperties = Objects.requireNonNull(fintraxProperties);
     }
 
     public String getLanguage() {
@@ -54,15 +54,23 @@ public class SettingsService {
     }
 
     public Path getBackupDestination() {
-        return backupConfiguration.destination();
+        return fintraxProperties.configuredDestination();
+    }
+
+    public Path getStoragePath() {
+        return fintraxProperties.configuredStoragePath();
     }
 
     public Optional<String> getBackupWarning() {
-        return backupConfiguration.startupWarning();
+        return fintraxProperties.startupWarning();
     }
 
     public void saveBackupDestination(Path destination) {
-        backupConfiguration.saveDestination(destination);
+        fintraxProperties.saveDestination(destination);
+    }
+
+    public void saveStoragePath(Path path) {
+        fintraxProperties.saveStoragePath(path);
     }
 
     public String getSettingValue(String key) {

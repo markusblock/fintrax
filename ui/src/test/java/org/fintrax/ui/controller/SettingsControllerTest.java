@@ -86,6 +86,18 @@ class SettingsControllerTest extends AbstractUITest {
     }
 
     @Test
+    void changingStorageFolderReportsRestartRequirement() {
+        assertTrue(lookup("#chooseStorageDirectoryButton").<Button>query().isVisible());
+        Label storageDirectory = lookup("#dataDirLabel").query();
+        Path selectedDestination = Path.of(storageDirectory.getText()).resolveSibling("next-data");
+
+        interact(() -> settingsController.saveStoragePath(selectedDestination));
+
+        assertEquals(selectedDestination.toAbsolutePath().normalize().toString(), storageDirectory.getText());
+        assertEquals(I18n.get("settings.storage.restartRequired"), lookup("#storageStatusLabel").<Label>query().getText());
+    }
+
+    @Test
     void credentialTableSortOrderSurvivesViewReload() throws Exception {
         TableView<SettingsController.CredentialRow> table = lookup("#credentialTable").query();
         interact(() -> {

@@ -1,6 +1,6 @@
 package org.fintrax.service;
 
-import org.fintrax.store.BackupConfiguration;
+import org.fintrax.store.FintraxProperties;
 import org.fintrax.store.StoreManager;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -48,7 +48,7 @@ class BackupServiceTest {
         Path storagePath = tempDir.resolve("active");
         Path backupPath = tempDir.resolve("backups");
         storeManager = new StoreManager(storagePath);
-        BackupConfiguration configuration = configuration(storagePath, backupPath);
+        FintraxProperties configuration = configuration(storagePath, backupPath);
 
         backupService = new BackupService(storeManager, configuration, fixedClock());
         backupService.start(ignored -> { }).get();
@@ -100,7 +100,7 @@ class BackupServiceTest {
     void reportsUnavailableDestinationAtStartup() throws Exception {
         Path storagePath = tempDir.resolve("active");
         storeManager = new StoreManager(storagePath);
-        BackupConfiguration configuration = configuration(storagePath, storagePath.resolve("backups"));
+        FintraxProperties configuration = configuration(storagePath, storagePath.resolve("backups"));
         backupService = new BackupService(storeManager, configuration, fixedClock());
         CompletableFuture<Throwable> reportedFailure = new CompletableFuture<>();
 
@@ -127,8 +127,9 @@ class BackupServiceTest {
         assertEquals(1, completedSnapshots(backupPath).size());
     }
 
-    private BackupConfiguration configuration(Path storagePath, Path backupPath) {
-        return new BackupConfiguration(storagePath, tempDir.resolve("backup.properties"), backupPath, null);
+    private FintraxProperties configuration(Path storagePath, Path backupPath) {
+        return new FintraxProperties(tempDir.resolve("fintrax.properties"),
+                storagePath.toString(), backupPath.toString());
     }
 
     private Clock fixedClock() {

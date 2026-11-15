@@ -1,7 +1,7 @@
 package org.fintrax.service;
 
 import org.fintrax.model.AppSetting;
-import org.fintrax.store.BackupConfiguration;
+import org.fintrax.store.FintraxProperties;
 import org.fintrax.store.StoreManager;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class SettingsServiceTest {
     private Path tempDir;
     private StoreManager storeManager;
-    private BackupConfiguration backupConfiguration;
+    private FintraxProperties fintraxProperties;
     private SettingsService settings;
 
     @BeforeEach
@@ -24,9 +24,9 @@ class SettingsServiceTest {
         tempDir = Files.createTempDirectory("fintrax-settings-test");
         Path storagePath = tempDir.resolve("data");
         storeManager = new StoreManager(storagePath);
-        backupConfiguration = new BackupConfiguration(
-                storagePath, tempDir.resolve("backup.properties"), tempDir.resolve("backups"), null);
-        settings = new SettingsService(storeManager, backupConfiguration);
+        fintraxProperties = new FintraxProperties(tempDir.resolve("fintrax.properties"),
+                storagePath.toString(), tempDir.resolve("backups").toString());
+        settings = new SettingsService(storeManager, fintraxProperties);
     }
 
     @AfterEach
@@ -57,7 +57,7 @@ class SettingsServiceTest {
         storeManager.shutdown();
 
         storeManager = new StoreManager(tempDir.resolve("data"));
-        settings = new SettingsService(storeManager, backupConfiguration);
+        settings = new SettingsService(storeManager, fintraxProperties);
 
         assertEquals("de", settings.getLanguage());
         assertEquals("dark", settings.getTheme());
