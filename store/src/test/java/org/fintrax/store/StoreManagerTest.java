@@ -53,6 +53,15 @@ class StoreManagerTest {
     }
 
     @Test
+    void refusesToOpenStorageAlreadyInUse() throws Exception {
+        StorageAlreadyInUseException exception = assertThrows(StorageAlreadyInUseException.class,
+                () -> new StoreManager(tempDir));
+
+        assertEquals(tempDir.toRealPath(), exception.getStoragePath());
+        assertTrue(exception.getMessage().contains(tempDir.toString()));
+    }
+
+    @Test
     void testStoreAndRetrieveAccount() {
         BankAccount account = BankAccount.builder()
                 .id(1L)
