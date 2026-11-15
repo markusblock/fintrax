@@ -64,6 +64,7 @@ class BackupRestoreServiceTest {
         Path marker = Files.writeString(activePath.resolve("damage.marker"), "preserve-me");
         Path snapshotsDirectory = Files.createDirectory(tempDir.resolve("snapshots"));
         Path emptySnapshot = Files.createDirectory(snapshotsDirectory.resolve(snapshotName()));
+        Files.createDirectory(emptySnapshot.resolve("channel_0"));
 
         assertThrows(IOException.class, () -> new BackupRestoreService()
                 .restoreFullBackup(emptySnapshot, snapshotsDirectory, activePath));

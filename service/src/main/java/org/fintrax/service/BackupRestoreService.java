@@ -133,8 +133,8 @@ public final class BackupRestoreService {
     private void copyBackup(Path backup, Path stagingPath) throws IOException {
         try (Stream<Path> entries = Files.walk(backup)) {
             List<Path> files = entries.toList();
-            if (files.size() <= 1) {
-                throw new IOException("Full backup is empty: " + backup);
+            if (files.stream().noneMatch(path -> Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS))) {
+                throw new IOException("Full backup contains no storage files: " + backup);
             }
             for (Path source : files) {
                 if (Files.isSymbolicLink(source)) {
