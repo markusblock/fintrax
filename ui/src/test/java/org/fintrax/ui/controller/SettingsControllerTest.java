@@ -9,6 +9,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.stage.Stage;
+import org.fintrax.config.I18n;
 import org.fintrax.service.SettingsService;
 import org.fintrax.service.hibiscus.HibiscusXmlImporter;
 import org.fintrax.ui.AbstractUITest;
@@ -16,6 +17,8 @@ import org.fintrax.ui.FintraxUI;
 import org.fintrax.ui.ViewLoader;
 import org.junit.jupiter.api.Test;
 import org.testfx.util.WaitForAsyncUtils;
+
+import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -68,6 +71,30 @@ class SettingsControllerTest extends AbstractUITest {
         interact(() -> lookup("#themeCombo").<ComboBox<String>>query().setValue("Dark"));
 
         assertEquals("dark", applicationContext.getBean(SettingsService.class).getTheme());
+    }
+
+    @Test
+    void changingBackupFolderReportsRestartRequirement() {
+        assertTrue(lookup("#chooseBackupDirectoryButton").<Button>query().isVisible());
+        Label backupDirectory = lookup("#backupDirLabel").query();
+        Path selectedDestination = Path.of(backupDirectory.getText()).resolveSibling("next-backups");
+
+        interact(() -> settingsController.saveBackupDestination(selectedDestination));
+
+        assertEquals(selectedDestination.toAbsolutePath().normalize().toString(), backupDirectory.getText());
+        assertEquals(I18n.get("settings.backup.restartRequired"), lookup("#backupStatusLabel").<Label>query().getText());
+    }
+
+    @Test
+    void changingStorageFolderReportsRestartRequirement() {
+        assertTrue(lookup("#chooseStorageDirectoryButton").<Button>query().isVisible());
+        Label storageDirectory = lookup("#dataDirLabel").query();
+        Path selectedDestination = Path.of(storageDirectory.getText()).resolveSibling("next-data");
+
+        interact(() -> settingsController.saveStoragePath(selectedDestination));
+
+        assertEquals(selectedDestination.toAbsolutePath().normalize().toString(), storageDirectory.getText());
+        assertEquals(I18n.get("settings.storage.restartRequired"), lookup("#storageStatusLabel").<Label>query().getText());
     }
 
     @Test

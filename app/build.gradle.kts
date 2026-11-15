@@ -17,9 +17,9 @@ dependencies {
     implementation(project(":ui"))
     implementation(project(":config"))
     implementation(project(":fintx"))
+    implementation("org.eclipse.store:storage-embedded:${property("eclipsestoreVersion")}")
     implementation("org.springframework.boot:spring-boot-starter:${property("springBootVersion")}")
     implementation("ch.qos.logback:logback-classic:${property("logbackVersion")}")
-    testImplementation("org.eclipse.store:storage-embedded:${property("eclipsestoreVersion")}")
 }
 
 application {

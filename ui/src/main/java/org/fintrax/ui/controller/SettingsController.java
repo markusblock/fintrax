@@ -7,6 +7,7 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import lombok.extern.slf4j.Slf4j;
 import org.kordamp.ikonli.javafx.FontIcon;
@@ -53,6 +54,12 @@ public class SettingsController {
     @FXML
     private Label dataDirLabel;
     @FXML
+    private Label storageStatusLabel;
+    @FXML
+    private Label backupDirLabel;
+    @FXML
+    private Label backupStatusLabel;
+    @FXML
     private TableView<CredentialRow> credentialTable;
     @FXML
     private TableColumn<CredentialRow, String> accountColumn;
@@ -69,14 +76,12 @@ public class SettingsController {
     private final RuleArchiveService ruleArchiveService;
     private final CategoryService categoryService;
     private final LabelService labelService;
-    private final Path storagePath;
 
     public SettingsController(AccountService accountService, PinStorage pinStorage,
                                HibiscusXmlImporter hibiscusXmlImporter, ResetService resetService,
                                SyncService syncService, SettingsService settingsService,
                                RuleService ruleService, RuleArchiveService ruleArchiveService,
-                               CategoryService categoryService, LabelService labelService,
-                               Path storagePath) {
+                               CategoryService categoryService, LabelService labelService) {
         this.accountService = accountService;
         this.pinStorage = pinStorage;
         this.hibiscusXmlImporter = hibiscusXmlImporter;
@@ -87,7 +92,6 @@ public class SettingsController {
         this.ruleArchiveService = ruleArchiveService;
         this.categoryService = categoryService;
         this.labelService = labelService;
-        this.storagePath = storagePath;
     }
 
     @FXML
@@ -110,7 +114,10 @@ public class SettingsController {
             }
         });
 
-        dataDirLabel.setText(storagePath.toString());
+        dataDirLabel.setText(settingsService.getStoragePath().toString());
+        backupDirLabel.setText(settingsService.getBackupDestination().toString());
+        settingsService.getBackupWarning().ifPresent(warning ->
+                backupStatusLabel.setText(I18n.get("settings.backup.unavailable", warning)));
 
         accountColumn.setCellValueFactory(cell -> new SimpleStringProperty(
                 Objects.toString(cell.getValue().getAccountName(), "")));
@@ -158,6 +165,56 @@ public class SettingsController {
         settingsService.saveTheme("Dark".equals(theme) ? "dark" : "light");
         FintraxUI.applyTheme(rootPane.getScene(), settingsService.getTheme());
         log.info("Theme changed to: {}", theme);
+    }
+
+    @FXML
+    private void onChooseBackupDirectory() {
+        DirectoryChooser chooser = new DirectoryChooser();
+        chooser.setTitle(I18n.get("settings.backup.choose.title"));
+        Path currentDestination = settingsService.getBackupDestination();
+        if (currentDestination.toFile().isDirectory()) {
+            chooser.setInitialDirectory(currentDestination.toFile());
+        }
+        File selected = chooser.showDialog(rootPane.getScene().getWindow());
+        if (selected != null) {
+            saveBackupDestination(selected.toPath());
+        }
+    }
+
+    @FXML
+    private void onChooseStorageDirectory() {
+        DirectoryChooser chooser = new DirectoryChooser();
+        chooser.setTitle(I18n.get("settings.storage.choose.title"));
+        Path currentStoragePath = settingsService.getStoragePath();
+        if (currentStoragePath.toFile().isDirectory()) {
+            chooser.setInitialDirectory(currentStoragePath.toFile());
+        }
+        File selected = chooser.showDialog(rootPane.getScene().getWindow());
+        if (selected != null) {
+            saveStoragePath(selected.toPath());
+        }
+    }
+
+    void saveStoragePath(Path path) {
+        try {
+            settingsService.saveStoragePath(path);
+            dataDirLabel.setText(path.toAbsolutePath().normalize().toString());
+            storageStatusLabel.setText(I18n.get("settings.storage.restartRequired"));
+        } catch (RuntimeException exception) {
+            log.warn("Cannot save storage directory {}", path, exception);
+            storageStatusLabel.setText(I18n.get("settings.storage.saveError", exception.getMessage()));
+        }
+    }
+
+    void saveBackupDestination(Path destination) {
+        try {
+            settingsService.saveBackupDestination(destination);
+            backupDirLabel.setText(destination.toAbsolutePath().normalize().toString());
+            backupStatusLabel.setText(I18n.get("settings.backup.restartRequired"));
+        } catch (RuntimeException exception) {
+            log.warn("Cannot save backup destination {}", destination, exception);
+            backupStatusLabel.setText(I18n.get("settings.backup.saveError", exception.getMessage()));
+        }
     }
 
     private void reloadMainView() {

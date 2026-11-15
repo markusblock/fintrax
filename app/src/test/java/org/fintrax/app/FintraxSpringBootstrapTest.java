@@ -2,6 +2,7 @@ package org.fintrax.app;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.eclipse.store.storage.exceptions.StorageException;
 import org.fintrax.fintx.BankingProtocol;
 import org.fintrax.fintx.PinStorage;
 import org.fintrax.service.AccountService;
@@ -15,6 +16,7 @@ import org.fintrax.service.RuleService;
 import org.fintrax.service.SettingsService;
 import org.fintrax.service.SyncService;
 import org.fintrax.service.TransactionService;
+import org.fintrax.store.FintraxProperties;
 import org.fintrax.store.StorageAlreadyInUseException;
 import org.fintrax.store.StoreManager;
 import org.fintrax.ui.ViewLoader;
@@ -24,14 +26,15 @@ import org.springframework.context.annotation.Configuration;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Path;
 
 class FintraxSpringBootstrapTest {
     @TempDir
-    Path storagePath;
+    Path tempDir;
 
     @Test
     void startsNonWebContext() {
@@ -75,10 +78,25 @@ class FintraxSpringBootstrapTest {
         }
     }
 
+    @Test
+    void startsActiveStoreWhenBackupDestinationIsUnavailable() {
+        Path storagePath = tempDir.resolve("unavailable-data");
+        try (ConfigurableApplicationContext context = FintraxSpringBootstrap.start(
+                "--spring.main.banner-mode=off",
+                "--fintrax.storage.path=" + storagePath,
+                "--fintrax.backup.path=" + storagePath.resolve("backups"),
+                "--fintrax.config.path=" + tempDir.resolve("unavailable-fintrax.properties"))) {
+            assertFalse(context.getBean(FintraxProperties.class).isAvailable());
+            assertNotNull(context.getBean(StoreManager.class).getRoot());
+        }
+    }
+
     private ConfigurableApplicationContext startContext() {
         return FintraxSpringBootstrap.start(
                 "--spring.main.banner-mode=off",
-                "--fintrax.storage.path=" + storagePath);
+                "--fintrax.storage.path=" + tempDir.resolve("data"),
+                "--fintrax.backup.path=" + tempDir.resolve("backups"),
+                "--fintrax.config.path=" + tempDir.resolve("fintrax.properties"));
     }
 
     @Test
@@ -90,6 +108,14 @@ class FintraxSpringBootstrapTest {
                     FintraxApplication.findStorageAlreadyInUseException(exception);
             assertNotNull(storageException);
         }
+    }
+
+    @Test
+    void identifiesStorageFailureWrappedBySpring() {
+        StorageException storageException = new StorageException("Unreadable transaction file");
+
+        assertSame(storageException, FintraxApplication.findStorageException(
+                new RuntimeException("Spring startup failed", new RuntimeException(storageException))));
     }
 
     @Test

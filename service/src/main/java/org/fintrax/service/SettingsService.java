@@ -1,10 +1,14 @@
 package org.fintrax.service;
 
 import org.fintrax.model.AppSetting;
+import org.fintrax.store.FintraxProperties;
 import org.fintrax.store.StoreManager;
 import org.springframework.stereotype.Service;
 
+import java.nio.file.Path;
 import java.util.Locale;
+import java.util.Objects;
+import java.util.Optional;
 
 @Service
 public class SettingsService {
@@ -14,9 +18,11 @@ public class SettingsService {
     public static final String DEFAULT_THEME = "light";
 
     private final StoreManager storeManager;
+    private final FintraxProperties fintraxProperties;
 
-    public SettingsService(StoreManager storeManager) {
+    public SettingsService(StoreManager storeManager, FintraxProperties fintraxProperties) {
         this.storeManager = storeManager;
+        this.fintraxProperties = Objects.requireNonNull(fintraxProperties);
     }
 
     public String getLanguage() {
@@ -47,6 +53,26 @@ public class SettingsService {
         return Locale.forLanguageTag(getLanguage());
     }
 
+    public Path getBackupDestination() {
+        return fintraxProperties.configuredDestination();
+    }
+
+    public Path getStoragePath() {
+        return fintraxProperties.configuredStoragePath();
+    }
+
+    public Optional<String> getBackupWarning() {
+        return fintraxProperties.startupWarning();
+    }
+
+    public void saveBackupDestination(Path destination) {
+        fintraxProperties.saveDestination(destination);
+    }
+
+    public void saveStoragePath(Path path) {
+        fintraxProperties.saveStoragePath(path);
+    }
+
     public String getSettingValue(String key) {
         AppSetting setting = storeManager.getRoot().getSettings().get(key);
         return setting == null ? null : setting.getValue();
@@ -67,4 +93,5 @@ public class SettingsService {
     private boolean isSupportedTheme(String theme) {
         return DEFAULT_THEME.equals(theme) || "dark".equals(theme);
     }
+
 }

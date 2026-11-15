@@ -47,6 +47,14 @@ gradlew.bat :app:run --args="--fintrax.storage.path=%USERPROFILE%\.fintrax\data-
 
 Fintrax creates the directory if it does not exist. Using a different path keeps the default database unchanged and starts with a separate, empty database.
 
+Fintrax keeps the active storage directory in `~/.fintrax/fintrax.properties`, outside the database. Change it in **Settings → Data**; restart Fintrax for the new path to take effect. The `fintrax.storage.path` application argument overrides the configured path for that launch.
+
+## Backups and recovery
+
+Fintrax automatically maintains Eclipse Store backups under `~/.fintrax/backups` by default. Configure another location in Settings; use another disk or storage location to protect against disk failure. See [Local data backups and recovery](docs/backup-recovery.md) for restore instructions and verification steps.
+
+The same external `~/.fintrax/fintrax.properties` file stores both `fintrax.storage.path` and `fintrax.backup.path`; neither path is kept in the Eclipse Store data model.
+
 ## Build and test
 
 Build the project and run its tests:

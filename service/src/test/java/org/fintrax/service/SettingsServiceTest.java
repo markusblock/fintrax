@@ -1,6 +1,7 @@
 package org.fintrax.service;
 
 import org.fintrax.model.AppSetting;
+import org.fintrax.store.FintraxProperties;
 import org.fintrax.store.StoreManager;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -15,13 +16,17 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class SettingsServiceTest {
     private Path tempDir;
     private StoreManager storeManager;
+    private FintraxProperties fintraxProperties;
     private SettingsService settings;
 
     @BeforeEach
     void setUp() throws Exception {
         tempDir = Files.createTempDirectory("fintrax-settings-test");
-        storeManager = new StoreManager(tempDir);
-        settings = new SettingsService(storeManager);
+        Path storagePath = tempDir.resolve("data");
+        storeManager = new StoreManager(storagePath);
+        fintraxProperties = new FintraxProperties(tempDir.resolve("fintrax.properties"),
+                storagePath.toString(), tempDir.resolve("backups").toString());
+        settings = new SettingsService(storeManager, fintraxProperties);
     }
 
     @AfterEach
@@ -51,8 +56,8 @@ class SettingsServiceTest {
         settings.saveSettingValue("transaction.columns", "purpose=false");
         storeManager.shutdown();
 
-        storeManager = new StoreManager(tempDir);
-        settings = new SettingsService(storeManager);
+        storeManager = new StoreManager(tempDir.resolve("data"));
+        settings = new SettingsService(storeManager, fintraxProperties);
 
         assertEquals("de", settings.getLanguage());
         assertEquals("dark", settings.getTheme());

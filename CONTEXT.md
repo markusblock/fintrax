@@ -158,3 +158,14 @@ A bank PIN held by Fintrax for an account connection, separately from the accoun
 
 **Stored Setting**:
 An application setting persisted in Fintrax and eligible for removal by the Application Settings Reset Group.
+
+### Local Data Recovery
+
+**Full Backup**:
+A complete point-in-time copy of Fintrax's local data, distinct from partial exports such as a Rule Export.
+
+**Continuous Backup**:
+A separate, continuously updated copy of local data; it is not a history of point-in-time restore versions.
+
+**Backup Restore**:
+Opening a backup through a separate storage path to verify recovered data before replacing the active local store.
