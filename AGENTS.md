@@ -6,13 +6,17 @@
 
 Issues and PRDs for this repo live as GitHub issues, managed via the `gh` CLI. See `docs/agents/issue-tracker.md` for ticket operations and CI monitoring.
 
-### Triage labels
+### Issue labels
 
-Issues use the default five triage labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+Use existing GitHub labels only. See `docs/agents/triage-labels.md` for the canonical-role mapping and unavailable labels.
 
 ### Domain docs
 
 Single-context layout: one `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+
+### UI layout
+
+For UI layout or spacing changes, read `docs/ux/layout-guidelines.md`.
 
 ## Eclipse Store data model
 
