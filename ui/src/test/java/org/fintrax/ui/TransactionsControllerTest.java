@@ -71,6 +71,7 @@ import java.util.stream.Collectors;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -215,8 +216,8 @@ class TransactionsControllerTest extends AbstractUITest {
         scrollToRow(table, todayRowIndex);
         interact(table::applyCss);
         WaitForAsyncUtils.waitForFxEvents();
-        assertFalse(futurePayeeTextFill.equals(
-                transactionCell(table, payeeColumn, testCategoryTransaction).getTextFill()));
+        assertNotEquals(futurePayeeTextFill,
+                transactionCell(table, payeeColumn, testCategoryTransaction).getTextFill());
         assertEquals(String.format("%,.2f", testCategoryTransaction.getBalanceAfter().doubleValue()),
                 transactionCell(table, balanceColumn, testCategoryTransaction).getText());
 
