@@ -341,8 +341,7 @@ public class BankAccountsController {
             String bankKey = syncBankKey(account);
             if (authenticationFailedBanks.contains(bankKey)) {
                 String message = I18n.get("message.sync.skippedAfterAuthenticationFailure");
-                failures.put(account.getId(), message);
-                progressDialog.failAccount(account.getId(), message);
+                progressDialog.skipAccount(account.getId(), message);
                 continue;
             }
             progressDialog.activateAccount(account.getId());

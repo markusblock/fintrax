@@ -35,9 +35,11 @@ final class SyncProgressDialog {
     private static final String STATE_CURRENT = "current";
     private static final String STATE_COMPLETE = "complete";
     private static final String STATE_FAILED = "failed";
+    private static final String STATE_SKIPPED = "skipped";
     private static final String ICON_PENDING = "fth-circle";
     private static final String ICON_COMPLETE = "fth-check-circle";
     private static final String ICON_FAILED = "fth-alert-circle";
+    private static final String ICON_SKIPPED = "fth-minus-circle";
     private static final List<SyncStage> PROGRESS_STAGES = List.of(
             SyncStage.CONNECTION, SyncStage.AUTHENTICATION, SyncStage.DATA_RETRIEVAL, SyncStage.DATA_IMPORT);
 
@@ -171,6 +173,19 @@ final class SyncProgressDialog {
         });
     }
 
+    void skipAccount(Long accountId, String message) {
+        runOnFxThread(() -> {
+            if (!dialog.isShowing() || showingReport) {
+                return;
+            }
+            AccountPanel panel = accountPanels.get(accountId);
+            if (panel != null) {
+                panel.skip(message);
+                updateTotals();
+            }
+        });
+    }
+
     void showReport(String title, List<ButtonType> buttons, Consumer<ButtonType> onClose) {
         showingReport = true;
         dialog.setTitle(title);
@@ -218,11 +233,14 @@ final class SyncProgressDialog {
         int finishedAccounts = 0;
         int successfulAccounts = 0;
         int failedAccounts = 0;
+        int skippedAccounts = 0;
         for (AccountPanel panel : accountPanels.values()) {
             if (panel.isFinished()) {
                 finishedAccounts++;
                 if (panel.isFailed()) {
                     failedAccounts++;
+                } else if (panel.isSkipped()) {
+                    skippedAccounts++;
                 } else {
                     successfulAccounts++;
                 }
@@ -231,7 +249,7 @@ final class SyncProgressDialog {
         accountProgress.setProgress(totalAccounts == 0 ? 0 : (double) finishedAccounts / totalAccounts);
         summaryLabel.setText(I18n.get(totalAccounts == 1
                 ? "message.sync.progress.overview.single" : "message.sync.progress.overview.multiple",
-                totalAccounts, successfulAccounts, failedAccounts));
+                totalAccounts, successfulAccounts, failedAccounts, skippedAccounts));
     }
 
     record Account(Long id, String name, String detail) {
@@ -247,18 +265,20 @@ final class SyncProgressDialog {
         private final Label accountDetail = new Label();
         private final Label resultLabel = new Label();
         private final VBox stages = new VBox(7);
-        private final Label errorLabel = new Label();
+        private final Label detailLabel = new Label();
         private final Map<SyncStage, StageRow> stageRows = new LinkedHashMap<>();
         private boolean expanded;
         private boolean active;
         private boolean finished;
         private boolean failed;
+        private boolean skipped;
         private int downloaded;
         private int imported;
         private int alreadyKnown;
 
         private AccountPanel(Account account) {
             root.getStyleClass().addAll("sync-progress-account-card", STATE_PENDING);
+            root.setId("syncProgressAccountCard_" + account.id());
 
             statusIcon.setIconSize(18);
             statusIcon.getStyleClass().add("sync-progress-account-icon");
@@ -276,6 +296,7 @@ final class SyncProgressDialog {
             VBox names = new VBox(2, accountName, accountDetail);
             HBox.setHgrow(names, Priority.ALWAYS);
             resultLabel.getStyleClass().add("sync-progress-account-result");
+            resultLabel.setId("syncProgressAccountResult_" + account.id());
             Label chevron = new Label("⌄");
             chevron.getStyleClass().add("sync-progress-chevron");
             HBox header = new HBox(10, status, names, resultLabel, chevron);
@@ -293,12 +314,11 @@ final class SyncProgressDialog {
                 stages.getChildren().add(row.root());
             }
             stages.getStyleClass().add("sync-progress-stage-list");
-            errorLabel.setWrapText(true);
-            errorLabel.getStyleClass().add("sync-progress-error");
-            errorLabel.setId("syncProgressError_" + account.id());
-            errorLabel.setVisible(false);
-            errorLabel.setManaged(false);
-            VBox body = new VBox(8, stages, errorLabel);
+            detailLabel.setWrapText(true);
+            detailLabel.setId("syncProgressDetail_" + account.id());
+            detailLabel.setVisible(false);
+            detailLabel.setManaged(false);
+            VBox body = new VBox(8, stages, detailLabel);
             body.setId("syncProgressAccountBody_" + account.id());
             body.getStyleClass().add("sync-progress-account-body");
             body.setVisible(false);
@@ -353,12 +373,27 @@ final class SyncProgressDialog {
                     row.setFailed();
                 }
             }
-            errorLabel.setText(message == null || message.isBlank()
-                    ? I18n.get("message.sync.report.noErrorDetails") : message);
-            errorLabel.setVisible(true);
-            errorLabel.setManaged(true);
+            showDetail(message, "sync-progress-error");
             setExpanded(true);
             setHeaderState();
+        }
+
+        private void skip(String message) {
+            skipped = true;
+            finished = true;
+            active = false;
+            showDetail(message, "sync-progress-skipped");
+            setExpanded(true);
+            setHeaderState();
+        }
+
+        private void showDetail(String message, String styleClass) {
+            detailLabel.getStyleClass().removeAll("sync-progress-error", "sync-progress-skipped");
+            detailLabel.getStyleClass().add(styleClass);
+            detailLabel.setText(message == null || message.isBlank()
+                    ? I18n.get("message.sync.report.noErrorDetails") : message);
+            detailLabel.setVisible(true);
+            detailLabel.setManaged(true);
         }
 
         private void updateStages(SyncStage currentStage) {
@@ -380,7 +415,7 @@ final class SyncProgressDialog {
 
         private void setHeaderState() {
             String stateClass = accountStateClass();
-            root.getStyleClass().removeAll(STATE_PENDING, STATE_CURRENT, STATE_COMPLETE, STATE_FAILED);
+            root.getStyleClass().removeAll(STATE_PENDING, STATE_CURRENT, STATE_COMPLETE, STATE_FAILED, STATE_SKIPPED);
             root.getStyleClass().add(stateClass);
             statusIcon.setIconLiteral(accountStateIcon());
             statusSpinner.setVisible(active && !finished && !failed);
@@ -391,17 +426,20 @@ final class SyncProgressDialog {
 
         private String accountStateClass() {
             if (failed) return STATE_FAILED;
+            if (skipped) return STATE_SKIPPED;
             if (finished) return STATE_COMPLETE;
             return active ? STATE_CURRENT : STATE_PENDING;
         }
 
         private String accountStateIcon() {
             if (failed) return ICON_FAILED;
+            if (skipped) return ICON_SKIPPED;
             return finished ? ICON_COMPLETE : ICON_PENDING;
         }
 
         private String accountResult() {
             if (failed) return I18n.get("message.sync.progress.failed");
+            if (skipped) return I18n.get("message.sync.progress.skipped");
             if (finished) {
                 return I18n.get("message.sync.progress.accountResult", downloaded, imported, alreadyKnown);
             }
@@ -422,6 +460,10 @@ final class SyncProgressDialog {
 
         private boolean isFailed() {
             return failed;
+        }
+
+        private boolean isSkipped() {
+            return skipped;
         }
     }
 
