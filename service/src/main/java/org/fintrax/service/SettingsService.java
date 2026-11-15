@@ -1,10 +1,14 @@
 package org.fintrax.service;
 
 import org.fintrax.model.AppSetting;
+import org.fintrax.store.BackupConfiguration;
 import org.fintrax.store.StoreManager;
 import org.springframework.stereotype.Service;
 
+import java.nio.file.Path;
 import java.util.Locale;
+import java.util.Objects;
+import java.util.Optional;
 
 @Service
 public class SettingsService {
@@ -14,9 +18,11 @@ public class SettingsService {
     public static final String DEFAULT_THEME = "light";
 
     private final StoreManager storeManager;
+    private final BackupConfiguration backupConfiguration;
 
-    public SettingsService(StoreManager storeManager) {
+    public SettingsService(StoreManager storeManager, BackupConfiguration backupConfiguration) {
         this.storeManager = storeManager;
+        this.backupConfiguration = Objects.requireNonNull(backupConfiguration);
     }
 
     public String getLanguage() {
@@ -47,6 +53,18 @@ public class SettingsService {
         return Locale.forLanguageTag(getLanguage());
     }
 
+    public Path getBackupDestination() {
+        return backupConfiguration.destination();
+    }
+
+    public Optional<String> getBackupWarning() {
+        return backupConfiguration.startupWarning();
+    }
+
+    public void saveBackupDestination(Path destination) {
+        backupConfiguration.saveDestination(destination);
+    }
+
     public String getSettingValue(String key) {
         AppSetting setting = storeManager.getRoot().getSettings().get(key);
         return setting == null ? null : setting.getValue();
@@ -67,4 +85,5 @@ public class SettingsService {
     private boolean isSupportedTheme(String theme) {
         return DEFAULT_THEME.equals(theme) || "dark".equals(theme);
     }
+
 }

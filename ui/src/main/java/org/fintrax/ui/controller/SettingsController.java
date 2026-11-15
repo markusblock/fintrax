@@ -24,7 +24,6 @@ import org.fintrax.service.RuleArchiveService;
 import org.fintrax.service.RuleService;
 import org.fintrax.service.SyncService;
 import org.fintrax.service.SettingsService;
-import org.fintrax.store.BackupConfiguration;
 import org.fintrax.store.ResetGroup;
 import org.fintrax.ui.control.TableCellTooltips;
 import org.fintrax.ui.control.TableColumnConfig;
@@ -71,7 +70,6 @@ public class SettingsController {
     private final ResetService resetService;
     private final SyncService syncService;
     private final SettingsService settingsService;
-    private final BackupConfiguration backupConfiguration;
     private final RuleService ruleService;
     private final RuleArchiveService ruleArchiveService;
     private final CategoryService categoryService;
@@ -81,7 +79,6 @@ public class SettingsController {
     public SettingsController(AccountService accountService, PinStorage pinStorage,
                                HibiscusXmlImporter hibiscusXmlImporter, ResetService resetService,
                                SyncService syncService, SettingsService settingsService,
-                               BackupConfiguration backupConfiguration,
                                RuleService ruleService, RuleArchiveService ruleArchiveService,
                                CategoryService categoryService, LabelService labelService,
                                Path storagePath) {
@@ -91,7 +88,6 @@ public class SettingsController {
         this.resetService = resetService;
         this.syncService = syncService;
         this.settingsService = settingsService;
-        this.backupConfiguration = backupConfiguration;
         this.ruleService = ruleService;
         this.ruleArchiveService = ruleArchiveService;
         this.categoryService = categoryService;
@@ -120,8 +116,8 @@ public class SettingsController {
         });
 
         dataDirLabel.setText(storagePath.toString());
-        backupDirLabel.setText(backupConfiguration.destination().toString());
-        backupConfiguration.startupWarning().ifPresent(warning ->
+        backupDirLabel.setText(settingsService.getBackupDestination().toString());
+        settingsService.getBackupWarning().ifPresent(warning ->
                 backupStatusLabel.setText(I18n.get("settings.backup.unavailable", warning)));
 
         accountColumn.setCellValueFactory(cell -> new SimpleStringProperty(
@@ -176,7 +172,7 @@ public class SettingsController {
     private void onChooseBackupDirectory() {
         DirectoryChooser chooser = new DirectoryChooser();
         chooser.setTitle(I18n.get("settings.backup.choose.title"));
-        Path currentDestination = backupConfiguration.destination();
+        Path currentDestination = settingsService.getBackupDestination();
         if (currentDestination.toFile().isDirectory()) {
             chooser.setInitialDirectory(currentDestination.toFile());
         }
@@ -188,7 +184,7 @@ public class SettingsController {
 
     void saveBackupDestination(Path destination) {
         try {
-            backupConfiguration.saveDestination(destination);
+            settingsService.saveBackupDestination(destination);
             backupDirLabel.setText(destination.toAbsolutePath().normalize().toString());
             backupStatusLabel.setText(I18n.get("settings.backup.restartRequired"));
         } catch (RuntimeException exception) {
