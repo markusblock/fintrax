@@ -33,6 +33,7 @@ import java.util.stream.Stream;
 public class BackupService implements AutoCloseable {
     private static final int RETAINED_SNAPSHOT_COUNT = 30;
     private static final long STORAGE_HEALTH_CHECK_SECONDS = 2;
+    private static final long SHUTDOWN_AWAIT_SECONDS = 30;
     private static final Pattern SNAPSHOT_NAME = Pattern.compile(
             "\\d{4}-\\d{2}-\\d{2}T\\d{2}-\\d{2}-\\d{2}-\\d{3}-[0-9a-fA-F-]{36}");
     private static final DateTimeFormatter SNAPSHOT_TIMESTAMP = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH-mm-ss-SSS");
@@ -221,10 +222,14 @@ public class BackupService implements AutoCloseable {
         }
         boolean interrupted = false;
         while (!executor.isTerminated()) {
+            if (Thread.interrupted()) {
+                interrupted = true;
+            }
             try {
-                executor.awaitTermination(30, TimeUnit.SECONDS);
+                executor.awaitTermination(SHUTDOWN_AWAIT_SECONDS, TimeUnit.SECONDS);
             } catch (InterruptedException exception) {
                 interrupted = true;
+                Thread.currentThread().interrupt();
             }
         }
         if (interrupted) {

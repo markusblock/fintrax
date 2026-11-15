@@ -7,6 +7,7 @@ import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
@@ -20,6 +21,7 @@ import java.util.stream.Stream;
 public final class BackupRestoreService {
     private static final Pattern SNAPSHOT_NAME = Pattern.compile(
             "\\d{4}-\\d{2}-\\d{2}T\\d{2}-\\d{2}-\\d{2}-\\d{3}-[0-9a-fA-F-]{36}");
+    private static final Clock SYSTEM_CLOCK = Clock.systemDefaultZone();
     private static final DateTimeFormatter PRESERVED_STORAGE_TIMESTAMP =
             DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-SSS");
 
@@ -45,6 +47,20 @@ public final class BackupRestoreService {
     /** Also archives the old continuous mirror so the restored storage can seed a fresh one. */
     public RestoreResult restoreFullBackup(Path selectedBackup, Path snapshotsDirectory,
                                            Path activeStoragePath, Path continuousBackupPath) throws IOException {
+        Path backup = validateBackup(selectedBackup, snapshotsDirectory, activeStoragePath);
+        RestorePaths paths = createRestorePaths(activeStoragePath, continuousBackupPath);
+        try {
+            copyBackup(backup, paths.stagingPath());
+            validateRestoredStorage(paths.stagingPath());
+            return promoteRestoredStorage(paths);
+        } catch (IOException | RuntimeException failure) {
+            deleteStagingPath(paths.stagingPath(), failure);
+            throw failure;
+        }
+    }
+
+    private Path validateBackup(Path selectedBackup, Path snapshotsDirectory, Path activeStoragePath)
+            throws IOException {
         Path snapshotsRoot = snapshotsDirectory.toRealPath();
         Path backup = selectedBackup.toRealPath();
         if (!backup.getParent().equals(snapshotsRoot)
@@ -56,55 +72,61 @@ public final class BackupRestoreService {
         if (backup.startsWith(activePath) || activePath.startsWith(backup)) {
             throw new IllegalArgumentException("Backup and active storage paths must be separate");
         }
+        return backup;
+    }
+
+    private RestorePaths createRestorePaths(Path activeStoragePath, Path continuousBackupPath) throws IOException {
+        Path activePath = activeStoragePath.toAbsolutePath().normalize();
         Path parent = activePath.getParent();
         if (parent == null) {
             throw new IllegalArgumentException("Active storage must have a parent directory");
         }
         Files.createDirectories(parent);
 
-        Path stagingPath = parent.resolve(activePath.getFileName() + ".restore-" + UUID.randomUUID());
-        Path preservedPath = parent.resolve(activePath.getFileName() + ".corrupt-"
-                + PRESERVED_STORAGE_TIMESTAMP.format(LocalDateTime.now()) + "-" + UUID.randomUUID());
-        Path preservedContinuousBackupPath = continuousBackupPath == null ? null
+        String activeName = activePath.getFileName().toString();
+        Path stagingPath = parent.resolve(activeName + ".restore-" + UUID.randomUUID());
+        Path preservedPath = parent.resolve(activeName + ".corrupt-"
+                + PRESERVED_STORAGE_TIMESTAMP.format(LocalDateTime.now(SYSTEM_CLOCK)) + "-" + UUID.randomUUID());
+        Path preservedContinuousPath = continuousBackupPath == null ? null
                 : continuousBackupPath.resolveSibling(continuousBackupPath.getFileName()
                         + ".pre-restore-" + UUID.randomUUID());
+        return new RestorePaths(activePath, stagingPath, preservedPath,
+                continuousBackupPath, preservedContinuousPath);
+    }
+
+    private RestoreResult promoteRestoredStorage(RestorePaths paths) throws IOException {
         boolean activeStorageMoved = false;
         boolean continuousBackupMoved = false;
         try {
-            copyBackup(backup, stagingPath);
-            validateRestoredStorage(stagingPath);
-
-            if (Files.exists(activePath, LinkOption.NOFOLLOW_LINKS)) {
-                move(activePath, preservedPath);
+            if (Files.exists(paths.activePath(), LinkOption.NOFOLLOW_LINKS)) {
+                move(paths.activePath(), paths.preservedPath());
                 activeStorageMoved = true;
             }
-            if (continuousBackupPath != null
-                    && Files.exists(continuousBackupPath, LinkOption.NOFOLLOW_LINKS)) {
-                move(continuousBackupPath, preservedContinuousBackupPath);
+            if (paths.continuousBackupPath() != null
+                    && Files.exists(paths.continuousBackupPath(), LinkOption.NOFOLLOW_LINKS)) {
+                move(paths.continuousBackupPath(), paths.preservedContinuousPath());
                 continuousBackupMoved = true;
             }
-            move(stagingPath, activePath);
-            return new RestoreResult(activePath,
-                    activeStorageMoved ? Optional.of(preservedPath) : Optional.empty(),
-                    continuousBackupMoved ? Optional.of(preservedContinuousBackupPath) : Optional.empty());
-        } catch (IOException | RuntimeException | Error failure) {
-            if (continuousBackupMoved
-                    && !Files.exists(continuousBackupPath, LinkOption.NOFOLLOW_LINKS)) {
-                try {
-                    move(preservedContinuousBackupPath, continuousBackupPath);
-                } catch (IOException rollbackFailure) {
-                    failure.addSuppressed(rollbackFailure);
-                }
-            }
-            if (activeStorageMoved && !Files.exists(activePath, LinkOption.NOFOLLOW_LINKS)) {
-                try {
-                    move(preservedPath, activePath);
-                } catch (IOException rollbackFailure) {
-                    failure.addSuppressed(rollbackFailure);
-                }
-            }
-            deleteStagingPath(stagingPath, failure);
+            move(paths.stagingPath(), paths.activePath());
+            return new RestoreResult(paths.activePath(),
+                    activeStorageMoved ? Optional.of(paths.preservedPath()) : Optional.empty(),
+                    continuousBackupMoved ? Optional.of(paths.preservedContinuousPath()) : Optional.empty());
+        } catch (IOException | RuntimeException failure) {
+            rollbackMove(paths.continuousBackupPath(), paths.preservedContinuousPath(),
+                    continuousBackupMoved, failure);
+            rollbackMove(paths.activePath(), paths.preservedPath(), activeStorageMoved, failure);
             throw failure;
+        }
+    }
+
+    private void rollbackMove(Path originalPath, Path preservedPath, boolean moved, Throwable failure) {
+        if (!moved || Files.exists(originalPath, LinkOption.NOFOLLOW_LINKS)) {
+            return;
+        }
+        try {
+            move(preservedPath, originalPath);
+        } catch (IOException rollbackFailure) {
+            failure.addSuppressed(rollbackFailure);
         }
     }
 
@@ -162,5 +184,9 @@ public final class BackupRestoreService {
 
     public record RestoreResult(Path activeStoragePath, Optional<Path> preservedStoragePath,
                                 Optional<Path> preservedContinuousBackupPath) {
+    }
+
+    private record RestorePaths(Path activePath, Path stagingPath, Path preservedPath,
+                                Path continuousBackupPath, Path preservedContinuousPath) {
     }
 }

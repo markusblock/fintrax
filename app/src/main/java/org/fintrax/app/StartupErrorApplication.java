@@ -4,7 +4,6 @@ import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
 import javafx.scene.control.Alert;
-import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ChoiceDialog;
 import javafx.scene.control.Dialog;
@@ -42,7 +41,7 @@ public final class StartupErrorApplication extends Application {
     public static boolean showStorageFailure(Path storagePath, BackupConfiguration backupConfiguration,
                                              Throwable failure, String... args) {
         storageInUsePath = null;
-        recoveryRequest = new RecoveryRequest(storagePath, backupConfiguration, failure, args.clone());
+        recoveryRequest = new RecoveryRequest(storagePath, backupConfiguration, failure, List.of(args));
         restoredFromBackup = false;
         Application.launch(StartupErrorApplication.class);
         recoveryRequest = null;
@@ -133,8 +132,8 @@ public final class StartupErrorApplication extends Application {
                 new ProgressIndicator(), new Label(I18n.get("startup.storageError.restoring.message"))));
         ButtonType restoring = new ButtonType(I18n.get("startup.storageError.restoring.button"));
         progress.getDialogPane().getButtonTypes().setAll(restoring);
-        ((Button) progress.getDialogPane().lookupButton(restoring)).setDisable(true);
-        progress.setOnCloseRequest(event -> event.consume());
+        progress.getDialogPane().lookupButton(restoring).setDisable(true);
+        progress.setOnCloseRequest(javafx.event.Event::consume);
         progress.show();
 
         Task<RestoreResult> restoreTask = new Task<>() {
@@ -173,9 +172,9 @@ public final class StartupErrorApplication extends Application {
         restored.showAndWait();
 
         try {
-            restoredContext = FintraxSpringBootstrap.start(request.arguments());
+            restoredContext = FintraxSpringBootstrap.start(request.arguments().toArray(String[]::new));
             FintraxUI.showOnStage(owner, restoredContext);
-            restoredFromBackup = true;
+            markRestoredFromBackup();
         } catch (Exception exception) {
             if (restoredContext != null) {
                 restoredContext.close();
@@ -191,6 +190,10 @@ public final class StartupErrorApplication extends Application {
         return message == null || message.isBlank() ? failure.getClass().getSimpleName() : message;
     }
 
+    private static void markRestoredFromBackup() {
+        restoredFromBackup = true;
+    }
+
     @Override
     public void stop() {
         if (restoredContext != null) {
@@ -201,7 +204,11 @@ public final class StartupErrorApplication extends Application {
     }
 
     private record RecoveryRequest(Path storagePath, BackupConfiguration backupConfiguration,
-                                   Throwable failure, String[] arguments) {
+                                   Throwable failure, List<String> arguments) {
+        RecoveryRequest {
+            arguments = List.copyOf(arguments);
+        }
+
         RecoveryRequest withFailure(Throwable replacementFailure) {
             return new RecoveryRequest(storagePath, backupConfiguration, replacementFailure, arguments);
         }

@@ -71,6 +71,8 @@ public class StoreManager {
         }
     }
 
+    // On success StoreManager owns the returned manager; on failure this method shuts it down.
+    @SuppressWarnings("java:S2095")
     private EmbeddedStorageManager startStorage(Path storagePath, Path continuousBackupPath) {
         if (continuousBackupPath == null) {
             return EmbeddedStorage.start(storagePath);

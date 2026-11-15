@@ -31,6 +31,7 @@ public class FintraxUI extends Application {
     private static final double MIN_WIDTH = 1024;
     private static final double MIN_HEIGHT = 768;
     private static final String DARK_THEME_STYLE_CLASS = "theme-dark";
+    private static final String BACKUP_FAILURE_TITLE_KEY = "settings.backup.failed.title";
     private static final String FINTRAX_STYLESHEET = FintraxUI.class.getResource("/css/fintrax.css").toExternalForm();
     private static final String PRIMER_LIGHT_STYLESHEET = new PrimerLight().getUserAgentStylesheet();
     private static final String PRIMER_DARK_STYLESHEET = new PrimerDark().getUserAgentStylesheet();
@@ -76,8 +77,8 @@ public class FintraxUI extends Application {
             Alert alert = new Alert(Alert.AlertType.WARNING);
             configureDialog(alert);
             alert.initOwner(owner);
-            alert.setTitle(I18n.get("settings.backup.failed.title"));
-            alert.setHeaderText(I18n.get("settings.backup.failed.title"));
+            alert.setTitle(I18n.get(BACKUP_FAILURE_TITLE_KEY));
+            alert.setHeaderText(I18n.get(BACKUP_FAILURE_TITLE_KEY));
             alert.setContentText(I18n.get("settings.backup.failed", failure.getMessage()));
             ButtonType chooseFolder = new ButtonType(I18n.get("settings.backup.choose"));
             ButtonType exitFintrax = new ButtonType(I18n.get("settings.backup.exit"));
@@ -105,8 +106,8 @@ public class FintraxUI extends Application {
                         I18n.get("settings.backup.restartToResume"));
                 configureDialog(restart);
                 restart.initOwner(owner);
-                restart.setTitle(I18n.get("settings.backup.failed.title"));
-                restart.setHeaderText(I18n.get("settings.backup.failed.title"));
+                restart.setTitle(I18n.get(BACKUP_FAILURE_TITLE_KEY));
+                restart.setHeaderText(I18n.get(BACKUP_FAILURE_TITLE_KEY));
                 restart.showAndWait();
                 owner.close();
                 Platform.exit();

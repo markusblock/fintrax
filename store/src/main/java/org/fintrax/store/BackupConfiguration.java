@@ -8,7 +8,6 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Optional;
 import java.util.Properties;
-import java.util.UUID;
 
 /** Stores the backup destination outside the Eclipse Store it configures. */
 public final class BackupConfiguration {
