@@ -7,6 +7,7 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import lombok.extern.slf4j.Slf4j;
 import org.kordamp.ikonli.javafx.FontIcon;
@@ -23,6 +24,7 @@ import org.fintrax.service.RuleArchiveService;
 import org.fintrax.service.RuleService;
 import org.fintrax.service.SyncService;
 import org.fintrax.service.SettingsService;
+import org.fintrax.store.BackupConfiguration;
 import org.fintrax.store.ResetGroup;
 import org.fintrax.ui.control.TableCellTooltips;
 import org.fintrax.ui.control.TableColumnConfig;
@@ -53,6 +55,10 @@ public class SettingsController {
     @FXML
     private Label dataDirLabel;
     @FXML
+    private Label backupDirLabel;
+    @FXML
+    private Label backupStatusLabel;
+    @FXML
     private TableView<CredentialRow> credentialTable;
     @FXML
     private TableColumn<CredentialRow, String> accountColumn;
@@ -65,6 +71,7 @@ public class SettingsController {
     private final ResetService resetService;
     private final SyncService syncService;
     private final SettingsService settingsService;
+    private final BackupConfiguration backupConfiguration;
     private final RuleService ruleService;
     private final RuleArchiveService ruleArchiveService;
     private final CategoryService categoryService;
@@ -74,6 +81,7 @@ public class SettingsController {
     public SettingsController(AccountService accountService, PinStorage pinStorage,
                                HibiscusXmlImporter hibiscusXmlImporter, ResetService resetService,
                                SyncService syncService, SettingsService settingsService,
+                               BackupConfiguration backupConfiguration,
                                RuleService ruleService, RuleArchiveService ruleArchiveService,
                                CategoryService categoryService, LabelService labelService,
                                Path storagePath) {
@@ -83,6 +91,7 @@ public class SettingsController {
         this.resetService = resetService;
         this.syncService = syncService;
         this.settingsService = settingsService;
+        this.backupConfiguration = backupConfiguration;
         this.ruleService = ruleService;
         this.ruleArchiveService = ruleArchiveService;
         this.categoryService = categoryService;
@@ -111,6 +120,9 @@ public class SettingsController {
         });
 
         dataDirLabel.setText(storagePath.toString());
+        backupDirLabel.setText(backupConfiguration.destination().toString());
+        backupConfiguration.startupWarning().ifPresent(warning ->
+                backupStatusLabel.setText(I18n.get("settings.backup.unavailable", warning)));
 
         accountColumn.setCellValueFactory(cell -> new SimpleStringProperty(
                 Objects.toString(cell.getValue().getAccountName(), "")));
@@ -158,6 +170,31 @@ public class SettingsController {
         settingsService.saveTheme("Dark".equals(theme) ? "dark" : "light");
         FintraxUI.applyTheme(rootPane.getScene(), settingsService.getTheme());
         log.info("Theme changed to: {}", theme);
+    }
+
+    @FXML
+    private void onChooseBackupDirectory() {
+        DirectoryChooser chooser = new DirectoryChooser();
+        chooser.setTitle(I18n.get("settings.backup.choose.title"));
+        Path currentDestination = backupConfiguration.destination();
+        if (currentDestination.toFile().isDirectory()) {
+            chooser.setInitialDirectory(currentDestination.toFile());
+        }
+        File selected = chooser.showDialog(rootPane.getScene().getWindow());
+        if (selected != null) {
+            saveBackupDestination(selected.toPath());
+        }
+    }
+
+    void saveBackupDestination(Path destination) {
+        try {
+            backupConfiguration.saveDestination(destination);
+            backupDirLabel.setText(destination.toAbsolutePath().normalize().toString());
+            backupStatusLabel.setText(I18n.get("settings.backup.restartRequired"));
+        } catch (RuntimeException exception) {
+            log.warn("Cannot save backup destination {}", destination, exception);
+            backupStatusLabel.setText(I18n.get("settings.backup.saveError", exception.getMessage()));
+        }
     }
 
     private void reloadMainView() {

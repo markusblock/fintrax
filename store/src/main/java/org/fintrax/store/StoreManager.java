@@ -1,7 +1,10 @@
 package org.fintrax.store;
 
 import lombok.extern.slf4j.Slf4j;
+import org.eclipse.store.afs.nio.types.NioFileSystem;
+import org.eclipse.store.storage.embedded.configuration.types.EmbeddedStorageConfigurationBuilder;
 import org.eclipse.store.storage.embedded.types.EmbeddedStorage;
+import org.eclipse.store.storage.embedded.types.EmbeddedStorageManager;
 import org.eclipse.store.storage.embedded.types.EmbeddedStorageManager;
 import org.fintrax.model.*;
 
@@ -27,8 +30,13 @@ public class StoreManager {
     private final Map<Long, Rule> ruleIndex = new ConcurrentHashMap<>();
 
     public StoreManager(Path storagePath) {
+        this(storagePath, null);
+    }
+
+    /** Starts the store with an optional Eclipse Store continuous-backup directory. */
+    public StoreManager(Path storagePath, Path continuousBackupPath) {
         log.info("Initializing StoreManager at {}", storagePath);
-        storage = EmbeddedStorage.start(storagePath);
+        storage = startStorage(storagePath, continuousBackupPath);
         root = storage.ensureRoot(DataRoot::new);
         if (root.getBanks() == null) {
             root.setBanks(new ArrayList<>());
@@ -41,6 +49,27 @@ public class StoreManager {
         }
 
         rebuildIndexes();
+    }
+
+    private EmbeddedStorageManager startStorage(Path storagePath, Path continuousBackupPath) {
+        if (continuousBackupPath == null) {
+            return EmbeddedStorage.start(storagePath);
+        }
+        EmbeddedStorageManager manager = EmbeddedStorageConfigurationBuilder.New()
+                .setStorageDirectory(storagePath.toString())
+                .setBackupDirectory(continuousBackupPath.toString())
+                .createEmbeddedStorageFoundation()
+                .createEmbeddedStorageManager();
+        try {
+            return manager.start();
+        } catch (RuntimeException exception) {
+            try {
+                manager.shutdown();
+            } catch (RuntimeException shutdownFailure) {
+                exception.addSuppressed(shutdownFailure);
+            }
+            throw new ContinuousBackupStartException(continuousBackupPath, exception);
+        }
     }
 
     private void rebuildIndexes() {
@@ -77,6 +106,19 @@ public class StoreManager {
         lock.writeLock().lock();
         try {
             storage.store(obj);
+        } finally {
+            lock.writeLock().unlock();
+        }
+    }
+
+    /** Creates a complete point-in-time copy while serializing it with store writes. */
+    public void createFullBackup(Path backupPath) {
+        lock.writeLock().lock();
+        try {
+            if (shutdown) {
+                throw new IllegalStateException("Cannot back up a shut down store");
+            }
+            storage.issueFullBackup(NioFileSystem.New().ensureDirectoryPath(backupPath.toString()));
         } finally {
             lock.writeLock().unlock();
         }
@@ -201,14 +243,33 @@ public class StoreManager {
     }
 
     public void shutdown() {
-        log.info("Shutting down StoreManager");
-        if (!shutdown) {
-            shutdown = true;
-            storage.shutdown();
+        lock.writeLock().lock();
+        try {
+            log.info("Shutting down StoreManager");
+            if (!shutdown) {
+                shutdown = true;
+                storage.shutdown();
+            }
+        } finally {
+            lock.writeLock().unlock();
         }
     }
 
     public boolean isShutdown() {
         return shutdown;
     }
+
+    /** Reports whether Eclipse Store is still accepting operations after any runtime disruption. */
+    public boolean isAcceptingTasks() {
+        return !shutdown && storage.isAcceptingTasks();
+    }
+
+    static final class ContinuousBackupStartException extends RuntimeException {
+        private static final long serialVersionUID = 1L;
+
+        ContinuousBackupStartException(Path backupPath, RuntimeException cause) {
+            super("Cannot start continuous backup at " + backupPath, cause);
+        }
+    }
+
 }

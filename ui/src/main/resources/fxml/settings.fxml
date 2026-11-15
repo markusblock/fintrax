@@ -60,6 +60,28 @@
 
                 <VBox styleClass="settings-card">
                     <HBox spacing="10" alignment="CENTER_LEFT">
+                        <FontIcon iconLiteral="fth-hard-drive" iconSize="17"/>
+                        <Label text="%settings.section.backup" styleClass="section-heading"/>
+                    </HBox>
+                    <Label text="%settings.backup.desc" wrapText="true" styleClass="help-text"/>
+                    <GridPane hgap="10" vgap="10">
+                        <columnConstraints>
+                            <ColumnConstraints minWidth="120" prefWidth="150" halignment="RIGHT"/>
+                            <ColumnConstraints hgrow="ALWAYS"/>
+                        </columnConstraints>
+                        <Label text="%settings.backup.destination" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+                        <Label fx:id="backupDirLabel" styleClass="path-value" wrapText="true"
+                               GridPane.rowIndex="0" GridPane.columnIndex="1"/>
+                    </GridPane>
+                    <Label fx:id="backupStatusLabel" wrapText="true" styleClass="help-text"/>
+                    <HBox spacing="10" alignment="CENTER_RIGHT">
+                        <Button fx:id="chooseBackupDirectoryButton" text="%settings.backup.choose"
+                                onAction="#onChooseBackupDirectory" styleClass="button-outlined"/>
+                    </HBox>
+                </VBox>
+
+                <VBox styleClass="settings-card">
+                    <HBox spacing="10" alignment="CENTER_LEFT">
                         <FontIcon iconLiteral="fth-key" iconSize="17"/>
                         <Label text="%settings.section.credentials" styleClass="section-heading"/>
                     </HBox>

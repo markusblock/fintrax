@@ -3,16 +3,26 @@ package org.fintrax.ui;
 import atlantafx.base.theme.PrimerDark;
 import atlantafx.base.theme.PrimerLight;
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.DialogPane;
+import javafx.stage.DirectoryChooser;
 import javafx.stage.Stage;
 import lombok.extern.slf4j.Slf4j;
 import org.fintrax.config.I18n;
+import org.fintrax.service.BackupService;
 import org.fintrax.service.SettingsService;
+import org.fintrax.store.BackupConfiguration;
 import org.fintrax.ui.controller.SessionViewState;
 import org.springframework.context.ApplicationContext;
+
+import java.io.File;
+import java.nio.file.Path;
+import java.util.Optional;
 
 @Slf4j
 public class FintraxUI extends Application {
@@ -49,7 +59,57 @@ public class FintraxUI extends Application {
         primaryStage.setOnCloseRequest(event -> WindowGeometry.save(primaryStage, settingsService));
         primaryStage.show();
 
+        getApplicationContext().getBean(BackupService.class).start(
+                failure -> Platform.runLater(() -> promptBackupRecovery(primaryStage, failure)));
+
         log.info("Fintrax UI started");
+    }
+
+    private void promptBackupRecovery(Stage owner, Throwable failure) {
+        BackupConfiguration backupConfiguration = getApplicationContext().getBean(BackupConfiguration.class);
+        while (owner.isShowing()) {
+            Alert alert = new Alert(Alert.AlertType.WARNING);
+            configureDialog(alert);
+            alert.initOwner(owner);
+            alert.setTitle(I18n.get("settings.backup.failed.title"));
+            alert.setHeaderText(I18n.get("settings.backup.failed.title"));
+            alert.setContentText(I18n.get("settings.backup.failed", failure.getMessage()));
+            ButtonType chooseFolder = new ButtonType(I18n.get("settings.backup.choose"));
+            ButtonType exitFintrax = new ButtonType(I18n.get("settings.backup.exit"));
+            alert.getButtonTypes().setAll(chooseFolder, exitFintrax);
+            Optional<ButtonType> choice = alert.showAndWait();
+            if (choice.isEmpty() || choice.get() == exitFintrax) {
+                owner.close();
+                Platform.exit();
+                return;
+            }
+
+            try {
+                Path currentDestination = backupConfiguration.destination();
+                DirectoryChooser chooser = new DirectoryChooser();
+                chooser.setTitle(I18n.get("settings.backup.choose.title"));
+                if (currentDestination.toFile().isDirectory()) {
+                    chooser.setInitialDirectory(currentDestination.toFile());
+                }
+                File selectedFolder = chooser.showDialog(owner);
+                if (selectedFolder == null) {
+                    continue;
+                }
+                backupConfiguration.saveDestination(selectedFolder.toPath());
+                Alert restart = new Alert(Alert.AlertType.INFORMATION,
+                        I18n.get("settings.backup.restartToResume"));
+                configureDialog(restart);
+                restart.initOwner(owner);
+                restart.setTitle(I18n.get("settings.backup.failed.title"));
+                restart.setHeaderText(I18n.get("settings.backup.failed.title"));
+                restart.showAndWait();
+                owner.close();
+                Platform.exit();
+                return;
+            } catch (RuntimeException exception) {
+                failure = exception;
+            }
+        }
     }
 
     @Override
