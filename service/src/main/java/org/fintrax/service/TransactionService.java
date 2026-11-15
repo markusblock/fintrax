@@ -41,9 +41,12 @@ public class TransactionService {
                 .orElse(0) + 1;
     }
 
-    public Transaction createTransaction(Transaction transaction) {
-        if (transaction.getId() == null) {
-            transaction.setId(nextId++);
+    public synchronized Transaction createTransaction(Transaction transaction) {
+        Long requestedId = transaction.getId();
+        if (requestedId == null || store.getTransaction(requestedId) != null) {
+            transaction.setId(allocateNextId());
+        } else {
+            nextId = Math.max(nextId, requestedId + 1);
         }
         if (transaction.getCreatedAt() == null) {
             transaction.setCreatedAt(LocalDateTime.now(ZoneId.systemDefault()));
@@ -55,6 +58,18 @@ public class TransactionService {
 
         log.debug("Created transaction {}", transaction.getId());
         return transaction;
+    }
+
+    private long allocateNextId() {
+        long maxStoredId = store.getRoot().getTransactions().stream()
+                .map(Transaction::getId)
+                .filter(id -> id != null)
+                .mapToLong(Long::longValue)
+                .max()
+                .orElse(0);
+        nextId = Math.max(nextId, maxStoredId + 1);
+        while (store.getTransaction(nextId) != null) nextId++;
+        return nextId++;
     }
 
     public Transaction updateFromBank(Transaction stored, Transaction received) {

@@ -618,7 +618,6 @@ class RulesControllerTest extends AbstractUITest {
     void focusingRegexValueFieldShowsExamplesInSettingsLanguage() {
         SettingsService settingsService = applicationContext.getBean(SettingsService.class);
         String originalLanguage = settingsService.getLanguage();
-        String editMenuItemText = I18n.get("button.edit");
         try {
             interact(() -> {
                 settingsService.saveLanguage("de");
@@ -630,7 +629,7 @@ class RulesControllerTest extends AbstractUITest {
                     .filter(rule -> rule.getName().equals(ruleName)).findFirst().orElseThrow();
             TableRow<?> row = rowForRule(ruleTable, ruleName);
             interact(() -> ruleTable.getSelectionModel().select(selectedRule));
-            Platform.runLater(() -> menuItem(row.getContextMenu(), editMenuItemText).fire());
+            Platform.runLater(() -> row.getContextMenu().getItems().getFirst().fire());
             WaitForAsyncUtils.waitForFxEvents();
 
             ComboBox<String> operator = lookup(".rule-condition-operator").query();
