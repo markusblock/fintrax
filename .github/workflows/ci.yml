@@ -26,11 +26,14 @@ jobs:
           bash scripts/test-ui-tests-lock.sh
       - name: Install Xvfb
         run: sudo apt-get update && sudo apt-get install -y xvfb
-      - name: Build and analyze
+      - name: Build and test
+        if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+        run: xvfb-run ./gradlew build
+      - name: Sonar analysis
         if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: xvfb-run ./gradlew build sonar
+        run: xvfb-run ./gradlew sonar
       - name: Build fork pull request
         if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository
         run: xvfb-run ./gradlew build

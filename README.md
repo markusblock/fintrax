@@ -60,3 +60,9 @@ On Linux without a graphical display, run the build with Xvfb:
 ```sh
 xvfb-run ./gradlew build
 ```
+
+## Continuous integration
+
+GitHub Actions runs build and tests, then Sonar analysis, as separate steps for pushes to `main` and pull requests from this repository. The separate step timings make build/test time distinguishable from analysis time. Pull requests from forks run the build and tests only because they cannot access the Sonar token.
+
+Sonar analysis generates the aggregated JaCoCo coverage report and may run its prerequisite test tasks when their outputs are missing or stale. It runs under Xvfb for that reason.
