@@ -21,6 +21,7 @@ public final class FintraxProperties {
     private static final String BACKUP_PATH_KEY = "fintrax.backup.path";
     private static final String LEGACY_BACKUP_PATH_KEY = "destination";
     private static final String LOCATION_SEPARATOR = " and ";
+    private static final String USER_HOME_PROPERTY = "user.home";
 
     private final Path propertiesFile;
     private final Path legacyPropertiesFile;
@@ -232,11 +233,11 @@ public final class FintraxProperties {
     }
 
     private static Path defaultStoragePath() {
-        return Path.of(System.getProperty("user.home"), ".fintrax", "data");
+        return Path.of(System.getProperty(USER_HOME_PROPERTY), ".fintrax", "data");
     }
 
     private static Path defaultBackupPath() {
-        return Path.of(System.getProperty("user.home"), ".fintrax", "backups");
+        return Path.of(System.getProperty(USER_HOME_PROPERTY), ".fintrax", "backups");
     }
 
     private Optional<String> validateOverlap(Path first, Path second) {
@@ -324,10 +325,10 @@ public final class FintraxProperties {
 
     private Path expandHome(String path) {
         if (path.equals("~")) {
-            return Path.of(System.getProperty("user.home"));
+            return Path.of(System.getProperty(USER_HOME_PROPERTY));
         }
         if (path.startsWith("~/") || path.startsWith("~\\")) {
-            return Path.of(System.getProperty("user.home")).resolve(path.substring(2));
+            return Path.of(System.getProperty(USER_HOME_PROPERTY)).resolve(path.substring(2));
         }
         return Path.of(path);
     }
