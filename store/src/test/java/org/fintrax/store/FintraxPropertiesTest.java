@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Properties;
@@ -55,6 +56,30 @@ class FintraxPropertiesTest {
         FintraxProperties reloaded = new FintraxProperties(propertiesFile, null, null);
         assertEquals(nextStoragePath, reloaded.storagePath());
         assertEquals(nextBackupPath, reloaded.destination());
+    }
+
+    @Test
+    void migratesLegacyBackupPropertiesAndAddsStoragePath() throws Exception {
+        Path propertiesFile = tempDir.resolve("fintrax.properties");
+        Path legacyFile = tempDir.resolve("backup.properties");
+        Path legacyBackupPath = tempDir.resolve("legacy-backups");
+        Properties legacy = new Properties();
+        legacy.setProperty("destination", legacyBackupPath.toString());
+        try (OutputStream output = Files.newOutputStream(legacyFile)) {
+            legacy.store(output, "legacy backup config");
+        }
+
+        FintraxProperties properties = new FintraxProperties(
+                propertiesFile, tempDir.resolve("data"), tempDir.resolve("backups"), null, null);
+        Properties migrated = new Properties();
+        try (InputStream input = Files.newInputStream(propertiesFile)) {
+            migrated.load(input);
+        }
+
+        assertEquals(tempDir.resolve("data").toString(), migrated.getProperty("fintrax.storage.path"));
+        assertEquals(legacyBackupPath.toString(), migrated.getProperty("fintrax.backup.path"));
+        assertFalse(Files.exists(legacyFile));
+        assertEquals(legacyBackupPath, properties.destination());
     }
 
     @Test

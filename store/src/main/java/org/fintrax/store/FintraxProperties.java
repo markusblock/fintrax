@@ -1,5 +1,7 @@
 package org.fintrax.store;
 
+import lombok.extern.slf4j.Slf4j;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -8,9 +10,9 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Optional;
 import java.util.Properties;
-import java.util.UUID;
 
 /** Stores Fintrax storage and backup locations outside the Eclipse Store data directory. */
+@Slf4j
 public final class FintraxProperties {
     public static final String DEFAULT_FILE = "~/.fintrax/fintrax.properties";
     public static final String DEFAULT_STORAGE_PATH = "~/.fintrax/data";
@@ -18,8 +20,10 @@ public final class FintraxProperties {
 
     private static final String STORAGE_PATH_KEY = "fintrax.storage.path";
     private static final String BACKUP_PATH_KEY = "fintrax.backup.path";
+    private static final String LEGACY_BACKUP_PATH_KEY = "destination";
 
     private final Path propertiesFile;
+    private final Path legacyPropertiesFile;
     private final Path storagePath;
     private final Path destination;
     private volatile Path configuredStoragePath;
@@ -27,6 +31,7 @@ public final class FintraxProperties {
     private String configurationWarning;
     private final String startupWarning;
     private volatile String sessionWarning;
+    private boolean removeLegacyBackupConfig;
 
     public FintraxProperties(Path propertiesFile, String storageOverride, String backupOverride) {
         this(propertiesFile, Path.of(DEFAULT_STORAGE_PATH), Path.of(DEFAULT_BACKUP_PATH),
@@ -36,6 +41,8 @@ public final class FintraxProperties {
     FintraxProperties(Path propertiesFile, Path defaultStoragePath, Path defaultBackupPath,
                        String storageOverride, String backupOverride) {
         this.propertiesFile = normalize(propertiesFile);
+        this.legacyPropertiesFile = isDefaultPropertiesFile(this.propertiesFile)
+                ? this.propertiesFile.resolveSibling("backup.properties") : null;
         Properties properties = loadProperties();
         this.storagePath = resolvePath(storageOverride, properties.getProperty(STORAGE_PATH_KEY),
                 defaultStoragePath, "storage");
@@ -49,7 +56,7 @@ public final class FintraxProperties {
             warning = validateBackupDestination(destination).orElse(null);
         }
         if (configurationWarning == null) {
-            boolean writeDefaults = false;
+            boolean writeDefaults = removeLegacyBackupConfig;
             if (properties.getProperty(STORAGE_PATH_KEY) == null
                     || properties.getProperty(STORAGE_PATH_KEY).isBlank()) {
                 properties.setProperty(STORAGE_PATH_KEY, storagePath.toString());
@@ -63,6 +70,7 @@ public final class FintraxProperties {
             if (writeDefaults) {
                 try {
                     persist(properties);
+                    removeMigratedLegacyFile();
                 } catch (IOException exception) {
                     warning = "Cannot save Fintrax configuration: " + propertiesFile
                             + " (" + exception.getMessage() + ")";
@@ -152,7 +160,54 @@ public final class FintraxProperties {
                         + " (" + exception.getMessage() + ")";
             }
         }
+        migrateLegacyBackupProperty(properties);
         return properties;
+    }
+
+    private void migrateLegacyBackupProperty(Properties properties) {
+        if (legacyPropertiesFile == null || !Files.exists(legacyPropertiesFile)) {
+            return;
+        }
+        if (!isBlank(properties.getProperty(BACKUP_PATH_KEY)) && Files.isRegularFile(legacyPropertiesFile)) {
+            removeLegacyBackupConfig = true;
+            return;
+        }
+        if (!Files.isRegularFile(legacyPropertiesFile)) {
+            configurationWarning = "Legacy backup configuration is not a file: " + legacyPropertiesFile;
+            return;
+        }
+        Properties legacy = new Properties();
+        try (InputStream input = Files.newInputStream(legacyPropertiesFile)) {
+            legacy.load(input);
+            String oldDestination = legacy.getProperty(LEGACY_BACKUP_PATH_KEY);
+            if (!isBlank(oldDestination)) {
+                properties.setProperty(BACKUP_PATH_KEY, oldDestination);
+                removeLegacyBackupConfig = true;
+            }
+        } catch (IOException | IllegalArgumentException exception) {
+            configurationWarning = "Cannot migrate legacy backup configuration: " + legacyPropertiesFile
+                    + " (" + exception.getMessage() + ")";
+        }
+    }
+
+    private void removeMigratedLegacyFile() {
+        if (!removeLegacyBackupConfig) {
+            return;
+        }
+        try {
+            Files.deleteIfExists(legacyPropertiesFile);
+        } catch (IOException exception) {
+            log.warn("Migrated backup destination but could not remove legacy config {}", legacyPropertiesFile,
+                    exception);
+        }
+    }
+
+    private boolean isDefaultPropertiesFile(Path path) {
+        return "fintrax.properties".equals(path.getFileName().toString());
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 
     private Path resolvePath(String override, String configuredPath, Path defaultPath, String label) {
