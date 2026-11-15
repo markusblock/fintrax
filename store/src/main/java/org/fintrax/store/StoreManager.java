@@ -5,9 +5,9 @@ import org.eclipse.store.afs.nio.types.NioFileSystem;
 import org.eclipse.store.storage.embedded.configuration.types.EmbeddedStorageConfigurationBuilder;
 import org.eclipse.store.storage.embedded.types.EmbeddedStorage;
 import org.eclipse.store.storage.embedded.types.EmbeddedStorageManager;
-import org.eclipse.store.storage.embedded.types.EmbeddedStorageManager;
 import org.fintrax.model.*;
 
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Map;
@@ -20,6 +20,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 public class StoreManager {
     private static final int MAX_ACTIVITY_LOGS = 10_000;
     private final EmbeddedStorageManager storage;
+    private final StorageLock storageLock;
     private final DataRoot root;
     private volatile boolean shutdown;
     private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
@@ -36,19 +37,38 @@ public class StoreManager {
     /** Starts the store with an optional Eclipse Store continuous-backup directory. */
     public StoreManager(Path storagePath, Path continuousBackupPath) {
         log.info("Initializing StoreManager at {}", storagePath);
-        storage = startStorage(storagePath, continuousBackupPath);
-        root = storage.ensureRoot(DataRoot::new);
-        if (root.getBanks() == null) {
-            root.setBanks(new ArrayList<>());
-            storage.store(root);
-        }
-        log.info("DataRoot initialized");
+        storageLock = StorageLock.acquire(storagePath);
+        EmbeddedStorageManager startedStorage = null;
+        try {
+            storage = startStorage(storageLock.storagePath(), continuousBackupPath);
+            startedStorage = storage;
+            root = storage.ensureRoot(DataRoot::new);
+            if (root.getBanks() == null) {
+                root.setBanks(new ArrayList<>());
+                storage.store(root);
+            }
+            log.info("DataRoot initialized");
 
-        if (!root.getCategories().isEmpty()) {
-            storage.store(root.getCategories());
-        }
+            if (!root.getCategories().isEmpty()) {
+                storage.store(root.getCategories());
+            }
 
-        rebuildIndexes();
+            rebuildIndexes();
+        } catch (RuntimeException | Error exception) {
+            if (startedStorage != null) {
+                try {
+                    startedStorage.shutdown();
+                } catch (RuntimeException | Error shutdownException) {
+                    exception.addSuppressed(shutdownException);
+                }
+            }
+            try {
+                storageLock.close();
+            } catch (IOException closeException) {
+                exception.addSuppressed(closeException);
+            }
+            throw exception;
+        }
     }
 
     private EmbeddedStorageManager startStorage(Path storagePath, Path continuousBackupPath) {
@@ -248,7 +268,15 @@ public class StoreManager {
             log.info("Shutting down StoreManager");
             if (!shutdown) {
                 shutdown = true;
-                storage.shutdown();
+                try {
+                    storage.shutdown();
+                } finally {
+                    try {
+                        storageLock.close();
+                    } catch (IOException exception) {
+                        log.error("Failed to release storage lock", exception);
+                    }
+                }
             }
         } finally {
             lock.writeLock().unlock();

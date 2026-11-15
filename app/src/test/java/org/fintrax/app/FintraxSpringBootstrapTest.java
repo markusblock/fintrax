@@ -16,6 +16,7 @@ import org.fintrax.service.SettingsService;
 import org.fintrax.service.SyncService;
 import org.fintrax.service.TransactionService;
 import org.fintrax.store.BackupConfiguration;
+import org.fintrax.store.StorageAlreadyInUseException;
 import org.fintrax.store.StoreManager;
 import org.fintrax.ui.ViewLoader;
 import org.springframework.boot.web.context.WebServerApplicationContext;
@@ -94,6 +95,17 @@ class FintraxSpringBootstrapTest {
                 "--fintrax.storage.path=" + tempDir.resolve("data"),
                 "--fintrax.backup.path=" + tempDir.resolve("backups"),
                 "--fintrax.backup.config=" + tempDir.resolve("backup.properties"));
+    }
+
+    @Test
+    void identifiesStorageConflictWrappedBySpring() {
+        try (ConfigurableApplicationContext context = startContext()) {
+            RuntimeException exception = assertThrows(RuntimeException.class, this::startContext);
+
+            StorageAlreadyInUseException storageException =
+                    FintraxApplication.findStorageAlreadyInUseException(exception);
+            assertNotNull(storageException);
+        }
     }
 
     @Test
