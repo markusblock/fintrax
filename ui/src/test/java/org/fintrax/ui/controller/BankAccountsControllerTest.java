@@ -16,15 +16,19 @@ import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 import org.fintrax.config.I18n;
+import org.fintrax.fintx.BankingProtocol;
 import org.fintrax.model.*;
+import org.fintrax.service.ActivityLogger;
 import org.fintrax.service.AccountService;
 import org.fintrax.service.BankService;
 import org.fintrax.service.CategoryService;
 import org.fintrax.service.RuleService;
 import org.fintrax.service.SyncProgress;
 import org.fintrax.service.SyncResult;
+import org.fintrax.service.SyncService;
 import org.fintrax.service.TransactionRulePreview;
 import org.fintrax.service.TransactionService;
+import org.fintrax.store.StoreManager;
 import org.fintrax.ui.AbstractUITest;
 import org.fintrax.ui.FintraxUI;
 import org.fintrax.ui.ViewLoader;
@@ -35,6 +39,8 @@ import org.testfx.util.WaitForAsyncUtils;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -206,6 +212,66 @@ class BankAccountsControllerTest extends AbstractUITest {
         Button applyRules = lookup("#applyRulesToNewTransactions").query();
         assertTrue(applyRules.isDisabled());
         clickOn(lookup("#syncReportCloseButton").<Button>query());
+    }
+
+    @Test
+    void syncAllSkipsRemainingAccountsAtBankAfterAuthenticationFailure() {
+        AccountService accountService = applicationContext.getBean(AccountService.class);
+        BankService bankService = applicationContext.getBean(BankService.class);
+        StoreManager store = applicationContext.getBean(StoreManager.class);
+        ActivityLogger activityLogger = applicationContext.getBean(ActivityLogger.class);
+        BankAccount otherBankAccount = accountService.createAccount("DE12500105170648489890", null,
+                "Other Bank", "User", AccountType.GIRO, null);
+        account.setBankId(999L);
+        failedAccount.setBankId(999L);
+        otherBankAccount.setBankId(1000L);
+        List<Long> attemptedAccountIds = new ArrayList<>();
+        SyncService authenticationFailingSyncService = new SyncService(store,
+                applicationContext.getBean(BankingProtocol.class),
+                applicationContext.getBean(TransactionService.class), accountService, activityLogger, bankService) {
+            @Override
+            public synchronized SyncResult syncAccount(Long accountId, String pin,
+                                                       java.util.function.Consumer<SyncProgress> progress,
+                                                       java.util.function.BooleanSupplier cancellationRequested) {
+                attemptedAccountIds.add(accountId);
+                SyncLog log = SyncLog.builder().bankAccountId(accountId).status(SyncStatus.FAILED)
+                        .stage(SyncStage.AUTHENTICATION)
+                        .errorMessage(I18n.get("message.sync.authenticationFailed")).build();
+                return new SyncResult(log, List.of(), true);
+            }
+        };
+        BankAccountsController batchController = new BankAccountsController(accountService, bankService,
+                authenticationFailingSyncService, applicationContext.getBean(org.fintrax.fintx.PinStorage.class),
+                applicationContext.getBean(ViewLoader.class), applicationContext.getBean(RuleService.class),
+                applicationContext.getBean(CategoryService.class), applicationContext.getBean(
+                        org.fintrax.service.LabelService.class), applicationContext.getBean(
+                        org.fintrax.service.SettingsService.class));
+        List<SyncProgressDialog.Account> progressAccounts = List.of(
+                new SyncProgressDialog.Account(account.getId(), "Sync Bank", ""),
+                new SyncProgressDialog.Account(failedAccount.getId(), "Offline Bank", ""),
+                new SyncProgressDialog.Account(otherBankAccount.getId(), "Other Bank", ""));
+        AtomicBoolean completed = new AtomicBoolean();
+        List<SyncResult> results = new ArrayList<>();
+        Map<Long, String> failures = new LinkedHashMap<>();
+        AtomicReference<SyncProgressDialog> progressDialogRef = new AtomicReference<>();
+
+        interact(() -> {
+            SyncProgressDialog progressDialog = new SyncProgressDialog(
+                    lookup(".account-card").query().getScene().getWindow());
+            progressDialogRef.set(progressDialog);
+            progressDialog.show(progressAccounts);
+            completed.set(batchController.syncBatchAccounts(
+                    new BankAccountsController.SyncBatch(List.of(account, failedAccount, otherBankAccount),
+                            Map.of("bank:999", "wrong-pin", "bank:1000", "other-pin")),
+                    progressDialog, new AtomicBoolean(), results, failures));
+        });
+
+        assertTrue(completed.get());
+        assertEquals(List.of(account.getId(), otherBankAccount.getId()), attemptedAccountIds);
+        assertEquals(2, results.size());
+        assertEquals(I18n.get("message.sync.skippedAfterAuthenticationFailure"),
+                failures.get(failedAccount.getId()));
+        interact(progressDialogRef.get()::close);
     }
 
     @Test

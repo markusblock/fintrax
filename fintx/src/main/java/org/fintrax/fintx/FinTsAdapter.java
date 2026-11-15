@@ -16,7 +16,9 @@ import org.kapott.hbci.manager.HBCIUtils;
 import org.kapott.hbci.manager.HBCIVersion;
 import org.kapott.hbci.passport.AbstractHBCIPassport;
 import org.kapott.hbci.passport.HBCIPassport;
+import org.kapott.hbci.status.HBCIDialogStatus;
 import org.kapott.hbci.status.HBCIExecStatus;
+import org.kapott.hbci.status.HBCIMsgStatus;
 import org.kapott.hbci.structures.Konto;
 
 import java.io.File;
@@ -136,6 +138,10 @@ public class FinTsAdapter implements BankingProtocol {
             HBCIExecStatus status = session.handle.execute();
 
             if (!status.isOK()) {
+                if (hasInvalidPinResponse(status)) {
+                    throw new BankingException(BankingException.FailureReason.AUTHENTICATION_FAILED,
+                            SyncStage.AUTHENTICATION, "Bank rejected the supplied password / PIN.");
+                }
                 throw new BankingException(BankingException.FailureReason.BANK_REJECTED,
                         SyncStage.DATA_RETRIEVAL,
                         "Bank rejected the transaction sync request.");
@@ -190,6 +196,37 @@ public class FinTsAdapter implements BankingProtocol {
         return new BankingException(exception.getFailureReason(), stage, exception.getMessage(), exception.getCause());
     }
 
+    static boolean hasInvalidPinResponse(HBCIExecStatus status) {
+        for (String customerId : status.getCustomerIds()) {
+            HBCIDialogStatus dialogStatus = status.getDialogStatus(customerId);
+            if (dialogStatus == null) {
+                continue;
+            }
+            if (hasInvalidPinResponse(dialogStatus.initStatus)
+                    || hasInvalidPinResponse(dialogStatus.msgStatus)
+                    || hasInvalidPinResponse(dialogStatus.endStatus)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean hasInvalidPinResponse(HBCIMsgStatus messageStatus) {
+        return messageStatus != null && messageStatus.isInvalidPIN();
+    }
+
+    private static boolean hasInvalidPinResponse(HBCIMsgStatus[] messageStatuses) {
+        if (messageStatuses == null) {
+            return false;
+        }
+        for (HBCIMsgStatus messageStatus : messageStatuses) {
+            if (hasInvalidPinResponse(messageStatus)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private void validateBankProfile(Bank bank) throws BankingException {
         if (bank == null) {
             throw new BankingException(BankingException.FailureReason.MISSING_BANK_PROFILE,
@@ -203,7 +240,7 @@ public class FinTsAdapter implements BankingProtocol {
 
     private SyncStage stageForBankingFailure(BankingException.FailureReason reason, SyncStage currentStage) {
         return switch (reason) {
-            case TAN_REQUIRED, MISSING_USER_ID -> SyncStage.AUTHENTICATION;
+            case TAN_REQUIRED, AUTHENTICATION_FAILED, MISSING_USER_ID -> SyncStage.AUTHENTICATION;
             case BANK_REJECTED, INCOMPLETE_RESPONSE, MAPPING_FAILED, ACCOUNT_MISMATCH -> SyncStage.DATA_RETRIEVAL;
             default -> currentStage;
         };

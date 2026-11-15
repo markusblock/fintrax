@@ -34,6 +34,7 @@ import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -331,19 +332,30 @@ public class BankAccountsController {
         return new SyncBatch(selectedAccounts, passwordsByBank);
     }
 
-    private boolean syncBatchAccounts(SyncBatch batch, SyncProgressDialog progressDialog,
-                                      AtomicBoolean cancellationRequested, List<SyncResult> results,
-                                      Map<Long, String> failures) {
+    boolean syncBatchAccounts(SyncBatch batch, SyncProgressDialog progressDialog,
+                              AtomicBoolean cancellationRequested, List<SyncResult> results,
+                              Map<Long, String> failures) {
+        Set<String> authenticationFailedBanks = new HashSet<>();
         for (BankAccount account : batch.accounts()) {
             if (isSyncCancellationRequested(cancellationRequested)) return false;
+            String bankKey = syncBankKey(account);
+            if (authenticationFailedBanks.contains(bankKey)) {
+                String message = I18n.get("message.sync.skippedAfterAuthenticationFailure");
+                failures.put(account.getId(), message);
+                progressDialog.failAccount(account.getId(), message);
+                continue;
+            }
             progressDialog.activateAccount(account.getId());
             try {
                 SyncResult result = syncService.syncAccount(account.getId(),
-                        batch.passwordsByBank().get(syncBankKey(account)),
+                        batch.passwordsByBank().get(bankKey),
                         progressDialog::updateProgress, cancellationRequested::get);
                 if (isSyncCancellationRequested(cancellationRequested)) return false;
                 results.add(result);
                 progressDialog.finishAccount(result);
+                if (result.authenticationFailed()) {
+                    authenticationFailedBanks.add(bankKey);
+                }
             } catch (Exception e) {
                 if (isSyncCancellationRequested(cancellationRequested)) return false;
                 log.warn("Bank sync failed for account {}", account.getId());
@@ -639,7 +651,7 @@ public class BankAccountsController {
         alert.showAndWait();
     }
 
-    private record SyncBatch(List<BankAccount> accounts, Map<String, String> passwordsByBank) {
+    record SyncBatch(List<BankAccount> accounts, Map<String, String> passwordsByBank) {
     }
 
 }
