@@ -10,6 +10,7 @@ import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.layout.VBox;
+import javafx.stage.DirectoryChooser;
 import javafx.stage.Stage;
 import lombok.extern.slf4j.Slf4j;
 import org.fintrax.config.I18n;
@@ -19,6 +20,7 @@ import org.fintrax.store.BackupConfiguration;
 import org.fintrax.ui.FintraxUI;
 import org.springframework.context.ConfigurableApplicationContext;
 
+import java.io.File;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Locale;
@@ -72,29 +74,51 @@ public final class StartupErrorApplication extends Application {
 
     private void showStorageRecovery(Stage owner, RecoveryRequest request) {
         BackupRestoreService restoreService = new BackupRestoreService();
+        RecoveryRequest currentRequest = request;
         while (true) {
-            List<Path> backups = listFullBackups(restoreService, request.backupConfiguration());
+            List<Path> backups = listFullBackups(restoreService, currentRequest.backupConfiguration());
 
-            Alert alert = new Alert(Alert.AlertType.ERROR);
-            FintraxUI.configureDialog(alert);
-            alert.setTitle(I18n.get("startup.storageError.title"));
-            alert.setHeaderText(I18n.get("startup.storageError.title"));
-            String message = I18n.get("startup.storageError.message", request.storagePath(),
-                    messageOf(request.failure()));
-            if (backups.isEmpty()) {
-                message += "\n" + I18n.get("startup.storageError.noBackups");
-            }
-            alert.setContentText(message);
-
-            ButtonType exit = new ButtonType(I18n.get("startup.storageError.exit"));
+            Alert alert = createStorageErrorAlert(currentRequest.storagePath(), currentRequest.failure(), backups);
+            ButtonType exit = alert.getButtonTypes().getLast();
             ButtonType restore = new ButtonType(I18n.get("startup.storageError.restore"));
-            alert.getButtonTypes().setAll(backups.isEmpty() ? List.of(exit) : List.of(restore, exit));
+            ButtonType changeBackup = new ButtonType(I18n.get("startup.storageError.changeBackup"));
+            alert.getButtonTypes().setAll(backups.isEmpty()
+                    ? List.of(changeBackup, exit) : List.of(restore, changeBackup, exit));
             Optional<ButtonType> choice = alert.showAndWait();
-            if (choice.isEmpty() || choice.get() == exit || backups.isEmpty()) {
+            if (choice.isEmpty() || choice.get() == exit) {
                 Platform.exit();
                 return;
             }
+            if (choice.get() == changeBackup) {
+                try {
+                    DirectoryChooser chooser = new DirectoryChooser();
+                    chooser.setTitle(I18n.get("settings.backup.choose.title"));
+                    Path currentDestination = currentRequest.backupConfiguration().destination();
+                    if (currentDestination.toFile().isDirectory()) {
+                        chooser.setInitialDirectory(currentDestination.toFile());
+                    }
+                    File selectedFolder = chooser.showDialog(null);
+                    if (selectedFolder == null) {
+                        continue;
+                    }
+                    currentRequest.backupConfiguration().saveDestination(selectedFolder.toPath());
+                    Alert restart = new Alert(Alert.AlertType.INFORMATION,
+                            I18n.get("settings.backup.restartToResume"));
+                    FintraxUI.configureDialog(restart);
+                    restart.setTitle(I18n.get("settings.backup.failed.title"));
+                    restart.setHeaderText(I18n.get("settings.backup.failed.title"));
+                    restart.showAndWait();
+                    Platform.exit();
+                    return;
+                } catch (RuntimeException exception) {
+                    currentRequest = currentRequest.withFailure(exception);
+                    continue;
+                }
+            }
 
+            if (backups.isEmpty()) {
+                continue;
+            }
             ChoiceDialog<Path> backupChoice = new ChoiceDialog<>(backups.getFirst(), backups);
             FintraxUI.configureDialog(backupChoice);
             backupChoice.setTitle(I18n.get("startup.storageError.choose.title"));
@@ -103,9 +127,26 @@ public final class StartupErrorApplication extends Application {
             if (selectedBackup.isEmpty()) {
                 continue;
             }
-            startRestore(owner, request, selectedBackup.get(), restoreService);
+            startRestore(owner, currentRequest, selectedBackup.get(), restoreService);
             return;
         }
+    }
+
+    static Alert createStorageErrorAlert(Path storagePath, Throwable failure, List<Path> backups) {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        FintraxUI.configureDialog(alert);
+        alert.setTitle(I18n.get("startup.storageError.title"));
+        alert.setHeaderText(I18n.get("startup.storageError.title"));
+        String message = I18n.get("startup.storageError.message", storagePath, messageOf(failure));
+        if (backups.isEmpty()) {
+            message += "\n" + I18n.get("startup.storageError.noBackups");
+        }
+        alert.setContentText(message);
+
+        ButtonType exit = new ButtonType(I18n.get("startup.storageError.exit"));
+        ButtonType restore = new ButtonType(I18n.get("startup.storageError.restore"));
+        alert.getButtonTypes().setAll(backups.isEmpty() ? List.of(exit) : List.of(restore, exit));
+        return alert;
     }
 
     private List<Path> listFullBackups(BackupRestoreService restoreService,
@@ -159,8 +200,11 @@ public final class StartupErrorApplication extends Application {
         String preservedPath = result.preservedStoragePath()
                 .map(Path::toString)
                 .orElse(I18n.get("startup.storageError.noPreviousStore"));
+        String preservedContinuousPath = result.preservedContinuousBackupPath()
+                .map(Path::toString)
+                .orElse(I18n.get("startup.storageError.noPreviousMirror"));
         Alert restored = new Alert(Alert.AlertType.INFORMATION,
-                I18n.get("startup.storageError.restoreSuccess", preservedPath));
+                I18n.get("startup.storageError.restoreSuccess", preservedPath, preservedContinuousPath));
         FintraxUI.configureDialog(restored);
         restored.setTitle(I18n.get("startup.storageError.restoreSuccess.title"));
         restored.setHeaderText(I18n.get("startup.storageError.restoreSuccess.title"));
@@ -180,7 +224,7 @@ public final class StartupErrorApplication extends Application {
         }
     }
 
-    private String messageOf(Throwable failure) {
+    private static String messageOf(Throwable failure) {
         String message = failure.getMessage();
         return message == null || message.isBlank() ? failure.getClass().getSimpleName() : message;
     }

@@ -50,7 +50,8 @@ class StartupFailureMessagesTest {
         assertAll(
                 () -> assertTrue(message.contains("/home/alex/.fintrax/data")),
                 () -> assertTrue(message.contains("Unreadable transaction file")),
-                () -> assertTrue(I18n.get("startup.storageError.restore").contains("Restore"))
+                () -> assertTrue(I18n.get("startup.storageError.restore").contains("Restore")),
+                () -> assertTrue(I18n.get("startup.storageError.changeBackup").contains("Change"))
         );
     }
 
