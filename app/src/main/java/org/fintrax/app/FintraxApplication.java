@@ -56,12 +56,13 @@ public final class FintraxApplication {
     }
 
     static StorageException findStorageException(Throwable exception) {
+        StorageException storageFailure = null;
         for (Throwable cause = exception; cause != null; cause = cause.getCause()) {
             if (cause instanceof StorageException storageException) {
-                return storageException;
+                storageFailure = storageException;
             }
         }
-        return null;
+        return storageFailure;
     }
 
     private static Path resolveStoragePath(String[] args) {

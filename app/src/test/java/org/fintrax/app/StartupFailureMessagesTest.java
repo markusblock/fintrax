@@ -57,9 +57,10 @@ class StartupFailureMessagesTest {
 
     @Test
     void findsStorageExceptionThroughSpringCauseChain() {
-        StorageException storageException = new StorageException("Unreadable transaction file");
+        StorageException rootCause = new StorageException("Unknown transactions entry type: 50");
+        StorageException channelFailure = new StorageException("Problem in channel #0", rootCause);
 
-        assertSame(storageException, FintraxApplication.findStorageException(
-                new RuntimeException("Spring startup failed", new RuntimeException(storageException))));
+        assertSame(rootCause, FintraxApplication.findStorageException(
+                new RuntimeException("Spring startup failed", new RuntimeException(channelFailure))));
     }
 }
