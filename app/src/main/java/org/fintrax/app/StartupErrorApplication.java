@@ -54,16 +54,15 @@ public final class StartupErrorApplication extends Application {
                 ? Locale.GERMAN : Locale.ENGLISH;
         I18n.setLocale(startupLocale);
         if (storageInUsePath != null) {
-            showStorageInUse(primaryStage, storageInUsePath);
+            showStorageInUseDialog(storageInUsePath);
             return;
         }
         showStorageRecovery(primaryStage, recoveryRequest);
     }
 
-    private void showStorageInUse(Stage owner, Path storagePath) {
+    private void showStorageInUseDialog(Path storagePath) {
         Alert alert = new Alert(Alert.AlertType.ERROR);
         FintraxUI.configureDialog(alert);
-        alert.initOwner(owner);
         alert.setTitle(I18n.get("app.name"));
         alert.setHeaderText(I18n.get("startup.storageInUse.title"));
         alert.setContentText(I18n.get("startup.storageInUse.message", storagePath));
@@ -78,7 +77,6 @@ public final class StartupErrorApplication extends Application {
 
             Alert alert = new Alert(Alert.AlertType.ERROR);
             FintraxUI.configureDialog(alert);
-            alert.initOwner(owner);
             alert.setTitle(I18n.get("startup.storageError.title"));
             alert.setHeaderText(I18n.get("startup.storageError.title"));
             String message = I18n.get("startup.storageError.message", request.storagePath(),
@@ -99,7 +97,6 @@ public final class StartupErrorApplication extends Application {
 
             ChoiceDialog<Path> backupChoice = new ChoiceDialog<>(backups.getFirst(), backups);
             FintraxUI.configureDialog(backupChoice);
-            backupChoice.initOwner(owner);
             backupChoice.setTitle(I18n.get("startup.storageError.choose.title"));
             backupChoice.setHeaderText(I18n.get("startup.storageError.choose.header"));
             Optional<Path> selectedBackup = backupChoice.showAndWait();
@@ -125,7 +122,6 @@ public final class StartupErrorApplication extends Application {
                               BackupRestoreService restoreService) {
         Dialog<Void> progress = new Dialog<>();
         FintraxUI.configureDialog(progress);
-        progress.initOwner(owner);
         progress.setTitle(I18n.get("startup.storageError.restoring.title"));
         progress.setHeaderText(I18n.get("startup.storageError.restoring.title"));
         progress.getDialogPane().setContent(new VBox(12,
@@ -166,7 +162,6 @@ public final class StartupErrorApplication extends Application {
         Alert restored = new Alert(Alert.AlertType.INFORMATION,
                 I18n.get("startup.storageError.restoreSuccess", preservedPath));
         FintraxUI.configureDialog(restored);
-        restored.initOwner(owner);
         restored.setTitle(I18n.get("startup.storageError.restoreSuccess.title"));
         restored.setHeaderText(I18n.get("startup.storageError.restoreSuccess.title"));
         restored.showAndWait();
