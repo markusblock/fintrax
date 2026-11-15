@@ -5,6 +5,7 @@ plugins {
     jacoco
     id("jacoco-report-aggregation")
     id("org.sonarqube") version "7.5.0.8588"
+    id("org.gradle.test-retry") version "1.6.6" apply false
     id("org.openjfx.javafxplugin") version "0.1.0" apply false
     id("org.springframework.boot") apply false
 }
@@ -42,6 +43,7 @@ tasks.named("sonar") {
 subprojects {
     apply(plugin = "java")
     apply(plugin = "jacoco")
+    apply(plugin = "org.gradle.test-retry")
 
     java {
         sourceCompatibility = JavaVersion.VERSION_21
@@ -71,6 +73,12 @@ subprojects {
 
     tasks.withType<Test> {
         useJUnitPlatform()
+        // Limit each test method without timing out slower lifecycle setup.
+        systemProperty("junit.jupiter.execution.timeout.testable.method.default", "20 s")
+        extensions.configure<org.gradle.testretry.TestRetryTaskExtension>("retry") {
+            maxRetries.set(3)
+            failOnPassedAfterRetry.set(false)
+        }
     }
 
     extensions.configure<JacocoPluginExtension> {

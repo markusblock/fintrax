@@ -239,7 +239,6 @@ public class RulesController {
         editRule.setOnAction(event -> editRule(rule));
 
         MenuItem mergeRules = new MenuItem(I18n.get("rules.mergeSelected"));
-        mergeRules.setOnAction(event -> mergeSelectedRules());
 
         MenuItem applyRule = new MenuItem(I18n.get("rules.applySelected"));
         applyRule.setGraphic(icon("fth-play", 14));
@@ -273,6 +272,11 @@ public class RulesController {
         ContextMenu contextMenu = new ContextMenu(editRule, mergeRules, applyRule,
                 new SeparatorMenuItem(), moveUp, moveDown, toggleEnabled,
                 new SeparatorMenuItem(), deleteRule);
+        mergeRules.setOnAction(event -> {
+            // The modal merge dialog otherwise leaves the owner context menu visible behind it.
+            contextMenu.hide();
+            mergeSelectedRules();
+        });
         contextMenu.setOnShowing(event -> {
             int selectedCount = ruleTable.getSelectionModel().getSelectedItems().size();
             editRule.setDisable(selectedCount != 1);

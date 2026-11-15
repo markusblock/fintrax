@@ -15,6 +15,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -289,12 +290,35 @@ class TransactionServiceTest {
 
         DateTimeFormatter displayDateFormatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT)
                 .withLocale(I18n.getCurrentLocale());
-        for (String searchText : List.of("utilities", "urgent", String.format("%,.2f EUR", amount.doubleValue()),
+        for (String searchText : List.of("utilities", "urgent",
+                String.format(I18n.getCurrentLocale(), "%,.2f EUR", amount.doubleValue()),
                 amount.toPlainString(),
                 bookingDate.toString(), displayDateFormatter.format(bookingDate))) {
             List<Transaction> filtered = transactionService.filterTransactions(new TransactionFilter(
                     null, null, null, null, null, null, null, searchText));
             assertEquals(List.of(transaction), filtered, "search should match: " + searchText);
+        }
+    }
+
+    @Test
+    void searchMatchesDisplayedAmountInConfiguredLocale() {
+        Locale previousDefaultLocale = Locale.getDefault();
+        Locale previousI18nLocale = I18n.getCurrentLocale();
+        try {
+            Locale.setDefault(Locale.US);
+            I18n.setLocale(Locale.GERMAN);
+            Transaction transaction = transactionService.createTransaction(Transaction.builder()
+                    .amount(new BigDecimal("1234.56")).build());
+            String displayedAmount = String.format(I18n.getCurrentLocale(), "%,.2f EUR",
+                    transaction.getAmount().doubleValue());
+
+            List<Transaction> filtered = transactionService.filterTransactions(new TransactionFilter(
+                    null, null, null, null, null, null, null, displayedAmount));
+
+            assertEquals(List.of(transaction), filtered);
+        } finally {
+            I18n.setLocale(previousI18nLocale);
+            Locale.setDefault(previousDefaultLocale);
         }
     }
 
