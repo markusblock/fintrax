@@ -3,6 +3,8 @@ package org.fintrax.fintx;
 import org.fintrax.model.Transaction;
 import org.junit.jupiter.api.Test;
 import org.kapott.hbci.GV_Result.GVRKUms.UmsLine;
+import org.kapott.hbci.exceptions.HBCI_Exception;
+import org.kapott.hbci.exceptions.ProcessException;
 import org.kapott.hbci.status.HBCIDialogStatus;
 import org.kapott.hbci.status.HBCIExecStatus;
 import org.kapott.hbci.status.HBCIMsgStatus;
@@ -34,6 +36,23 @@ class FinTsAdapterTest {
         successfulDialog.msgStatus = new HBCIMsgStatus[]{new HBCIMsgStatus()};
         successfulStatus.addDialogStatus("bank", successfulDialog);
         assertFalse(FinTsAdapter.hasInvalidPinResponse(successfulStatus));
+    }
+
+    @Test
+    void detectsInvalidPinResponseWrappedByHandlerInitialization() {
+        HBCIMsgStatus invalidPin = new HBCIMsgStatus();
+        invalidPin.globStatus.addRetVal(new HBCIRetVal(null, null, null,
+                "9942", "Invalid PIN", null));
+        ProcessException rejectedSync = new ProcessException("System ID sync failed", invalidPin);
+        HBCI_Exception handlerInitializationFailure = new HBCI_Exception(rejectedSync);
+
+        assertTrue(FinTsAdapter.hasInvalidPinResponse(handlerInitializationFailure));
+
+        HBCIMsgStatus otherFailure = new HBCIMsgStatus();
+        otherFailure.globStatus.addRetVal(new HBCIRetVal(null, null, null,
+                "9999", "Other failure", null));
+        assertFalse(FinTsAdapter.hasInvalidPinResponse(
+                new HBCI_Exception(new ProcessException("Sync failed", otherFailure))));
     }
 
     @Test

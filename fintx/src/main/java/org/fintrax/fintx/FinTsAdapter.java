@@ -10,6 +10,7 @@ import org.kapott.hbci.GV_Result.GVRKUms;
 import org.kapott.hbci.GV_Result.GVRKUms.UmsLine;
 import org.kapott.hbci.GV_Result.GVRSaldoReq;
 import org.kapott.hbci.callback.AbstractHBCICallback;
+import org.kapott.hbci.exceptions.ProcessException;
 import org.kapott.hbci.manager.BankInfo;
 import org.kapott.hbci.manager.HBCIHandler;
 import org.kapott.hbci.manager.HBCIUtils;
@@ -44,7 +45,9 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Collections;
 import java.util.Date;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Properties;
@@ -186,6 +189,10 @@ public class FinTsAdapter implements BankingProtocol {
                 throw new BankingException(BankingException.FailureReason.TAN_REQUIRED, SyncStage.AUTHENTICATION,
                         BankingException.TAN_REQUIRED_MESSAGE, e);
             }
+            if (hasInvalidPinResponse(e)) {
+                throw new BankingException(BankingException.FailureReason.AUTHENTICATION_FAILED,
+                        SyncStage.AUTHENTICATION, "Bank rejected the supplied password / PIN.", e);
+            }
             throw new BankingException(BankingException.FailureReason.CONNECTION_FAILED,
                     stageForUnexpectedFailure(e, stage),
                     "Bank transaction sync could not be completed.", e);
@@ -205,6 +212,17 @@ public class FinTsAdapter implements BankingProtocol {
             if (hasInvalidPinResponse(dialogStatus.initStatus)
                     || hasInvalidPinResponse(dialogStatus.msgStatus)
                     || hasInvalidPinResponse(dialogStatus.endStatus)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    static boolean hasInvalidPinResponse(Throwable failure) {
+        Set<Throwable> seen = Collections.newSetFromMap(new IdentityHashMap<>());
+        for (Throwable cause = failure; cause != null && seen.add(cause); cause = cause.getCause()) {
+            if (cause instanceof ProcessException processException
+                    && hasInvalidPinResponse(processException.getMsgStatus())) {
                 return true;
             }
         }
