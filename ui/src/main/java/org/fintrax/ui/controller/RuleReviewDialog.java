@@ -78,7 +78,7 @@ final class RuleReviewDialog {
         this.selectedRuleOnly = selectedRuleOnly;
     }
 
-    void show() {
+    boolean show() {
         Dialog<ButtonType> dialog = new Dialog<>();
         FintraxUI.configureDialog(dialog);
         dialog.setResizable(true);
@@ -234,11 +234,10 @@ final class RuleReviewDialog {
 
         dialog.setResultConverter(button -> button == applyButtonType ? applyButtonType : null);
 
-        dialog.showAndWait().ifPresent(result -> {
-            if (result == applyButtonType) {
-                applySelectedChanges(currentPreview.get(), selectionByTransactionId);
-            }
-        });
+        var result = dialog.showAndWait();
+        if (result.isEmpty() || result.get() != applyButtonType) return false;
+        applySelectedChanges(currentPreview.get(), selectionByTransactionId);
+        return true;
     }
 
     private void updateSelectionControls(ObservableList<TransactionRulePreview> rows,

@@ -214,7 +214,7 @@ public class TransactionDetailsPanelController {
                 ? "EUR" : account.getCurrency();
 
         setAmountValue(amountValue, transaction.getAmount(), currency);
-        setAmountValue(balanceValue, transaction.getBalanceAfter(), currency);
+        setAmountValue(balanceValue, isFutureTransaction(transaction) ? null : transaction.getBalanceAfter(), currency);
         setPropertyText(categoryValue, categoryName(transaction.getCategoryId()));
         setDetailLabels(transaction.getLabelIds());
         setPropertyText(noteValue, transaction.getNote());
@@ -252,6 +252,11 @@ public class TransactionDetailsPanelController {
 
     private void setPropertyText(Label value, String text) {
         value.setText(text == null ? "" : text);
+    }
+
+    private boolean isFutureTransaction(Transaction transaction) {
+        return transaction.getBookingDate() != null
+                && transaction.getBookingDate().isAfter(LocalDate.now());
     }
 
     private String categoryName(Long categoryId) {

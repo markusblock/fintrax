@@ -207,7 +207,8 @@ public class SyncService {
         for (Transaction fetched : fetchedTransactions) {
             throwIfCancelled(cancellationRequested);
             Transaction existing = localTransactions.stream()
-                    .filter(candidate -> !matchedTransactions.contains(candidate))
+                    .filter(candidate -> !matchedTransactions.contains(candidate)
+                            || sameChecksum(candidate, fetched))
                     .filter(candidate -> matches(candidate, fetched))
                     .findFirst()
                     .orElse(null);
@@ -297,6 +298,11 @@ public class SyncService {
                 && stored.getAmount().compareTo(received.getAmount()) == 0
                 && normalizeText(stored.getOriginalPayee()).equals(normalizeText(received.getOriginalPayee()))
                 && normalizeText(stored.getPurpose()).equals(normalizeText(received.getPurpose()));
+    }
+
+    private boolean sameChecksum(Transaction first, Transaction second) {
+        String firstChecksum = normalizeChecksum(first.getChecksum());
+        return firstChecksum != null && firstChecksum.equals(normalizeChecksum(second.getChecksum()));
     }
 
     private String normalizeChecksum(String checksum) {

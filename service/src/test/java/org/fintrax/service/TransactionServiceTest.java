@@ -69,6 +69,19 @@ class TransactionServiceTest {
     }
 
     @Test
+    void createTransactionAllocatesIdAfterTransactionsImportedDirectlyIntoStore() {
+        Transaction hibiscusImported = Transaction.builder().id(1L).originalPayee("Imported").build();
+        store.getRoot().getTransactions().add(hibiscusImported);
+        store.store(store.getRoot().getTransactions());
+
+        Transaction synced = transactionService.createTransaction(
+                Transaction.builder().originalPayee("Synced").build());
+
+        assertNotEquals(hibiscusImported.getId(), synced.getId());
+        assertSame(synced, transactionService.getTransaction(synced.getId()).orElseThrow());
+    }
+
+    @Test
     void updateFromBankStoresAllFinTsTransactionReferences() {
         Transaction stored = transactionService.createTransaction(Transaction.builder().build());
         Transaction received = Transaction.builder()

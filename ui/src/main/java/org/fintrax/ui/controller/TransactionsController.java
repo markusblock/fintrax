@@ -117,6 +117,7 @@ public class TransactionsController {
         transactionTableActions.installContextMenu(
                 transactionTable, this::reloadTransactionsKeepingSelection, this::createRuleFromTransaction);
         setupTableColumns();
+        setupFutureTransactionRows();
         TableCellTooltips.install(transactionTable);
         transactionFilterPanelController.setCollapsible(true);
         transactionFilterPanelController.restoreForView(SessionViewState.TRANSACTIONS_VIEW);
@@ -170,7 +171,8 @@ public class TransactionsController {
             }
         });
 
-        balanceColumn.setCellValueFactory(cd -> new SimpleObjectProperty<>(cd.getValue().getBalanceAfter()));
+        balanceColumn.setCellValueFactory(cd -> new SimpleObjectProperty<>(isFutureTransaction(cd.getValue())
+                ? null : cd.getValue().getBalanceAfter()));
         balanceColumn.setCellFactory(col -> new TableCell<>() {
             {
                 setAlignment(Pos.CENTER_RIGHT);
@@ -201,6 +203,30 @@ public class TransactionsController {
             return new SimpleStringProperty(text);
         });
         labelsColumn.setCellFactory(column -> createLabelChipCell(this::onSetLabels));
+    }
+
+    private void setupFutureTransactionRows() {
+        var existingRowFactory = transactionTable.getRowFactory();
+        transactionTable.setRowFactory(table -> {
+            TableRow<Transaction> row = existingRowFactory == null
+                    ? new TableRow<>() : existingRowFactory.call(table);
+            row.itemProperty().addListener((observable, oldTransaction, newTransaction) ->
+                    updateFutureTransactionStyle(row, newTransaction));
+            updateFutureTransactionStyle(row, row.getItem());
+            return row;
+        });
+    }
+
+    private void updateFutureTransactionStyle(TableRow<Transaction> row, Transaction transaction) {
+        row.getStyleClass().remove("future-transaction-row");
+        if (isFutureTransaction(transaction)) {
+            row.getStyleClass().add("future-transaction-row");
+        }
+    }
+
+    private boolean isFutureTransaction(Transaction transaction) {
+        return transaction != null && transaction.getBookingDate() != null
+                && transaction.getBookingDate().isAfter(LocalDate.now());
     }
 
     private void setupDateColumn(TableColumn<Transaction, LocalDate> column,

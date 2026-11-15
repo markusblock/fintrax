@@ -56,7 +56,7 @@ Use subtle status fills with matching status text. Pair status colors with text 
 - Let the primary work area take remaining space. Keep header and footer content stable while the body grows or scrolls.
 - Use side-by-side panels only when both are useful together. At constrained widths, collapse secondary content before shrinking primary controls or labels.
 - Add scrolling only to content that can exceed its region. Prefer vertical scrolling; wrap text before requiring horizontal scrolling.
-- Tables: give predictable, short-value columns (such as selection, date, and count) fixed widths; do not let them grow when the window widens. Let descriptive/text columns share the remaining space and expand with the window. Protect essential columns, and provide column hiding or a way to inspect truncated values.
+- Tables: give predictable, short-value columns (such as selection, date, and count) fixed widths; do not let them grow when the window widens. Let descriptive/text columns share the remaining space and expand with the window. Protect essential columns, and provide column hiding or a way to inspect truncated values. In transaction tables, future booking dates use muted row styling and no saldo; base this presentation on booking date, not booked/pending status.
 
 ### Search and filters
 

@@ -250,6 +250,10 @@ class RulesControllerTest extends AbstractUITest {
 
     @Test
     void confirmingReviewAppliesProposedChanges() {
+        TableView<Rule> ruleTable = lookup("#ruleTable").query();
+        Rule selectedRule = ruleTable.getItems().stream()
+                .filter(rule -> rule.getName().equals(ruleName)).findFirst().orElseThrow();
+        interact(() -> ruleTable.getSelectionModel().select(selectedRule));
         openReviewDialog();
         CheckBox onlyFillMissing = lookup("#onlyFillMissingRules").query();
         interact(() -> onlyFillMissing.setSelected(false));
@@ -262,6 +266,17 @@ class RulesControllerTest extends AbstractUITest {
         assertEquals(proposedCategory.getId(), updated.getCategoryId());
         assertTrue(updated.getLabelIds().contains(proposedLabelId));
         assertEquals("Current note", updated.getNote());
+
+        TableView<Transaction> transactions = lookup("#ruleTransactionsTable").query();
+        int rowIndex = transactions.getItems().stream().map(Transaction::getId).toList()
+                .indexOf(transaction.getId());
+        assertTrue(rowIndex >= 0);
+        interact(() -> transactions.scrollTo(rowIndex));
+        WaitForAsyncUtils.waitForFxEvents();
+        TableColumn<?, ?> categoryColumn = transactions.getColumns().stream()
+                .filter(column -> I18n.get("col.category").equals(column.getText()))
+                .findFirst().orElseThrow();
+        assertEquals(proposedCategory.getName(), cellForTransaction(transactions, categoryColumn, transaction).getText());
     }
 
     @Test
@@ -603,7 +618,6 @@ class RulesControllerTest extends AbstractUITest {
     void focusingRegexValueFieldShowsExamplesInSettingsLanguage() {
         SettingsService settingsService = applicationContext.getBean(SettingsService.class);
         String originalLanguage = settingsService.getLanguage();
-        String editMenuItemText = I18n.get("button.edit");
         try {
             interact(() -> {
                 settingsService.saveLanguage("de");
@@ -615,7 +629,7 @@ class RulesControllerTest extends AbstractUITest {
                     .filter(rule -> rule.getName().equals(ruleName)).findFirst().orElseThrow();
             TableRow<?> row = rowForRule(ruleTable, ruleName);
             interact(() -> ruleTable.getSelectionModel().select(selectedRule));
-            Platform.runLater(() -> menuItem(row.getContextMenu(), editMenuItemText).fire());
+            Platform.runLater(() -> row.getContextMenu().getItems().getFirst().fire());
             WaitForAsyncUtils.waitForFxEvents();
 
             ComboBox<String> operator = lookup(".rule-condition-operator").query();

@@ -92,6 +92,21 @@ class SyncServiceTest {
     }
 
     @Test
+    void syncDoesNotImportTheSameFetchedTransactionTwice() {
+        BankAccount account = createAccount();
+        bankingProtocol.transactions = List.of(
+                transaction(account.getId(), "same-checksum", "Same transaction"),
+                transaction(account.getId(), "same-checksum", "Same transaction"));
+
+        SyncResult result = syncService.syncAccount(account.getId(), "1234");
+
+        assertEquals(1, transactionService.getTransactionsByAccount(account.getId()).size());
+        assertEquals(1, result.syncLog().getNewCount());
+        assertEquals(1, result.syncLog().getSkippedCount());
+        assertEquals(1, result.newTransactionIds().size());
+    }
+
+    @Test
     void syncUpgradesMatchingPendingTransactionWithoutDuplicatingIt() {
         BankAccount account = createAccount();
         Transaction pending = transaction(account.getId(), "same-checksum", "Pending payee");
