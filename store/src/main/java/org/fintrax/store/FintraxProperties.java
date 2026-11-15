@@ -10,31 +10,31 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicReference;
 
 /** Stores Fintrax storage and backup locations outside the Eclipse Store data directory. */
 @Slf4j
 public final class FintraxProperties {
     public static final String DEFAULT_FILE = "~/.fintrax/fintrax.properties";
-    public static final String DEFAULT_STORAGE_PATH = "~/.fintrax/data";
-    public static final String DEFAULT_BACKUP_PATH = "~/.fintrax/backups";
 
     private static final String STORAGE_PATH_KEY = "fintrax.storage.path";
     private static final String BACKUP_PATH_KEY = "fintrax.backup.path";
     private static final String LEGACY_BACKUP_PATH_KEY = "destination";
+    private static final String LOCATION_SEPARATOR = " and ";
 
     private final Path propertiesFile;
     private final Path legacyPropertiesFile;
     private final Path storagePath;
     private final Path destination;
-    private volatile Path configuredStoragePath;
-    private volatile Path configuredDestination;
+    private final AtomicReference<Path> configuredStoragePath = new AtomicReference<>();
+    private final AtomicReference<Path> configuredDestination = new AtomicReference<>();
     private String configurationWarning;
     private final String startupWarning;
     private volatile String sessionWarning;
     private boolean removeLegacyBackupConfig;
 
     public FintraxProperties(Path propertiesFile, String storageOverride, String backupOverride) {
-        this(propertiesFile, Path.of(DEFAULT_STORAGE_PATH), Path.of(DEFAULT_BACKUP_PATH),
+        this(propertiesFile, defaultStoragePath(), defaultBackupPath(),
                 storageOverride, backupOverride);
     }
 
@@ -48,8 +48,8 @@ public final class FintraxProperties {
                 defaultStoragePath, "storage");
         this.destination = resolvePath(backupOverride, properties.getProperty(BACKUP_PATH_KEY),
                 defaultBackupPath, "backup");
-        this.configuredStoragePath = storagePath;
-        this.configuredDestination = destination;
+        this.configuredStoragePath.set(storagePath);
+        this.configuredDestination.set(destination);
 
         String warning = configurationWarning;
         if (warning == null) {
@@ -87,7 +87,7 @@ public final class FintraxProperties {
 
     /** Returns the storage directory currently configured for the next launch. */
     public Path configuredStoragePath() {
-        return configuredStoragePath;
+        return configuredStoragePath.get();
     }
 
     /** Returns the backup root used by the current launch. */
@@ -97,7 +97,7 @@ public final class FintraxProperties {
 
     /** Returns the backup directory currently configured for the next launch. */
     public Path configuredDestination() {
-        return configuredDestination;
+        return configuredDestination.get();
     }
 
     /** Returns the directory used by Eclipse Store's continuously mirrored copy. */
@@ -126,18 +126,18 @@ public final class FintraxProperties {
     }
 
     /** Persists a backup destination for the next app launch. */
-    public void saveDestination(Path selectedDestination) {
+    public synchronized void saveDestination(Path selectedDestination) {
         Path normalizedDestination = normalize(selectedDestination);
-        validateOverlap(configuredStoragePath, normalizedDestination).ifPresent(message -> {
+        validateOverlap(configuredStoragePath.get(), normalizedDestination).ifPresent(message -> {
             throw new IllegalArgumentException(message);
         });
         savePath(BACKUP_PATH_KEY, normalizedDestination);
     }
 
     /** Persists a storage directory for the next app launch. */
-    public void saveStoragePath(Path selectedStoragePath) {
+    public synchronized void saveStoragePath(Path selectedStoragePath) {
         Path normalizedStoragePath = normalize(selectedStoragePath);
-        validateOverlap(normalizedStoragePath, configuredDestination).ifPresent(message -> {
+        validateOverlap(normalizedStoragePath, configuredDestination.get()).ifPresent(message -> {
             throw new IllegalArgumentException(message);
         });
         validateWritable(normalizedStoragePath).ifPresent(message -> {
@@ -231,19 +231,28 @@ public final class FintraxProperties {
         return validateWritable(candidate);
     }
 
+    private static Path defaultStoragePath() {
+        return Path.of(System.getProperty("user.home"), ".fintrax", "data");
+    }
+
+    private static Path defaultBackupPath() {
+        return Path.of(System.getProperty("user.home"), ".fintrax", "backups");
+    }
+
     private Optional<String> validateOverlap(Path first, Path second) {
         if (first.startsWith(second) || second.startsWith(first)) {
-            return Optional.of("Storage and backup locations must not overlap: " + first + " and " + second);
+            return Optional.of("Storage and backup locations must not overlap: " + first + LOCATION_SEPARATOR + second);
         }
         try {
             Path realFirst = resolveThroughExistingAncestor(first);
             Path realSecond = resolveThroughExistingAncestor(second);
             if (realFirst.startsWith(realSecond) || realSecond.startsWith(realFirst)) {
-                return Optional.of("Storage and backup locations must not overlap: " + first + " and " + second);
+                return Optional.of("Storage and backup locations must not overlap: " + first
+                        + LOCATION_SEPARATOR + second);
             }
             return Optional.empty();
         } catch (IOException exception) {
-            return Optional.of("Cannot verify storage and backup locations: " + first + " and " + second);
+            return Optional.of("Cannot verify storage and backup locations: " + first + LOCATION_SEPARATOR + second);
         }
     }
 
@@ -280,15 +289,15 @@ public final class FintraxProperties {
 
     private void savePath(String key, Path value) {
         Properties properties = loadProperties();
-        properties.setProperty(STORAGE_PATH_KEY, configuredStoragePath.toString());
-        properties.setProperty(BACKUP_PATH_KEY, configuredDestination.toString());
+        properties.setProperty(STORAGE_PATH_KEY, configuredStoragePath.get().toString());
+        properties.setProperty(BACKUP_PATH_KEY, configuredDestination.get().toString());
         properties.setProperty(key, value.toString());
         try {
             persist(properties);
             if (STORAGE_PATH_KEY.equals(key)) {
-                configuredStoragePath = value;
+                configuredStoragePath.set(value);
             } else if (BACKUP_PATH_KEY.equals(key)) {
-                configuredDestination = value;
+                configuredDestination.set(value);
             }
         } catch (IOException exception) {
             throw new IllegalStateException("Cannot save Fintrax configuration: " + propertiesFile, exception);
