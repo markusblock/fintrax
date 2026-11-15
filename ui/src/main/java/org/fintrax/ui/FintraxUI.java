@@ -38,6 +38,11 @@ public class FintraxUI extends Application {
 
     @Override
     public void start(Stage primaryStage) throws Exception {
+        showOnStage(primaryStage, getApplicationContext());
+    }
+
+    public static void showOnStage(Stage primaryStage, ApplicationContext context) throws Exception {
+        configureContext(context);
         log.info("Starting Fintrax UI");
 
         SettingsService settingsService = getApplicationContext().getBean(SettingsService.class);
@@ -65,7 +70,7 @@ public class FintraxUI extends Application {
         log.info("Fintrax UI started");
     }
 
-    private void promptBackupRecovery(Stage owner, Throwable failure) {
+    private static void promptBackupRecovery(Stage owner, Throwable failure) {
         BackupConfiguration backupConfiguration = getApplicationContext().getBean(BackupConfiguration.class);
         while (owner.isShowing()) {
             Alert alert = new Alert(Alert.AlertType.WARNING);

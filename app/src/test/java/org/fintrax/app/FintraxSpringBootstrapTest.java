@@ -2,6 +2,7 @@ package org.fintrax.app;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.eclipse.store.storage.exceptions.StorageException;
 import org.fintrax.fintx.BankingProtocol;
 import org.fintrax.fintx.PinStorage;
 import org.fintrax.service.AccountService;
@@ -25,6 +26,7 @@ import org.springframework.context.annotation.Configuration;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -106,6 +108,14 @@ class FintraxSpringBootstrapTest {
                     FintraxApplication.findStorageAlreadyInUseException(exception);
             assertNotNull(storageException);
         }
+    }
+
+    @Test
+    void identifiesStorageFailureWrappedBySpring() {
+        StorageException storageException = new StorageException("Unreadable transaction file");
+
+        assertSame(storageException, FintraxApplication.findStorageException(
+                new RuntimeException("Spring startup failed", new RuntimeException(storageException))));
     }
 
     @Test
