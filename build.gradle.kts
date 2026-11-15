@@ -73,10 +73,8 @@ subprojects {
 
     tasks.withType<Test> {
         useJUnitPlatform()
-        if (project.name !in setOf("store", "ui")) {
-            // Storage and TestFX suites include workloads that legitimately exceed a short method timeout.
-            systemProperty("junit.jupiter.execution.timeout.testable.method.default", "20 s")
-        }
+        // Limit each test method without timing out slower lifecycle setup.
+        systemProperty("junit.jupiter.execution.timeout.testable.method.default", "20 s")
         extensions.configure<org.gradle.testretry.TestRetryTaskExtension>("retry") {
             maxRetries.set(3)
             failOnPassedAfterRetry.set(false)

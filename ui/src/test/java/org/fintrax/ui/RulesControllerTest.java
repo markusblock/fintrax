@@ -772,6 +772,7 @@ class RulesControllerTest extends AbstractUITest {
         Platform.runLater(mergeItem::fire);
         WaitForAsyncUtils.waitForFxEvents();
 
+        assertFalse(contextMenu.isShowing());
         RadioButton newRuleOption = lookup("#mergeIntoNewRule").query();
         RadioButton existingRuleOption = lookup("#mergeIntoExistingRule").query();
         assertTrue(newRuleOption.isDisable());
