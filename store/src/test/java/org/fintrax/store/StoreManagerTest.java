@@ -12,6 +12,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -127,19 +128,26 @@ class StoreManagerTest {
 
     @Test
     void testActivityLogFifo() {
-        for (int i = 0; i < 10_500; i++) {
-            ActivityLog log = ActivityLog.builder()
-                    .id((long) i)
-                    .timestamp(LocalDateTime.now())
-                    .action(ActivityAction.CREATE)
-                    .entityType(EntityType.ACCOUNT)
-                    .description("Test log " + i)
-                    .build();
-            storeManager.addActivityLog(log);
+        List<ActivityLog> logs = storeManager.getRoot().getActivityLogs();
+        for (long id = 0; id < 10_000; id++) {
+            logs.add(activityLog(id));
         }
+        storeManager.store(logs);
+        storeManager.addActivityLog(activityLog(10_000));
 
-        assertTrue(storeManager.getRoot().getActivityLogs().size() <= 10_000,
-                "Activity logs should be capped at 10,000");
+        assertEquals(10_000, logs.size());
+        assertEquals(1L, logs.getFirst().getId(), "Adding at the cap should remove the oldest log");
+        assertEquals(10_000L, logs.getLast().getId());
+    }
+
+    private ActivityLog activityLog(long id) {
+        return ActivityLog.builder()
+                .id(id)
+                .timestamp(LocalDateTime.now())
+                .action(ActivityAction.CREATE)
+                .entityType(EntityType.ACCOUNT)
+                .description("Test log " + id)
+                .build();
     }
 
     @Test

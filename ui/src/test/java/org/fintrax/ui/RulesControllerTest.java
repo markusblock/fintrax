@@ -441,13 +441,15 @@ class RulesControllerTest extends AbstractUITest {
 
         ContextMenu enabledMenu = enabledRow.getContextMenu();
         assertNotNull(enabledMenu);
-        assertEquals(List.of(I18n.get("button.edit"), I18n.get("rules.applySelected"), I18n.get("button.moveUp"),
+        assertEquals(List.of(I18n.get("button.edit"), I18n.get("rules.mergeSelected"),
+                        I18n.get("rules.applySelected"), I18n.get("button.moveUp"),
                         I18n.get("button.moveDown"), I18n.get("rules.disable"),
                         I18n.get("button.delete")), menuLabels(enabledMenu));
 
         ContextMenu disabledMenu = disabledRow.getContextMenu();
         assertNotNull(disabledMenu);
-        assertEquals(List.of(I18n.get("button.edit"), I18n.get("rules.applySelected"), I18n.get("button.moveUp"),
+        assertEquals(List.of(I18n.get("button.edit"), I18n.get("rules.mergeSelected"),
+                        I18n.get("rules.applySelected"), I18n.get("button.moveUp"),
                         I18n.get("button.moveDown"), I18n.get("rules.enable"),
                         I18n.get("button.delete")), menuLabels(disabledMenu));
         assertTrue(menuItem(disabledMenu, I18n.get("rules.applySelected")).isDisable());
@@ -769,9 +771,10 @@ class RulesControllerTest extends AbstractUITest {
         WaitForAsyncUtils.waitForFxEvents();
         MenuItem mergeItem = menuItem(contextMenu, I18n.get("rules.mergeSelected"));
         assertFalse(mergeItem.isDisable());
-        interact(mergeItem::fire);
+        Platform.runLater(mergeItem::fire);
         WaitForAsyncUtils.waitForFxEvents();
 
+        assertFalse(contextMenu.isShowing());
         RadioButton newRuleOption = lookup("#mergeIntoNewRule").query();
         RadioButton existingRuleOption = lookup("#mergeIntoExistingRule").query();
         assertTrue(newRuleOption.isDisable());

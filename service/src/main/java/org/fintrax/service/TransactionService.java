@@ -219,7 +219,8 @@ public class TransactionService {
 
         BigDecimal amount = transaction.getAmount();
         if (amount != null && (containsSearch(amount.toPlainString(), normalizedSearchText)
-                || containsSearch(String.format("%,.2f EUR", amount.doubleValue()), normalizedSearchText))) {
+                || containsSearch(String.format(I18n.getCurrentLocale(), "%,.2f EUR", amount.doubleValue()),
+                        normalizedSearchText))) {
             return true;
         }
 

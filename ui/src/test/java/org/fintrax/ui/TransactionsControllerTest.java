@@ -71,6 +71,7 @@ import java.util.stream.Collectors;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -127,7 +128,10 @@ class TransactionsControllerTest extends AbstractUITest {
         }
 
         Parent root = applicationContext.getBean(ViewLoader.class).load("transactions");
-        stage.setScene(new Scene(root, 1024, 768));
+        Scene scene = new Scene(root, 1024, 768);
+        FintraxUI.configureScene(scene);
+        FintraxUI.applyTheme(scene, applicationContext.getBean(SettingsService.class).getTheme());
+        stage.setScene(scene);
         stage.show();
     }
 
@@ -202,14 +206,18 @@ class TransactionsControllerTest extends AbstractUITest {
         int futureRowIndex = table.getItems().indexOf(futureTransaction);
         assertTrue(futureRowIndex >= 0);
         scrollToRow(table, futureRowIndex);
+        interact(table::applyCss);
+        WaitForAsyncUtils.waitForFxEvents();
         TableCell<?, ?> futurePayeeCell = transactionCell(table, payeeColumn, futureTransaction);
         var futurePayeeTextFill = futurePayeeCell.getTextFill();
         assertNull(transactionCell(table, balanceColumn, futureTransaction).getText());
 
         int todayRowIndex = table.getItems().indexOf(testCategoryTransaction);
         scrollToRow(table, todayRowIndex);
-        assertFalse(futurePayeeTextFill.equals(
-                transactionCell(table, payeeColumn, testCategoryTransaction).getTextFill()));
+        interact(table::applyCss);
+        WaitForAsyncUtils.waitForFxEvents();
+        assertNotEquals(futurePayeeTextFill,
+                transactionCell(table, payeeColumn, testCategoryTransaction).getTextFill());
         assertEquals(String.format("%,.2f", testCategoryTransaction.getBalanceAfter().doubleValue()),
                 transactionCell(table, balanceColumn, testCategoryTransaction).getText());
 
@@ -772,6 +780,7 @@ class TransactionsControllerTest extends AbstractUITest {
                 testCategoryTransaction.getAmount());
 
         interact(() -> searchField.setText(displayedAmount));
+        WaitForAsyncUtils.waitForFxEvents();
 
         assertEquals(List.of(testCategoryTransaction.getId()),
                 table.getItems().stream().map(Transaction::getId).toList());

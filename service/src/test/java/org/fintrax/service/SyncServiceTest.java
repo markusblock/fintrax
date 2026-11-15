@@ -282,6 +282,20 @@ class SyncServiceTest {
         assertTrue(result.newTransactionIds().isEmpty());
     }
 
+    @Test
+    void invalidCredentialsAreReportedAsAuthenticationFailure() {
+        BankAccount account = createAccount();
+        bankingProtocol.failure = new BankingException(BankingException.FailureReason.AUTHENTICATION_FAILED,
+                SyncStage.AUTHENTICATION, "Bank rejected the supplied password / PIN.");
+
+        SyncResult result = syncService.syncAccount(account.getId(), "wrong-pin");
+
+        assertTrue(result.authenticationFailed());
+        assertEquals(SyncStage.AUTHENTICATION, result.syncLog().getStage());
+        assertEquals(org.fintrax.config.I18n.get("message.sync.authenticationFailed"),
+                result.syncLog().getErrorMessage());
+    }
+
     private BankAccount createAccount() {
         return accountService.createAccount("DE89370400440532013000", null, "Bank", "User",
                 AccountType.GIRO, null);

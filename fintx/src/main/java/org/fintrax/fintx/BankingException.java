@@ -45,6 +45,7 @@ public class BankingException extends Exception {
 
     public enum FailureReason {
         TAN_REQUIRED,
+        AUTHENTICATION_FAILED,
         BANK_REJECTED,
         INCOMPLETE_RESPONSE,
         MAPPING_FAILED,

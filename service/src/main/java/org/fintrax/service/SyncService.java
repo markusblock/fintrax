@@ -113,6 +113,7 @@ public class SyncService {
         ImportCounts importCounts = new ImportCounts();
         AtomicReference<SyncStage> currentStage = new AtomicReference<>(SyncStage.CONNECTION);
         int downloadedCount = 0;
+        boolean authenticationFailed = false;
         try {
             throwIfCancelled(cancellationRequested);
             BankingSyncData syncData = fetchBankSyncData(account, pin, currentStage, progress,
@@ -145,11 +146,12 @@ public class SyncService {
                 activityLogger.log(ActivityAction.SYNC, EntityType.ACCOUNT, accountId, "Bank sync cancelled");
                 log.info("Bank sync cancelled for account {}", accountId);
             } else {
+                authenticationFailed = isAuthenticationFailure(e);
                 recordFailedSync(accountId, syncLog, e, failureStage(e, currentStage.get()));
             }
         }
 
-        return new SyncResult(syncLog, importCounts.newTransactionIds());
+        return new SyncResult(syncLog, importCounts.newTransactionIds(), authenticationFailed);
     }
 
     private BankingSyncData fetchBankSyncData(BankAccount account, String pin,
@@ -317,6 +319,9 @@ public class SyncService {
     }
 
     private String safeFailureMessage(Exception exception) {
+        if (isAuthenticationFailure(exception)) {
+            return I18n.get("message.sync.authenticationFailed");
+        }
         if (exception instanceof BankingException bankingException) {
             if (bankingException.getFailureReason() == BankingException.FailureReason.MISSING_BANK_PROFILE) {
                 return I18n.get("message.sync.bankProfileMissing");
@@ -333,13 +338,18 @@ public class SyncService {
         return I18n.get("message.sync.failedDiagnostic", reason.name(), causeType);
     }
 
+    private boolean isAuthenticationFailure(Exception exception) {
+        return exception instanceof BankingException bankingException
+                && bankingException.getFailureReason() == BankingException.FailureReason.AUTHENTICATION_FAILED;
+    }
+
     private SyncStage failureStage(Exception exception, SyncStage currentStage) {
         if (exception instanceof BankingException bankingException) {
             if (bankingException.getSyncStage() != null) {
                 return bankingException.getSyncStage();
             }
             return switch (bankingException.getFailureReason()) {
-                case TAN_REQUIRED -> SyncStage.AUTHENTICATION;
+                case TAN_REQUIRED, AUTHENTICATION_FAILED -> SyncStage.AUTHENTICATION;
                 case BANK_REJECTED, INCOMPLETE_RESPONSE, MAPPING_FAILED, ACCOUNT_MISMATCH -> SyncStage.DATA_RETRIEVAL;
                 default -> currentStage;
             };

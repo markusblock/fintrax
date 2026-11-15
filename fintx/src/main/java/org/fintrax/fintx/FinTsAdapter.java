@@ -10,13 +10,16 @@ import org.kapott.hbci.GV_Result.GVRKUms;
 import org.kapott.hbci.GV_Result.GVRKUms.UmsLine;
 import org.kapott.hbci.GV_Result.GVRSaldoReq;
 import org.kapott.hbci.callback.AbstractHBCICallback;
+import org.kapott.hbci.exceptions.ProcessException;
 import org.kapott.hbci.manager.BankInfo;
 import org.kapott.hbci.manager.HBCIHandler;
 import org.kapott.hbci.manager.HBCIUtils;
 import org.kapott.hbci.manager.HBCIVersion;
 import org.kapott.hbci.passport.AbstractHBCIPassport;
 import org.kapott.hbci.passport.HBCIPassport;
+import org.kapott.hbci.status.HBCIDialogStatus;
 import org.kapott.hbci.status.HBCIExecStatus;
+import org.kapott.hbci.status.HBCIMsgStatus;
 import org.kapott.hbci.structures.Konto;
 
 import java.io.File;
@@ -42,7 +45,9 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Collections;
 import java.util.Date;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Properties;
@@ -133,20 +138,9 @@ public class FinTsAdapter implements BankingProtocol {
 
             stage = SyncStage.DATA_RETRIEVAL;
             reportSyncProgress(progress, stage);
-            HBCIExecStatus status = session.handle.execute();
+            verifySyncStatus(session.handle.execute());
 
-            if (!status.isOK()) {
-                throw new BankingException(BankingException.FailureReason.BANK_REJECTED,
-                        SyncStage.DATA_RETRIEVAL,
-                        "Bank rejected the transaction sync request.");
-            }
-
-            GVRKUms result = (GVRKUms) umsatzJob.getJobResult();
-
-            if (!result.isOK()) {
-                throw new BankingException(BankingException.FailureReason.INCOMPLETE_RESPONSE, stage,
-                        "Bank did not return a complete transaction response.");
-            }
+            GVRKUms result = requireCompleteTransactionResult(umsatzJob, stage);
 
             for (UmsLine line : result.getFlatData()) {
                 transactions.add(mapUmsLine(line, account.getId(), true));
@@ -155,19 +149,7 @@ public class FinTsAdapter implements BankingProtocol {
                 transactions.add(mapUmsLine(line, account.getId(), false));
             }
 
-            GVRSaldoReq saldoResult = (GVRSaldoReq) saldoJob.getJobResult();
-            if (!saldoResult.isOK()) {
-                return new BankingSyncData(transactions, null, null);
-            }
-            GVRSaldoReq.Info[] saldoEntries = saldoResult.getEntries();
-            if (saldoEntries.length == 0 || saldoEntries[0].ready == null
-                    || saldoEntries[0].ready.value == null) {
-                return new BankingSyncData(transactions, null, null);
-            }
-            BigDecimal accountBalance = saldoEntries[0].ready.value.getBigDecimalValue();
-            LocalDateTime balanceDate = saldoEntries[0].ready.timestamp == null ? null
-                    : saldoEntries[0].ready.timestamp.toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
-            return new BankingSyncData(transactions, accountBalance, balanceDate);
+            return createSyncData(transactions, saldoJob);
 
         } catch (BankingException e) {
             throw withStage(e, e.getSyncStage() == null
@@ -176,18 +158,105 @@ public class FinTsAdapter implements BankingProtocol {
             throw new BankingException(BankingException.FailureReason.TAN_REQUIRED, SyncStage.AUTHENTICATION,
                     BankingException.TAN_REQUIRED_MESSAGE, e);
         } catch (Exception e) {
-            if (containsTanRequired(e)) {
-                throw new BankingException(BankingException.FailureReason.TAN_REQUIRED, SyncStage.AUTHENTICATION,
-                        BankingException.TAN_REQUIRED_MESSAGE, e);
-            }
-            throw new BankingException(BankingException.FailureReason.CONNECTION_FAILED,
-                    stageForUnexpectedFailure(e, stage),
-                    "Bank transaction sync could not be completed.", e);
+            throw classifyUnexpectedSyncFailure(e, stage);
         }
+    }
+
+    private static void verifySyncStatus(HBCIExecStatus status) throws BankingException {
+        if (status.isOK()) {
+            return;
+        }
+        if (hasInvalidPinResponse(status)) {
+            throw new BankingException(BankingException.FailureReason.AUTHENTICATION_FAILED,
+                    SyncStage.AUTHENTICATION, "Bank rejected the supplied password / PIN.");
+        }
+        throw new BankingException(BankingException.FailureReason.BANK_REJECTED,
+                SyncStage.DATA_RETRIEVAL, "Bank rejected the transaction sync request.");
+    }
+
+    private static GVRKUms requireCompleteTransactionResult(HBCIJob job, SyncStage stage)
+            throws BankingException {
+        GVRKUms result = (GVRKUms) job.getJobResult();
+        if (!result.isOK()) {
+            throw new BankingException(BankingException.FailureReason.INCOMPLETE_RESPONSE, stage,
+                    "Bank did not return a complete transaction response.");
+        }
+        return result;
+    }
+
+    private BankingSyncData createSyncData(List<Transaction> transactions, HBCIJob saldoJob) {
+        GVRSaldoReq saldoResult = (GVRSaldoReq) saldoJob.getJobResult();
+        if (!saldoResult.isOK()) {
+            return new BankingSyncData(transactions, null, null);
+        }
+        GVRSaldoReq.Info[] saldoEntries = saldoResult.getEntries();
+        if (saldoEntries.length == 0 || saldoEntries[0].ready == null
+                || saldoEntries[0].ready.value == null) {
+            return new BankingSyncData(transactions, null, null);
+        }
+        BigDecimal accountBalance = saldoEntries[0].ready.value.getBigDecimalValue();
+        LocalDateTime balanceDate = saldoEntries[0].ready.timestamp == null ? null
+                : saldoEntries[0].ready.timestamp.toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
+        return new BankingSyncData(transactions, accountBalance, balanceDate);
+    }
+
+    private BankingException classifyUnexpectedSyncFailure(Exception error, SyncStage stage) {
+        if (containsTanRequired(error)) {
+            return new BankingException(BankingException.FailureReason.TAN_REQUIRED, SyncStage.AUTHENTICATION,
+                    BankingException.TAN_REQUIRED_MESSAGE, error);
+        }
+        if (hasInvalidPinResponse(error)) {
+            return new BankingException(BankingException.FailureReason.AUTHENTICATION_FAILED,
+                    SyncStage.AUTHENTICATION, "Bank rejected the supplied password / PIN.", error);
+        }
+        return new BankingException(BankingException.FailureReason.CONNECTION_FAILED,
+                stageForUnexpectedFailure(error, stage), "Bank transaction sync could not be completed.", error);
     }
 
     private BankingException withStage(BankingException exception, SyncStage stage) {
         return new BankingException(exception.getFailureReason(), stage, exception.getMessage(), exception.getCause());
+    }
+
+    static boolean hasInvalidPinResponse(HBCIExecStatus status) {
+        for (String customerId : status.getCustomerIds()) {
+            HBCIDialogStatus dialogStatus = status.getDialogStatus(customerId);
+            if (dialogStatus == null) {
+                continue;
+            }
+            if (hasInvalidPinResponse(dialogStatus.initStatus)
+                    || hasInvalidPinResponse(dialogStatus.msgStatus)
+                    || hasInvalidPinResponse(dialogStatus.endStatus)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    static boolean hasInvalidPinResponse(Throwable failure) {
+        Set<Throwable> seen = Collections.newSetFromMap(new IdentityHashMap<>());
+        for (Throwable cause = failure; cause != null && seen.add(cause); cause = cause.getCause()) {
+            if (cause instanceof ProcessException processException
+                    && hasInvalidPinResponse(processException.getMsgStatus())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean hasInvalidPinResponse(HBCIMsgStatus messageStatus) {
+        return messageStatus != null && messageStatus.isInvalidPIN();
+    }
+
+    private static boolean hasInvalidPinResponse(HBCIMsgStatus[] messageStatuses) {
+        if (messageStatuses == null) {
+            return false;
+        }
+        for (HBCIMsgStatus messageStatus : messageStatuses) {
+            if (hasInvalidPinResponse(messageStatus)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void validateBankProfile(Bank bank) throws BankingException {
@@ -203,7 +272,7 @@ public class FinTsAdapter implements BankingProtocol {
 
     private SyncStage stageForBankingFailure(BankingException.FailureReason reason, SyncStage currentStage) {
         return switch (reason) {
-            case TAN_REQUIRED, MISSING_USER_ID -> SyncStage.AUTHENTICATION;
+            case TAN_REQUIRED, AUTHENTICATION_FAILED, MISSING_USER_ID -> SyncStage.AUTHENTICATION;
             case BANK_REJECTED, INCOMPLETE_RESPONSE, MAPPING_FAILED, ACCOUNT_MISMATCH -> SyncStage.DATA_RETRIEVAL;
             default -> currentStage;
         };
