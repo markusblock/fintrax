@@ -65,7 +65,7 @@ class ClassificationsControllerTest extends AbstractUITest {
     @Override
     public void start(Stage stage) throws Exception {
         Parent root = applicationContext.getBean(ViewLoader.class).load("classifications");
-        stage.setScene(new Scene(root, 1024, 768));
+        stage.setScene(createTestScene(root));
         stage.show();
         useAllTimeDatePreset(root);
     }
@@ -728,10 +728,13 @@ class ClassificationsControllerTest extends AbstractUITest {
                 .findFirst()
                 .orElseThrow();
 
+        HBox categoryControl = (HBox) categoryCell.getGraphic();
+        Button categoryDropdown = (Button) categoryControl.getChildren().get(1);
+        assertEquals("▾", categoryDropdown.getText());
         javafx.scene.control.Label categoryValue = (javafx.scene.control.Label)
-                ((HBox) categoryCell.getGraphic()).getChildren().getFirst();
+                categoryControl.getChildren().getFirst();
         assertEquals(category.getName(), categoryValue.getText());
-        clickOn(categoryValue);
+        interact(categoryDropdown::fire);
         WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS,
                 () -> lookup("#pickerSearch").tryQuery().isPresent());
         javafx.scene.control.ListView<Category> options = lookup("#pickerList").query();
@@ -745,7 +748,7 @@ class ClassificationsControllerTest extends AbstractUITest {
                 .findFirst().orElseThrow();
         assertEquals(parent.getName() + " → " + category.getName(), ((javafx.scene.control.Label)
                 ((HBox) selectedCell.getGraphic()).getChildren().get(1)).getText());
-        clickOn(categoryValue);
+        interact(categoryDropdown::fire);
         waitForCategoryPickerToClose();
     }
 
@@ -772,8 +775,10 @@ class ClassificationsControllerTest extends AbstractUITest {
                 .findFirst()
                 .orElseThrow();
 
-        HBox chips = (HBox) ((HBox) labelsCell.getGraphic()).getChildren().getFirst();
-        clickOn(chips);
+        HBox labelsControl = (HBox) labelsCell.getGraphic();
+        Button labelsDropdown = (Button) labelsControl.getChildren().get(1);
+        assertEquals("▾", labelsDropdown.getText());
+        interact(labelsDropdown::fire);
         WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS,
                 () -> lookup("#pickerList").tryQuery().isPresent());
         javafx.scene.control.ListView<Label> options = lookup("#pickerList").query();
@@ -784,7 +789,7 @@ class ClassificationsControllerTest extends AbstractUITest {
                 .findFirst().orElseThrow();
         assertTrue(((javafx.scene.control.CheckBox)
                 ((HBox) optionCell.getGraphic()).getChildren().getFirst()).isSelected());
-        clickOn(chips);
+        interact(labelsDropdown::fire);
         waitForCategoryPickerToClose();
     }
 
@@ -842,12 +847,12 @@ class ClassificationsControllerTest extends AbstractUITest {
         TreeView<String> tree = lookup("#classificationTree").query();
         TreeItem<String> labelsRoot = treeItem(tree.getRoot(), I18n.get("classifications.labelsRoot"));
         TreeItem<String> labelItem = treeItem(labelsRoot, label.getName());
-        TreeCell<?> labelCell = tree.lookupAll(".tree-cell").stream()
-                .filter(TreeCell.class::isInstance)
-                .map(node -> (TreeCell<?>) node)
-                .filter(cell -> !cell.isEmpty() && cell.getTreeItem() == labelItem)
-                .findFirst()
-                .orElseThrow();
+        interact(() -> {
+            labelsRoot.setExpanded(true);
+            tree.scrollTo(tree.getRow(labelItem));
+        });
+        WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS, () -> hasTreeCell(tree, labelItem));
+        TreeCell<?> labelCell = treeCellFor(tree, labelItem);
         assertTrue(labelCell.getGraphic() instanceof javafx.scene.control.Label);
         javafx.scene.control.Label labelChip = (javafx.scene.control.Label) labelCell.getGraphic();
         assertEquals(label.getName(), labelChip.getText());

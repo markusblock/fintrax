@@ -51,6 +51,8 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -617,7 +619,7 @@ class RulesControllerTest extends AbstractUITest {
     }
 
     @Test
-    void focusingRegexValueFieldShowsExamplesInSettingsLanguage() {
+    void focusingRegexValueFieldShowsExamplesInSettingsLanguage() throws TimeoutException {
         SettingsService settingsService = applicationContext.getBean(SettingsService.class);
         String originalLanguage = settingsService.getLanguage();
         try {
@@ -639,8 +641,18 @@ class RulesControllerTest extends AbstractUITest {
             interact(() -> operator.setValue(I18n.get("ruleEditor.operator.matchesRegex")));
             assertFalse(lookup(".regex-help-guide").query().isVisible());
 
+            Stage editorDialog = (Stage) valueField.getScene().getWindow();
+            interact(() -> {
+                editorDialog.toFront();
+                editorDialog.requestFocus();
+                valueField.clear();
+            });
             clickOn(valueField);
+            write("Miete");
+            WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS,
+                    () -> valueField.getText().equals("Miete") && lookup(".regex-help-guide").query().isVisible());
             WaitForAsyncUtils.waitForFxEvents();
+            assertEquals("Miete", valueField.getText());
             assertTrue(lookup(".regex-help-guide").query().isVisible());
             assertEquals(6, lookup(".regex-example-row").queryAll().size());
             List<String> patterns = lookup(".regex-example-pattern").queryAll().stream()
