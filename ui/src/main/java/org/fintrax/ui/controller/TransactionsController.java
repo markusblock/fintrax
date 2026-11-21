@@ -35,6 +35,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -87,6 +88,7 @@ public class TransactionsController {
     private final TransactionTableActions transactionTableActions;
 
     private final ObservableList<Transaction> tableData = FXCollections.observableArrayList();
+    private final Set<Long> viewedTransactionIds = ConcurrentHashMap.newKeySet();
 
     public TransactionsController(TransactionService transactionService, AccountService accountService,
                                   CategoryService categoryService, LabelService labelService,
@@ -118,6 +120,8 @@ public class TransactionsController {
                 transactionTable, this::reloadTransactionsKeepingSelection, this::createRuleFromTransaction);
         setupTableColumns();
         setupFutureTransactionRows();
+        setupUnviewedTransactionRows();
+        installSelectionListener();
         TableCellTooltips.install(transactionTable);
         transactionFilterPanelController.setCollapsible(true);
         transactionFilterPanelController.restoreForView(SessionViewState.TRANSACTIONS_VIEW);
@@ -229,6 +233,36 @@ public class TransactionsController {
                 && transaction.getBookingDate().isAfter(LocalDate.now());
     }
 
+    private void setupUnviewedTransactionRows() {
+        var existingRowFactory = transactionTable.getRowFactory();
+        transactionTable.setRowFactory(table -> {
+            TableRow<Transaction> row = existingRowFactory == null
+                    ? new TableRow<>() : existingRowFactory.call(table);
+            row.itemProperty().addListener((observable, oldTransaction, newTransaction) ->
+                    updateUnviewedTransactionStyle(row, newTransaction));
+            updateUnviewedTransactionStyle(row, row.getItem());
+            return row;
+        });
+    }
+
+    private void updateUnviewedTransactionStyle(TableRow<Transaction> row, Transaction transaction) {
+        row.getStyleClass().remove("new-transaction-row");
+        if (transaction != null && transaction.getId() != null
+                && !viewedTransactionIds.contains(transaction.getId())) {
+            row.getStyleClass().add("new-transaction-row");
+        }
+    }
+
+    private void installSelectionListener() {
+        transactionTable.getSelectionModel().selectedItemProperty().addListener((observable, oldTransaction,
+                                                                                newTransaction) -> {
+            if (oldTransaction != null && oldTransaction.getId() != null) {
+                viewedTransactionIds.add(oldTransaction.getId());
+            }
+            Platform.runLater(transactionTable::refresh);
+        });
+    }
+
     private void setupDateColumn(TableColumn<Transaction, LocalDate> column,
                                  Function<Transaction, LocalDate> dateFor,
                                  DateTimeFormatter dateFormatter) {
@@ -321,6 +355,7 @@ public class TransactionsController {
         Optional<TransactionFilter> criteria = transactionFilterPanelController.getCriteria();
         if (criteria.isEmpty()) return;
 
+        viewedTransactionIds.clear();
         List<Transaction> filtered = transactionService.filterTransactions(criteria.get());
 
         tableData.setAll(filtered);
