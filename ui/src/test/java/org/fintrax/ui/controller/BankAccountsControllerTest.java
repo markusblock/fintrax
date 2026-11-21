@@ -2,7 +2,6 @@ package org.fintrax.ui.controller;
 
 import javafx.application.Platform;
 import javafx.scene.Parent;
-import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
@@ -80,10 +79,7 @@ class BankAccountsControllerTest extends AbstractUITest {
 
         Parent root = applicationContext.getBean(ViewLoader.class).load("bankAccounts");
         controller = (BankAccountsController) root.getProperties().get(BankAccountsController.class.getName());
-        Scene scene = new Scene(root, 1024, 768);
-        FintraxUI.configureScene(scene);
-        FintraxUI.applyTheme(scene, "light");
-        stage.setScene(scene);
+        stage.setScene(createTestScene(root));
         stage.show();
     }
 

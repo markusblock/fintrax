@@ -59,9 +59,7 @@ class NavigationTest extends AbstractUITest {
     public void start(Stage stage) throws Exception {
         Parent root = applicationContext.getBean(ViewLoader.class).load("main");
 
-        Scene scene = new Scene(root, 1024, 768);
-        FintraxUI.configureScene(scene);
-        FintraxUI.applyTheme(scene, "light");
+        Scene scene = createTestScene(root);
         stage.setScene(scene);
         stage.show();
     }
