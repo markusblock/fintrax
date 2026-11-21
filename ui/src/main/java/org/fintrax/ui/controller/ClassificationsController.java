@@ -91,6 +91,7 @@ public class ClassificationsController {
     private final Map<Long, TreeItem<String>> labelItemsById = new HashMap<>();
     private final ObservableList<Transaction> displayedTransactions = FXCollections.observableArrayList();
     private TransactionTableSetup transactionTableSetup;
+    private SettledTransactionIds settledTransactionIds;
     private final ContextMenu classificationContextMenu = new ContextMenu();
     private final MenuItem addCategoryMenuItem = new MenuItem();
     private final MenuItem addLabelMenuItem = new MenuItem();
@@ -107,7 +108,8 @@ public class ClassificationsController {
                                   TransactionService transactionService,
                                   AccountService accountService,
                                   TransactionTableActions transactionTableActions,
-                                  SessionViewState sessionViewState) {
+                                  SessionViewState sessionViewState,
+                                  SettledTransactionIds settledTransactionIds) {
         this.categoryService = categoryService;
         this.labelService = labelService;
         this.settingsService = settingsService;
@@ -115,6 +117,7 @@ public class ClassificationsController {
         this.accountService = accountService;
         this.transactionTableActions = transactionTableActions;
         this.sessionViewState = sessionViewState;
+        this.settledTransactionIds = settledTransactionIds;
     }
 
     @FXML
@@ -134,6 +137,8 @@ public class ClassificationsController {
         configureContextMenu();
         classificationTree.setCellFactory(this::createClassificationCell);
         setupTransactionTable();
+        setupUnviewedTransactionRows(classificationTransactionsTable);
+        installSelectionListener(classificationTransactionsTable);
         TableCellTooltips.install(classificationTransactionsTable);
         transactionWorkspaceController.setTableItems(displayedTransactions);
         setupColumnMenu();
@@ -169,6 +174,35 @@ public class ClassificationsController {
                         this::reloadSelectedTransactionsKeepingSelection)));
         transactionWorkspaceController.attachDetails(
                 Set.of(transactionTableSetup.categoryColumn(), transactionTableSetup.labelsColumn()));
+    }
+
+    private void setupUnviewedTransactionRows(TableView<Transaction> table) {
+        var existingRowFactory = table.getRowFactory();
+        table.setRowFactory(tableView -> {
+            TableRow<Transaction> row = existingRowFactory == null
+                    ? new TableRow<>() : existingRowFactory.call(tableView);
+            row.itemProperty().addListener((observable, oldTx, newTx) ->
+                    updateUnviewedTransactionStyle(row, newTx));
+            updateUnviewedTransactionStyle(row, row.getItem());
+            return row;
+        });
+    }
+
+    private void updateUnviewedTransactionStyle(TableRow<Transaction> row, Transaction transaction) {
+        row.getStyleClass().remove("new-transaction-row");
+        if (transaction != null && transaction.getId() != null
+                && !settledTransactionIds.isSettled(transaction.getId())) {
+            row.getStyleClass().add("new-transaction-row");
+        }
+    }
+
+    private void installSelectionListener(TableView<Transaction> table) {
+        table.getSelectionModel().selectedItemProperty().addListener((observable, oldTx, newTx) -> {
+            if (oldTx != null && oldTx.getId() != null) {
+                settledTransactionIds.settle(oldTx.getId());
+            }
+            Platform.runLater(table::refresh);
+        });
     }
 
     private TableCell<Transaction, String> createAssignmentCell(java.util.function.Consumer<Node> openSelection) {
@@ -266,6 +300,7 @@ public class ClassificationsController {
             return;
         }
 
+        settledTransactionIds.clear();
         displayedTransactions.setAll(transactionService.filterTransactions(source, criteria.get()));
         sortTransactionsIfNeeded();
     }

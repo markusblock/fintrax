@@ -35,7 +35,6 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -88,12 +87,13 @@ public class TransactionsController {
     private final TransactionTableActions transactionTableActions;
 
     private final ObservableList<Transaction> tableData = FXCollections.observableArrayList();
-    private final Set<Long> viewedTransactionIds = ConcurrentHashMap.newKeySet();
+    private final SettledTransactionIds settledTransactionIds;
 
     public TransactionsController(TransactionService transactionService, AccountService accountService,
                                   CategoryService categoryService, LabelService labelService,
                                   SettingsService settingsService, RuleService ruleService,
-                                  ViewLoader viewLoader, TransactionTableActions transactionTableActions) {
+                                  ViewLoader viewLoader, TransactionTableActions transactionTableActions,
+                                  SettledTransactionIds settledTransactionIds) {
         this.transactionService = transactionService;
         this.accountService = accountService;
         this.categoryService = categoryService;
@@ -102,6 +102,7 @@ public class TransactionsController {
         this.ruleService = ruleService;
         this.viewLoader = viewLoader;
         this.transactionTableActions = transactionTableActions;
+        this.settledTransactionIds = settledTransactionIds;
     }
 
     @FXML
@@ -248,7 +249,7 @@ public class TransactionsController {
     private void updateUnviewedTransactionStyle(TableRow<Transaction> row, Transaction transaction) {
         row.getStyleClass().remove("new-transaction-row");
         if (transaction != null && transaction.getId() != null
-                && !viewedTransactionIds.contains(transaction.getId())) {
+                && !settledTransactionIds.isSettled(transaction.getId())) {
             row.getStyleClass().add("new-transaction-row");
         }
     }
@@ -257,7 +258,7 @@ public class TransactionsController {
         transactionTable.getSelectionModel().selectedItemProperty().addListener((observable, oldTransaction,
                                                                                 newTransaction) -> {
             if (oldTransaction != null && oldTransaction.getId() != null) {
-                viewedTransactionIds.add(oldTransaction.getId());
+                settledTransactionIds.settle(oldTransaction.getId());
             }
             Platform.runLater(transactionTable::refresh);
         });
@@ -355,7 +356,7 @@ public class TransactionsController {
         Optional<TransactionFilter> criteria = transactionFilterPanelController.getCriteria();
         if (criteria.isEmpty()) return;
 
-        viewedTransactionIds.clear();
+        settledTransactionIds.clear();
         List<Transaction> filtered = transactionService.filterTransactions(criteria.get());
 
         tableData.setAll(filtered);

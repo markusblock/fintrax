@@ -9,6 +9,7 @@ import javafx.collections.transformation.SortedList;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.control.*;
+import javafx.application.Platform;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
@@ -102,6 +103,7 @@ public class RulesController {
     private final ObservableList<Rule> ruleData = FXCollections.observableArrayList();
     private final ObservableList<Transaction> displayedTransactions = FXCollections.observableArrayList();
     private TransactionTableSetup transactionTableSetup;
+    private SettledTransactionIds settledTransactionIds;
     private Long selectedRuleId;
     private List<Transaction> selectedRuleTransactions = List.of();
     private Map<Long, List<RuleMatchSummary.MatchingRule>> matchingRulesByTransactionId = Map.of();
@@ -110,7 +112,7 @@ public class RulesController {
                            CategoryService categoryService, LabelService labelService,
                            SettingsService settingsService, TransactionService transactionService,
                            TransactionTableActions transactionTableActions, ViewLoader viewLoader,
-                           SessionViewState sessionViewState) {
+                           SessionViewState sessionViewState, SettledTransactionIds settledTransactionIds) {
         this.ruleService = ruleService;
         this.accountService = accountService;
         this.categoryService = categoryService;
@@ -120,6 +122,7 @@ public class RulesController {
         this.transactionTableActions = transactionTableActions;
         this.viewLoader = viewLoader;
         this.sessionViewState = sessionViewState;
+        this.settledTransactionIds = settledTransactionIds;
     }
 
     @FXML
@@ -181,6 +184,8 @@ public class RulesController {
         });
         loadRules();
         setupTransactionTable();
+        setupUnviewedTransactionRows(ruleTransactionsTable);
+        installSelectionListener(ruleTransactionsTable);
         setupRuleMatchColumns();
         TableCellTooltips.install(ruleTransactionsTable);
         transactionWorkspaceController.setTableItems(displayedTransactions);
@@ -211,6 +216,35 @@ public class RulesController {
                 accountService, categoryService, labelService);
         transactionTableSetup.configure();
         transactionWorkspaceController.attachDetails(Set.of());
+    }
+
+    private void setupUnviewedTransactionRows(TableView<Transaction> table) {
+        var existingRowFactory = table.getRowFactory();
+        table.setRowFactory(tableView -> {
+            TableRow<Transaction> row = existingRowFactory == null
+                    ? new TableRow<>() : existingRowFactory.call(tableView);
+            row.itemProperty().addListener((observable, oldTx, newTx) ->
+                    updateUnviewedTransactionStyle(row, newTx));
+            updateUnviewedTransactionStyle(row, row.getItem());
+            return row;
+        });
+    }
+
+    private void updateUnviewedTransactionStyle(TableRow<Transaction> row, Transaction transaction) {
+        row.getStyleClass().remove("new-transaction-row");
+        if (transaction != null && transaction.getId() != null
+                && !settledTransactionIds.isSettled(transaction.getId())) {
+            row.getStyleClass().add("new-transaction-row");
+        }
+    }
+
+    private void installSelectionListener(TableView<Transaction> table) {
+        table.getSelectionModel().selectedItemProperty().addListener((observable, oldTx, newTx) -> {
+            if (oldTx != null && oldTx.getId() != null) {
+                settledTransactionIds.settle(oldTx.getId());
+            }
+            Platform.runLater(table::refresh);
+        });
     }
 
     private void setupRuleMatchColumns() {
@@ -435,6 +469,7 @@ public class RulesController {
             displayedTransactions.clear();
             return;
         }
+        settledTransactionIds.clear();
         displayedTransactions.setAll(transactionService.filterTransactions(selectedRuleTransactions, criteria.get()));
         if (!ruleTransactionsTable.getSortOrder().isEmpty()) ruleTransactionsTable.sort();
     }
