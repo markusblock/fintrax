@@ -8,6 +8,7 @@ import javafx.geometry.Pos;
 import javafx.geometry.Side;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.CheckBox;
@@ -33,6 +34,7 @@ import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.input.PickResult;
 import javafx.stage.Stage;
+import javafx.scene.layout.VBox;
 import org.fintrax.config.I18n;
 import org.fintrax.model.*;
 import org.fintrax.service.AccountService;
@@ -575,6 +577,46 @@ class RulesControllerTest extends AbstractUITest {
 
         assertTrue(lookup("#detailPanel").query().isVisible());
         assertEquals(currentCategory.getName(), lookup("#categoryValue").queryLabeled().getText());
+    }
+
+    @Test
+    void doubleClickingReadOnlyRuleLabelsOpensDetailsBelowTable() {
+        // Verify RulesView read-only Labels column opens transaction details on double-click
+        // (same pattern as Category cell test; both columns are read-only in RulesView).
+        TableView<Rule> ruleTable = lookup("#ruleTable").query();
+        Rule selectedRule = ruleTable.getItems().stream()
+                .filter(rule -> rule.getName().equals(ruleName)).findFirst().orElseThrow();
+
+        // Close any detail panel left open by previous tests.
+        VBox detailPanel = lookup("#detailPanel").query();
+        if (detailPanel.isVisible()) {
+            interact(() -> detailPanel.getChildren().stream()
+                    .filter(Button.class::isInstance)
+                    .map(Button.class::cast)
+                    .filter(b -> b.getStyleClass().contains("button-outlined"))
+                    .findFirst().ifPresent(Button::fire));
+        }
+        WaitForAsyncUtils.waitForFxEvents();
+
+        interact(() -> ruleTable.getSelectionModel().select(selectedRule));
+        WaitForAsyncUtils.waitForFxEvents();
+
+        TableView<Transaction> transactions = lookup("#ruleTransactionsTable").query();
+        TableColumn<?, ?> labelsColumn = transactions.getColumns().stream()
+                .filter(column -> I18n.get("col.labels").equals(column.getText()))
+                .findFirst().orElseThrow();
+        TableCell<?, ?> labelsCell = cellForTransaction(transactions, labelsColumn, transaction);
+
+        assertFalse(lookup("#detailPanel").query().isVisible());
+        interact(() -> Event.fireEvent(labelsCell, new MouseEvent(MouseEvent.MOUSE_CLICKED,
+                1, 1, 1, 1, MouseButton.PRIMARY, 2,
+                false, false, false, false,
+                false, false, false, true, false, true,
+                new PickResult(labelsCell, 1, 1))));
+        WaitForAsyncUtils.waitForFxEvents();
+
+        assertTrue(lookup("#detailPanel").query().isVisible());
+        assertEquals(transaction.getOriginalPayee(), lookup("#payeeValue").queryLabeled().getText());
     }
 
     @Test
