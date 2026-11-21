@@ -1,5 +1,6 @@
 package org.fintrax.ui;
 
+import javafx.beans.binding.Bindings;
 import javafx.geometry.Pos;
 import javafx.scene.Parent;
 import javafx.scene.control.Button;
@@ -8,6 +9,7 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
 import org.fintrax.model.ActivityAction;
 import org.fintrax.model.ActivityLog;
@@ -94,20 +96,27 @@ class TableCellTooltipsTest extends AbstractUITest {
     void hoveringTruncatedLabelChipsShowsFullLabelTextTooltip() {
         TableView<String> table = new TableView<>();
         table.setPrefSize(400, 400);
+        table.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
         TableColumn<String, String> chipsColumn = new TableColumn<>("Labels");
         chipsColumn.setPrefWidth(120);
         chipsColumn.setCellValueFactory(cd -> new javafx.beans.property.SimpleStringProperty(cd.getValue()));
         chipsColumn.setCellFactory(column -> new TableCell<>() {
-            private final List<Label> labels = List.of(
+            private final HBox chips = LabelChipFactory.createAll(List.of(
                     Label.builder().id(1L).name("Groceries and household supplies").color("#3B82F6").build(),
                     Label.builder().id(2L).name("Holidays and travel expenses").color("#22C55E").build(),
-                    Label.builder().id(3L).name("Subscriptions and digital services").color("#EF4444").build());
+                    Label.builder().id(3L).name("Subscriptions and digital services").color("#EF4444").build()));
+            private final HBox control = new HBox(4, chips, new Button("▾"));
+
+            {
+                HBox.setHgrow(chips, Priority.ALWAYS);
+                control.prefWidthProperty().bind(Bindings.max(0, column.widthProperty().subtract(12)));
+            }
+
             @Override
             protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
                 setText(null);
-                setGraphic(empty || item == null ? null
-                        : new HBox(4, LabelChipFactory.createAll(labels), new Button("▾")));
+                setGraphic(empty || item == null ? null : control);
             }
         });
         table.getColumns().add(chipsColumn);
@@ -122,9 +131,19 @@ class TableCellTooltipsTest extends AbstractUITest {
         WaitForAsyncUtils.waitForFxEvents();
 
         TableCell<?, ?> chipCell = cellWithItem(table, joinedLabels);
+        interact(() -> {
+            ((BorderPane) root).applyCss();
+            ((BorderPane) root).layout();
+            table.applyCss();
+            table.layout();
+        });
+        WaitForAsyncUtils.waitForFxEvents();
+        assertTrue(LabelChipFactory.isTruncated(chipCell.getGraphic()));
         assertNull(chipCell.getTooltip());
 
-        moveTo(chipCell);
+        javafx.scene.Node overflowIndicator = chipCell.lookup(".label-chip-overflow");
+        assertNotNull(overflowIndicator);
+        moveTo(overflowIndicator);
         sleep(600);
         WaitForAsyncUtils.waitForFxEvents();
         assertNotNull(chipCell.getTooltip());
