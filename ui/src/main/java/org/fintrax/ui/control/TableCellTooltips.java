@@ -3,13 +3,14 @@ package org.fintrax.ui.control;
 import javafx.animation.PauseTransition;
 import javafx.geometry.Insets;
 import javafx.geometry.Point2D;
+import javafx.scene.Node;
+import javafx.scene.control.ButtonBase;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.text.Text;
-import javafx.event.Event;
 import javafx.util.Callback;
 import javafx.util.Duration;
 
@@ -42,8 +43,15 @@ public final class TableCellTooltips {
         Callback<TableColumn<S, T>, TableCell<S, T>> previous = column.getCellFactory();
         column.setCellFactory(col -> {
             TableCell<S, T> cell = previous == null ? defaultCell() : previous.call(col);
-            cell.addEventFilter(MouseEvent.MOUSE_ENTERED, event -> startDwell(cell));
-            cell.addEventFilter(MouseEvent.MOUSE_EXITED, event -> clearTooltip(cell));
+            cell.addEventFilter(MouseEvent.MOUSE_ENTERED_TARGET, event -> {
+                if (isInteractiveTarget(cell, event.getTarget())) {
+                    clearTooltip(cell);
+                } else if (cell.getTooltip() == null && !cell.getProperties().containsKey(DWELL_KEY)) {
+                    startDwell(cell);
+                }
+            });
+            cell.addEventFilter(MouseEvent.MOUSE_EXITED_TARGET,
+                    event -> clearTooltipWhenPointerLeavesCell(cell, event));
             cell.addEventFilter(MouseEvent.MOUSE_PRESSED, event -> clearTooltip(cell));
             return cell;
         });
@@ -84,6 +92,22 @@ public final class TableCellTooltips {
         }
     }
 
+    private static void clearTooltipWhenPointerLeavesCell(TableCell<?, ?> cell, MouseEvent event) {
+        Point2D pointer = cell.screenToLocal(event.getScreenX(), event.getScreenY());
+        if (pointer == null || !cell.contains(pointer.getX(), pointer.getY())) {
+            clearTooltip(cell);
+        }
+    }
+
+    private static boolean isInteractiveTarget(TableCell<?, ?> cell, Object target) {
+        if (!(target instanceof Node node)) return false;
+        while (node != null && node != cell) {
+            if (node instanceof ButtonBase) return true;
+            node = node.getParent();
+        }
+        return false;
+    }
+
     private static void refresh(TableCell<?, ?> cell) {
         cell.getProperties().remove(DWELL_KEY);
         String text = cell.getText();
@@ -109,19 +133,17 @@ public final class TableCellTooltips {
         } else {
             tooltip.setText(text);
         }
-        arm(cell);
+        show(cell);
     }
 
-    private static void arm(TableCell<?, ?> cell) {
-        // JavaFX arms a tooltip only on MOUSE_MOVED; fire one so a hover that
-        // stays still (wheel scroll, freeze) still shows the tooltip.
+    private static void show(TableCell<?, ?> cell) {
+        Tooltip tooltip = cell.getTooltip();
+        if (tooltip == null) return;
         double x = cell.getWidth() / 2;
         double y = cell.getHeight() / 2;
         Point2D screen = cell.localToScreen(x, y);
         if (screen == null) return;
-        Event.fireEvent(cell, new MouseEvent(MouseEvent.MOUSE_MOVED, x, y,
-                screen.getX(), screen.getY(), null, 0,
-                false, false, false, false, false, false, false, false, false, false, null));
+        tooltip.show(cell, screen.getX(), screen.getY());
     }
 
     private static boolean isTextTruncated(TableCell<?, ?> cell, String text) {

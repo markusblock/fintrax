@@ -448,20 +448,20 @@ class TransactionsControllerTest extends AbstractUITest {
     }
 
     @Test
-    void clickingCategoryTextAndLabelChipsTogglesTheirPickers() throws TimeoutException {
+    void categoryAndLabelDropdownButtonsToggleTheirPickers() throws TimeoutException {
         TableView<Transaction> table = lookup("#transactionTable").query();
         TableColumn<?, ?> categoryColumn = table.getColumns().stream()
                 .filter(column -> I18n.get("col.category").equals(column.getText()))
                 .findFirst().orElseThrow();
         Transaction categoryTransaction = table.getItems().get(indexOfTransactionWithCategory(table));
         TableCell<?, ?> categoryCell = transactionCell(table, categoryColumn, categoryTransaction);
-        javafx.scene.control.Label categoryValue = (javafx.scene.control.Label)
-                ((HBox) categoryCell.getGraphic()).getChildren().getFirst();
+        HBox categoryControl = (HBox) categoryCell.getGraphic();
+        Button categoryDropdown = (Button) categoryControl.getChildren().get(1);
 
-        clickOn(categoryValue);
+        interact(categoryDropdown::fire);
         waitForPicker();
         assertTrue(lookup("#searchableDropdownPicker").tryQuery().isPresent());
-        clickOn(categoryValue);
+        interact(categoryDropdown::fire);
         waitForPickerToClose();
         assertTrue(lookup("#pickerSearch").tryQuery().isEmpty());
 
@@ -470,12 +470,13 @@ class TransactionsControllerTest extends AbstractUITest {
                 .findFirst().orElseThrow();
         Transaction labeledTransaction = table.getItems().get(indexOfTransactionWithLabels(table));
         TableCell<?, ?> labelsCell = transactionCell(table, labelsColumn, labeledTransaction);
-        HBox chips = (HBox) ((HBox) labelsCell.getGraphic()).getChildren().getFirst();
+        HBox labelsControl = (HBox) labelsCell.getGraphic();
+        Button labelsDropdown = (Button) labelsControl.getChildren().get(1);
 
-        clickOn(chips);
+        interact(labelsDropdown::fire);
         waitForPicker();
         assertTrue(lookup("#searchableDropdownPicker").tryQuery().isPresent());
-        clickOn(chips);
+        interact(labelsDropdown::fire);
         waitForPickerToClose();
         assertTrue(lookup("#pickerSearch").tryQuery().isEmpty());
     }
@@ -674,7 +675,7 @@ class TransactionsControllerTest extends AbstractUITest {
         interact(labelFilter::fire);
         waitForPicker();
         assertEquals(I18n.get("filter.noLabelSet"), pickerOptionTextAt(0));
-        clickLabelInPicker(assignedLabel.getName());
+        selectLabelInPicker(assignedLabel.getName());
         saveLabelSelection();
         assertEquals(List.of(assigned.getId()), table.getItems().stream().map(Transaction::getId).toList());
 
@@ -762,7 +763,8 @@ class TransactionsControllerTest extends AbstractUITest {
         String displayedDate = DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT)
                 .withLocale(I18n.getCurrentLocale())
                 .format(testCategoryTransaction.getBookingDate());
-        String displayedAmount = String.format("%,.2f EUR", testCategoryTransaction.getAmount().doubleValue());
+        String displayedAmount = String.format(I18n.getCurrentLocale(), "%,.2f EUR",
+                testCategoryTransaction.getAmount().doubleValue());
 
         for (String searchText : List.of(testCategory.getName(), label.getName(), displayedAmount, displayedDate)) {
             interact(() -> searchField.setText(searchText));
@@ -779,7 +781,7 @@ class TransactionsControllerTest extends AbstractUITest {
         String displayedAmount = String.format(I18n.getCurrentLocale(), "%,.2f EUR",
                 testCategoryTransaction.getAmount());
 
-        interact(() -> searchField.setText(displayedAmount));
+        interact(() -> searchField.setText(testCategory.getName()));
         WaitForAsyncUtils.waitForFxEvents();
 
         assertEquals(List.of(testCategoryTransaction.getId()),
@@ -1021,12 +1023,17 @@ class TransactionsControllerTest extends AbstractUITest {
         openPickerFromContextMenu(table, 0, 0);
 
         assertTrue(lookup("#pickerSearch").tryQuery().isPresent());
-        clickOn("#searchField");
+        TextField outsideTarget = lookup("#searchField").query();
+        interact(() -> Event.fireEvent(outsideTarget, new MouseEvent(MouseEvent.MOUSE_PRESSED,
+                1, 1, 1, 1, MouseButton.PRIMARY, 1,
+                false, false, false, false,
+                true, false, false, true, false, true,
+                new PickResult(outsideTarget, 1, 1))));
         waitForPickerToClose();
     }
 
     @Test
-    void clickingAssignmentIconsTogglesCategoryAndLabelPickers() throws TimeoutException {
+    void assignmentDropdownButtonsToggleCategoryAndLabelPickers() throws TimeoutException {
         TableView<Transaction> table = lookup("#transactionTable").query();
         TableColumn<?, ?> categoryColumn = table.getColumns().stream()
                 .filter(column -> I18n.get("col.category").equals(column.getText()))
@@ -1034,10 +1041,10 @@ class TransactionsControllerTest extends AbstractUITest {
         Transaction categoryTransaction = table.getItems().get(indexOfTransactionWithCategory(table));
         TableCell<?, ?> categoryCell = transactionCell(table, categoryColumn, categoryTransaction);
         Button categoryButton = (Button) categoryCell.lookup(".assignment-picker-button");
-        clickOn(categoryButton);
+        interact(categoryButton::fire);
         waitForPicker();
         assertTrue(lookup("#searchableDropdownPicker").tryQuery().isPresent());
-        clickOn(categoryButton);
+        interact(categoryButton::fire);
         waitForPickerToClose();
         assertTrue(lookup("#pickerSearch").tryQuery().isEmpty());
 
@@ -1047,10 +1054,10 @@ class TransactionsControllerTest extends AbstractUITest {
         Transaction labeledTransaction = table.getItems().get(indexOfTransactionWithLabels(table));
         TableCell<?, ?> labelsCell = transactionCell(table, labelsColumn, labeledTransaction);
         Button labelsButton = (Button) labelsCell.lookup(".assignment-picker-button");
-        clickOn(labelsButton);
+        interact(labelsButton::fire);
         waitForPicker();
         assertTrue(lookup("#searchableDropdownPicker").tryQuery().isPresent());
-        clickOn(labelsButton);
+        interact(labelsButton::fire);
         waitForPickerToClose();
         assertTrue(lookup("#pickerSearch").tryQuery().isEmpty());
     }
@@ -1593,7 +1600,7 @@ class TransactionsControllerTest extends AbstractUITest {
     private void selectLabelForFilter(Button labelFilter, String name) throws TimeoutException {
         interact(labelFilter::fire);
         waitForPicker();
-        clickLabelInPicker(name);
+        selectLabelInPicker(name);
         saveLabelSelection();
     }
 
@@ -1605,21 +1612,6 @@ class TransactionsControllerTest extends AbstractUITest {
         interact(() -> search.setText(name));
         WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS, () -> options.getItems().size() == 1);
         fireEnterOnPicker();
-    }
-
-    private void clickLabelInPicker(String name) throws TimeoutException {
-        TextField search = lookup("#pickerSearch").query();
-        ListView<?> options = lookup("#pickerList").query();
-        interact(() -> search.setText(name));
-        WaitForAsyncUtils.waitFor(5, TimeUnit.SECONDS, () -> options.getItems().size() == 1);
-        javafx.scene.control.ListCell<?> optionCell = options.lookupAll(".list-cell").stream()
-                .filter(javafx.scene.control.ListCell.class::isInstance)
-                .map(node -> (javafx.scene.control.ListCell<?>) node)
-                .filter(cell -> !cell.isEmpty())
-                .findFirst()
-                .orElseThrow();
-        CheckBox checkBox = (CheckBox) ((HBox) optionCell.getGraphic()).getChildren().getFirst();
-        clickOn(checkBox);
     }
 
     private String pickerOptionTextAt(int index) {

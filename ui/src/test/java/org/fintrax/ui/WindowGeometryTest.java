@@ -1,7 +1,9 @@
 package org.fintrax.ui;
 
+import javafx.geometry.Rectangle2D;
 import javafx.scene.Scene;
 import javafx.scene.layout.StackPane;
+import javafx.stage.Screen;
 import javafx.stage.Stage;
 import org.fintrax.service.SettingsService;
 import org.junit.jupiter.api.Test;
@@ -21,23 +23,28 @@ class WindowGeometryTest extends AbstractUITest {
     @Test
     void restoresSavedWindowBoundsAndPersistsCurrentBounds() {
         SettingsService settingsService = applicationContext.getBean(SettingsService.class);
+        Rectangle2D screen = Screen.getPrimary().getVisualBounds();
+        double savedX = screen.getMinX() + 50;
+        double savedY = screen.getMinY() + 60;
 
         interact(() -> {
-            stage.setX(50);
-            stage.setY(60);
+            stage.setMaximized(false);
+            stage.setFullScreen(false);
+            stage.setX(savedX);
+            stage.setY(savedY);
             stage.setWidth(1100);
             stage.setHeight(800);
             WindowGeometry.save(stage, settingsService);
 
-            stage.setX(100);
-            stage.setY(100);
+            stage.setX(screen.getMinX() + 100);
+            stage.setY(screen.getMinY() + 100);
             stage.setWidth(1024);
             stage.setHeight(768);
             WindowGeometry.restore(stage, settingsService);
         });
 
-        assertEquals(50, stage.getX(), 1);
-        assertEquals(60, stage.getY(), 1);
+        assertEquals(savedX, stage.getX(), 1);
+        assertEquals(savedY, stage.getY(), 1);
         assertEquals(1100, stage.getWidth(), 1);
         assertEquals(800, stage.getHeight(), 1);
     }

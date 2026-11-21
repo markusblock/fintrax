@@ -2,7 +2,6 @@ package org.fintrax.ui;
 
 import javafx.geometry.Pos;
 import javafx.scene.Parent;
-import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
@@ -36,7 +35,7 @@ class TableCellTooltipsTest extends AbstractUITest {
     @Override
     public void start(Stage stage) throws Exception {
         root = applicationContext.getBean(ViewLoader.class).load("activityLog");
-        stage.setScene(new Scene(root, 1024, 768));
+        stage.setScene(createTestScene(root));
         stage.show();
     }
 

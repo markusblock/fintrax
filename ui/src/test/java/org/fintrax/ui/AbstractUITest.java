@@ -1,6 +1,7 @@
 package org.fintrax.ui;
 
 import javafx.scene.Parent;
+import javafx.scene.Scene;
 import javafx.scene.control.ComboBox;
 import javafx.stage.Stage;
 import org.junit.jupiter.api.AfterAll;
@@ -19,6 +20,9 @@ import java.util.Comparator;
 import java.util.Map;
 
 public abstract class AbstractUITest extends ApplicationTest {
+    private static final double TEST_SCENE_WIDTH = 1024;
+    private static final double TEST_SCENE_HEIGHT = 768;
+
     @RegisterExtension
     protected static final UiTestFailureScreenshotExtension screenshotOnFailure =
             new UiTestFailureScreenshotExtension();
@@ -60,6 +64,13 @@ public abstract class AbstractUITest extends ApplicationTest {
 
     @Override
     public void start(Stage stage) throws Exception {
+    }
+
+    protected Scene createTestScene(Parent root) {
+        Scene scene = new Scene(root, TEST_SCENE_WIDTH, TEST_SCENE_HEIGHT);
+        FintraxUI.configureScene(scene);
+        FintraxUI.applyTheme(scene, "light");
+        return scene;
     }
 
     protected void useAllTimeDatePreset(Parent root) {
