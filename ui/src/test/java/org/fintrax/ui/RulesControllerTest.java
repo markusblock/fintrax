@@ -619,6 +619,26 @@ class RulesControllerTest extends AbstractUITest {
     }
 
     @Test
+    void doubleClickingRuleOpensEditDialog() {
+        TableView<Rule> ruleTable = lookup("#ruleTable").query();
+        TableRow<?> row = rowForRule(ruleTable, ruleName);
+
+        Platform.runLater(() -> Event.fireEvent(row, new MouseEvent(MouseEvent.MOUSE_CLICKED,
+                1, 1, 1, 1, MouseButton.PRIMARY, 2,
+                false, false, false, false,
+                false, false, false, true, false, true,
+                new PickResult(row, 1, 1))));
+        WaitForAsyncUtils.waitForFxEvents();
+
+        DialogPane editorDialogPane = lookup(".dialog-pane").query();
+        assertTrue(((Stage) editorDialogPane.getScene().getWindow()).isResizable());
+        assertEquals(ruleName, lookup("#ruleNameField").<TextField>query().getText());
+
+        interact(() -> lookup("#editRuleCancel").<Button>query().fire());
+        WaitForAsyncUtils.waitForFxEvents();
+    }
+
+    @Test
     void focusingRegexValueFieldShowsExamplesInSettingsLanguage() throws TimeoutException {
         SettingsService settingsService = applicationContext.getBean(SettingsService.class);
         String originalLanguage = settingsService.getLanguage();
