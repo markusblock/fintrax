@@ -300,7 +300,6 @@ public class ClassificationsController {
             return;
         }
 
-        settledTransactionIds.clear();
         displayedTransactions.setAll(transactionService.filterTransactions(source, criteria.get()));
         sortTransactionsIfNeeded();
     }

@@ -356,7 +356,6 @@ public class TransactionsController {
         Optional<TransactionFilter> criteria = transactionFilterPanelController.getCriteria();
         if (criteria.isEmpty()) return;
 
-        settledTransactionIds.clear();
         List<Transaction> filtered = transactionService.filterTransactions(criteria.get());
 
         tableData.setAll(filtered);

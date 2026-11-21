@@ -469,7 +469,6 @@ public class RulesController {
             displayedTransactions.clear();
             return;
         }
-        settledTransactionIds.clear();
         displayedTransactions.setAll(transactionService.filterTransactions(selectedRuleTransactions, criteria.get()));
         if (!ruleTransactionsTable.getSortOrder().isEmpty()) ruleTransactionsTable.sort();
     }
