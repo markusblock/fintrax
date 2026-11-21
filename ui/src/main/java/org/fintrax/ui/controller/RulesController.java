@@ -234,6 +234,10 @@ public class RulesController {
     }
 
     private ContextMenu createRuleContextMenu(Rule rule) {
+        MenuItem addRuleItem = new MenuItem(I18n.get("button.addRule"));
+        addRuleItem.setGraphic(icon("fth-plus", 14));
+        addRuleItem.setOnAction(event -> onAddRule());
+
         MenuItem editRule = new MenuItem(I18n.get("button.edit"));
         editRule.setGraphic(icon("fth-edit-2", 14));
         editRule.setOnAction(event -> editRule(rule));
@@ -269,7 +273,7 @@ public class RulesController {
         deleteRule.setGraphic(icon("fth-trash-2", 14));
         deleteRule.setOnAction(event -> confirmDeleteRule(rule));
 
-        ContextMenu contextMenu = new ContextMenu(editRule, mergeRules, applyRule,
+        ContextMenu contextMenu = new ContextMenu(addRuleItem, editRule, mergeRules, applyRule,
                 new SeparatorMenuItem(), moveUp, moveDown, toggleEnabled,
                 new SeparatorMenuItem(), deleteRule);
         mergeRules.setOnAction(event -> {

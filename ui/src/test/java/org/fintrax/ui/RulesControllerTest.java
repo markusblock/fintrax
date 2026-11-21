@@ -443,14 +443,14 @@ class RulesControllerTest extends AbstractUITest {
 
         ContextMenu enabledMenu = enabledRow.getContextMenu();
         assertNotNull(enabledMenu);
-        assertEquals(List.of(I18n.get("button.edit"), I18n.get("rules.mergeSelected"),
+        assertEquals(List.of(I18n.get("button.addRule"), I18n.get("button.edit"), I18n.get("rules.mergeSelected"),
                         I18n.get("rules.applySelected"), I18n.get("button.moveUp"),
                         I18n.get("button.moveDown"), I18n.get("rules.disable"),
                         I18n.get("button.delete")), menuLabels(enabledMenu));
 
         ContextMenu disabledMenu = disabledRow.getContextMenu();
         assertNotNull(disabledMenu);
-        assertEquals(List.of(I18n.get("button.edit"), I18n.get("rules.mergeSelected"),
+        assertEquals(List.of(I18n.get("button.addRule"), I18n.get("button.edit"), I18n.get("rules.mergeSelected"),
                         I18n.get("rules.applySelected"), I18n.get("button.moveUp"),
                         I18n.get("button.moveDown"), I18n.get("rules.enable"),
                         I18n.get("button.delete")), menuLabels(disabledMenu));
@@ -633,7 +633,7 @@ class RulesControllerTest extends AbstractUITest {
                     .filter(rule -> rule.getName().equals(ruleName)).findFirst().orElseThrow();
             TableRow<?> row = rowForRule(ruleTable, ruleName);
             interact(() -> ruleTable.getSelectionModel().select(selectedRule));
-            Platform.runLater(() -> row.getContextMenu().getItems().getFirst().fire());
+            interact(() -> menuItem(row.getContextMenu(), I18n.get("button.edit")).fire());
             WaitForAsyncUtils.waitForFxEvents();
 
             ComboBox<String> operator = lookup(".rule-condition-operator").query();
