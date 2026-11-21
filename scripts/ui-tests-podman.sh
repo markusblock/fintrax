@@ -146,6 +146,13 @@ podman build \
     --tag "$image" \
     "$repo_root/tools/ui-tests"
 
+# Compile everything on the host first so build/ already has outputs.
+# When Podman mounts the volume, Gradle sees pre-built classes + shares the
+# .gradle-podman cache across invocations → JavaCompile becomes UP-TO-DATE.
+echo "Prefilling build outputs for Podman..." >&2
+./gradlew -q :ui:compileTestJava >/dev/null 2>&1 || true
+echo "Ready." >&2
+
 test_runner_args=(/usr/local/bin/run-ui-tests "$mode")
 if [[ ${#mode_args[@]} -gt 0 ]]; then
     test_runner_args+=("${mode_args[@]}")
