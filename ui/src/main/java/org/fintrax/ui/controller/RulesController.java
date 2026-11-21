@@ -10,6 +10,7 @@ import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.control.*;
 import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import lombok.extern.slf4j.Slf4j;
 import org.kordamp.ikonli.javafx.FontIcon;
@@ -175,12 +176,7 @@ public class RulesController {
                     ruleTable.getSelectionModel().clearAndSelect(row.getIndex());
                 }
             });
-            row.setOnMouseClicked(event -> {
-                if (event.getButton() == MouseButton.PRIMARY && event.getClickCount() == 2
-                        && !row.isEmpty()) {
-                    editRule(row.getItem());
-                }
-            });
+            row.setOnMouseClicked(event -> editRuleOnDoubleClick(row, event));
             return row;
         });
         loadRules();
@@ -577,6 +573,12 @@ public class RulesController {
                             input.matchMode());
                     reloadRulesAndSelect(rule.getId());
                 });
+    }
+
+    private void editRuleOnDoubleClick(TableRow<Rule> row, MouseEvent event) {
+        if (event.getButton() == MouseButton.PRIMARY && event.getClickCount() == 2 && !row.isEmpty()) {
+            editRule(row.getItem());
+        }
     }
 
     private void reloadRulesAndSelect(Long ruleId) {
