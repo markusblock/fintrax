@@ -623,7 +623,7 @@ class RulesControllerTest extends AbstractUITest {
         TableView<Rule> ruleTable = lookup("#ruleTable").query();
         TableRow<?> row = rowForRule(ruleTable, ruleName);
 
-        interact(() -> Event.fireEvent(row, new MouseEvent(MouseEvent.MOUSE_CLICKED,
+        Platform.runLater(() -> Event.fireEvent(row, new MouseEvent(MouseEvent.MOUSE_CLICKED,
                 1, 1, 1, 1, MouseButton.PRIMARY, 2,
                 false, false, false, false,
                 false, false, false, true, false, true,
