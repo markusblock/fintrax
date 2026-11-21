@@ -9,6 +9,7 @@ import javafx.collections.transformation.SortedList;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.control.*;
+import javafx.scene.input.MouseButton;
 import javafx.scene.layout.BorderPane;
 import lombok.extern.slf4j.Slf4j;
 import org.kordamp.ikonli.javafx.FontIcon;
@@ -172,6 +173,12 @@ public class RulesController {
             row.setOnContextMenuRequested(event -> {
                 if (!row.isEmpty() && !ruleTable.getSelectionModel().isSelected(row.getIndex())) {
                     ruleTable.getSelectionModel().clearAndSelect(row.getIndex());
+                }
+            });
+            row.setOnMouseClicked(event -> {
+                if (event.getButton() == MouseButton.PRIMARY && event.getClickCount() == 2
+                        && !row.isEmpty()) {
+                    editRule(row.getItem());
                 }
             });
             return row;
