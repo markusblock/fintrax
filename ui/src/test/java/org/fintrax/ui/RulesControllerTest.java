@@ -578,17 +578,12 @@ class RulesControllerTest extends AbstractUITest {
 
     @Test
     void doubleClickingReadOnlyRuleLabelsOpensDetailsBelowTable() {
+        // Verify RulesView read-only Labels column opens transaction details on double-click
+        // (same as Category cell test; RulesView uses read-only columns for both).
         TableView<Rule> ruleTable = lookup("#ruleTable").query();
         Rule selectedRule = ruleTable.getItems().stream()
                 .filter(rule -> rule.getName().equals(ruleName)).findFirst().orElseThrow();
-        interact(() -> {
-            // Close any detail panel left open by previous tests
-            Button toggleBtn = lookup("#detailToggleButton").query();
-            if (toggleBtn.isDisable()) toggleBtn.fire();
-            else if (lookup("#detailPanel").query().isVisible()) toggleBtn.fire();
-            ruleTable.getSelectionModel().select(selectedRule);
-        });
-        WaitForAsyncUtils.waitForFxEvents();
+        interact(() -> ruleTable.getSelectionModel().select(selectedRule));
 
         TableView<Transaction> transactions = lookup("#ruleTransactionsTable").query();
         TableColumn<?, ?> labelsColumn = transactions.getColumns().stream()
