@@ -141,8 +141,8 @@ public class ClassificationsController {
         TableCellTooltips.install(classificationTransactionsTable);
         transactionWorkspaceController.setTableItems(displayedTransactions);
         setupColumnMenu();
-        transactionTableActions.installContextMenu(
-                classificationTransactionsTable, this::reloadSelectedTransactionsKeepingSelection, null);
+        TransactionTableSetup.installContextMenu(classificationTransactionsTable, transactionTableActions,
+                this::reloadSelectedTransactionsKeepingSelection, null);
         transactionFilterPanelController.setCollapsible(true);
         transactionFilterPanelController.restoreForView(SessionViewState.CLASSIFICATIONS_VIEW);
         transactionFilterPanelController.setOnFiltersChanged(this::reloadSelectedTransactionsKeepingSelection);

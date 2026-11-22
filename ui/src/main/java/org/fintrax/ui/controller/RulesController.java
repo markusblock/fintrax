@@ -189,8 +189,8 @@ public class RulesController {
         TableCellTooltips.install(ruleTransactionsTable);
         transactionWorkspaceController.setTableItems(displayedTransactions);
         setupColumnMenu();
-        transactionTableActions.installContextMenu(
-                ruleTransactionsTable, this::reloadSelectedTransactionsKeepingSelection, null);
+        TransactionTableSetup.installContextMenu(ruleTransactionsTable, transactionTableActions,
+                this::reloadSelectedTransactionsKeepingSelection, null);
         transactionFilterPanelController.setCollapsible(true);
         transactionFilterPanelController.restoreForView(
                 SessionViewState.RULES_VIEW, TransactionDateFilters.Preset.ALL_TIME);
