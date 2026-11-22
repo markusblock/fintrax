@@ -578,6 +578,30 @@ class RulesControllerTest extends AbstractUITest {
     }
 
     @Test
+    void doubleClickingReadOnlyRuleLabelsOpensDetailsBelowTable() {
+        TableView<Rule> ruleTable = lookup("#ruleTable").query();
+        Rule selectedRule = ruleTable.getItems().stream()
+                .filter(rule -> rule.getName().equals(ruleName)).findFirst().orElseThrow();
+        interact(() -> ruleTable.getSelectionModel().select(selectedRule));
+
+        TableView<Transaction> transactions = lookup("#ruleTransactionsTable").query();
+        TableColumn<?, ?> labelsColumn = transactions.getColumns().stream()
+                .filter(column -> I18n.get("col.labels").equals(column.getText()))
+                .findFirst().orElseThrow();
+        TableCell<?, ?> labelsCell = cellForTransaction(transactions, labelsColumn, transaction);
+
+        assertFalse(lookup("#detailPanel").query().isVisible());
+        interact(() -> Event.fireEvent(labelsCell, new MouseEvent(MouseEvent.MOUSE_CLICKED,
+                1, 1, 1, 1, MouseButton.PRIMARY, 2,
+                false, false, false, false,
+                false, false, false, true, false, true,
+                new PickResult(labelsCell, 1, 1))));
+        WaitForAsyncUtils.waitForFxEvents();
+
+        assertTrue(lookup("#detailPanel").query().isVisible());
+    }
+
+    @Test
     void editingRuleFromContextMenuUpdatesRuleAndSelectedSummary() {
         TableView<Rule> ruleTable = lookup("#ruleTable").query();
         Rule selectedRule = ruleTable.getItems().stream()
