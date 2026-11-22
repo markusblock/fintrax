@@ -191,6 +191,17 @@ public class RulesController {
         setupColumnMenu();
         TransactionTableSetup.installContextMenu(ruleTransactionsTable, transactionTableActions,
                 this::reloadSelectedTransactionsKeepingSelection, null);
+        TransactionTableSetup.addSharedStyler((row, tx) -> {
+            row.getStyleClass().remove("new-transaction-row");
+            row.getStyleClass().remove("future-transaction-row");
+            if (tx != null && tx.getId() != null && !settledTransactionIds.isSettled(tx.getId())) {
+                row.getStyleClass().add("new-transaction-row");
+            }
+            if (tx != null && tx.getBookingDate() != null && tx.getBookingDate().isAfter(LocalDate.now())) {
+                row.getStyleClass().add("future-transaction-row");
+            }
+        });
+        TransactionTableSetup.buildSharedRowStyle(ruleTransactionsTable);
         transactionFilterPanelController.setCollapsible(true);
         transactionFilterPanelController.restoreForView(
                 SessionViewState.RULES_VIEW, TransactionDateFilters.Preset.ALL_TIME);
