@@ -184,7 +184,7 @@ public class RulesController {
         });
         loadRules();
         setupTransactionTable();
-        setupUnviewedTransactionRows(ruleTransactionsTable);
+        TransactionTableSetup.applyFutureAndUnviewedStyle(ruleTransactionsTable, settledTransactionIds);
         installSelectionListener(ruleTransactionsTable);
         setupRuleMatchColumns();
         TableCellTooltips.install(ruleTransactionsTable);
@@ -216,26 +216,6 @@ public class RulesController {
                 accountService, categoryService, labelService);
         transactionTableSetup.configure();
         transactionWorkspaceController.attachDetails(Set.of());
-    }
-
-    private void setupUnviewedTransactionRows(TableView<Transaction> table) {
-        var existingRowFactory = table.getRowFactory();
-        table.setRowFactory(tableView -> {
-            TableRow<Transaction> row = existingRowFactory == null
-                    ? new TableRow<>() : existingRowFactory.call(tableView);
-            row.itemProperty().addListener((observable, oldTx, newTx) ->
-                    updateUnviewedTransactionStyle(row, newTx));
-            updateUnviewedTransactionStyle(row, row.getItem());
-            return row;
-        });
-    }
-
-    private void updateUnviewedTransactionStyle(TableRow<Transaction> row, Transaction transaction) {
-        row.getStyleClass().remove("new-transaction-row");
-        if (transaction != null && transaction.getId() != null
-                && !settledTransactionIds.isSettled(transaction.getId())) {
-            row.getStyleClass().add("new-transaction-row");
-        }
     }
 
     private void installSelectionListener(TableView<Transaction> table) {

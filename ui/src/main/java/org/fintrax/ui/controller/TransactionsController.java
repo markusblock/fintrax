@@ -27,6 +27,7 @@ import org.fintrax.ui.control.TableCellTooltips;
 import org.fintrax.ui.control.TableColumnConfig;
 import org.fintrax.ui.control.TableColumnVisibilityMenu;
 import org.fintrax.ui.control.TableViewResizePolicy;
+import org.fintrax.ui.control.TransactionTableSetup;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
@@ -120,8 +121,7 @@ public class TransactionsController {
         transactionTableActions.installContextMenu(
                 transactionTable, this::reloadTransactionsKeepingSelection, this::createRuleFromTransaction);
         setupTableColumns();
-        setupFutureTransactionRows();
-        setupUnviewedTransactionRows();
+        TransactionTableSetup.applyFutureAndUnviewedStyle(transactionTable, settledTransactionIds);
         installSelectionListener();
         TableCellTooltips.install(transactionTable);
         transactionFilterPanelController.setCollapsible(true);
@@ -210,48 +210,9 @@ public class TransactionsController {
         labelsColumn.setCellFactory(column -> createLabelChipCell(this::onSetLabels));
     }
 
-    private void setupFutureTransactionRows() {
-        var existingRowFactory = transactionTable.getRowFactory();
-        transactionTable.setRowFactory(table -> {
-            TableRow<Transaction> row = existingRowFactory == null
-                    ? new TableRow<>() : existingRowFactory.call(table);
-            row.itemProperty().addListener((observable, oldTransaction, newTransaction) ->
-                    updateFutureTransactionStyle(row, newTransaction));
-            updateFutureTransactionStyle(row, row.getItem());
-            return row;
-        });
-    }
-
-    private void updateFutureTransactionStyle(TableRow<Transaction> row, Transaction transaction) {
-        row.getStyleClass().remove("future-transaction-row");
-        if (isFutureTransaction(transaction)) {
-            row.getStyleClass().add("future-transaction-row");
-        }
-    }
-
     private boolean isFutureTransaction(Transaction transaction) {
         return transaction != null && transaction.getBookingDate() != null
                 && transaction.getBookingDate().isAfter(LocalDate.now());
-    }
-
-    private void setupUnviewedTransactionRows() {
-        var existingRowFactory = transactionTable.getRowFactory();
-        transactionTable.setRowFactory(table -> {
-            TableRow<Transaction> row = existingRowFactory == null
-                    ? new TableRow<>() : existingRowFactory.call(table);
-            row.itemProperty().addListener((observable, oldTransaction, newTransaction) ->
-                    updateUnviewedTransactionStyle(row, newTransaction));
-            updateUnviewedTransactionStyle(row, row.getItem());
-            return row;
-        });
-    }
-
-    private void updateUnviewedTransactionStyle(TableRow<Transaction> row, Transaction transaction) {
-        row.getStyleClass().remove("new-transaction-row");
-        if (transaction != null && transaction.getId() != null
-                && !settledTransactionIds.isSettled(transaction.getId())) {
-            row.getStyleClass().add("new-transaction-row");
-        }
     }
 
     private void installSelectionListener() {

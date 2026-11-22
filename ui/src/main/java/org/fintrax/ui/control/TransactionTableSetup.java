@@ -2,11 +2,16 @@ package org.fintrax.ui.control;
 
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
+import javafx.application.Platform;
 import javafx.geometry.Pos;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
+import javafx.scene.layout.Priority;
+import javafx.scene.Node;
+import javafx.collections.ListChangeListener;
+import javafx.beans.binding.Bindings;
 import org.fintrax.config.I18n;
 import org.fintrax.model.Category;
 import org.fintrax.model.Transaction;
@@ -14,6 +19,7 @@ import org.fintrax.service.AccountService;
 import org.fintrax.service.CategoryService;
 import org.fintrax.service.LabelService;
 import org.fintrax.service.SettingsService;
+import org.fintrax.ui.controller.SettledTransactionIds;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -189,6 +195,32 @@ public final class TransactionTableSetup {
                     getStyleClass().add(item.signum() < 0 ? AMOUNT_NEGATIVE_STYLE : AMOUNT_POSITIVE_STYLE);
                 }
             }
+        });
+    }
+
+    /**
+     * Apply bold font-weight to rows representing transactions not yet viewed (selected in any table),
+     * and muted color to future-dated transactions. Safe to call multiple times on the same TableView —
+     * preserves existing row factory and builds on top. Called identically from all transaction views.
+     */
+    public static void applyFutureAndUnviewedStyle(TableView<Transaction> table, SettledTransactionIds settled) {
+        var existingFactory = table.getRowFactory();
+        table.setRowFactory(tableView -> {
+            javafx.scene.control.TableRow<Transaction> row = existingFactory == null
+                    ? new javafx.scene.control.TableRow<>() : existingFactory.call(tableView);
+            row.itemProperty().addListener((observable, oldTransaction, newTransaction) -> {
+                row.getStyleClass().remove("new-transaction-row");
+                row.getStyleClass().remove("future-transaction-row");
+                if (newTransaction != null && newTransaction.getId() != null
+                        && !settled.isSettled(newTransaction.getId())) {
+                    row.getStyleClass().add("new-transaction-row");
+                }
+                if (newTransaction != null && newTransaction.getBookingDate() != null
+                        && newTransaction.getBookingDate().isAfter(LocalDate.now())) {
+                    row.getStyleClass().add("future-transaction-row");
+                }
+            });
+            return row;
         });
     }
 }

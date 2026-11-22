@@ -137,7 +137,7 @@ public class ClassificationsController {
         configureContextMenu();
         classificationTree.setCellFactory(this::createClassificationCell);
         setupTransactionTable();
-        setupUnviewedTransactionRows(classificationTransactionsTable);
+        TransactionTableSetup.applyFutureAndUnviewedStyle(classificationTransactionsTable, settledTransactionIds);
         installSelectionListener(classificationTransactionsTable);
         TableCellTooltips.install(classificationTransactionsTable);
         transactionWorkspaceController.setTableItems(displayedTransactions);
@@ -174,26 +174,6 @@ public class ClassificationsController {
                         this::reloadSelectedTransactionsKeepingSelection)));
         transactionWorkspaceController.attachDetails(
                 Set.of(transactionTableSetup.categoryColumn(), transactionTableSetup.labelsColumn()));
-    }
-
-    private void setupUnviewedTransactionRows(TableView<Transaction> table) {
-        var existingRowFactory = table.getRowFactory();
-        table.setRowFactory(tableView -> {
-            TableRow<Transaction> row = existingRowFactory == null
-                    ? new TableRow<>() : existingRowFactory.call(tableView);
-            row.itemProperty().addListener((observable, oldTx, newTx) ->
-                    updateUnviewedTransactionStyle(row, newTx));
-            updateUnviewedTransactionStyle(row, row.getItem());
-            return row;
-        });
-    }
-
-    private void updateUnviewedTransactionStyle(TableRow<Transaction> row, Transaction transaction) {
-        row.getStyleClass().remove("new-transaction-row");
-        if (transaction != null && transaction.getId() != null
-                && !settledTransactionIds.isSettled(transaction.getId())) {
-            row.getStyleClass().add("new-transaction-row");
-        }
     }
 
     private void installSelectionListener(TableView<Transaction> table) {
