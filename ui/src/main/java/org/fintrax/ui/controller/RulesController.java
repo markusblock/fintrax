@@ -1,5 +1,6 @@
 package org.fintrax.ui.controller;
 
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
@@ -7,11 +8,14 @@ import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import javafx.collections.transformation.SortedList;
 import javafx.fxml.FXML;
+import javafx.scene.Node;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.*;
-import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.input.MouseButton;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
 import lombok.extern.slf4j.Slf4j;
 import org.kordamp.ikonli.javafx.FontIcon;
 import org.fintrax.config.I18n;
@@ -19,6 +23,8 @@ import org.fintrax.model.*;
 import org.fintrax.service.*;
 import org.fintrax.ui.FintraxUI;
 import org.fintrax.ui.ViewLoader;
+import org.fintrax.ui.control.LabelChipFactory;
+import org.fintrax.ui.control.SearchableDropdownPicker;
 import org.fintrax.ui.control.TableCellTooltips;
 import org.fintrax.ui.control.TableColumnConfig;
 import org.fintrax.ui.control.TransactionTableSetup;
@@ -213,7 +219,93 @@ public class RulesController {
         transactionTableSetup = new TransactionTableSetup(ruleTransactionsTable,
                 accountService, categoryService, labelService);
         transactionTableSetup.configure();
-        transactionWorkspaceController.attachDetails(Set.of());
+        // Category/Labels use interactive assignment cells like ClassificationView;
+        // exclude them from detail-open so double-click triggers the picker instead.
+        transactionTableSetup.categoryColumn().setCellFactory(column -> createAssignmentCell(anchor ->
+                transactionTableActions.setCategory(ruleTransactionsTable, anchor,
+                        this::refreshSelectedRuleTransactions)));
+        transactionTableSetup.labelsColumn().setCellFactory(column -> createLabelChipCell(anchor ->
+                transactionTableActions.setLabels(ruleTransactionsTable, anchor,
+                        this::refreshSelectedRuleTransactions)));
+        transactionWorkspaceController.attachDetails(
+                Set.of(transactionTableSetup.categoryColumn(), transactionTableSetup.labelsColumn()));
+    }
+
+    private TableCell<Transaction, String> createAssignmentCell(java.util.function.Consumer<Node> openSelection) {
+        TableCell<Transaction, String> cell = new TableCell<>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(null);
+                if (getGraphic() instanceof HBox previous) previous.prefWidthProperty().unbind();
+                if (empty) {
+                    setGraphic(null);
+                    return;
+                }
+                Label value = new Label(item == null ? "" : item);
+                value.setMaxWidth(Double.MAX_VALUE);
+                Button assignmentButton = createAssignmentButton(this, "picker.category.accessible", openSelection);
+                SearchableDropdownPicker.installToggleHandler(value, assignmentButton, assignmentButton::fire);
+                HBox control = new HBox(4, value, assignmentButton);
+                control.getStyleClass().add("assignment-cell");
+                control.prefWidthProperty().bind(Bindings.max(0,
+                        transactionTableSetup.categoryColumn().widthProperty().subtract(12)));
+                HBox.setHgrow(value, javafx.scene.layout.Priority.ALWAYS);
+                setGraphic(control);
+            }
+        };
+        return cell;
+    }
+
+    private TableCell<Transaction, String> createLabelChipCell(java.util.function.Consumer<Node> openSelection) {
+        TableCell<Transaction, String> cell = new TableCell<>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(null);
+                if (getGraphic() instanceof HBox previous) previous.prefWidthProperty().unbind();
+                if (empty || getTableRow() == null || getTableRow().getItem() == null) {
+                    setGraphic(null);
+                    return;
+                }
+
+                Set<Long> labelIds = getTableRow().getItem().getLabelIds();
+                List<org.fintrax.model.Label> labels = List.of();
+                if (labelIds != null) {
+                    labels = labelIds.stream()
+                            .map(labelService::getLabel)
+                            .flatMap(Optional::stream)
+                            .toList();
+                }
+                HBox chips = LabelChipFactory.createAll(labels);
+                Button assignmentButton = createAssignmentButton(this, "picker.labels.accessible", openSelection);
+                SearchableDropdownPicker.installToggleHandler(chips, assignmentButton, assignmentButton::fire);
+                HBox control = new HBox(4, chips, assignmentButton);
+                control.getStyleClass().add("assignment-cell");
+                control.prefWidthProperty().bind(Bindings.max(0,
+                        transactionTableSetup.labelsColumn().widthProperty().subtract(12)));
+                HBox.setHgrow(chips, javafx.scene.layout.Priority.ALWAYS);
+                setGraphic(control);
+            }
+        };
+        return cell;
+    }
+
+    private Button createAssignmentButton(TableCell<Transaction, String> cell, String accessibleTextKey,
+                                           java.util.function.Consumer<Node> openSelection) {
+        Button button = new Button("▾");
+        button.setAccessibleText(I18n.get(accessibleTextKey));
+        button.getStyleClass().add("assignment-picker-button");
+        button.addEventFilter(MouseEvent.MOUSE_PRESSED, event -> {
+            if (SearchableDropdownPicker.dismissIfActiveAt(button)) event.consume();
+        });
+        button.setOnAction(event -> {
+            if (!cell.isEmpty() && !ruleTransactionsTable.getSelectionModel().isSelected(cell.getIndex())) {
+                ruleTransactionsTable.getSelectionModel().clearAndSelect(cell.getIndex());
+            }
+            openSelection.accept((Node) event.getSource());
+        });
+        return button;
     }
 
     private void setupRuleMatchColumns() {
