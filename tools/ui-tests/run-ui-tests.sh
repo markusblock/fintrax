@@ -68,6 +68,7 @@ gradle_args=(
     --init-script tools/ui-tests/rerun-tests.gradle
     --no-parallel
     --max-workers=1
+    --build-cache
     "-Dorg.gradle.jvmargs=-Xmx384m -Dfile.encoding=UTF-8"
     "${test_args[@]}"
 )

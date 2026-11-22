@@ -133,6 +133,32 @@ podman_args=(
     --env "JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=14 -XX:ActiveProcessorCount=2"
     --env "FINTRAX_UI_VNC_PASSWORD=$vnc_password"
 )
+
+# --- Option A: Share host Gradle module cache (dependency reuse) ---
+host_gradle_ro_cache="$HOME/.gradle/caches/modules-2"
+if [[ -d "$host_gradle_ro_cache" ]]; then
+    podman_args+=(
+        --volume "$host_gradle_ro_cache:/gradle-ro/modules-2:ro"
+        --env GRADLE_RO_DEP_CACHE=/gradle-ro
+    )
+fi
+
+# --- Option C: Seed Gradle wrapper dists so container reuses cached binaries ---
+# Host stores: $HOME/.gradle/wrapper/dists/gradle-X.Y.Z-hash/<hash>/gradle-X.Y.Z/bin/gradle
+# Container expects: $GRADLE_USER_HOME/wrapper/dists/gradle-X.Y.Z-hash/<hash>/gradle-X.Y.Z/bin/gradle
+seed_dir="$repo_root/.gradle-podman-seed"
+mkdir -p "$seed_dir"
+host_dists="$HOME/.gradle/wrapper/dists"
+if [[ -d "$host_dists" && -n "$(ls -A "$host_dists" 2>/dev/null)" ]]; then
+    rsync -a --ignore-existing "$host_dists/" "$seed_dir/" 2>/dev/null || true
+fi
+podman_args+=(--volume "$seed_dir:/workspace/.gradle-podman/wrapper/dists:rw")
+
+# --- Option B: Persistent Gradle build cache across runs ---
+buildcache_dir="$repo_root/.gradle-podman-buildcache"
+mkdir -p "$buildcache_dir"
+podman_args+=(--volume "$buildcache_dir:/workspace/.gradle-podman/caches/build-cache-1:rw")
+
 if [[ "$use_random_vnc_port" == true ]]; then
     podman_args+=(--name "$container_name" --publish "127.0.0.1::5900")
 else
