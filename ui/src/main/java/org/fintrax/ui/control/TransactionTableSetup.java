@@ -2,7 +2,6 @@ package org.fintrax.ui.control;
 
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
-import javafx.application.Platform;
 import javafx.geometry.Pos;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.TableCell;
@@ -20,6 +19,7 @@ import org.fintrax.service.CategoryService;
 import org.fintrax.service.LabelService;
 import org.fintrax.service.SettingsService;
 import org.fintrax.ui.controller.SettledTransactionIds;
+import org.fintrax.ui.controller.TransactionTableActions;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -198,25 +198,30 @@ public final class TransactionTableSetup {
         });
     }
 
+    /** Install context menu on the shared transaction table. Wraps any existing row factory. */
+    public static void installContextMenu(TableView<Transaction> table, TransactionTableActions actions,
+                                          Runnable afterEdit, java.util.function.Consumer<Transaction> createRule) {
+        actions.installContextMenu(table, afterEdit, createRule);
+    }
+
     /**
-     * Apply bold font-weight to rows representing transactions not yet viewed (selected in any table),
-     * and muted color to future-dated transactions. Safe to call multiple times on the same TableView —
-     * preserves existing row factory and builds on top. Called identically from all transaction views.
+     * Apply bold font-weight to unviewed transactions and muted color to future-dated rows.
+     * Chains on top of the existing row factory (e.g., context menu installed previously).
+     * Call from every view that uses this workspace's TableView — all stylers run in registration order.
      */
-    public static void applyFutureAndUnviewedStyle(TableView<Transaction> table, SettledTransactionIds settled) {
+    public static void applyRowStyle(TableView<Transaction> table, SettledTransactionIds settled,
+                                     Function<Transaction, Boolean> isFuture) {
         var existingFactory = table.getRowFactory();
         table.setRowFactory(tableView -> {
             javafx.scene.control.TableRow<Transaction> row = existingFactory == null
                     ? new javafx.scene.control.TableRow<>() : existingFactory.call(tableView);
-            row.itemProperty().addListener((observable, oldTransaction, newTransaction) -> {
+            row.itemProperty().addListener((observable, oldTx, newTx) -> {
                 row.getStyleClass().remove("new-transaction-row");
                 row.getStyleClass().remove("future-transaction-row");
-                if (newTransaction != null && newTransaction.getId() != null
-                        && !settled.isSettled(newTransaction.getId())) {
+                if (newTx != null && newTx.getId() != null && !settled.isSettled(newTx.getId())) {
                     row.getStyleClass().add("new-transaction-row");
                 }
-                if (newTransaction != null && newTransaction.getBookingDate() != null
-                        && newTransaction.getBookingDate().isAfter(LocalDate.now())) {
+                if (isFuture.apply(newTx)) {
                     row.getStyleClass().add("future-transaction-row");
                 }
             });

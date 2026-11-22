@@ -118,10 +118,10 @@ public class TransactionsController {
                 accountColumn, purposeColumn, amountColumn, balanceColumn, categoryColumn, labelsColumn,
                 columnMenuColumn));
         transactionWorkspaceController.attachDetails(Set.of(categoryColumn, labelsColumn));
-        transactionTableActions.installContextMenu(
-                transactionTable, this::reloadTransactionsKeepingSelection, this::createRuleFromTransaction);
+        TransactionTableSetup.installContextMenu(transactionTable, transactionTableActions,
+                this::reloadTransactionsKeepingSelection, this::createRuleFromTransaction);
         setupTableColumns();
-        TransactionTableSetup.applyFutureAndUnviewedStyle(transactionTable, settledTransactionIds);
+        TransactionTableSetup.applyRowStyle(transactionTable, settledTransactionIds, this::isFutureTransaction);
         installSelectionListener();
         TableCellTooltips.install(transactionTable);
         transactionFilterPanelController.setCollapsible(true);

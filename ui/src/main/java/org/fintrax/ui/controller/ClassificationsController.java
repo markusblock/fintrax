@@ -137,7 +137,8 @@ public class ClassificationsController {
         configureContextMenu();
         classificationTree.setCellFactory(this::createClassificationCell);
         setupTransactionTable();
-        TransactionTableSetup.applyFutureAndUnviewedStyle(classificationTransactionsTable, settledTransactionIds);
+        TransactionTableSetup.applyRowStyle(classificationTransactionsTable, settledTransactionIds,
+                tx -> tx != null && tx.getBookingDate() != null && tx.getBookingDate().isAfter(LocalDate.now()));
         installSelectionListener(classificationTransactionsTable);
         TableCellTooltips.install(classificationTransactionsTable);
         transactionWorkspaceController.setTableItems(displayedTransactions);
