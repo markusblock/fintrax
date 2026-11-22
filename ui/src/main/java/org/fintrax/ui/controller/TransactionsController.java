@@ -121,7 +121,17 @@ public class TransactionsController {
         TransactionTableSetup.installContextMenu(transactionTable, transactionTableActions,
                 this::reloadTransactionsKeepingSelection, this::createRuleFromTransaction);
         setupTableColumns();
-        TransactionTableSetup.applyRowStyle(transactionTable, settledTransactionIds, this::isFutureTransaction);
+        TransactionTableSetup.addSharedStyler((row, tx) -> {
+            row.getStyleClass().remove("new-transaction-row");
+            row.getStyleClass().remove("future-transaction-row");
+            if (tx != null && tx.getId() != null && !settledTransactionIds.isSettled(tx.getId())) {
+                row.getStyleClass().add("new-transaction-row");
+            }
+            if (isFutureTransaction(tx)) {
+                row.getStyleClass().add("future-transaction-row");
+            }
+        });
+        TransactionTableSetup.buildSharedRowStyle(transactionTable);
         installSelectionListener();
         TableCellTooltips.install(transactionTable);
         transactionFilterPanelController.setCollapsible(true);

@@ -184,8 +184,6 @@ public class RulesController {
         });
         loadRules();
         setupTransactionTable();
-        TransactionTableSetup.applyRowStyle(ruleTransactionsTable, settledTransactionIds,
-                tx -> tx != null && tx.getBookingDate() != null && tx.getBookingDate().isAfter(LocalDate.now()));
         installSelectionListener(ruleTransactionsTable);
         setupRuleMatchColumns();
         TableCellTooltips.install(ruleTransactionsTable);
