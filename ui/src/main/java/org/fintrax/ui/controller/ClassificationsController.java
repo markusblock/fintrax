@@ -1,6 +1,5 @@
 package org.fintrax.ui.controller;
 
-import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -91,6 +90,7 @@ public class ClassificationsController {
     private final Map<Long, TreeItem<String>> labelItemsById = new HashMap<>();
     private final ObservableList<Transaction> displayedTransactions = FXCollections.observableArrayList();
     private TransactionTableSetup transactionTableSetup;
+    private NewTransactionState newTransactionState;
     private final ContextMenu classificationContextMenu = new ContextMenu();
     private final MenuItem addCategoryMenuItem = new MenuItem();
     private final MenuItem addLabelMenuItem = new MenuItem();
@@ -107,7 +107,8 @@ public class ClassificationsController {
                                   TransactionService transactionService,
                                   AccountService accountService,
                                   TransactionTableActions transactionTableActions,
-                                  SessionViewState sessionViewState) {
+                                  SessionViewState sessionViewState,
+                                  NewTransactionState newTransactionState) {
         this.categoryService = categoryService;
         this.labelService = labelService;
         this.settingsService = settingsService;
@@ -115,6 +116,7 @@ public class ClassificationsController {
         this.accountService = accountService;
         this.transactionTableActions = transactionTableActions;
         this.sessionViewState = sessionViewState;
+        this.newTransactionState = newTransactionState;
     }
 
     @FXML
@@ -137,8 +139,9 @@ public class ClassificationsController {
         TableCellTooltips.install(classificationTransactionsTable);
         transactionWorkspaceController.setTableItems(displayedTransactions);
         setupColumnMenu();
-        transactionTableActions.installContextMenu(
-                classificationTransactionsTable, this::reloadSelectedTransactionsKeepingSelection, null);
+        TransactionTableSetup.installContextMenu(classificationTransactionsTable, transactionTableActions,
+                this::reloadSelectedTransactionsKeepingSelection, null);
+        TransactionTableSetup.installTransactionRowStyling(classificationTransactionsTable, newTransactionState);
         transactionFilterPanelController.setCollapsible(true);
         transactionFilterPanelController.restoreForView(SessionViewState.CLASSIFICATIONS_VIEW);
         transactionFilterPanelController.setOnFiltersChanged(this::reloadSelectedTransactionsKeepingSelection);

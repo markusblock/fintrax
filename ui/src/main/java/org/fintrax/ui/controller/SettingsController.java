@@ -76,12 +76,14 @@ public class SettingsController {
     private final RuleArchiveService ruleArchiveService;
     private final CategoryService categoryService;
     private final LabelService labelService;
+    private final NewTransactionState newTransactionState;
 
     public SettingsController(AccountService accountService, PinStorage pinStorage,
                                HibiscusXmlImporter hibiscusXmlImporter, ResetService resetService,
                                SyncService syncService, SettingsService settingsService,
                                RuleService ruleService, RuleArchiveService ruleArchiveService,
-                               CategoryService categoryService, LabelService labelService) {
+                               CategoryService categoryService, LabelService labelService,
+                               NewTransactionState newTransactionState) {
         this.accountService = accountService;
         this.pinStorage = pinStorage;
         this.hibiscusXmlImporter = hibiscusXmlImporter;
@@ -92,6 +94,7 @@ public class SettingsController {
         this.ruleArchiveService = ruleArchiveService;
         this.categoryService = categoryService;
         this.labelService = labelService;
+        this.newTransactionState = newTransactionState;
     }
 
     @FXML
@@ -271,6 +274,7 @@ public class SettingsController {
             try {
                 HibiscusXmlImporter.ImportResult importResult = hibiscusXmlImporter.importFile(
                         file, categoriesBox.isSelected(), rulesBox.isSelected());
+                newTransactionState.markNew(importResult.getNewTransactionIds());
 
                 showImportSuccess(importResult);
 

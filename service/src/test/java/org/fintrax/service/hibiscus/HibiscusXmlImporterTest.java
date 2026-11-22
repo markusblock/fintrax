@@ -50,6 +50,8 @@ class HibiscusXmlImporterTest {
         assertEquals(8, result.getCategoriesImported());
         assertEquals(3, result.getRulesImported());
         assertEquals(5, result.getActivityLogsImported());
+        assertEquals(store.getRoot().getTransactions().stream().map(Transaction::getId).toList(),
+                result.getNewTransactionIds());
 
         assertEquals(5, store.getRoot().getAccounts().size());
         assertEquals(5, store.getRoot().getTransactions().size());
@@ -92,6 +94,7 @@ class HibiscusXmlImporterTest {
 
         assertEquals(0, secondResult.getAccountsImported());
         assertEquals(0, secondResult.getTransactionsImported());
+        assertTrue(secondResult.getNewTransactionIds().isEmpty());
         assertEquals(0, secondResult.getCategoriesImported());
         assertEquals(0, secondResult.getRulesImported());
         assertEquals(5, store.getRoot().getAccounts().size());

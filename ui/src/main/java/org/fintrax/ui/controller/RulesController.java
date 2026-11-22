@@ -102,6 +102,7 @@ public class RulesController {
     private final ObservableList<Rule> ruleData = FXCollections.observableArrayList();
     private final ObservableList<Transaction> displayedTransactions = FXCollections.observableArrayList();
     private TransactionTableSetup transactionTableSetup;
+    private NewTransactionState newTransactionState;
     private Long selectedRuleId;
     private List<Transaction> selectedRuleTransactions = List.of();
     private Map<Long, List<RuleMatchSummary.MatchingRule>> matchingRulesByTransactionId = Map.of();
@@ -110,7 +111,7 @@ public class RulesController {
                            CategoryService categoryService, LabelService labelService,
                            SettingsService settingsService, TransactionService transactionService,
                            TransactionTableActions transactionTableActions, ViewLoader viewLoader,
-                           SessionViewState sessionViewState) {
+                           SessionViewState sessionViewState, NewTransactionState newTransactionState) {
         this.ruleService = ruleService;
         this.accountService = accountService;
         this.categoryService = categoryService;
@@ -120,6 +121,7 @@ public class RulesController {
         this.transactionTableActions = transactionTableActions;
         this.viewLoader = viewLoader;
         this.sessionViewState = sessionViewState;
+        this.newTransactionState = newTransactionState;
     }
 
     @FXML
@@ -185,8 +187,9 @@ public class RulesController {
         TableCellTooltips.install(ruleTransactionsTable);
         transactionWorkspaceController.setTableItems(displayedTransactions);
         setupColumnMenu();
-        transactionTableActions.installContextMenu(
-                ruleTransactionsTable, this::reloadSelectedTransactionsKeepingSelection, null);
+        TransactionTableSetup.installContextMenu(ruleTransactionsTable, transactionTableActions,
+                this::reloadSelectedTransactionsKeepingSelection, null);
+        TransactionTableSetup.installTransactionRowStyling(ruleTransactionsTable, newTransactionState);
         transactionFilterPanelController.setCollapsible(true);
         transactionFilterPanelController.restoreForView(
                 SessionViewState.RULES_VIEW, TransactionDateFilters.Preset.ALL_TIME);

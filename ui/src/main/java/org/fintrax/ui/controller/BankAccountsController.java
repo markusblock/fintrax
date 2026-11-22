@@ -80,6 +80,7 @@ public class BankAccountsController {
     private final SettingsService settingsService;
     private final CategoryService categoryService;
     private final LabelService labelService;
+    private final NewTransactionState newTransactionState;
     private final PinStorage pinStorage;
     private final ViewLoader viewLoader;
     private final ExecutorService executor = Executors.newCachedThreadPool(r -> {
@@ -91,7 +92,7 @@ public class BankAccountsController {
     public BankAccountsController(AccountService accountService, BankService bankService, SyncService syncService,
                                   PinStorage pinStorage, ViewLoader viewLoader, RuleService ruleService,
                                   CategoryService categoryService, LabelService labelService,
-                                  SettingsService settingsService) {
+                                  SettingsService settingsService, NewTransactionState newTransactionState) {
         this.accountService = accountService;
         this.bankService = bankService;
         this.syncService = syncService;
@@ -101,6 +102,7 @@ public class BankAccountsController {
         this.settingsService = settingsService;
         this.categoryService = categoryService;
         this.labelService = labelService;
+        this.newTransactionState = newTransactionState;
     }
 
     @FXML
@@ -294,6 +296,8 @@ public class BankAccountsController {
                 batch.passwordsByBank().clear();
             }
             if (!allCompleted || isSyncCancellationRequested(cancellationRequested)) {
+                newTransactionState.markNew(results.stream()
+                        .flatMap(result -> result.newTransactionIds().stream()).toList());
                 refreshAfterSync();
                 return;
             }
@@ -349,7 +353,10 @@ public class BankAccountsController {
                 SyncResult result = syncService.syncAccount(account.getId(),
                         batch.passwordsByBank().get(bankKey),
                         progressDialog::updateProgress, cancellationRequested::get);
-                if (isSyncCancellationRequested(cancellationRequested)) return false;
+                if (isSyncCancellationRequested(cancellationRequested)) {
+                    newTransactionState.markNew(result.newTransactionIds());
+                    return false;
+                }
                 results.add(result);
                 progressDialog.finishAccount(result);
                 if (result.authenticationFailed()) {
@@ -382,6 +389,7 @@ public class BankAccountsController {
                 SyncResult syncResult = syncService.syncAccount(accountId, finalPin,
                         progressDialog::updateProgress, cancellationRequested::get);
                 if (isSyncCancellationRequested(cancellationRequested)) {
+                    newTransactionState.markNew(syncResult.newTransactionIds());
                     refreshAfterSync();
                     return;
                 }
@@ -574,6 +582,8 @@ public class BankAccountsController {
 
     private void showSyncReport(List<SyncResult> results, Map<Long, String> failures,
                                 SyncProgressDialog progressDialog) {
+        newTransactionState.markNew(results.stream()
+                .flatMap(result -> result.newTransactionIds().stream()).toList());
         List<Long> newTransactionIds = results.stream()
                 .filter(result -> result.syncLog().getStatus() == SyncStatus.SUCCESS)
                 .flatMap(result -> result.newTransactionIds().stream()).toList();

@@ -27,6 +27,7 @@ import org.fintrax.ui.control.TableCellTooltips;
 import org.fintrax.ui.control.TableColumnConfig;
 import org.fintrax.ui.control.TableColumnVisibilityMenu;
 import org.fintrax.ui.control.TableViewResizePolicy;
+import org.fintrax.ui.control.TransactionTableSetup;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
@@ -87,11 +88,13 @@ public class TransactionsController {
     private final TransactionTableActions transactionTableActions;
 
     private final ObservableList<Transaction> tableData = FXCollections.observableArrayList();
+    private final NewTransactionState newTransactionState;
 
     public TransactionsController(TransactionService transactionService, AccountService accountService,
                                   CategoryService categoryService, LabelService labelService,
                                   SettingsService settingsService, RuleService ruleService,
-                                  ViewLoader viewLoader, TransactionTableActions transactionTableActions) {
+                                  ViewLoader viewLoader, TransactionTableActions transactionTableActions,
+                                  NewTransactionState newTransactionState) {
         this.transactionService = transactionService;
         this.accountService = accountService;
         this.categoryService = categoryService;
@@ -100,6 +103,7 @@ public class TransactionsController {
         this.ruleService = ruleService;
         this.viewLoader = viewLoader;
         this.transactionTableActions = transactionTableActions;
+        this.newTransactionState = newTransactionState;
     }
 
     @FXML
@@ -114,10 +118,10 @@ public class TransactionsController {
                 accountColumn, purposeColumn, amountColumn, balanceColumn, categoryColumn, labelsColumn,
                 columnMenuColumn));
         transactionWorkspaceController.attachDetails(Set.of(categoryColumn, labelsColumn));
-        transactionTableActions.installContextMenu(
-                transactionTable, this::reloadTransactionsKeepingSelection, this::createRuleFromTransaction);
+        TransactionTableSetup.installContextMenu(transactionTable, transactionTableActions,
+                this::reloadTransactionsKeepingSelection, this::createRuleFromTransaction);
         setupTableColumns();
-        setupFutureTransactionRows();
+        TransactionTableSetup.installTransactionRowStyling(transactionTable, newTransactionState);
         TableCellTooltips.install(transactionTable);
         transactionFilterPanelController.setCollapsible(true);
         transactionFilterPanelController.restoreForView(SessionViewState.TRANSACTIONS_VIEW);
@@ -203,25 +207,6 @@ public class TransactionsController {
             return new SimpleStringProperty(text);
         });
         labelsColumn.setCellFactory(column -> createLabelChipCell(this::onSetLabels));
-    }
-
-    private void setupFutureTransactionRows() {
-        var existingRowFactory = transactionTable.getRowFactory();
-        transactionTable.setRowFactory(table -> {
-            TableRow<Transaction> row = existingRowFactory == null
-                    ? new TableRow<>() : existingRowFactory.call(table);
-            row.itemProperty().addListener((observable, oldTransaction, newTransaction) ->
-                    updateFutureTransactionStyle(row, newTransaction));
-            updateFutureTransactionStyle(row, row.getItem());
-            return row;
-        });
-    }
-
-    private void updateFutureTransactionStyle(TableRow<Transaction> row, Transaction transaction) {
-        row.getStyleClass().remove("future-transaction-row");
-        if (isFutureTransaction(transaction)) {
-            row.getStyleClass().add("future-transaction-row");
-        }
     }
 
     private boolean isFutureTransaction(Transaction transaction) {
