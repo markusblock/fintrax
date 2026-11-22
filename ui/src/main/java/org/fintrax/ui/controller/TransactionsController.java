@@ -88,13 +88,13 @@ public class TransactionsController {
     private final TransactionTableActions transactionTableActions;
 
     private final ObservableList<Transaction> tableData = FXCollections.observableArrayList();
-    private final SettledTransactionIds settledTransactionIds;
+    private final NewTransactionState newTransactionState;
 
     public TransactionsController(TransactionService transactionService, AccountService accountService,
                                   CategoryService categoryService, LabelService labelService,
                                   SettingsService settingsService, RuleService ruleService,
                                   ViewLoader viewLoader, TransactionTableActions transactionTableActions,
-                                  SettledTransactionIds settledTransactionIds) {
+                                  NewTransactionState newTransactionState) {
         this.transactionService = transactionService;
         this.accountService = accountService;
         this.categoryService = categoryService;
@@ -103,7 +103,7 @@ public class TransactionsController {
         this.ruleService = ruleService;
         this.viewLoader = viewLoader;
         this.transactionTableActions = transactionTableActions;
-        this.settledTransactionIds = settledTransactionIds;
+        this.newTransactionState = newTransactionState;
     }
 
     @FXML
@@ -121,18 +121,7 @@ public class TransactionsController {
         TransactionTableSetup.installContextMenu(transactionTable, transactionTableActions,
                 this::reloadTransactionsKeepingSelection, this::createRuleFromTransaction);
         setupTableColumns();
-        TransactionTableSetup.addSharedStyler((row, tx) -> {
-            row.getStyleClass().remove("new-transaction-row");
-            row.getStyleClass().remove("future-transaction-row");
-            if (tx != null && tx.getId() != null && !settledTransactionIds.isSettled(tx.getId())) {
-                row.getStyleClass().add("new-transaction-row");
-            }
-            if (isFutureTransaction(tx)) {
-                row.getStyleClass().add("future-transaction-row");
-            }
-        });
-        TransactionTableSetup.buildSharedRowStyle(transactionTable);
-        installSelectionListener();
+        TransactionTableSetup.installTransactionRowStyling(transactionTable, newTransactionState);
         TableCellTooltips.install(transactionTable);
         transactionFilterPanelController.setCollapsible(true);
         transactionFilterPanelController.restoreForView(SessionViewState.TRANSACTIONS_VIEW);
@@ -223,16 +212,6 @@ public class TransactionsController {
     private boolean isFutureTransaction(Transaction transaction) {
         return transaction != null && transaction.getBookingDate() != null
                 && transaction.getBookingDate().isAfter(LocalDate.now());
-    }
-
-    private void installSelectionListener() {
-        transactionTable.getSelectionModel().selectedItemProperty().addListener((observable, oldTransaction,
-                                                                                newTransaction) -> {
-            if (oldTransaction != null && oldTransaction.getId() != null) {
-                settledTransactionIds.settle(oldTransaction.getId());
-            }
-            Platform.runLater(transactionTable::refresh);
-        });
     }
 
     private void setupDateColumn(TableColumn<Transaction, LocalDate> column,

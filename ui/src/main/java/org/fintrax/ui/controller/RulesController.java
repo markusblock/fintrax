@@ -9,7 +9,6 @@ import javafx.collections.transformation.SortedList;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.control.*;
-import javafx.application.Platform;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
@@ -103,7 +102,7 @@ public class RulesController {
     private final ObservableList<Rule> ruleData = FXCollections.observableArrayList();
     private final ObservableList<Transaction> displayedTransactions = FXCollections.observableArrayList();
     private TransactionTableSetup transactionTableSetup;
-    private SettledTransactionIds settledTransactionIds;
+    private NewTransactionState newTransactionState;
     private Long selectedRuleId;
     private List<Transaction> selectedRuleTransactions = List.of();
     private Map<Long, List<RuleMatchSummary.MatchingRule>> matchingRulesByTransactionId = Map.of();
@@ -112,7 +111,7 @@ public class RulesController {
                            CategoryService categoryService, LabelService labelService,
                            SettingsService settingsService, TransactionService transactionService,
                            TransactionTableActions transactionTableActions, ViewLoader viewLoader,
-                           SessionViewState sessionViewState, SettledTransactionIds settledTransactionIds) {
+                           SessionViewState sessionViewState, NewTransactionState newTransactionState) {
         this.ruleService = ruleService;
         this.accountService = accountService;
         this.categoryService = categoryService;
@@ -122,7 +121,7 @@ public class RulesController {
         this.transactionTableActions = transactionTableActions;
         this.viewLoader = viewLoader;
         this.sessionViewState = sessionViewState;
-        this.settledTransactionIds = settledTransactionIds;
+        this.newTransactionState = newTransactionState;
     }
 
     @FXML
@@ -184,24 +183,13 @@ public class RulesController {
         });
         loadRules();
         setupTransactionTable();
-        installSelectionListener(ruleTransactionsTable);
         setupRuleMatchColumns();
         TableCellTooltips.install(ruleTransactionsTable);
         transactionWorkspaceController.setTableItems(displayedTransactions);
         setupColumnMenu();
         TransactionTableSetup.installContextMenu(ruleTransactionsTable, transactionTableActions,
                 this::reloadSelectedTransactionsKeepingSelection, null);
-        TransactionTableSetup.addSharedStyler((row, tx) -> {
-            row.getStyleClass().remove("new-transaction-row");
-            row.getStyleClass().remove("future-transaction-row");
-            if (tx != null && tx.getId() != null && !settledTransactionIds.isSettled(tx.getId())) {
-                row.getStyleClass().add("new-transaction-row");
-            }
-            if (tx != null && tx.getBookingDate() != null && tx.getBookingDate().isAfter(LocalDate.now())) {
-                row.getStyleClass().add("future-transaction-row");
-            }
-        });
-        TransactionTableSetup.buildSharedRowStyle(ruleTransactionsTable);
+        TransactionTableSetup.installTransactionRowStyling(ruleTransactionsTable, newTransactionState);
         transactionFilterPanelController.setCollapsible(true);
         transactionFilterPanelController.restoreForView(
                 SessionViewState.RULES_VIEW, TransactionDateFilters.Preset.ALL_TIME);
@@ -226,15 +214,6 @@ public class RulesController {
                 accountService, categoryService, labelService);
         transactionTableSetup.configure();
         transactionWorkspaceController.attachDetails(Set.of());
-    }
-
-    private void installSelectionListener(TableView<Transaction> table) {
-        table.getSelectionModel().selectedItemProperty().addListener((observable, oldTx, newTx) -> {
-            if (oldTx != null && oldTx.getId() != null) {
-                settledTransactionIds.settle(oldTx.getId());
-            }
-            Platform.runLater(table::refresh);
-        });
     }
 
     private void setupRuleMatchColumns() {

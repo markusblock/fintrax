@@ -6,11 +6,10 @@ import javafx.geometry.Pos;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
-import javafx.scene.layout.Priority;
-import javafx.scene.Node;
-import javafx.collections.ListChangeListener;
-import javafx.beans.binding.Bindings;
+import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
 import org.fintrax.config.I18n;
 import org.fintrax.model.Category;
 import org.fintrax.model.Transaction;
@@ -18,9 +17,8 @@ import org.fintrax.service.AccountService;
 import org.fintrax.service.CategoryService;
 import org.fintrax.service.LabelService;
 import org.fintrax.service.SettingsService;
-import org.fintrax.ui.controller.SettledTransactionIds;
+import org.fintrax.ui.controller.NewTransactionState;
 import org.fintrax.ui.controller.TransactionTableActions;
-import org.fintrax.ui.controller.SettledTransactionIds;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -199,32 +197,41 @@ public final class TransactionTableSetup {
         });
     }
 
-    /** Shared registry of row-style callbacks (BiConsumer<row, tx>) applied to every transaction table. */
-    private static final List<java.util.function.BiConsumer<javafx.scene.control.TableRow<Transaction>, Transaction>> sharedStylers = new ArrayList<>();
-
-    /** Register a per-row transaction style callback. All tables apply all registered stylers. */
-    public static void addSharedStyler(java.util.function.BiConsumer<javafx.scene.control.TableRow<Transaction>, Transaction> styler) {
-        sharedStylers.add(styler);
-    }
-
     /** Install context menu on the shared transaction table. Wraps any existing row factory. */
     public static void installContextMenu(TableView<Transaction> table, TransactionTableActions actions,
                                           Runnable afterEdit, java.util.function.Consumer<Transaction> createRule) {
         actions.installContextMenu(table, afterEdit, createRule);
     }
 
-    /** Build/refresh row styling for this TableView — applies ALL shared stylers to each visible row. */
-    public static void buildSharedRowStyle(TableView<Transaction> table) {
+    /** Applies shared booking-date styling and session-local unread styling to one transaction table. */
+    public static void installTransactionRowStyling(TableView<Transaction> table,
+                                                   NewTransactionState newTransactionState) {
         var existingFactory = table.getRowFactory();
         table.setRowFactory(tableView -> {
-            javafx.scene.control.TableRow<Transaction> row = existingFactory == null
-                    ? new javafx.scene.control.TableRow<>() : existingFactory.call(tableView);
-            row.itemProperty().addListener((observable, oldTx, newTx) -> {
-                for (var s : sharedStylers) {
-                    s.accept(row, newTx);
+            TableRow<Transaction> row = existingFactory == null
+                    ? new TableRow<>() : existingFactory.call(tableView);
+            row.itemProperty().addListener((observable, oldTransaction, transaction) ->
+                    updateTransactionRowStyle(row, transaction, newTransactionState));
+            row.addEventFilter(MouseEvent.MOUSE_CLICKED, event -> {
+                if (event.getButton() == MouseButton.PRIMARY && !row.isEmpty()
+                        && newTransactionState.markViewed(row.getItem().getId())) {
+                    updateTransactionRowStyle(row, row.getItem(), newTransactionState);
                 }
             });
+            updateTransactionRowStyle(row, row.getItem(), newTransactionState);
             return row;
         });
+    }
+
+    private static void updateTransactionRowStyle(TableRow<Transaction> row, Transaction transaction,
+                                                  NewTransactionState newTransactionState) {
+        row.getStyleClass().removeAll("new-transaction-row", "future-transaction-row");
+        if (transaction == null) return;
+        if (newTransactionState.isUnviewedNew(transaction.getId())) {
+            row.getStyleClass().add("new-transaction-row");
+        }
+        if (transaction.getBookingDate() != null && transaction.getBookingDate().isAfter(LocalDate.now())) {
+            row.getStyleClass().add("future-transaction-row");
+        }
     }
 }

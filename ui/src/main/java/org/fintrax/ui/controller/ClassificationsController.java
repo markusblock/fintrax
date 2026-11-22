@@ -1,6 +1,5 @@
 package org.fintrax.ui.controller;
 
-import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -91,7 +90,7 @@ public class ClassificationsController {
     private final Map<Long, TreeItem<String>> labelItemsById = new HashMap<>();
     private final ObservableList<Transaction> displayedTransactions = FXCollections.observableArrayList();
     private TransactionTableSetup transactionTableSetup;
-    private SettledTransactionIds settledTransactionIds;
+    private NewTransactionState newTransactionState;
     private final ContextMenu classificationContextMenu = new ContextMenu();
     private final MenuItem addCategoryMenuItem = new MenuItem();
     private final MenuItem addLabelMenuItem = new MenuItem();
@@ -109,7 +108,7 @@ public class ClassificationsController {
                                   AccountService accountService,
                                   TransactionTableActions transactionTableActions,
                                   SessionViewState sessionViewState,
-                                  SettledTransactionIds settledTransactionIds) {
+                                  NewTransactionState newTransactionState) {
         this.categoryService = categoryService;
         this.labelService = labelService;
         this.settingsService = settingsService;
@@ -117,7 +116,7 @@ public class ClassificationsController {
         this.accountService = accountService;
         this.transactionTableActions = transactionTableActions;
         this.sessionViewState = sessionViewState;
-        this.settledTransactionIds = settledTransactionIds;
+        this.newTransactionState = newTransactionState;
     }
 
     @FXML
@@ -137,23 +136,12 @@ public class ClassificationsController {
         configureContextMenu();
         classificationTree.setCellFactory(this::createClassificationCell);
         setupTransactionTable();
-        installSelectionListener(classificationTransactionsTable);
         TableCellTooltips.install(classificationTransactionsTable);
         transactionWorkspaceController.setTableItems(displayedTransactions);
         setupColumnMenu();
         TransactionTableSetup.installContextMenu(classificationTransactionsTable, transactionTableActions,
                 this::reloadSelectedTransactionsKeepingSelection, null);
-        TransactionTableSetup.addSharedStyler((row, tx) -> {
-            row.getStyleClass().remove("new-transaction-row");
-            row.getStyleClass().remove("future-transaction-row");
-            if (tx != null && tx.getId() != null && !settledTransactionIds.isSettled(tx.getId())) {
-                row.getStyleClass().add("new-transaction-row");
-            }
-            if (tx != null && tx.getBookingDate() != null && tx.getBookingDate().isAfter(LocalDate.now())) {
-                row.getStyleClass().add("future-transaction-row");
-            }
-        });
-        TransactionTableSetup.buildSharedRowStyle(classificationTransactionsTable);
+        TransactionTableSetup.installTransactionRowStyling(classificationTransactionsTable, newTransactionState);
         transactionFilterPanelController.setCollapsible(true);
         transactionFilterPanelController.restoreForView(SessionViewState.CLASSIFICATIONS_VIEW);
         transactionFilterPanelController.setOnFiltersChanged(this::reloadSelectedTransactionsKeepingSelection);
@@ -184,15 +172,6 @@ public class ClassificationsController {
                         this::reloadSelectedTransactionsKeepingSelection)));
         transactionWorkspaceController.attachDetails(
                 Set.of(transactionTableSetup.categoryColumn(), transactionTableSetup.labelsColumn()));
-    }
-
-    private void installSelectionListener(TableView<Transaction> table) {
-        table.getSelectionModel().selectedItemProperty().addListener((observable, oldTx, newTx) -> {
-            if (oldTx != null && oldTx.getId() != null) {
-                settledTransactionIds.settle(oldTx.getId());
-            }
-            Platform.runLater(table::refresh);
-        });
     }
 
     private TableCell<Transaction, String> createAssignmentCell(java.util.function.Consumer<Node> openSelection) {

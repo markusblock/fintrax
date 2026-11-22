@@ -182,6 +182,10 @@ class BankAccountsControllerTest extends AbstractUITest {
                 .matchingTransactions().size());
         Platform.runLater(() -> controller.showSyncReport(List.of(successfulResult, failedResult), Map.of()));
         WaitForAsyncUtils.waitForFxEvents();
+        assertTrue(applicationContext.getBean(NewTransactionState.class)
+                .isUnviewedNew(newTransaction.getId()));
+        assertFalse(applicationContext.getBean(NewTransactionState.class)
+                .isUnviewedNew(olderTransaction.getId()));
 
         Button applyRules = lookup("#applyRulesToNewTransactions").query();
         clickOn(applyRules);
@@ -245,7 +249,8 @@ class BankAccountsControllerTest extends AbstractUITest {
                     applicationContext.getBean(ViewLoader.class), applicationContext.getBean(RuleService.class),
                     applicationContext.getBean(CategoryService.class), applicationContext.getBean(
                             org.fintrax.service.LabelService.class), applicationContext.getBean(
-                            org.fintrax.service.SettingsService.class));
+                            org.fintrax.service.SettingsService.class),
+                    applicationContext.getBean(NewTransactionState.class));
             List<SyncProgressDialog.Account> progressAccounts = List.of(
                     new SyncProgressDialog.Account(account.getId(), "Sync Bank", ""),
                     new SyncProgressDialog.Account(failedAccount.getId(), "Offline Bank", ""),

@@ -53,7 +53,9 @@ import org.fintrax.service.LabelService;
 import org.fintrax.service.RuleService;
 import org.fintrax.service.SettingsService;
 import org.fintrax.service.TransactionService;
+import org.fintrax.ui.controller.NewTransactionState;
 import org.kordamp.ikonli.javafx.FontIcon;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.testfx.util.WaitForAsyncUtils;
 
@@ -81,6 +83,13 @@ class TransactionsControllerTest extends AbstractUITest {
     private Transaction testCategoryTransaction;
     private Transaction detailSparseTransaction;
     private Transaction futureTransaction;
+
+    @AfterEach
+    void clearTestNewTransaction() {
+        if (testCategoryTransaction != null) {
+            applicationContext.getBean(NewTransactionState.class).markViewed(testCategoryTransaction.getId());
+        }
+    }
 
     @Override
     public void start(Stage stage) throws Exception {
@@ -126,6 +135,7 @@ class TransactionsControllerTest extends AbstractUITest {
                     .build());
             if (i == 0) detailSparseTransaction = transaction;
         }
+        applicationContext.getBean(NewTransactionState.class).markNew(List.of(testCategoryTransaction.getId()));
 
         Parent root = applicationContext.getBean(ViewLoader.class).load("transactions");
         Scene scene = new Scene(root, 1024, 768);
@@ -223,6 +233,37 @@ class TransactionsControllerTest extends AbstractUITest {
 
         showTransactionDetail(futureTransaction);
         assertEquals("", detailText("#balanceValue"));
+    }
+
+    @Test
+    void clickingNewTransactionRemovesBoldFromThatRow() throws TimeoutException {
+        TableView<Transaction> table = lookup("#transactionTable").query();
+        int rowIndex = table.getItems().indexOf(testCategoryTransaction);
+        scrollToRow(table, rowIndex);
+        WaitForAsyncUtils.waitForFxEvents();
+        TableRow<Transaction> row = rowFor(table, rowIndex);
+        TableColumn<?, ?> payeeColumn = table.getColumns().stream()
+                .filter(column -> I18n.get("col.payee").equals(column.getText()))
+                .findFirst().orElseThrow();
+        interact(table::applyCss);
+        WaitForAsyncUtils.waitForFxEvents();
+
+        assertTrue(transactionCell(table, payeeColumn, testCategoryTransaction)
+                .getFont().getStyle().contains("Bold"));
+
+        interact(() -> Event.fireEvent(row, new MouseEvent(MouseEvent.MOUSE_CLICKED,
+                1, 1, 1, 1, MouseButton.PRIMARY, 1,
+                false, false, false, false,
+                false, false, false, true, false, true,
+                new PickResult(row, 1, 1))));
+        WaitForAsyncUtils.waitForFxEvents();
+
+        assertFalse(applicationContext.getBean(NewTransactionState.class)
+                .isUnviewedNew(testCategoryTransaction.getId()));
+        interact(table::applyCss);
+        WaitForAsyncUtils.waitForFxEvents();
+        assertFalse(transactionCell(table, payeeColumn, testCategoryTransaction)
+                .getFont().getStyle().contains("Bold"));
     }
 
     @Test

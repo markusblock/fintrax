@@ -101,6 +101,7 @@ public class HibiscusXmlImporter {
 
             DataRoot root = storeManager.getRoot();
             int transactionsCreated = 0;
+            List<Long> newTransactionIds = new ArrayList<>();
             int categoriesCreated = 0;
             int rulesCreated = 0;
             int activitiesCreated = 0;
@@ -232,6 +233,7 @@ public class HibiscusXmlImporter {
                             .updatedAt(LocalDateTime.now())
                             .build();
                     root.getTransactions().add(tx);
+                    newTransactionIds.add(newId);
                     importedTransactionFingerprints.add(fingerprint);
                     if (checksum == null) {
                         importedTransactionsWithoutChecksum.add(fingerprint);
@@ -320,7 +322,7 @@ public class HibiscusXmlImporter {
 
             ImportResult result = new ImportResult(
                     accountsCreated, transactionsCreated, categoriesCreated,
-                    rulesCreated, activitiesCreated);
+                    rulesCreated, activitiesCreated, newTransactionIds);
             log.info("Import complete: {}", result);
             return result;
 
@@ -674,14 +676,22 @@ public class HibiscusXmlImporter {
         private final int categoriesImported;
         private final int rulesImported;
         private final int activityLogsImported;
+        private final List<Long> newTransactionIds;
 
         public ImportResult(int accountsImported, int transactionsImported, int categoriesImported,
                             int rulesImported, int activityLogsImported) {
+            this(accountsImported, transactionsImported, categoriesImported, rulesImported,
+                    activityLogsImported, List.of());
+        }
+
+        public ImportResult(int accountsImported, int transactionsImported, int categoriesImported,
+                            int rulesImported, int activityLogsImported, List<Long> newTransactionIds) {
             this.accountsImported = accountsImported;
             this.transactionsImported = transactionsImported;
             this.categoriesImported = categoriesImported;
             this.rulesImported = rulesImported;
             this.activityLogsImported = activityLogsImported;
+            this.newTransactionIds = List.copyOf(newTransactionIds);
         }
 
         @Override
